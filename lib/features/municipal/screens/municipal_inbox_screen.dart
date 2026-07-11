@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
-import '../../../models/report_severity.dart';
-import '../../../models/report_status.dart';
 import '../models/incoming_report.dart';
 import '../widgets/municipal_scaffold.dart';
 import '../widgets/municipal_state_message.dart';
+import '../widgets/status_badge.dart';
 
 /// MUN-002 — Incoming Reports (Figma section "02 - Incoming Messages").
 ///
@@ -33,6 +32,7 @@ class MunicipalInboxScreen extends StatefulWidget {
     super.key,
     this.initialState = MunicipalInboxViewState.loaded,
     this.onNavigateToDashboard,
+    this.onReportTap,
   });
 
   /// Testing hook: defaults to the normal loaded view. Pass a different
@@ -43,6 +43,9 @@ class MunicipalInboxScreen extends StatefulWidget {
   /// Wired by the app shell so the bottom nav can actually switch screens
   /// now that both MUN-001 and MUN-002 exist.
   final VoidCallback? onNavigateToDashboard;
+
+  /// Wired by the app shell to navigate to MUN-003 Report Review.
+  final ValueChanged<IncomingReportItem>? onReportTap;
 
   @override
   State<MunicipalInboxScreen> createState() => _MunicipalInboxScreenState();
@@ -125,6 +128,7 @@ class _MunicipalInboxScreenState extends State<MunicipalInboxScreen> {
           onCategorySelected: (category) =>
               setState(() => _selectedCategory = category),
           onClearFilters: _clearFilters,
+          onReportTap: widget.onReportTap,
         ),
         MunicipalInboxViewState.error => MunicipalStateMessage(
           icon: AppIcons.warning,
@@ -133,6 +137,7 @@ class _MunicipalInboxScreenState extends State<MunicipalInboxScreen> {
           message: 'Refresh the inbox or try again in a few minutes.',
           primaryActionLabel: 'Try again',
           onPrimaryAction: _retry,
+          primaryActionColor: AppColors.error,
           bordered: true,
         ),
         MunicipalInboxViewState.offline => MunicipalStateMessage(
@@ -142,6 +147,7 @@ class _MunicipalInboxScreenState extends State<MunicipalInboxScreen> {
           message: 'Check your connection and retry loading incoming reports.',
           primaryActionLabel: 'Retry connection',
           onPrimaryAction: _retry,
+          primaryActionColor: AppColors.error,
           bordered: true,
         ),
         MunicipalInboxViewState.permissionDenied => MunicipalStateMessage(
@@ -178,6 +184,7 @@ class _InboxContent extends StatelessWidget {
     this.selectedCategory,
     this.onCategorySelected,
     this.onClearFilters,
+    this.onReportTap,
   });
 
   final bool loading;
@@ -188,6 +195,7 @@ class _InboxContent extends StatelessWidget {
   final ReportCategory? selectedCategory;
   final ValueChanged<ReportCategory?>? onCategorySelected;
   final VoidCallback? onClearFilters;
+  final ValueChanged<IncomingReportItem>? onReportTap;
 
   @override
   Widget build(BuildContext context) {
@@ -233,7 +241,7 @@ class _InboxContent extends StatelessWidget {
               ? const _InboxEmpty()
               : isNoResults
               ? _InboxNoResults(onClearFilters: onClearFilters)
-              : _ReportList(reports: filteredReports),
+              : _ReportList(reports: filteredReports, onReportTap: onReportTap),
         ),
       ],
     );
@@ -430,9 +438,10 @@ class _FilterTag extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _ReportList extends StatelessWidget {
-  const _ReportList({required this.reports});
+  const _ReportList({required this.reports, this.onReportTap});
 
   final List<IncomingReportItem> reports;
+  final ValueChanged<IncomingReportItem>? onReportTap;
 
   @override
   Widget build(BuildContext context) {
@@ -440,15 +449,19 @@ class _ReportList extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.md),
       itemCount: reports.length,
       separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
-      itemBuilder: (context, index) => _ReportCard(report: reports[index]),
+      itemBuilder: (context, index) => _ReportCard(
+        report: reports[index],
+        onTap: onReportTap == null ? null : () => onReportTap!(reports[index]),
+      ),
     );
   }
 }
 
 class _ReportCard extends StatelessWidget {
-  const _ReportCard({required this.report});
+  const _ReportCard({required this.report, this.onTap});
 
   final IncomingReportItem report;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -462,8 +475,7 @@ class _ReportCard extends StatelessWidget {
       ),
       child: InkWell(
         borderRadius: AppComponentRadius.card,
-        // MUN-003 Report Review isn't built yet — wire up once it exists.
-        onTap: () {},
+        onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.md),
           child: Column(
@@ -477,8 +489,8 @@ class _ReportCard extends StatelessWidget {
                       spacing: AppSpacing.xs,
                       runSpacing: AppSpacing.xs,
                       children: [
-                        _SeverityBadge(severity: report.severity),
-                        _ReportStatusBadge(status: report.status),
+                        ReportSeverityBadge(severity: report.severity),
+                        ReportStatusBadge(status: report.status),
                       ],
                     ),
                   ),
@@ -566,58 +578,6 @@ class _CategoryTag extends StatelessWidget {
       child: Text(
         category.label,
         style: Theme.of(context).textTheme.labelMedium,
-      ),
-    );
-  }
-}
-
-class _SeverityBadge extends StatelessWidget {
-  const _SeverityBadge({required this.severity});
-
-  final ReportSeverity severity;
-
-  @override
-  Widget build(BuildContext context) {
-    final brightness = Theme.of(context).brightness;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-      decoration: BoxDecoration(
-        color: severity.color.withValues(alpha: 0.12),
-        border: Border.all(color: severity.color.withValues(alpha: 0.24)),
-        borderRadius: AppRadius.allXl,
-      ),
-      child: Text(
-        severity.label,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: severity.badgeTextColor(brightness),
-          fontWeight: AppFontWeight.semiBold,
-        ),
-      ),
-    );
-  }
-}
-
-class _ReportStatusBadge extends StatelessWidget {
-  const _ReportStatusBadge({required this.status});
-
-  final ReportStatus status;
-
-  @override
-  Widget build(BuildContext context) {
-    final brightness = Theme.of(context).brightness;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-      decoration: BoxDecoration(
-        color: status.color.withValues(alpha: 0.12),
-        border: Border.all(color: status.color.withValues(alpha: 0.24)),
-        borderRadius: AppRadius.allXl,
-      ),
-      child: Text(
-        status.label,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: status.badgeTextColor(brightness),
-          fontWeight: AppFontWeight.semiBold,
-        ),
       ),
     );
   }
@@ -758,9 +718,12 @@ class _InboxNoResults extends StatelessWidget {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: AppSpacing.lg),
-          FilledButton(
-            onPressed: onClearFilters,
-            child: const Text('Clear all filters'),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: onClearFilters,
+              child: const Text('Clear all filters'),
+            ),
           ),
         ],
       ),

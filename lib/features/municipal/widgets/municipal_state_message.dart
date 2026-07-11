@@ -18,6 +18,7 @@ class MunicipalStateMessage extends StatelessWidget {
     this.badgeColor,
     this.primaryActionLabel,
     this.onPrimaryAction,
+    this.primaryActionColor,
     this.secondaryActionLabel,
     this.onSecondaryAction,
     this.bordered = false,
@@ -32,6 +33,12 @@ class MunicipalStateMessage extends StatelessWidget {
   final String message;
   final String? primaryActionLabel;
   final VoidCallback? onPrimaryAction;
+
+  /// Overrides the primary button's fill color. Confirmed against MUN-002
+  /// and MUN-003's approved Error/Offline frames: retry-style actions use
+  /// [AppColors.error] there, consistently, rather than the default
+  /// primary blue — Permission's "Request Access" stays blue (the default).
+  final Color? primaryActionColor;
   final String? secondaryActionLabel;
   final VoidCallback? onSecondaryAction;
   final bool bordered;
@@ -67,6 +74,9 @@ class MunicipalStateMessage extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             child: FilledButton(
+              style: primaryActionColor == null
+                  ? null
+                  : FilledButton.styleFrom(backgroundColor: primaryActionColor),
               onPressed: onPrimaryAction,
               child: Text(primaryActionLabel!),
             ),

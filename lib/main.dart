@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'core/theme/app_theme.dart';
 import 'features/municipal/screens/municipal_dashboard_screen.dart';
 import 'features/municipal/screens/municipal_inbox_screen.dart';
+import 'features/municipal/screens/municipal_report_review_screen.dart';
 
 void main() {
   runApp(const CivicVoiceApp());
@@ -49,6 +50,18 @@ class _MunicipalRootState extends State<_MunicipalRoot> {
       _MunicipalScreen.inbox => MunicipalInboxScreen(
         onNavigateToDashboard: () =>
             setState(() => _current = _MunicipalScreen.dashboard),
+        // Report Review is a drill-down detail screen, not a tab
+        // destination, so it's pushed as a real route rather than switching
+        // _current.
+        onReportTap: (report) => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => MunicipalReportReviewScreen(
+              referenceId: report.referenceId,
+              status: report.status,
+              onBack: () => Navigator.of(context).pop(),
+            ),
+          ),
+        ),
       ),
     };
   }

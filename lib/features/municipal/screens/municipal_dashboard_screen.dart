@@ -85,6 +85,7 @@ class _MunicipalDashboardScreenState extends State<MunicipalDashboardScreen> {
               'Refresh the dashboard or try again in a few minutes.',
           primaryActionLabel: 'Try again',
           onPrimaryAction: _retry,
+          primaryActionColor: AppColors.error,
           bordered: true,
         ),
         MunicipalDashboardViewState.offline => MunicipalStateMessage(
@@ -95,6 +96,7 @@ class _MunicipalDashboardScreenState extends State<MunicipalDashboardScreen> {
               'Showing saved dashboard content until your connection returns.',
           primaryActionLabel: 'Retry connection',
           onPrimaryAction: _retry,
+          primaryActionColor: AppColors.error,
           bordered: true,
         ),
         MunicipalDashboardViewState.permissionDenied => MunicipalStateMessage(

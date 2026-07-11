@@ -193,14 +193,18 @@ class _NavItem extends StatelessWidget {
         ? Colors.white
         : (isDark ? AppColorsDark.secondaryText : AppColorsLight.secondaryText);
 
-    return Material(
-      color: isSelected ? AppColors.primary : Colors.transparent,
-      borderRadius: AppRadius.allLg,
-      child: InkWell(
+    // The selected pill is inset within the 80px bar (not edge-to-edge) —
+    // matches the approved Figma spec (80px bar containing a 64px pill) and
+    // Material 3's own indicator convention: a compact floating capsule,
+    // not a block that fills the whole nav bar height.
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+      child: Material(
+        color: isSelected ? AppColors.primary : Colors.transparent,
         borderRadius: AppRadius.allLg,
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+        child: InkWell(
+          borderRadius: AppRadius.allLg,
+          onTap: onTap,
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [

@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:civic_voice/core/theme/app_theme.dart';
+import 'package:civic_voice/features/municipal/models/incoming_report.dart';
 import 'package:civic_voice/features/municipal/screens/municipal_dashboard_screen.dart';
 import 'package:civic_voice/features/municipal/screens/municipal_inbox_screen.dart';
+import 'package:civic_voice/features/municipal/screens/municipal_report_review_screen.dart';
 
 void main() {
   testWidgets('Municipal Dashboard renders its loaded state', (
@@ -179,4 +181,101 @@ void main() {
       expect(find.text('Traffic Light Malfunction'), findsOneWidget);
     },
   );
+
+  for (final state in MunicipalReportReviewViewState.values) {
+    testWidgets('Municipal Report Review renders ${state.name} without error', (
+      WidgetTester tester,
+    ) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: MunicipalReportReviewScreen(initialState: state),
+        ),
+      );
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets('Municipal Report Review shows the full report in its loaded state', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: const MunicipalReportReviewScreen(
+          initialState: MunicipalReportReviewViewState.loaded,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Report Review'), findsOneWidget);
+    expect(find.text('#REQ-8421'), findsOneWidget);
+    expect(find.text('John Smith'), findsOneWidget);
+    expect(find.text('Pothole on Main St.'), findsOneWidget);
+    expect(find.text('Evidence (2)'), findsOneWidget);
+    expect(find.text('Reject'), findsOneWidget);
+    expect(find.text('Verify Report'), findsOneWidget);
+  });
+
+  testWidgets(
+    'Municipal Report Review No-Evidence shows the inline empty state',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: const MunicipalReportReviewScreen(
+            initialState: MunicipalReportReviewViewState.noEvidence,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Evidence (0)'), findsOneWidget);
+      expect(find.text('No photos attached'), findsOneWidget);
+    },
+  );
+
+  testWidgets('Tapping an Incoming Report navigates to Report Review', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    IncomingReportItem? tapped;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: MunicipalInboxScreen(
+          initialState: MunicipalInboxViewState.loaded,
+          onReportTap: (report) => tapped = report,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Traffic Light Malfunction'));
+    await tester.pumpAndSettle();
+
+    expect(tapped, isNotNull);
+    expect(tapped!.title, 'Traffic Light Malfunction');
+  });
 }
