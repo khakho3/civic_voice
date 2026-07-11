@@ -52,9 +52,32 @@ abstract final class AppColorsLight {
   /// analytics charts, and large text sections.
   static const Color glassSurface = Color.fromRGBO(255, 255, 255, 0.65);
 
+  /// Card-specific glass opacity (CL-001 "Card Opacity", pending formal
+  /// definition). Denser card content needs more legibility than the generic
+  /// [glassSurface], so approved screens tint [primarySurface] at a higher,
+  /// near-opaque alpha instead. Confirmed against MUN-001 Dashboard
+  /// (Light: rgba(255,255,255,0.88); Dark: rgba(17,24,39,0.88)).
+  static const Color glassCardSurface = Color.fromRGBO(255, 255, 255, 0.88);
+
+  /// Navigation-specific glass opacity (CL-001 "Navigation Opacity", pending
+  /// formal definition). Sourced from MUN-001 Dashboard (Header/BottomNav:
+  /// rgba(248,250,252,0.82), i.e. [canvas] at 0.82 alpha).
+  static const Color glassNavSurface = Color.fromRGBO(248, 250, 252, 0.82);
+
   static const Color primaryText = Color(0xFF0F172A);
   static const Color secondaryText = Color(0xFF475569);
   static const Color border = Color(0xFFE2E8F0);
+
+  /// Translucent hairline border used on glass surfaces (cards, glass
+  /// buttons, navigation) instead of the solid [border] token — sourced from
+  /// MUN-001 Dashboard (rgba(148,163,184,0.32)). Not yet formalized in the
+  /// Design System Requirements; verify against additional approved screens.
+  static const Color glassBorder = Color.fromRGBO(148, 163, 184, 0.32);
+
+  /// Subtle primary-tint background for small icon badges (stat icons, brand
+  /// mark). Sourced from MUN-001 Dashboard (#DBEAFE) — a distinct swatch, not
+  /// an alpha blend of [AppColors.primary].
+  static const Color iconBadgeSurface = Color(0xFFDBEAFE);
 }
 
 /// Dark theme surface, text, and border tokens — §19.3 "Dark Theme".
@@ -68,9 +91,27 @@ abstract final class AppColorsDark {
   /// rgba(15,23,42,0.75) — see [AppColorsLight.glassSurface] usage rules.
   static const Color glassSurface = Color.fromRGBO(15, 23, 42, 0.75);
 
+  /// See [AppColorsLight.glassCardSurface] — [primarySurface] tinted at the
+  /// same 0.88 alpha. Confirmed against MUN-001 Dashboard (rgba(17,24,39,0.88)).
+  static const Color glassCardSurface = Color.fromRGBO(17, 24, 39, 0.88);
+
+  /// See [AppColorsLight.glassNavSurface] — [canvas] tinted at 0.82 alpha.
+  /// Confirmed against MUN-001 Dashboard (rgba(15,23,42,0.82)).
+  static const Color glassNavSurface = Color.fromRGBO(15, 23, 42, 0.82);
+
   static const Color primaryText = Color(0xFFF8FAFC);
   static const Color secondaryText = Color(0xFFCBD5E1);
   static const Color border = Color(0xFF334155);
+
+  /// See [AppColorsLight.glassBorder]. Confirmed against MUN-001 Dashboard —
+  /// dark uses [secondaryText] at a much lower alpha rather than reusing the
+  /// light theme's slate-400 value (rgba(203,213,225,0.18)).
+  static const Color glassBorder = Color.fromRGBO(203, 213, 225, 0.18);
+
+  /// See [AppColorsLight.iconBadgeSurface]. Confirmed against MUN-001
+  /// Dashboard: dark mode reuses [secondarySurface] as a flat fill rather
+  /// than a primary-tinted swatch (#1E293B, not an alpha blend).
+  static const Color iconBadgeSurface = Color(0xFF1E293B);
 }
 
 /// Glass-surface blur tokens.
@@ -105,6 +146,10 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
     required this.statusResolved,
     required this.statusRejected,
     required this.glassSurface,
+    required this.glassCardSurface,
+    required this.glassNavSurface,
+    required this.glassBorder,
+    required this.iconBadgeSurface,
   });
 
   final Color success;
@@ -118,6 +163,10 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
   final Color statusResolved;
   final Color statusRejected;
   final Color glassSurface;
+  final Color glassCardSurface;
+  final Color glassNavSurface;
+  final Color glassBorder;
+  final Color iconBadgeSurface;
 
   static const AppSemanticColors light = AppSemanticColors(
     success: AppColors.success,
@@ -131,6 +180,10 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
     statusResolved: AppColors.statusResolved,
     statusRejected: AppColors.statusRejected,
     glassSurface: AppColorsLight.glassSurface,
+    glassCardSurface: AppColorsLight.glassCardSurface,
+    glassNavSurface: AppColorsLight.glassNavSurface,
+    glassBorder: AppColorsLight.glassBorder,
+    iconBadgeSurface: AppColorsLight.iconBadgeSurface,
   );
 
   static const AppSemanticColors dark = AppSemanticColors(
@@ -145,6 +198,10 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
     statusResolved: AppColors.statusResolved,
     statusRejected: AppColors.statusRejected,
     glassSurface: AppColorsDark.glassSurface,
+    glassCardSurface: AppColorsDark.glassCardSurface,
+    glassNavSurface: AppColorsDark.glassNavSurface,
+    glassBorder: AppColorsDark.glassBorder,
+    iconBadgeSurface: AppColorsDark.iconBadgeSurface,
   );
 
   @override
@@ -160,6 +217,10 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
     Color? statusResolved,
     Color? statusRejected,
     Color? glassSurface,
+    Color? glassCardSurface,
+    Color? glassNavSurface,
+    Color? glassBorder,
+    Color? iconBadgeSurface,
   }) {
     return AppSemanticColors(
       success: success ?? this.success,
@@ -173,6 +234,10 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
       statusResolved: statusResolved ?? this.statusResolved,
       statusRejected: statusRejected ?? this.statusRejected,
       glassSurface: glassSurface ?? this.glassSurface,
+      glassCardSurface: glassCardSurface ?? this.glassCardSurface,
+      glassNavSurface: glassNavSurface ?? this.glassNavSurface,
+      glassBorder: glassBorder ?? this.glassBorder,
+      iconBadgeSurface: iconBadgeSurface ?? this.iconBadgeSurface,
     );
   }
 
@@ -193,6 +258,12 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
       statusResolved: Color.lerp(statusResolved, other.statusResolved, t)!,
       statusRejected: Color.lerp(statusRejected, other.statusRejected, t)!,
       glassSurface: Color.lerp(glassSurface, other.glassSurface, t)!,
+      glassCardSurface:
+          Color.lerp(glassCardSurface, other.glassCardSurface, t)!,
+      glassNavSurface: Color.lerp(glassNavSurface, other.glassNavSurface, t)!,
+      glassBorder: Color.lerp(glassBorder, other.glassBorder, t)!,
+      iconBadgeSurface:
+          Color.lerp(iconBadgeSurface, other.iconBadgeSurface, t)!,
     );
   }
 }

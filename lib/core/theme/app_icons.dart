@@ -35,6 +35,7 @@ abstract final class AppIcons {
   // Navigation & chrome.
   static const IconData home = LucideIcons.house;
   static const IconData dashboard = LucideIcons.layoutDashboard;
+  static const IconData inbox = LucideIcons.inbox;
   static const IconData menu = LucideIcons.menu;
   static const IconData back = LucideIcons.arrowLeft;
   static const IconData close = LucideIcons.x;
