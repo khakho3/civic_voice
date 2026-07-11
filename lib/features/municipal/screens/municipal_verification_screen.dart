@@ -1,0 +1,798 @@
+import 'package:flutter/material.dart';
+
+import '../../../core/theme/app_theme.dart';
+import '../../../models/report_status.dart';
+import '../models/verification_data.dart';
+import '../widgets/municipal_state_message.dart';
+import '../widgets/status_badge.dart';
+
+/// MUN-004 — Verify / Reject Report.
+///
+/// Approved states (Figma "04 - Report Verification" section): Default,
+/// Loading, Verified, Rejected, Failed, Error, Offline, Permission,
+/// Disabled.
+///
+/// Distinct from Report Review's Error/Offline: here "Failed" (Verification
+/// Failed) is specifically the verify/reject *submission* failing, separate
+/// from "Error" (Something went wrong), which is the report failing to
+/// *load* in the first place — two different failure points worth keeping
+/// distinct since they need different recovery actions ("Back to Report" vs
+/// "Return to Dashboard").
+enum MunicipalVerificationViewState {
+  loading,
+  loaded,
+  verified,
+  rejected,
+  failed,
+  error,
+  offline,
+  permissionDenied,
+  disabled,
+}
+
+class MunicipalVerificationScreen extends StatefulWidget {
+  const MunicipalVerificationScreen({
+    super.key,
+    this.referenceId = 'REQ-8421',
+    this.status = ReportStatus.submitted,
+    this.initialState = MunicipalVerificationViewState.loaded,
+    this.onBack,
+    this.onNavigateToDashboard,
+    this.onBackToInbox,
+    this.onAssignTeam,
+  });
+
+  final String referenceId;
+  final ReportStatus status;
+  final MunicipalVerificationViewState initialState;
+
+  /// Pops one level — wired to the header's back arrow only.
+  final VoidCallback? onBack;
+
+  /// Returns all the way to the Dashboard tab — distinct from [onBack],
+  /// which only pops one level (back to Report Review). Wired to every
+  /// "Return to Dashboard" / "Back to Dashboard" action.
+  final VoidCallback? onNavigateToDashboard;
+  final VoidCallback? onBackToInbox;
+  final VoidCallback? onAssignTeam;
+
+  @override
+  State<MunicipalVerificationScreen> createState() =>
+      _MunicipalVerificationScreenState();
+}
+
+class _MunicipalVerificationScreenState
+    extends State<MunicipalVerificationScreen> {
+  late MunicipalVerificationViewState _state = widget.initialState;
+  final VerificationData _data = VerificationData.mock();
+  final Set<int> _checked = {};
+  final _reasonController = TextEditingController();
+
+  /// Captured at submission time (the field is Optional) so the Rejected
+  /// confirmation message doesn't claim a reason was given when it wasn't.
+  bool _rejectedWithReason = false;
+
+  bool get _allConfirmed => _checked.length == _data.checklist.length;
+
+  @override
+  void dispose() {
+    _reasonController.dispose();
+    super.dispose();
+  }
+
+  void _toggleChecklistItem(int index) {
+    setState(() {
+      if (!_checked.add(index)) _checked.remove(index);
+    });
+  }
+
+  void _selectQuickReason(QuickRejectionReason reason) {
+    setState(() {
+      _reasonController.text = _reasonController.text == reason.label
+          ? ''
+          : reason.label;
+    });
+  }
+
+  void _submitVerify() {
+    setState(() => _state = MunicipalVerificationViewState.loading);
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (mounted) {
+        setState(() => _state = MunicipalVerificationViewState.verified);
+      }
+    });
+  }
+
+  void _submitReject() {
+    _rejectedWithReason = _reasonController.text.trim().isNotEmpty;
+    setState(() => _state = MunicipalVerificationViewState.loading);
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (mounted) {
+        setState(() => _state = MunicipalVerificationViewState.rejected);
+      }
+    });
+  }
+
+  void _retryLoad() {
+    setState(() => _state = MunicipalVerificationViewState.loading);
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (mounted) {
+        setState(() => _state = MunicipalVerificationViewState.loaded);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final showActionBar =
+        _state == MunicipalVerificationViewState.loaded ||
+        _state == MunicipalVerificationViewState.offline ||
+        _state == MunicipalVerificationViewState.disabled;
+    final formEnabled = _state == MunicipalVerificationViewState.loaded;
+
+    return Scaffold(
+      body: SafeArea(
+        child: Column(
+          children: [
+            _VerificationHeader(
+              referenceId: widget.referenceId,
+              status: widget.status,
+              onBack: widget.onBack,
+            ),
+            if (_state == MunicipalVerificationViewState.offline)
+              const _OfflineBanner(),
+            Expanded(
+              child: switch (_state) {
+                MunicipalVerificationViewState.loading =>
+                  const _LoadingSkeleton(),
+                MunicipalVerificationViewState.loaded => _VerificationForm(
+                  data: _data,
+                  enabled: true,
+                  checked: _checked,
+                  onToggle: _toggleChecklistItem,
+                  reasonController: _reasonController,
+                  onQuickReasonSelected: _selectQuickReason,
+                ),
+                MunicipalVerificationViewState.offline => _VerificationForm(
+                  data: _data,
+                  enabled: false,
+                  checked: _checked,
+                  onToggle: _toggleChecklistItem,
+                  reasonController: _reasonController,
+                  onQuickReasonSelected: _selectQuickReason,
+                  disabledCaption: 'Checklist disabled while offline.',
+                ),
+                MunicipalVerificationViewState.disabled => _VerificationForm(
+                  data: _data,
+                  enabled: false,
+                  checked: _checked,
+                  onToggle: _toggleChecklistItem,
+                  reasonController: _reasonController,
+                  onQuickReasonSelected: _selectQuickReason,
+                  // The approved frame reuses the Offline caption verbatim
+                  // here too, which reads as a copy/paste leftover (this
+                  // state shows no offline banner) — using accurate, generic
+                  // copy instead of a factually wrong "while offline" claim.
+                  disabledCaption:
+                      'This report is no longer available for review.',
+                ),
+                MunicipalVerificationViewState.verified => MunicipalStateMessage(
+                  icon: AppIcons.success,
+                  badgeColor: AppColors.success,
+                  title: 'Report Verified Successfully',
+                  message:
+                      'The report is now ready for maintenance assignment.',
+                  primaryActionLabel: 'Assign Maintenance Team',
+                  onPrimaryAction: widget.onAssignTeam,
+                  secondaryActionLabel: 'Back to Dashboard',
+                  onSecondaryAction: widget.onNavigateToDashboard,
+                  bordered: true,
+                ),
+                MunicipalVerificationViewState.rejected => MunicipalStateMessage(
+                  icon: AppIcons.success,
+                  badgeColor: AppColors.success,
+                  title: 'Report Rejected',
+                  message: _rejectedWithReason
+                      ? 'The citizen has been notified with the provided '
+                            'reason.'
+                      : 'The citizen has been notified of the rejection.',
+                  primaryActionLabel: 'Back to Inbox',
+                  onPrimaryAction: widget.onBackToInbox,
+                  secondaryActionLabel: 'Return to Dashboard',
+                  onSecondaryAction: widget.onNavigateToDashboard,
+                  bordered: true,
+                ),
+                MunicipalVerificationViewState.failed => MunicipalStateMessage(
+                  icon: AppIcons.warning,
+                  badgeColor: AppColors.error,
+                  primaryActionColor: AppColors.error,
+                  title: 'Verification Failed',
+                  message:
+                      'We couldn\'t submit the verification. Check your '
+                      'connection and try again.',
+                  primaryActionLabel: 'Try again',
+                  onPrimaryAction: _submitVerify,
+                  secondaryActionLabel: 'Back to Report',
+                  onSecondaryAction: () => setState(
+                    () => _state = MunicipalVerificationViewState.loaded,
+                  ),
+                  bordered: true,
+                ),
+                MunicipalVerificationViewState.error => MunicipalStateMessage(
+                  icon: AppIcons.warning,
+                  badgeColor: AppColors.error,
+                  primaryActionColor: AppColors.error,
+                  title: 'Something went wrong',
+                  message:
+                      'We encountered a network issue while loading this '
+                      'report. Please try again.',
+                  primaryActionLabel: 'Try again',
+                  onPrimaryAction: _retryLoad,
+                  secondaryActionLabel: 'Return to Dashboard',
+                  onSecondaryAction: widget.onNavigateToDashboard,
+                  bordered: true,
+                ),
+                MunicipalVerificationViewState.permissionDenied =>
+                  MunicipalStateMessage(
+                    icon: AppIcons.permissionDenied,
+                    badgeColor: AppColors.primary,
+                    title: 'Access Restricted',
+                    message:
+                        'You do not have permission to verify or reject '
+                        'reports for this district.',
+                    primaryActionLabel: 'Return to Dashboard',
+                    onPrimaryAction: widget.onNavigateToDashboard,
+                    bordered: true,
+                  ),
+              },
+            ),
+            if (showActionBar)
+              _ActionBar(
+                canVerify: formEnabled && _allConfirmed,
+                canReject: formEnabled,
+                onVerify: _submitVerify,
+                onReject: _submitReject,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Header / banner
+// ---------------------------------------------------------------------------
+
+class _VerificationHeader extends StatelessWidget {
+  const _VerificationHeader({
+    required this.referenceId,
+    required this.status,
+    this.onBack,
+  });
+
+  final String referenceId;
+  final ReportStatus status;
+  final VoidCallback? onBack;
+
+  @override
+  Widget build(BuildContext context) {
+    final semantic = Theme.of(context).extension<AppSemanticColors>()!;
+    final textTheme = Theme.of(context).textTheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+      decoration: BoxDecoration(
+        color: semantic.glassNavSurface,
+        border: Border(bottom: BorderSide(color: semantic.glassBorder)),
+      ),
+      child: SizedBox(
+        height: 64,
+        child: Row(
+          children: [
+            IconButton(
+              onPressed: onBack,
+              icon: const Icon(AppIcons.back),
+              iconSize: AppIconSize.md,
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Verify Report', style: textTheme.titleMedium),
+                  Text('#$referenceId', style: textTheme.bodySmall),
+                ],
+              ),
+            ),
+            ReportStatusBadge(status: status),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _OfflineBanner extends StatelessWidget {
+  const _OfflineBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
+      ),
+      color: AppColors.error.withValues(alpha: 0.12),
+      child: Row(
+        children: [
+          const Icon(AppIcons.offline, size: AppIconSize.sm, color: AppColors.error),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              'No internet connection — changes will sync when you\'re '
+              'back online',
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: AppColors.error,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Form (Default / Offline / Disabled share this — only `enabled` differs)
+// ---------------------------------------------------------------------------
+
+class _VerificationForm extends StatelessWidget {
+  const _VerificationForm({
+    required this.data,
+    required this.enabled,
+    required this.checked,
+    required this.onToggle,
+    required this.reasonController,
+    required this.onQuickReasonSelected,
+    this.disabledCaption,
+  });
+
+  final VerificationData data;
+  final bool enabled;
+  final Set<int> checked;
+  final ValueChanged<int> onToggle;
+  final TextEditingController reasonController;
+  final ValueChanged<QuickRejectionReason> onQuickReasonSelected;
+  final String? disabledCaption;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.md,
+        AppSpacing.md,
+        AppSpacing.xl,
+      ),
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(AppSpacing.md),
+          decoration: BoxDecoration(
+            color: colorScheme.surface,
+            border: Border.all(color: colorScheme.outline),
+            borderRadius: AppComponentRadius.card,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(data.title, style: textTheme.headlineSmall),
+              const SizedBox(height: AppSpacing.xs),
+              Text(data.locationSummary, style: textTheme.bodySmall),
+              const SizedBox(height: AppSpacing.md),
+              Row(
+                children: [
+                  Expanded(
+                    child: _LabeledValue(
+                      label: 'CATEGORY',
+                      child: Text(data.category.label, style: textTheme.titleSmall),
+                    ),
+                  ),
+                  Expanded(
+                    child: _LabeledValue(
+                      label: 'PRIORITY',
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 6,
+                            height: 6,
+                            decoration: const BoxDecoration(
+                              color: AppColors.error,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: AppSpacing.xs),
+                          Text(
+                            data.severity.label,
+                            style: textTheme.titleSmall?.copyWith(
+                              color: AppColors.error,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.md),
+              _LabeledValue(
+                label: 'CITIZEN',
+                child: Row(
+                  children: [
+                    // Reuses Report Review's citizen-avatar treatment
+                    // (light primary tint) rather than this frame's solid
+                    // violet fill, so the same entity reads consistently
+                    // across screens.
+                    CircleAvatar(
+                      radius: 14,
+                      backgroundColor: colorScheme.primary.withValues(alpha: 0.12),
+                      child: Text(
+                        data.citizenName
+                            .trim()
+                            .split(RegExp(r'\s+'))
+                            .map((p) => p.isEmpty ? '' : p[0])
+                            .take(2)
+                            .join()
+                            .toUpperCase(),
+                        style: textTheme.labelSmall?.copyWith(color: AppColors.primary),
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Text(data.citizenName, style: textTheme.titleSmall),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(AppSpacing.md),
+          decoration: BoxDecoration(
+            color: colorScheme.surface,
+            border: Border.all(color: colorScheme.outline),
+            borderRadius: AppComponentRadius.card,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(AppIcons.reportVerified, size: AppIconSize.md, color: colorScheme.onSurfaceVariant),
+                  const SizedBox(width: AppSpacing.xs),
+                  Text('Verification Checklist', style: textTheme.titleSmall),
+                ],
+              ),
+              for (var i = 0; i < data.checklist.length; i++)
+                _ChecklistRow(
+                  item: data.checklist[i],
+                  isChecked: checked.contains(i),
+                  enabled: enabled,
+                  isFirst: i == 0,
+                  onTap: enabled ? () => onToggle(i) : null,
+                ),
+              if (disabledCaption != null) ...[
+                const SizedBox(height: AppSpacing.xs),
+                Text(disabledCaption!, style: textTheme.bodySmall),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Reason for rejection (Optional)',
+                style: textTheme.titleSmall,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            ValueListenableBuilder(
+              valueListenable: reasonController,
+              builder: (context, value, _) => Text(
+                '${value.text.length}/500',
+                style: textTheme.bodySmall,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        TextField(
+          controller: reasonController,
+          enabled: enabled,
+          maxLines: 4,
+          maxLength: 500,
+          buildCounter: (context, {required currentLength, required isFocused, maxLength}) => null,
+          decoration: const InputDecoration(
+            hintText: 'Provide details if rejecting this report...',
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        SizedBox(
+          height: 40,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: QuickRejectionReason.values.length,
+            separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.xs),
+            itemBuilder: (context, index) {
+              final reason = QuickRejectionReason.values[index];
+              final selected = reasonController.text == reason.label;
+              return _QuickReasonChip(
+                label: reason.label,
+                selected: selected,
+                onTap: enabled ? () => onQuickReasonSelected(reason) : null,
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _LabeledValue extends StatelessWidget {
+  const _LabeledValue({required this.label, required this.child});
+
+  final String label;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(letterSpacing: 0.96),
+        ),
+        const SizedBox(height: 2),
+        child,
+      ],
+    );
+  }
+}
+
+class _ChecklistRow extends StatelessWidget {
+  const _ChecklistRow({
+    required this.item,
+    required this.isChecked,
+    required this.enabled,
+    required this.isFirst,
+    this.onTap,
+  });
+
+  final ChecklistItem item;
+  final bool isChecked;
+  final bool enabled;
+  final bool isFirst;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final colorScheme = Theme.of(context).colorScheme;
+    final muted = !enabled;
+
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: EdgeInsets.only(top: isFirst ? AppSpacing.md : AppSpacing.sm, bottom: AppSpacing.sm),
+        decoration: BoxDecoration(
+          border: isFirst
+              ? null
+              : Border(top: BorderSide(color: colorScheme.outline)),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Container(
+                width: 22,
+                height: 22,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: isChecked ? AppColors.success : Colors.transparent,
+                  border: Border.all(
+                    color: isChecked
+                        ? AppColors.success
+                        : colorScheme.outline,
+                  ),
+                ),
+                child: isChecked
+                    ? const Icon(AppIcons.success, size: AppIconSize.sm, color: Colors.white)
+                    : null,
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.label,
+                    style: textTheme.titleSmall?.copyWith(
+                      color: muted ? colorScheme.onSurfaceVariant : null,
+                    ),
+                  ),
+                  Text(
+                    item.description,
+                    style: textTheme.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _QuickReasonChip extends StatelessWidget {
+  const _QuickReasonChip({
+    required this.label,
+    required this.selected,
+    this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Material(
+      color: selected ? AppColors.primary.withValues(alpha: 0.12) : Colors.transparent,
+      shape: StadiumBorder(
+        side: BorderSide(color: selected ? AppColors.primary : colorScheme.outline),
+      ),
+      child: InkWell(
+        customBorder: const StadiumBorder(),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+          child: Text(
+            label,
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+              color: selected ? AppColors.primary : colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Loading skeleton — no actions shown, per the approved frame.
+// ---------------------------------------------------------------------------
+
+class _LoadingSkeleton extends StatefulWidget {
+  const _LoadingSkeleton();
+
+  @override
+  State<_LoadingSkeleton> createState() => _LoadingSkeletonState();
+}
+
+class _LoadingSkeletonState extends State<_LoadingSkeleton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1000),
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final base = Theme.of(context).colorScheme.surfaceContainer;
+    final highlight = Theme.of(context).colorScheme.surfaceContainerLow;
+    final reduceMotion = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+
+    Widget block({double height = 120}) {
+      return AnimatedBuilder(
+        animation: _controller,
+        builder: (context, _) {
+          return Container(
+            width: double.infinity,
+            height: height,
+            margin: const EdgeInsets.only(bottom: AppSpacing.md),
+            decoration: BoxDecoration(
+              color: Color.lerp(base, highlight, reduceMotion ? 0.5 : _controller.value),
+              borderRadius: AppRadius.allXs,
+            ),
+          );
+        },
+      );
+    }
+
+    return ListView(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      children: [block(), block(height: 60), block(height: 60), block(height: 200)],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Action bar — Verify Report / Reject Report stacked vertically (unlike
+// Report Review's side-by-side layout, matching the approved frame).
+// ---------------------------------------------------------------------------
+
+class _ActionBar extends StatelessWidget {
+  const _ActionBar({
+    required this.canVerify,
+    required this.canReject,
+    required this.onVerify,
+    required this.onReject,
+  });
+
+  final bool canVerify;
+  final bool canReject;
+  final VoidCallback onVerify;
+  final VoidCallback onReject;
+
+  @override
+  Widget build(BuildContext context) {
+    final semantic = Theme.of(context).extension<AppSemanticColors>()!;
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: semantic.glassBorder)),
+      ),
+      child: Column(
+        children: [
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              // Verify only enables once every checklist item is confirmed
+              // — the checklist exists to be completed before verifying.
+              onPressed: canVerify ? onVerify : null,
+              icon: const Icon(AppIcons.verify, size: AppIconSize.sm + 2),
+              label: const Text('Verify Report'),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              // Rejecting doesn't require the checklist — always available
+              // while the form is enabled.
+              onPressed: canReject ? onReject : null,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.error,
+                side: const BorderSide(color: AppColors.error),
+              ),
+              icon: const Icon(AppIcons.statusRejected, size: AppIconSize.sm + 2),
+              label: const Text('Reject Report'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

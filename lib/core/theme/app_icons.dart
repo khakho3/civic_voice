@@ -62,6 +62,7 @@ abstract final class AppIcons {
   static const IconData myLocation = LucideIcons.crosshair;
   static const IconData calendar = LucideIcons.calendar;
   static const IconData refresh = LucideIcons.refreshCw;
+  static const IconData verify = LucideIcons.shieldCheck;
 
   // Report status — pair with the matching [AppColors] status color and a
   // text label; color/icon alone must never carry meaning (§19.3 Rule 3).

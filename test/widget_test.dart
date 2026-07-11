@@ -6,6 +6,7 @@ import 'package:civic_voice/features/municipal/models/incoming_report.dart';
 import 'package:civic_voice/features/municipal/screens/municipal_dashboard_screen.dart';
 import 'package:civic_voice/features/municipal/screens/municipal_inbox_screen.dart';
 import 'package:civic_voice/features/municipal/screens/municipal_report_review_screen.dart';
+import 'package:civic_voice/features/municipal/screens/municipal_verification_screen.dart';
 
 void main() {
   testWidgets('Municipal Dashboard renders its loaded state', (
@@ -278,4 +279,135 @@ void main() {
     expect(tapped, isNotNull);
     expect(tapped!.title, 'Traffic Light Malfunction');
   });
+
+  for (final state in MunicipalVerificationViewState.values) {
+    testWidgets('Municipal Verification renders ${state.name} without error', (
+      WidgetTester tester,
+    ) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: MunicipalVerificationScreen(initialState: state),
+        ),
+      );
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets(
+    'Municipal Verification only enables Verify Report once every '
+    'checklist item is confirmed',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: const MunicipalVerificationScreen(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      Widget verifyButton() => tester.widget<FilledButton>(
+        find.ancestor(
+          of: find.text('Verify Report'),
+          matching: find.byType(FilledButton),
+        ),
+      );
+
+      expect((verifyButton() as FilledButton).onPressed, isNull);
+
+      for (final label in [
+        'Issue confirmed',
+        'Photos reviewed',
+        'Location validated',
+        'Not duplicate',
+        'Citizen contacted',
+      ]) {
+        await tester.tap(find.text(label));
+        await tester.pump();
+      }
+
+      expect((verifyButton() as FilledButton).onPressed, isNotNull);
+    },
+  );
+
+  testWidgets(
+    'Municipal Verification quick-reason chip fills the rejection reason '
+    'field',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(theme: AppTheme.light, home: const MunicipalVerificationScreen()),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Duplicate Report'));
+      await tester.pumpAndSettle();
+
+      final field = tester.widget<TextField>(find.byType(TextField));
+      expect(field.controller!.text, 'Duplicate Report');
+    },
+  );
+
+  testWidgets(
+    'Municipal Verification Rejected message does not claim a reason was '
+    'given when the Optional field was left empty',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(theme: AppTheme.light, home: const MunicipalVerificationScreen()),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Reject Report'));
+      await tester.pumpAndSettle(const Duration(milliseconds: 600));
+
+      expect(find.text('The citizen has been notified of the rejection.'), findsOneWidget);
+      expect(
+        find.text('The citizen has been notified with the provided reason.'),
+        findsNothing,
+      );
+    },
+  );
+
+  testWidgets(
+    'Municipal Verification Rejected message confirms the reason when one '
+    'was actually provided',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(theme: AppTheme.light, home: const MunicipalVerificationScreen()),
+      );
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), 'Not a real pothole.');
+      await tester.tap(find.text('Reject Report'));
+      await tester.pumpAndSettle(const Duration(milliseconds: 600));
+
+      expect(
+        find.text('The citizen has been notified with the provided reason.'),
+        findsOneWidget,
+      );
+    },
+  );
 }

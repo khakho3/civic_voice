@@ -36,14 +36,28 @@ class MunicipalReportReviewScreen extends StatefulWidget {
     this.status = ReportStatus.submitted,
     this.initialState = MunicipalReportReviewViewState.loaded,
     this.onBack,
+    this.onNavigateToDashboard,
+    this.onOpenVerification,
   });
 
   /// Known immediately from the Incoming Reports list the officer tapped
   /// from — shown in the header even while the rest of the detail loads.
   final String referenceId;
   final ReportStatus status;
+
+  /// Wired by the app shell to navigate to MUN-004 Verify/Reject Report.
+  /// Both the "Reject" and "Verify Report" buttons open the same screen —
+  /// it's a single combined decision form, not two destinations.
+  final VoidCallback? onOpenVerification;
   final MunicipalReportReviewViewState initialState;
+
+  /// Pops one level — wired to the header's back arrow only.
   final VoidCallback? onBack;
+
+  /// Returns all the way to the Dashboard tab — distinct from [onBack],
+  /// which only pops one level. Wired to every "Return to Dashboard" /
+  /// "Back to Dashboard" action.
+  final VoidCallback? onNavigateToDashboard;
 
   @override
   State<MunicipalReportReviewScreen> createState() =>
@@ -111,7 +125,7 @@ class _MunicipalReportReviewScreenState
                   primaryActionLabel: 'Try again',
                   onPrimaryAction: _retry,
                   secondaryActionLabel: 'Return to Dashboard',
-                  onSecondaryAction: widget.onBack,
+                  onSecondaryAction: widget.onNavigateToDashboard,
                 ),
                 MunicipalReportReviewViewState.permissionDenied =>
                   MunicipalStateMessage(
@@ -128,12 +142,16 @@ class _MunicipalReportReviewScreenState
                     primaryActionLabel: 'Request Access',
                     onPrimaryAction: () {},
                     secondaryActionLabel: 'Return to Dashboard',
-                    onSecondaryAction: widget.onBack,
+                    onSecondaryAction: widget.onNavigateToDashboard,
                   ),
               },
             ),
             if (showActionBar)
-              _ActionBar(enabled: actionsEnabled, onReject: () {}, onVerify: () {}),
+              _ActionBar(
+                enabled: actionsEnabled,
+                onReject: () => widget.onOpenVerification?.call(),
+                onVerify: () => widget.onOpenVerification?.call(),
+              ),
           ],
         ),
       ),
@@ -693,9 +711,8 @@ class _ActionBar extends StatelessWidget {
       child: Row(
         children: [
           OutlinedButton.icon(
-            // Navigates to MUN-004 Verify/Reject Report (not built yet) to
-            // capture the rejection reason — placeholder until that screen
-            // exists.
+            // Opens MUN-004 Verify/Reject Report to capture the decision
+            // (and rejection reason, if any).
             onPressed: enabled ? onReject : null,
             // Rejecting a report is a genuine destructive action (unlike a
             // "try again" retry), so it earns the Danger Button treatment —
@@ -711,8 +728,7 @@ class _ActionBar extends StatelessWidget {
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: FilledButton.icon(
-              // Navigates to MUN-004 Verify/Reject Report — placeholder
-              // until that screen exists.
+              // Opens MUN-004 Verify/Reject Report to capture the decision.
               onPressed: enabled ? onVerify : null,
               icon: const Icon(AppIcons.success, size: AppIconSize.sm + 2),
               label: const Text('Verify Report'),
