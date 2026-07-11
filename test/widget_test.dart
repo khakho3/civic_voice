@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:civic_voice/core/theme/app_theme.dart';
 import 'package:civic_voice/features/municipal/models/incoming_report.dart';
+import 'package:civic_voice/features/municipal/screens/municipal_assign_team_screen.dart';
 import 'package:civic_voice/features/municipal/screens/municipal_dashboard_screen.dart';
 import 'package:civic_voice/features/municipal/screens/municipal_inbox_screen.dart';
 import 'package:civic_voice/features/municipal/screens/municipal_report_review_screen.dart';
@@ -410,4 +411,161 @@ void main() {
       );
     },
   );
+
+  for (final state in MunicipalAssignTeamViewState.values) {
+    testWidgets('Municipal Assign Team renders ${state.name} without error', (
+      WidgetTester tester,
+    ) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: MunicipalAssignTeamScreen(initialState: state),
+        ),
+      );
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets('Municipal Assign Team shows the report and every team in its loaded state', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: const MunicipalAssignTeamScreen(
+          initialState: MunicipalAssignTeamViewState.loaded,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('#REQ-8421'), findsOneWidget);
+    expect(find.text('Severe Pothole on Main St.'), findsOneWidget);
+    expect(find.text('Unit Alpha'), findsOneWidget);
+    expect(find.text('Unit Bravo'), findsOneWidget);
+    expect(find.text('Unit Charlie'), findsOneWidget);
+    expect(find.text('Unit Delta'), findsOneWidget);
+    // Unit Alpha is pre-selected, matching every approved reference frame.
+    expect(
+      find.text('Unit Alpha will be dispatched to this location — '
+          'estimated arrival in 12 min.'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('Municipal Assign Team "Available" filter hides busy and off-duty teams', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(theme: AppTheme.light, home: const MunicipalAssignTeamScreen()),
+    );
+    await tester.pumpAndSettle();
+
+    // 'Available' also appears as the availability badge on Alpha/Bravo's
+    // team cards further down — the filter chip is the first match, since
+    // the filter row renders above the team list.
+    await tester.tap(find.text('Available').first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Unit Alpha'), findsOneWidget);
+    expect(find.text('Unit Bravo'), findsOneWidget);
+    expect(find.text('Unit Charlie'), findsNothing);
+    expect(find.text('Unit Delta'), findsNothing);
+  });
+
+  testWidgets('Municipal Assign Team search narrows the team list', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(theme: AppTheme.light, home: const MunicipalAssignTeamScreen()),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField), 'Bravo');
+    await tester.pumpAndSettle();
+
+    expect(find.text('Unit Alpha'), findsNothing);
+    expect(find.text('Unit Bravo'), findsOneWidget);
+    expect(find.text('Unit Charlie'), findsNothing);
+    expect(find.text('Unit Delta'), findsNothing);
+  });
+
+  testWidgets('Municipal Assign Team tapping a team selects it, and off-duty teams cannot be selected', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(theme: AppTheme.light, home: const MunicipalAssignTeamScreen()),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Unit Bravo'));
+    await tester.pumpAndSettle();
+    expect(
+      find.textContaining('Unit Bravo will be dispatched'),
+      findsOneWidget,
+    );
+
+    // Unit Delta is off-duty — tapping it must not change the selection.
+    await tester.tap(find.text('Unit Delta'));
+    await tester.pumpAndSettle();
+    expect(
+      find.textContaining('Unit Bravo will be dispatched'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Unit Delta will be dispatched'), findsNothing);
+  });
+
+  testWidgets('Municipal Assign Team submitting reaches the Team Assigned confirmation', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(theme: AppTheme.light, home: const MunicipalAssignTeamScreen()),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.ancestor(
+        of: find.text('Assign Team'),
+        matching: find.byType(FilledButton),
+      ),
+    );
+    await tester.pumpAndSettle(const Duration(milliseconds: 600));
+
+    expect(find.text('Team Assigned'), findsOneWidget);
+    expect(
+      find.text('Unit Alpha has been notified and will begin work shortly.'),
+      findsOneWidget,
+    );
+  });
 }

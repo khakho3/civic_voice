@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'core/theme/app_theme.dart';
+import 'features/municipal/screens/municipal_assign_team_screen.dart';
 import 'features/municipal/screens/municipal_dashboard_screen.dart';
 import 'features/municipal/screens/municipal_inbox_screen.dart';
 import 'features/municipal/screens/municipal_report_review_screen.dart';
@@ -83,9 +84,16 @@ class _MunicipalRootState extends State<_MunicipalRoot> {
                     // first route lands back on Inbox.
                     onBackToInbox: () =>
                         Navigator.of(context).popUntil((route) => route.isFirst),
-                    // MUN-005 Assign Maintenance Team isn't built yet —
-                    // placeholder pending that screen.
-                    onAssignTeam: () {},
+                    onAssignTeam: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => MunicipalAssignTeamScreen(
+                          referenceId: report.referenceId,
+                          status: report.status,
+                          onBack: () => Navigator.of(context).pop(),
+                          onNavigateToDashboard: _returnToDashboard,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ),

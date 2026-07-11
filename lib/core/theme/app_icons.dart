@@ -111,4 +111,6 @@ abstract final class AppIcons {
   static const IconData criticalAlert = LucideIcons.octagonAlert;
   static const IconData navigate = LucideIcons.navigation;
   static const IconData pinned = LucideIcons.mapPinned;
+  static const IconData rating = LucideIcons.star;
+  static const IconData eta = LucideIcons.clock;
 }
