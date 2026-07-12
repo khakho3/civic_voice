@@ -5,6 +5,7 @@ import 'features/municipal/screens/municipal_active_reports_screen.dart';
 import 'features/municipal/screens/municipal_assign_team_screen.dart';
 import 'features/municipal/screens/municipal_dashboard_screen.dart';
 import 'features/municipal/screens/municipal_inbox_screen.dart';
+import 'features/municipal/screens/municipal_report_progress_screen.dart';
 import 'features/municipal/screens/municipal_report_review_screen.dart';
 import 'features/municipal/screens/municipal_verification_screen.dart';
 import 'models/report_status.dart';
@@ -54,9 +55,8 @@ class _MunicipalRootState extends State<_MunicipalRoot> {
     setState(() => _current = _MunicipalScreen.dashboard);
   }
 
-  /// Report Review → Verification → Assign Team is reachable from two
-  /// places now (Inbox, for pending reports; Active Reports, for reports
-  /// already past triage) — shared here rather than duplicated per caller.
+  /// Report Review → Verification → Assign Team — the pre-triage
+  /// Verify/Reject decision flow, only reachable from Inbox.
   Route<void> _reportReviewRoute(String referenceId, ReportStatus status) {
     return MaterialPageRoute(
       builder: (context) => MunicipalReportReviewScreen(
@@ -93,6 +93,23 @@ class _MunicipalRootState extends State<_MunicipalRoot> {
     );
   }
 
+  /// Active Reports only ever lists reports already past triage (Assigned/
+  /// In Progress/Resolved), so tapping one opens Report Progress (tracking
+  /// + resolution) rather than Report Review (the pre-triage Verify/Reject
+  /// decision, only reachable from Inbox).
+  Route<void> _reportProgressRoute(String referenceId, ReportStatus status) {
+    return MaterialPageRoute(
+      builder: (context) => MunicipalReportProgressScreen(
+        referenceId: referenceId,
+        status: status,
+        onBack: () => Navigator.of(context).pop(),
+        // No share integration is specified yet (Issue 03 §7) — placeholder
+        // pending spec, matching Dashboard's other unwired quick actions.
+        onShareSummary: () {},
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return switch (_current) {
@@ -121,7 +138,7 @@ class _MunicipalRootState extends State<_MunicipalRoot> {
             setState(() => _current = _MunicipalScreen.inbox),
         onReportTap: (report) => Navigator.of(
           context,
-        ).push(_reportReviewRoute(report.referenceId, report.status)),
+        ).push(_reportProgressRoute(report.referenceId, report.status)),
       ),
     };
   }

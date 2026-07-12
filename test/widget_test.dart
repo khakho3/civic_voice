@@ -8,6 +8,7 @@ import 'package:civic_voice/features/municipal/screens/municipal_active_reports_
 import 'package:civic_voice/features/municipal/screens/municipal_assign_team_screen.dart';
 import 'package:civic_voice/features/municipal/screens/municipal_dashboard_screen.dart';
 import 'package:civic_voice/features/municipal/screens/municipal_inbox_screen.dart';
+import 'package:civic_voice/features/municipal/screens/municipal_report_progress_screen.dart';
 import 'package:civic_voice/features/municipal/screens/municipal_report_review_screen.dart';
 import 'package:civic_voice/features/municipal/screens/municipal_verification_screen.dart';
 
@@ -667,7 +668,7 @@ void main() {
     expect(find.text('Sidewalk Crack'), findsNothing);
   });
 
-  testWidgets('Tapping an Active Report opens Report Review for that report', (
+  testWidgets('Tapping an Active Report fires onReportTap with that report', (
     WidgetTester tester,
   ) async {
     tester.view.physicalSize = const Size(428, 2600);
@@ -760,4 +761,191 @@ void main() {
       expect(dashboardTapped, isTrue);
     },
   );
+
+  for (final state in MunicipalReportProgressViewState.values) {
+    testWidgets('Municipal Report Progress renders ${state.name} without error', (
+      WidgetTester tester,
+    ) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: MunicipalReportProgressScreen(initialState: state),
+        ),
+      );
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets('Municipal Report Progress shows the full report in its loaded state', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: const MunicipalReportProgressScreen(
+          initialState: MunicipalReportProgressViewState.loaded,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('#REQ-8421'), findsOneWidget);
+    expect(find.text('Main St. Pothole Repair'), findsOneWidget);
+    expect(find.text('North District, Zone 4'), findsOneWidget);
+    expect(find.text('Officer J. Sterling'), findsOneWidget);
+    expect(find.text('65%'), findsOneWidget);
+    expect(find.text('Unit Alpha'), findsOneWidget);
+
+    final markResolved = tester.widget<FilledButton>(
+      find.ancestor(
+        of: find.text('Mark Resolved'),
+        matching: find.byType(FilledButton),
+      ),
+    );
+    expect(markResolved.onPressed, isNotNull);
+  });
+
+  testWidgets(
+    'Municipal Report Progress Missing Evidence disables Mark Resolved '
+    'until a photo is added',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: const MunicipalReportProgressScreen(
+            initialState: MunicipalReportProgressViewState.missingEvidence,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Evidence Required'), findsOneWidget);
+      expect(find.text('0 Photos'), findsOneWidget);
+      final disabled = tester.widget<FilledButton>(
+        find.ancestor(
+          of: find.text('Mark Resolved (Upload Required)'),
+          matching: find.byType(FilledButton),
+        ),
+      );
+      expect(disabled.onPressed, isNull);
+
+      await tester.tap(find.text('Add Photo'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Mark Resolved'), findsOneWidget);
+      final enabled = tester.widget<FilledButton>(
+        find.ancestor(
+          of: find.text('Mark Resolved'),
+          matching: find.byType(FilledButton),
+        ),
+      );
+      expect(enabled.onPressed, isNotNull);
+    },
+  );
+
+  testWidgets(
+    'Municipal Report Progress Mark Resolved reaches the resolved '
+    'confirmation with the correct case summary',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: const MunicipalReportProgressScreen(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.ancestor(
+          of: find.text('Mark Resolved'),
+          matching: find.byType(FilledButton),
+        ),
+      );
+      await tester.pumpAndSettle(const Duration(milliseconds: 600));
+
+      expect(find.text('Report Resolved Successfully'), findsOneWidget);
+      // Regression check: the approved frame's case-recap card showed an
+      // unrelated case (a different reference ID and title) rather than
+      // the report that was actually just resolved.
+      expect(find.text('CASE REQ-8421'), findsOneWidget);
+      expect(find.text('Main St. Pothole Repair'), findsOneWidget);
+      expect(find.text('Street Light Outage — Main St & 4th'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'Municipal Report Progress Offline stays fully interactive (non-blocking, '
+    'unlike other screens\' offline states)',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: const MunicipalReportProgressScreen(
+            initialState: MunicipalReportProgressViewState.offline,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Offline Mode'), findsOneWidget);
+      expect(find.text('Sync Pending'), findsOneWidget);
+      expect(find.text('Recent Activity'), findsOneWidget);
+
+      final markResolved = tester.widget<FilledButton>(
+        find.ancestor(
+          of: find.text('Mark Resolved'),
+          matching: find.byType(FilledButton),
+        ),
+      );
+      expect(markResolved.onPressed, isNotNull);
+    },
+  );
+
+  testWidgets('Municipal Report Progress kebab menu offers Share Summary', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: const MunicipalReportProgressScreen(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(AppIcons.more));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Share Summary'), findsOneWidget);
+  });
 }

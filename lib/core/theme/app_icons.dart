@@ -113,4 +113,6 @@ abstract final class AppIcons {
   static const IconData pinned = LucideIcons.mapPinned;
   static const IconData rating = LucideIcons.star;
   static const IconData eta = LucideIcons.clock;
+  static const IconData more = LucideIcons.ellipsisVertical;
+  static const IconData sync = LucideIcons.refreshCcw;
 }
