@@ -412,6 +412,11 @@ void main() {
         find.text('The citizen has been notified with the provided reason.'),
         findsOneWidget,
       );
+      // Regression check: the header status badge is a fixed widget.status
+      // prop, not derived from _state — without tracking it explicitly it
+      // would keep showing "Submitted" even after the report's rejected.
+      expect(find.text('Submitted'), findsNothing);
+      expect(find.text('Rejected'), findsOneWidget);
     },
   );
 
@@ -570,6 +575,11 @@ void main() {
       find.text('Unit Alpha has been notified and will begin work shortly.'),
       findsOneWidget,
     );
+    // Regression check: the header status badge is a fixed widget.status
+    // prop, not derived from _state — without tracking it explicitly it
+    // would keep showing "Under Review" even after a team's been assigned.
+    expect(find.text('Under Review'), findsNothing);
+    expect(find.text('Assigned'), findsOneWidget);
   });
 
   for (final state in MunicipalActiveReportsViewState.values) {
@@ -891,6 +901,11 @@ void main() {
       expect(find.text('CASE REQ-8421'), findsOneWidget);
       expect(find.text('Main St. Pothole Repair'), findsOneWidget);
       expect(find.text('Street Light Outage — Main St & 4th'), findsNothing);
+      // Regression check: the header status badge is a fixed widget.status
+      // prop, not derived from _state — without tracking it explicitly it
+      // would keep showing "In Progress" even after the report's resolved.
+      expect(find.text('In Progress'), findsNothing);
+      expect(find.text('Resolved'), findsWidgets);
     },
   );
 

@@ -106,6 +106,13 @@ class _MunicipalReportProgressScreenState
   @override
   Widget build(BuildContext context) {
     final showActionBar = _state != MunicipalReportProgressViewState.success;
+    // widget.status is fixed at whatever it was when this screen opened —
+    // it doesn't track _state, so without this the header would keep
+    // showing e.g. "In Progress" even after the report's actually been
+    // marked Resolved.
+    final effectiveStatus = _state == MunicipalReportProgressViewState.success
+        ? ReportStatus.resolved
+        : widget.status;
 
     return Scaffold(
       body: Stack(
@@ -159,17 +166,13 @@ class _MunicipalReportProgressScreenState
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  ReportStatusBadge(status: widget.status),
+                  ReportStatusBadge(status: effectiveStatus),
                   PopupMenuButton<void>(
                     icon: const Icon(AppIcons.more, size: AppIconSize.md),
                     itemBuilder: (context) => [
                       PopupMenuItem(
                         onTap: widget.onShareSummary,
                         child: const Text('Share Summary'),
-                      ),
-                      PopupMenuItem(
-                        onTap: _scrollToTimeline,
-                        child: const Text('View Timeline'),
                       ),
                     ],
                   ),
@@ -300,16 +303,12 @@ class _SummaryCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'REPORT ${data.referenceId}',
-                  style: textTheme.labelSmall?.copyWith(letterSpacing: 0.96),
-                ),
-              ),
-              ReportStatusBadge(status: data.status),
-            ],
+          // Status already shows permanently in the header directly above
+          // this card — repeating it here would be pure duplication, not a
+          // second useful data point.
+          Text(
+            'REPORT ${data.referenceId}',
+            style: textTheme.labelSmall?.copyWith(letterSpacing: 0.96),
           ),
           const SizedBox(height: 2),
           Text(data.title, style: textTheme.titleMedium),

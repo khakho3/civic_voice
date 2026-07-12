@@ -131,6 +131,15 @@ class _MunicipalVerificationScreenState
         _state == MunicipalVerificationViewState.offline ||
         _state == MunicipalVerificationViewState.disabled;
     final formEnabled = _state == MunicipalVerificationViewState.loaded;
+    // widget.status is fixed at whatever it was when this screen opened, so
+    // without this the header would keep showing the pre-rejection status
+    // (e.g. "Submitted") even after the report's actually been rejected.
+    // "Verified" has no exact equivalent in ReportStatus (it moves straight
+    // to pending-assignment rather than getting its own status), so that
+    // case is left showing widget.status.
+    final effectiveStatus = _state == MunicipalVerificationViewState.rejected
+        ? ReportStatus.rejected
+        : widget.status;
 
     return Scaffold(
       body: Stack(
@@ -272,7 +281,7 @@ class _MunicipalVerificationScreenState
               title: 'Verify Report',
               referenceId: widget.referenceId,
               onBack: widget.onBack,
-              trailing: ReportStatusBadge(status: widget.status),
+              trailing: ReportStatusBadge(status: effectiveStatus),
             ),
           ),
         ],

@@ -156,6 +156,12 @@ class _MunicipalAssignTeamScreenState extends State<MunicipalAssignTeamScreen> {
         interactive &&
         selected != null &&
         selected.availability != TeamAvailability.offDuty;
+    // widget.status is fixed at whatever it was when this screen opened, so
+    // without this the header would keep showing the pre-assignment status
+    // (e.g. "Under Review") even after a team's actually been assigned.
+    final effectiveStatus = _state == MunicipalAssignTeamViewState.assigned
+        ? ReportStatus.assigned
+        : widget.status;
 
     return Scaffold(
       body: Stack(
@@ -271,7 +277,7 @@ class _MunicipalAssignTeamScreenState extends State<MunicipalAssignTeamScreen> {
               title: 'Assign Team',
               referenceId: widget.referenceId,
               onBack: widget.onBack,
-              trailing: ReportStatusBadge(status: widget.status),
+              trailing: ReportStatusBadge(status: effectiveStatus),
             ),
           ),
         ],
