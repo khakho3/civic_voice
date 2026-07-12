@@ -32,6 +32,7 @@ class MunicipalInboxScreen extends StatefulWidget {
     super.key,
     this.initialState = MunicipalInboxViewState.loaded,
     this.onNavigateToDashboard,
+    this.onNavigateToActiveReports,
     this.onReportTap,
   });
 
@@ -43,6 +44,10 @@ class MunicipalInboxScreen extends StatefulWidget {
   /// Wired by the app shell so the bottom nav can actually switch screens
   /// now that both MUN-001 and MUN-002 exist.
   final VoidCallback? onNavigateToDashboard;
+
+  /// Wired by the app shell so the bottom nav's "Active" tab can switch to
+  /// MUN-006 Active Reports, now that it exists.
+  final VoidCallback? onNavigateToActiveReports;
 
   /// Wired by the app shell to navigate to MUN-003 Report Review.
   final ValueChanged<IncomingReportItem>? onReportTap;
@@ -113,6 +118,7 @@ class _MunicipalInboxScreenState extends State<MunicipalInboxScreen> {
       onNotificationsTap: () {},
       onTabSelected: (tab) {
         if (tab == MunicipalTab.dashboard) widget.onNavigateToDashboard?.call();
+        if (tab == MunicipalTab.active) widget.onNavigateToActiveReports?.call();
       },
       body: switch (_state) {
         MunicipalInboxViewState.loading => const _InboxContent(loading: true),

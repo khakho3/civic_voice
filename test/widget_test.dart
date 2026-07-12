@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:civic_voice/core/theme/app_theme.dart';
+import 'package:civic_voice/features/municipal/models/active_report.dart';
 import 'package:civic_voice/features/municipal/models/incoming_report.dart';
+import 'package:civic_voice/features/municipal/screens/municipal_active_reports_screen.dart';
 import 'package:civic_voice/features/municipal/screens/municipal_assign_team_screen.dart';
 import 'package:civic_voice/features/municipal/screens/municipal_dashboard_screen.dart';
 import 'package:civic_voice/features/municipal/screens/municipal_inbox_screen.dart';
@@ -568,4 +570,194 @@ void main() {
       findsOneWidget,
     );
   });
+
+  for (final state in MunicipalActiveReportsViewState.values) {
+    testWidgets('Municipal Active Reports renders ${state.name} without error', (
+      WidgetTester tester,
+    ) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: MunicipalActiveReportsScreen(initialState: state),
+        ),
+      );
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets('Municipal Active Reports shows every report in its loaded state', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: const MunicipalActiveReportsScreen(
+          initialState: MunicipalActiveReportsViewState.loaded,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('DOWNTOWN ZONE'), findsOneWidget);
+    expect(find.text('Severe Pothole on Main St.'), findsOneWidget);
+    expect(find.text('Broken Streetlight'), findsOneWidget);
+    expect(find.text('Overflowing Trash Bin'), findsOneWidget);
+    expect(find.text('Water Leak Near Curb'), findsOneWidget);
+    expect(find.text('Sidewalk Crack'), findsOneWidget);
+    expect(find.text('5 reports'), findsOneWidget);
+  });
+
+  testWidgets('Municipal Active Reports "In Progress" filter hides assigned and resolved reports', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(theme: AppTheme.light, home: const MunicipalActiveReportsScreen()),
+    );
+    await tester.pumpAndSettle();
+
+    // 'In Progress' also appears as the status badge on matching report
+    // cards further down — the filter chip is the first match, since the
+    // filter row renders above the report list.
+    await tester.tap(find.text('In Progress').first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Severe Pothole on Main St.'), findsOneWidget);
+    expect(find.text('Overflowing Trash Bin'), findsOneWidget);
+    expect(find.text('Broken Streetlight'), findsNothing);
+    expect(find.text('Water Leak Near Curb'), findsNothing);
+    expect(find.text('Sidewalk Crack'), findsNothing);
+  });
+
+  testWidgets('Municipal Active Reports search narrows the report list', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(theme: AppTheme.light, home: const MunicipalActiveReportsScreen()),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField), 'Cedar');
+    await tester.pumpAndSettle();
+
+    expect(find.text('Water Leak Near Curb'), findsOneWidget);
+    expect(find.text('Severe Pothole on Main St.'), findsNothing);
+    expect(find.text('Broken Streetlight'), findsNothing);
+    expect(find.text('Overflowing Trash Bin'), findsNothing);
+    expect(find.text('Sidewalk Crack'), findsNothing);
+  });
+
+  testWidgets('Tapping an Active Report opens Report Review for that report', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    ActiveReportItem? tapped;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: MunicipalActiveReportsScreen(
+          initialState: MunicipalActiveReportsViewState.loaded,
+          onReportTap: (report) => tapped = report,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Severe Pothole on Main St.'));
+    await tester.pumpAndSettle();
+
+    expect(tapped, isNotNull);
+    expect(tapped!.referenceId, 'REQ-8421');
+  });
+
+  testWidgets('Municipal Active Reports sort menu reorders the list by lowest progress', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(theme: AppTheme.light, home: const MunicipalActiveReportsScreen()),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.widgetWithText(TextButton, 'Sort'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Lowest Progress'));
+    await tester.pumpAndSettle();
+
+    // Water Leak Near Curb (10%) should now sort above Sidewalk Crack
+    // (100%) — confirms the sort actually reordered the list rather than
+    // being a decorative no-op menu.
+    final waterLeakY = tester.getTopLeft(find.text('Water Leak Near Curb')).dy;
+    final sidewalkY = tester.getTopLeft(find.text('Sidewalk Crack')).dy;
+    expect(waterLeakY, lessThan(sidewalkY));
+  });
+
+  testWidgets(
+    'Municipal Active Reports is a tab-shell screen: bottom nav stays visible '
+    'and switches to Dashboard/Inbox',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      var dashboardTapped = false;
+      var inboxTapped = false;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: MunicipalActiveReportsScreen(
+            onNavigateToDashboard: () => dashboardTapped = true,
+            onNavigateToInbox: () => inboxTapped = true,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // The bottom nav — not a back arrow — is how this screen is reached
+      // and left, matching every other list screen in the module.
+      expect(find.text('Dashboard'), findsOneWidget);
+      expect(find.text('Inbox'), findsOneWidget);
+      expect(find.text('Active'), findsOneWidget);
+      expect(find.byType(BackButton), findsNothing);
+      expect(find.byIcon(AppIcons.back), findsNothing);
+
+      await tester.tap(find.text('Inbox'));
+      await tester.pumpAndSettle();
+      expect(inboxTapped, isTrue);
+      expect(dashboardTapped, isFalse);
+
+      await tester.tap(find.text('Dashboard'));
+      await tester.pumpAndSettle();
+      expect(dashboardTapped, isTrue);
+    },
+  );
 }

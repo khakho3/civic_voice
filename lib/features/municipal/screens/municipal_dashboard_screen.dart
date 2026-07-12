@@ -24,6 +24,7 @@ class MunicipalDashboardScreen extends StatefulWidget {
     super.key,
     this.initialState = MunicipalDashboardViewState.loaded,
     this.onNavigateToInbox,
+    this.onNavigateToActiveReports,
   });
 
   /// Testing hook: defaults to the normal loaded view. Pass a different
@@ -34,6 +35,10 @@ class MunicipalDashboardScreen extends StatefulWidget {
   /// Wired by the app shell so the bottom nav can actually switch screens
   /// now that both MUN-001 and MUN-002 exist.
   final VoidCallback? onNavigateToInbox;
+
+  /// Wired by the app shell so the bottom nav's "Active" tab can switch to
+  /// MUN-006 Active Reports, now that it exists.
+  final VoidCallback? onNavigateToActiveReports;
 
   @override
   State<MunicipalDashboardScreen> createState() =>
@@ -60,6 +65,7 @@ class _MunicipalDashboardScreenState extends State<MunicipalDashboardScreen> {
       onNotificationsTap: () {},
       onTabSelected: (tab) {
         if (tab == MunicipalTab.inbox) widget.onNavigateToInbox?.call();
+        if (tab == MunicipalTab.active) widget.onNavigateToActiveReports?.call();
       },
       body: switch (_state) {
         MunicipalDashboardViewState.loading => _DashboardContent(

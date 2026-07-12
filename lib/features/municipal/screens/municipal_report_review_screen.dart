@@ -83,7 +83,16 @@ class _MunicipalReportReviewScreenState
 
   @override
   Widget build(BuildContext context) {
+    // Verify/Reject is the pre-assignment triage decision — once a report
+    // has moved past that (Assigned/In Progress/Resolved/Rejected, e.g.
+    // reached via MUN-006 Active Reports rather than the Inbox), that
+    // decision has already been made and re-showing the action bar would
+    // let an officer "verify" or "reject" a report that's already active.
+    final pendingVerification =
+        widget.status == ReportStatus.submitted ||
+        widget.status == ReportStatus.underReview;
     final showActionBar =
+        pendingVerification &&
         _state != MunicipalReportReviewViewState.error &&
         _state != MunicipalReportReviewViewState.permissionDenied;
     final actionsEnabled =
