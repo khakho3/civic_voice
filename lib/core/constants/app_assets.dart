@@ -20,4 +20,8 @@ abstract final class AppAssets {
 
   /// App favicon, rendered from [logoSvg].
   static const String favicon = 'assets/branding/favicon.png';
+
+  /// Illustration used on the Authentication Welcome screen.
+  static const String welcomeIllustration =
+      'assets/branding/welcome_illustration.png';
 }
