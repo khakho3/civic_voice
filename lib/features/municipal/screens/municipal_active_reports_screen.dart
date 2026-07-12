@@ -41,8 +41,8 @@ class MunicipalActiveReportsScreen extends StatefulWidget {
     this.initialState = MunicipalActiveReportsViewState.loaded,
     this.onNavigateToDashboard,
     this.onNavigateToInbox,
+    this.onNavigateToResolvedReports,
     this.onReportTap,
-    this.onViewHistory,
     this.onSystemStatus,
   });
 
@@ -53,18 +53,18 @@ class MunicipalActiveReportsScreen extends StatefulWidget {
   final VoidCallback? onNavigateToDashboard;
   final VoidCallback? onNavigateToInbox;
 
+  /// Wired to the bottom nav's "Resolved" tab, and to Empty's "View
+  /// History" action — both the same destination now that MUN-008
+  /// Resolved Reports exists, so one callback covers both rather than
+  /// keeping a separately named one that did the identical thing.
+  final VoidCallback? onNavigateToResolvedReports;
+
   /// Opens the tapped report's full detail (Report Progress — every report
   /// listed here is already past triage, so Report Review's Verify/Reject
   /// decision doesn't apply).
   final ValueChanged<ActiveReportItem>? onReportTap;
 
-  /// Wired to Empty's "View History" action — no destination screen exists
-  /// yet (a future Resolved Reports history view), so this is a stub the
-  /// app shell can wire up once that screen exists.
-  final VoidCallback? onViewHistory;
-
-  /// Wired to Error's "System Status" action — no status page exists yet,
-  /// same as [onViewHistory].
+  /// Wired to Error's "System Status" action — no status page exists yet.
   final VoidCallback? onSystemStatus;
 
   @override
@@ -176,6 +176,9 @@ class _MunicipalActiveReportsScreenState
       onTabSelected: (tab) {
         if (tab == MunicipalTab.dashboard) widget.onNavigateToDashboard?.call();
         if (tab == MunicipalTab.inbox) widget.onNavigateToInbox?.call();
+        if (tab == MunicipalTab.resolved) {
+          widget.onNavigateToResolvedReports?.call();
+        }
       },
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -215,7 +218,7 @@ class _MunicipalActiveReportsScreenState
                       'There are no reports currently assigned to '
                       'maintenance teams in this zone. You\'re all caught up.',
                   primaryActionLabel: 'View History',
-                  onPrimaryAction: widget.onViewHistory,
+                  onPrimaryAction: widget.onNavigateToResolvedReports,
                   secondaryActionLabel: 'Return to Dashboard',
                   onSecondaryAction: widget.onNavigateToDashboard,
                 ),

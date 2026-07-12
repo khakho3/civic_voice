@@ -36,6 +36,7 @@ class MunicipalInboxScreen extends StatefulWidget {
     this.initialState = MunicipalInboxViewState.loaded,
     this.onNavigateToDashboard,
     this.onNavigateToActiveReports,
+    this.onNavigateToResolvedReports,
     this.onReportTap,
   });
 
@@ -51,6 +52,10 @@ class MunicipalInboxScreen extends StatefulWidget {
   /// Wired by the app shell so the bottom nav's "Active" tab can switch to
   /// MUN-006 Active Reports, now that it exists.
   final VoidCallback? onNavigateToActiveReports;
+
+  /// Wired by the app shell so the bottom nav's "Resolved" tab can switch
+  /// to MUN-008 Resolved Reports, now that it exists.
+  final VoidCallback? onNavigateToResolvedReports;
 
   /// Wired by the app shell to navigate to MUN-003 Report Review.
   final ValueChanged<IncomingReportItem>? onReportTap;
@@ -124,6 +129,9 @@ class _MunicipalInboxScreenState extends State<MunicipalInboxScreen> {
         if (tab == MunicipalTab.dashboard) widget.onNavigateToDashboard?.call();
         if (tab == MunicipalTab.active) {
           widget.onNavigateToActiveReports?.call();
+        }
+        if (tab == MunicipalTab.resolved) {
+          widget.onNavigateToResolvedReports?.call();
         }
       },
       body: switch (_state) {

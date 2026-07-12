@@ -4,12 +4,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:civic_voice/core/theme/app_theme.dart';
 import 'package:civic_voice/features/municipal/models/active_report.dart';
 import 'package:civic_voice/features/municipal/models/incoming_report.dart';
+import 'package:civic_voice/features/municipal/models/resolved_report.dart';
 import 'package:civic_voice/features/municipal/screens/municipal_active_reports_screen.dart';
 import 'package:civic_voice/features/municipal/screens/municipal_assign_team_screen.dart';
 import 'package:civic_voice/features/municipal/screens/municipal_dashboard_screen.dart';
 import 'package:civic_voice/features/municipal/screens/municipal_inbox_screen.dart';
 import 'package:civic_voice/features/municipal/screens/municipal_report_progress_screen.dart';
 import 'package:civic_voice/features/municipal/screens/municipal_report_review_screen.dart';
+import 'package:civic_voice/features/municipal/screens/municipal_resolution_details_screen.dart';
+import 'package:civic_voice/features/municipal/screens/municipal_resolved_reports_screen.dart';
 import 'package:civic_voice/features/municipal/screens/municipal_verification_screen.dart';
 
 void main() {
@@ -962,5 +965,214 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Share Summary'), findsOneWidget);
+  });
+
+  for (final state in MunicipalResolvedReportsViewState.values) {
+    testWidgets('Municipal Resolved Reports renders ${state.name} without error', (
+      WidgetTester tester,
+    ) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: MunicipalResolvedReportsScreen(initialState: state),
+        ),
+      );
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets('Municipal Resolved Reports shows stats and every report in its loaded state', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: const MunicipalResolvedReportsScreen(
+          initialState: MunicipalResolvedReportsViewState.loaded,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Resolved Reports'), findsOneWidget);
+    expect(find.text('128'), findsOneWidget);
+    expect(find.text('Streetlight Outage — 4th Ave'), findsOneWidget);
+    expect(find.text('Pothole Cluster — Elm Rd'), findsOneWidget);
+    expect(find.text('Graffiti Removal — Bridge'), findsOneWidget);
+  });
+
+  testWidgets('Municipal Resolved Reports "Public Works" filter hides other departments', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(theme: AppTheme.light, home: const MunicipalResolvedReportsScreen()),
+    );
+    await tester.pumpAndSettle();
+
+    // 'Public Works' also appears as the department line on matching report
+    // cards further down — the filter chip is the first match, since the
+    // filter row renders above the report list. It's the last chip in a
+    // horizontally-scrolling row, so it needs scrolling into view before
+    // it can be tapped.
+    final publicWorksChip = find.text('Public Works').first;
+    await tester.ensureVisible(publicWorksChip);
+    await tester.pumpAndSettle();
+    await tester.tap(publicWorksChip);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Streetlight Outage — 4th Ave'), findsOneWidget);
+    expect(find.text('Graffiti Removal — Bridge'), findsOneWidget);
+    expect(find.text('Pothole Cluster — Elm Rd'), findsNothing);
+  });
+
+  testWidgets('Municipal Resolved Reports search narrows the report list', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(theme: AppTheme.light, home: const MunicipalResolvedReportsScreen()),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField), 'Elm');
+    await tester.pumpAndSettle();
+
+    expect(find.text('Pothole Cluster — Elm Rd'), findsOneWidget);
+    expect(find.text('Streetlight Outage — 4th Ave'), findsNothing);
+    expect(find.text('Graffiti Removal — Bridge'), findsNothing);
+  });
+
+  testWidgets('Tapping a Resolved Report fires onReportTap with that report', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    ResolvedReportItem? tapped;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: MunicipalResolvedReportsScreen(
+          initialState: MunicipalResolvedReportsViewState.loaded,
+          onReportTap: (report) => tapped = report,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Streetlight Outage — 4th Ave'));
+    await tester.pumpAndSettle();
+
+    expect(tapped, isNotNull);
+    expect(tapped!.referenceId, 'REQ-8355');
+  });
+
+  testWidgets(
+    'Municipal Resolved Reports is a tab-shell screen: bottom nav stays visible '
+    'and switches to Dashboard/Inbox',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      var dashboardTapped = false;
+      var inboxTapped = false;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: MunicipalResolvedReportsScreen(
+            onNavigateToDashboard: () => dashboardTapped = true,
+            onNavigateToInbox: () => inboxTapped = true,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Dashboard'), findsOneWidget);
+      expect(find.text('Inbox'), findsOneWidget);
+      // 'Resolved' text also appears on every report card's status badge —
+      // check the nav item's icon instead, which is distinct from the
+      // badge's icon (statusResolved vs success).
+      expect(find.byIcon(AppIcons.statusResolved), findsOneWidget);
+      expect(find.byType(BackButton), findsNothing);
+      expect(find.byIcon(AppIcons.back), findsNothing);
+
+      await tester.tap(find.text('Inbox'));
+      await tester.pumpAndSettle();
+      expect(inboxTapped, isTrue);
+      expect(dashboardTapped, isFalse);
+
+      await tester.tap(find.text('Dashboard'));
+      await tester.pumpAndSettle();
+      expect(dashboardTapped, isTrue);
+    },
+  );
+
+  for (final state in MunicipalResolutionDetailsViewState.values) {
+    testWidgets('Municipal Resolution Details renders ${state.name} without error', (
+      WidgetTester tester,
+    ) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: MunicipalResolutionDetailsScreen(initialState: state),
+        ),
+      );
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets('Municipal Resolution Details shows the full record in its loaded state', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: const MunicipalResolutionDetailsScreen(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Resolution Details'), findsOneWidget);
+    expect(find.text('#REQ-8355'), findsOneWidget);
+    expect(find.text('Streetlight Outage — 4th Ave'), findsOneWidget);
+    expect(find.text('Verified Evidence'), findsOneWidget);
+    expect(find.text('Resolution Timeline'), findsOneWidget);
+    expect(find.text('Share Summary'), findsOneWidget);
+    expect(find.text('Archive Report'), findsOneWidget);
   });
 }

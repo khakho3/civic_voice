@@ -7,6 +7,8 @@ import 'features/municipal/screens/municipal_dashboard_screen.dart';
 import 'features/municipal/screens/municipal_inbox_screen.dart';
 import 'features/municipal/screens/municipal_report_progress_screen.dart';
 import 'features/municipal/screens/municipal_report_review_screen.dart';
+import 'features/municipal/screens/municipal_resolution_details_screen.dart';
+import 'features/municipal/screens/municipal_resolved_reports_screen.dart';
 import 'features/municipal/screens/municipal_verification_screen.dart';
 import 'models/report_status.dart';
 
@@ -33,7 +35,7 @@ class CivicVoiceApp extends StatelessWidget {
 /// Temporary root shell wiring the Municipal Officer screens built so far —
 /// a placeholder until a proper named-route/navigator setup is worth
 /// introducing (once more of the module's 9 screens exist).
-enum _MunicipalScreen { dashboard, inbox, active }
+enum _MunicipalScreen { dashboard, inbox, active, resolved }
 
 class _MunicipalRoot extends StatefulWidget {
   const _MunicipalRoot();
@@ -110,6 +112,20 @@ class _MunicipalRootState extends State<_MunicipalRoot> {
     );
   }
 
+  Route<void> _resolutionDetailsRoute(String referenceId) {
+    return MaterialPageRoute(
+      builder: (context) => MunicipalResolutionDetailsScreen(
+        referenceId: referenceId,
+        onBack: () => Navigator.of(context).pop(),
+        // No share/archive workflow is specified yet (Issue 03 §7) —
+        // placeholder pending spec, matching Report Progress's Share
+        // Summary and Dashboard's other unwired quick actions.
+        onShareSummary: () {},
+        onArchive: () {},
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return switch (_current) {
@@ -118,12 +134,16 @@ class _MunicipalRootState extends State<_MunicipalRoot> {
             setState(() => _current = _MunicipalScreen.inbox),
         onNavigateToActiveReports: () =>
             setState(() => _current = _MunicipalScreen.active),
+        onNavigateToResolvedReports: () =>
+            setState(() => _current = _MunicipalScreen.resolved),
       ),
       _MunicipalScreen.inbox => MunicipalInboxScreen(
         onNavigateToDashboard: () =>
             setState(() => _current = _MunicipalScreen.dashboard),
         onNavigateToActiveReports: () =>
             setState(() => _current = _MunicipalScreen.active),
+        onNavigateToResolvedReports: () =>
+            setState(() => _current = _MunicipalScreen.resolved),
         // Report Review is a drill-down detail screen, not a tab
         // destination, so it's pushed as a real route rather than switching
         // _current.
@@ -136,9 +156,22 @@ class _MunicipalRootState extends State<_MunicipalRoot> {
             setState(() => _current = _MunicipalScreen.dashboard),
         onNavigateToInbox: () =>
             setState(() => _current = _MunicipalScreen.inbox),
+        onNavigateToResolvedReports: () =>
+            setState(() => _current = _MunicipalScreen.resolved),
         onReportTap: (report) => Navigator.of(
           context,
         ).push(_reportProgressRoute(report.referenceId, report.status)),
+      ),
+      _MunicipalScreen.resolved => MunicipalResolvedReportsScreen(
+        onNavigateToDashboard: () =>
+            setState(() => _current = _MunicipalScreen.dashboard),
+        onNavigateToInbox: () =>
+            setState(() => _current = _MunicipalScreen.inbox),
+        onNavigateToActiveReports: () =>
+            setState(() => _current = _MunicipalScreen.active),
+        onReportTap: (report) => Navigator.of(
+          context,
+        ).push(_resolutionDetailsRoute(report.referenceId)),
       ),
     };
   }

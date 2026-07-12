@@ -32,6 +32,7 @@ class MunicipalDashboardScreen extends StatefulWidget {
     this.initialState = MunicipalDashboardViewState.loaded,
     this.onNavigateToInbox,
     this.onNavigateToActiveReports,
+    this.onNavigateToResolvedReports,
   });
 
   /// Testing hook: defaults to the normal loaded view. Pass a different
@@ -46,6 +47,10 @@ class MunicipalDashboardScreen extends StatefulWidget {
   /// Wired by the app shell so the bottom nav's "Active" tab can switch to
   /// MUN-006 Active Reports, now that it exists.
   final VoidCallback? onNavigateToActiveReports;
+
+  /// Wired by the app shell so the bottom nav's "Resolved" tab can switch
+  /// to MUN-008 Resolved Reports, now that it exists.
+  final VoidCallback? onNavigateToResolvedReports;
 
   @override
   State<MunicipalDashboardScreen> createState() =>
@@ -74,6 +79,9 @@ class _MunicipalDashboardScreenState extends State<MunicipalDashboardScreen> {
         if (tab == MunicipalTab.inbox) widget.onNavigateToInbox?.call();
         if (tab == MunicipalTab.active) {
           widget.onNavigateToActiveReports?.call();
+        }
+        if (tab == MunicipalTab.resolved) {
+          widget.onNavigateToResolvedReports?.call();
         }
       },
       body: switch (_state) {
