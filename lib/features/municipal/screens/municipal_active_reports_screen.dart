@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../models/report_status.dart';
 import '../models/active_report.dart';
+import '../widgets/collapsible_list_header.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/municipal_scaffold.dart';
 import '../widgets/municipal_search_field.dart';
@@ -312,100 +313,99 @@ class _ActiveReportsBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
 
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.md,
-            AppSpacing.md,
-            AppSpacing.md,
-            0,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              MunicipalSearchField(
-                controller: searchController,
-                hintText: 'Search report ID or street...',
-                trailing: IconButton(
-                  icon: const Icon(AppIcons.filter, size: AppIconSize.md),
-                  onPressed: onSortTap,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              SizedBox(
-                height: 40,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: ActiveReportFilter.values.length,
-                  separatorBuilder: (_, _) =>
-                      const SizedBox(width: AppSpacing.xs),
-                  itemBuilder: (context, index) {
-                    final option = ActiveReportFilter.values[index];
-                    return _FilterChip(
-                      label: option.label,
-                      selected: option == filter,
-                      onTap: () => onFilterChanged(option),
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              Row(
-                children: [
-                  Text(
-                    '${reports.length} report${reports.length == 1 ? '' : 's'}'
-                    '${cached ? ' · cached' : ''}',
-                    style: textTheme.bodySmall,
-                  ),
-                  const Spacer(),
-                  TextButton(onPressed: onSortTap, child: const Text('Sort')),
-                ],
-              ),
-            ],
-          ),
+    return CollapsibleListHeader(
+      header: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.md,
+          AppSpacing.md,
+          AppSpacing.md,
+          AppSpacing.sm,
         ),
-        Expanded(
-          child: reports.isEmpty
-              ? Center(
-                  child: Padding(
-                    padding: EdgeInsets.fromLTRB(
-                      AppSpacing.xl,
-                      AppSpacing.xl,
-                      AppSpacing.xl,
-                      AppSpacing.xl +
-                          MunicipalScaffold.contentPadding(context).bottom,
-                    ),
-                    child: Text(
-                      'No reports match your search.',
-                      style: textTheme.bodyMedium,
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                )
-              : ListView.separated(
-                  padding: EdgeInsets.fromLTRB(
-                    AppSpacing.md,
-                    0,
-                    AppSpacing.md,
-                    AppSpacing.xl +
-                        MunicipalScaffold.contentPadding(context).bottom,
-                  ),
-                  itemCount: reports.length,
-                  separatorBuilder: (_, _) =>
-                      const SizedBox(height: AppSpacing.sm),
-                  itemBuilder: (context, index) {
-                    final report = reports[index];
-                    return _ActiveReportCard(
-                      report: report,
-                      onTap: onReportTap == null
-                          ? null
-                          : () => onReportTap!(report),
-                    );
-                  },
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            MunicipalSearchField(
+              controller: searchController,
+              hintText: 'Search report ID or street...',
+              trailing: IconButton(
+                icon: const Icon(AppIcons.filter, size: AppIconSize.md),
+                onPressed: onSortTap,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            SizedBox(
+              height: 40,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: ActiveReportFilter.values.length,
+                separatorBuilder: (_, _) =>
+                    const SizedBox(width: AppSpacing.xs),
+                itemBuilder: (context, index) {
+                  final option = ActiveReportFilter.values[index];
+                  return _FilterChip(
+                    label: option.label,
+                    selected: option == filter,
+                    onTap: () => onFilterChanged(option),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Row(
+              children: [
+                Text(
+                  '${reports.length} report${reports.length == 1 ? '' : 's'}'
+                  '${cached ? ' · cached' : ''}',
+                  style: textTheme.bodySmall,
                 ),
+                const Spacer(),
+                TextButton(onPressed: onSortTap, child: const Text('Sort')),
+              ],
+            ),
+          ],
         ),
-      ],
+      ),
+      child: reports.isEmpty
+          ? Center(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(
+                  AppSpacing.xl,
+                  AppSpacing.xl,
+                  AppSpacing.xl,
+                  AppSpacing.xl +
+                      MunicipalScaffold.contentPadding(context).bottom,
+                ),
+                child: Text(
+                  'No reports match your search.',
+                  style: textTheme.bodyMedium,
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            )
+          : ListView.separated(
+              // Stays draggable even when the collapsed chrome lets a
+              // short (e.g. filtered-down) list fit the viewport — see
+              // Resolved Reports for the failure mode this prevents.
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: EdgeInsets.fromLTRB(
+                AppSpacing.md,
+                0,
+                AppSpacing.md,
+                AppSpacing.xl +
+                    MunicipalScaffold.contentPadding(context).bottom,
+              ),
+              itemCount: reports.length,
+              separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
+              itemBuilder: (context, index) {
+                final report = reports[index];
+                return _ActiveReportCard(
+                  report: report,
+                  onTap: onReportTap == null
+                      ? null
+                      : () => onReportTap!(report),
+                );
+              },
+            ),
     );
   }
 }

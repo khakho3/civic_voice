@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../models/resolved_report.dart';
+import '../widgets/collapsible_list_header.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/municipal_scaffold.dart';
 import '../widgets/municipal_search_field.dart';
@@ -243,77 +244,89 @@ class _ResolvedReportsBody extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
     const stats = ResolvedReportStats.mock;
 
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.md,
-            AppSpacing.md,
-            AppSpacing.md,
-            0,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              MunicipalSearchField(
-                controller: searchController,
-                hintText: 'Search resolved reports...',
+    return CollapsibleListHeader(
+      header: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.md,
+          AppSpacing.md,
+          AppSpacing.md,
+          AppSpacing.sm,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            MunicipalSearchField(
+              controller: searchController,
+              hintText: 'Search resolved reports...',
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            SizedBox(
+              height: 40,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: ResolvedReportFilter.values.length,
+                separatorBuilder: (_, _) =>
+                    const SizedBox(width: AppSpacing.xs),
+                itemBuilder: (context, index) {
+                  final option = ResolvedReportFilter.values[index];
+                  return _FilterChip(
+                    label: option.label,
+                    selected: option == filter,
+                    onTap: () => onFilterChanged(option),
+                  );
+                },
               ),
-              const SizedBox(height: AppSpacing.sm),
-              SizedBox(
-                height: 40,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: ResolvedReportFilter.values.length,
-                  separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.xs),
-                  itemBuilder: (context, index) {
-                    final option = ResolvedReportFilter.values[index];
-                    return _FilterChip(
-                      label: option.label,
-                      selected: option == filter,
-                      onTap: () => onFilterChanged(option),
-                    );
-                  },
+            ),
+          ],
+        ),
+      ),
+      revealAtTopSection: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.md,
+          0,
+          AppSpacing.md,
+          AppSpacing.sm,
+        ),
+        child: _StatsRow(stats: stats),
+      ),
+      child: reports.isEmpty
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.xl),
+                child: Text(
+                  'No resolved reports match your search.',
+                  style: textTheme.bodyMedium,
+                  textAlign: TextAlign.center,
                 ),
               ),
-              const SizedBox(height: AppSpacing.md),
-              _StatsRow(stats: stats),
-              const SizedBox(height: AppSpacing.sm),
-            ],
-          ),
-        ),
-        Expanded(
-          child: reports.isEmpty
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(AppSpacing.xl),
-                    child: Text(
-                      'No resolved reports match your search.',
-                      style: textTheme.bodyMedium,
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                )
-              : ListView.separated(
-                  padding: EdgeInsets.fromLTRB(
-                    AppSpacing.md,
-                    0,
-                    AppSpacing.md,
-                    AppSpacing.xl + MunicipalScaffold.contentPadding(context).bottom,
-                  ),
-                  itemCount: reports.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
-                  itemBuilder: (context, index) {
-                    final report = reports[index];
-                    return _ResolvedReportCard(
-                      report: report,
-                      cached: cached,
-                      onTap: onReportTap == null ? null : () => onReportTap!(report),
-                    );
-                  },
-                ),
-        ),
-      ],
+            )
+          : ListView.separated(
+              // Keeps the list draggable even once the collapsed chrome
+              // frees enough room for all cards to fit the viewport —
+              // otherwise maxScrollExtent hits 0, the default physics stop
+              // accepting drags, and the hidden search/stats chrome could
+              // never be pulled back out.
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: EdgeInsets.fromLTRB(
+                AppSpacing.md,
+                0,
+                AppSpacing.md,
+                AppSpacing.xl +
+                    MunicipalScaffold.contentPadding(context).bottom,
+              ),
+              itemCount: reports.length,
+              separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
+              itemBuilder: (context, index) {
+                final report = reports[index];
+                return _ResolvedReportCard(
+                  report: report,
+                  cached: cached,
+                  onTap: onReportTap == null
+                      ? null
+                      : () => onReportTap!(report),
+                );
+              },
+            ),
     );
   }
 }
@@ -347,10 +360,10 @@ class _StatsRow extends StatelessWidget {
         const SizedBox(width: AppSpacing.sm),
         Expanded(
           child: _StatCard(
-            icon: AppIcons.rating,
-            label: 'Rating',
-            value: '${stats.avgRating}',
-            caption: 'of 5.0',
+            icon: AppIcons.analytics,
+            label: 'SLA Met',
+            value: '${stats.slaMetPercent}%',
+            caption: 'This month',
           ),
         ),
       ],
@@ -382,7 +395,11 @@ class _StatCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(icon, size: AppIconSize.sm, color: colorScheme.onSurfaceVariant),
+              Icon(
+                icon,
+                size: AppIconSize.sm,
+                color: colorScheme.onSurfaceVariant,
+              ),
               const SizedBox(width: 4),
               Expanded(
                 child: Text(
@@ -400,7 +417,9 @@ class _StatCard extends StatelessWidget {
           Text(value, style: textTheme.titleLarge),
           Text(
             caption,
-            style: textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant),
+            style: textTheme.labelSmall?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+            ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
@@ -425,7 +444,9 @@ class _FilterChip extends StatelessWidget {
           ? AppColors.primary.withValues(alpha: 0.12)
           : Colors.transparent,
       shape: StadiumBorder(
-        side: BorderSide(color: selected ? AppColors.primary : colorScheme.outline),
+        side: BorderSide(
+          color: selected ? AppColors.primary : colorScheme.outline,
+        ),
       ),
       child: InkWell(
         customBorder: const StadiumBorder(),
@@ -438,7 +459,9 @@ class _FilterChip extends StatelessWidget {
           child: Text(
             label,
             style: Theme.of(context).textTheme.labelMedium?.copyWith(
-              color: selected ? AppColors.primary : colorScheme.onSurfaceVariant,
+              color: selected
+                  ? AppColors.primary
+                  : colorScheme.onSurfaceVariant,
             ),
           ),
         ),
@@ -448,7 +471,11 @@ class _FilterChip extends StatelessWidget {
 }
 
 class _ResolvedReportCard extends StatelessWidget {
-  const _ResolvedReportCard({required this.report, required this.cached, this.onTap});
+  const _ResolvedReportCard({
+    required this.report,
+    required this.cached,
+    this.onTap,
+  });
 
   final ResolvedReportItem report;
   final bool cached;
@@ -531,7 +558,10 @@ class _ResolvedReportCard extends StatelessWidget {
                     color: colorScheme.onSurfaceVariant,
                   ),
                   const SizedBox(width: 4),
-                  Text(formatResolvedDate(report.resolvedDate), style: textTheme.bodySmall),
+                  Text(
+                    formatResolvedDate(report.resolvedDate),
+                    style: textTheme.bodySmall,
+                  ),
                 ],
               ),
             ],
@@ -539,13 +569,29 @@ class _ResolvedReportCard extends StatelessWidget {
           const SizedBox(height: AppSpacing.sm),
           Row(
             children: [
-              _StarRating(rating: report.citizenRating),
-              const Spacer(),
+              Icon(
+                AppIcons.eta,
+                size: AppIconSize.sm,
+                color: colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  'Resolved in ${report.durationDays}d',
+                  style: textTheme.bodySmall,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
               Text(
                 'View Details',
                 style: textTheme.labelLarge?.copyWith(color: AppColors.primary),
               ),
-              Icon(AppIcons.chevronRight, size: AppIconSize.sm, color: AppColors.primary),
+              Icon(
+                AppIcons.chevronRight,
+                size: AppIconSize.sm,
+                color: AppColors.primary,
+              ),
             ],
           ),
         ],
@@ -569,7 +615,11 @@ class _ResolvedBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(AppIcons.success, size: AppIconSize.sm, color: AppColors.success),
+          const Icon(
+            AppIcons.success,
+            size: AppIconSize.sm,
+            color: AppColors.success,
+          ),
           const SizedBox(width: 4),
           Text(
             'Resolved',
@@ -580,29 +630,6 @@ class _ResolvedBadge extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _StarRating extends StatelessWidget {
-  const _StarRating({required this.rating});
-
-  final double rating;
-
-  @override
-  Widget build(BuildContext context) {
-    final filled = rating.round().clamp(0, 5);
-    final colorScheme = Theme.of(context).colorScheme;
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        for (var i = 0; i < 5; i++)
-          Icon(
-            AppIcons.rating,
-            size: AppIconSize.sm,
-            color: i < filled ? AppColors.warning : colorScheme.outline,
-          ),
-      ],
     );
   }
 }
@@ -635,7 +662,8 @@ class _LoadingSkeletonState extends State<_LoadingSkeleton>
   Widget build(BuildContext context) {
     final base = Theme.of(context).colorScheme.surfaceContainer;
     final highlight = Theme.of(context).colorScheme.surfaceContainerLow;
-    final reduceMotion = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    final reduceMotion =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
 
     Widget block({double? width, double height = 44}) {
       return AnimatedBuilder(

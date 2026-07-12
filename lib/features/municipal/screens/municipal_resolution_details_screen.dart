@@ -68,9 +68,8 @@ class _MunicipalResolutionDetailsScreenState
                     child: switch (_state) {
                       MunicipalResolutionDetailsViewState.loading =>
                         const _LoadingSkeleton(),
-                      MunicipalResolutionDetailsViewState.loaded => _DetailsBody(
-                        data: _data,
-                      ),
+                      MunicipalResolutionDetailsViewState.loaded =>
+                        _DetailsBody(data: _data),
                     },
                   ),
                   if (_state == MunicipalResolutionDetailsViewState.loaded)
@@ -168,34 +167,21 @@ class _SummaryCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: AppSpacing.md),
+          // Duration deliberately not repeated here — it's the first stat
+          // in the row directly below this card.
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: _LabeledValue(label: 'DEPARTMENT', value: data.department),
+                child: _LabeledValue(
+                  label: 'DEPARTMENT',
+                  value: data.department,
+                ),
               ),
               Expanded(
                 child: _LabeledValue(
                   label: 'RESOLVED ON',
                   value: formatResolvedDate(data.resolvedDate),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: _LabeledValue(
-                  label: 'DURATION',
-                  value: '${data.durationDays}d',
-                ),
-              ),
-              Expanded(
-                child: _LabeledValue(
-                  label: 'CITIZEN RATING',
-                  value: '${data.citizenRating} / 5.0',
                 ),
               ),
             ],
@@ -221,7 +207,11 @@ class _ResolvedBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(AppIcons.success, size: AppIconSize.sm, color: AppColors.success),
+          const Icon(
+            AppIcons.success,
+            size: AppIconSize.sm,
+            color: AppColors.success,
+          ),
           const SizedBox(width: 4),
           Text(
             'Resolved',
@@ -283,9 +273,9 @@ class _StatsRow extends StatelessWidget {
         const SizedBox(width: AppSpacing.sm),
         Expanded(
           child: _MiniStat(
-            icon: AppIcons.rating,
-            label: 'RATING',
-            value: '${data.citizenRating}',
+            icon: AppIcons.camera,
+            label: 'EVIDENCE',
+            value: '${data.evidencePhotoCount}',
           ),
         ),
       ],
@@ -294,7 +284,11 @@ class _StatsRow extends StatelessWidget {
 }
 
 class _MiniStat extends StatelessWidget {
-  const _MiniStat({required this.icon, required this.label, required this.value});
+  const _MiniStat({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
 
   final IconData icon;
   final String label;
@@ -314,7 +308,9 @@ class _MiniStat extends StatelessWidget {
           Text(value, style: textTheme.titleMedium),
           Text(
             label,
-            style: textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant),
+            style: textTheme.labelSmall?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+            ),
           ),
         ],
       ),
@@ -429,7 +425,11 @@ class _TimelineCard extends StatelessWidget {
                   color: AppColors.success,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(AppIcons.success, size: AppIconSize.sm, color: Colors.white),
+                child: const Icon(
+                  AppIcons.success,
+                  size: AppIconSize.sm,
+                  color: Colors.white,
+                ),
               ),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
@@ -488,7 +488,8 @@ class _LoadingSkeletonState extends State<_LoadingSkeleton>
   Widget build(BuildContext context) {
     final base = Theme.of(context).colorScheme.surfaceContainer;
     final highlight = Theme.of(context).colorScheme.surfaceContainerLow;
-    final reduceMotion = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    final reduceMotion =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
 
     Widget block({double height = 96}) {
       return AnimatedBuilder(

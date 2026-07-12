@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../models/incoming_report.dart';
+import '../widgets/collapsible_list_header.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/municipal_scaffold.dart';
 import '../widgets/municipal_search_field.dart';
@@ -236,45 +237,51 @@ class _InboxContent extends StatelessWidget {
 
     return Column(
       children: [
-        Padding(
-          padding: EdgeInsets.fromLTRB(
-            AppSpacing.md,
-            topChromeInset + AppSpacing.md,
-            AppSpacing.md,
-            0,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              MunicipalSearchField(
-                controller: searchController,
-                hintText: 'Search incoming reports...',
-                enabled: !loading,
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              if (isNoResults)
-                _ActiveFilterTags(
-                  query: searchController?.text.trim() ?? '',
-                  category: selectedCategory,
-                  onCategoryCleared: () => onCategorySelected?.call(null),
-                  onQueryCleared: () => searchController?.clear(),
-                )
-              else
-                _CategoryChips(
-                  selected: selectedCategory,
-                  onSelected: loading ? null : onCategorySelected,
-                ),
-            ],
-          ),
-        ),
+        SizedBox(height: topChromeInset),
         Expanded(
-          child: loading
-              ? const _ReportListSkeleton()
-              : isEmpty
-              ? const _InboxEmpty()
-              : isNoResults
-              ? _InboxNoResults(onClearFilters: onClearFilters)
-              : _ReportList(reports: filteredReports, onReportTap: onReportTap),
+          child: CollapsibleListHeader(
+            header: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.md,
+                AppSpacing.md,
+                AppSpacing.md,
+                AppSpacing.sm,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  MunicipalSearchField(
+                    controller: searchController,
+                    hintText: 'Search incoming reports...',
+                    enabled: !loading,
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  if (isNoResults)
+                    _ActiveFilterTags(
+                      query: searchController?.text.trim() ?? '',
+                      category: selectedCategory,
+                      onCategoryCleared: () => onCategorySelected?.call(null),
+                      onQueryCleared: () => searchController?.clear(),
+                    )
+                  else
+                    _CategoryChips(
+                      selected: selectedCategory,
+                      onSelected: loading ? null : onCategorySelected,
+                    ),
+                ],
+              ),
+            ),
+            child: loading
+                ? const _ReportListSkeleton()
+                : isEmpty
+                ? const _InboxEmpty()
+                : isNoResults
+                ? _InboxNoResults(onClearFilters: onClearFilters)
+                : _ReportList(
+                    reports: filteredReports,
+                    onReportTap: onReportTap,
+                  ),
+          ),
         ),
       ],
     );
@@ -444,6 +451,10 @@ class _ReportList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView.separated(
+      // Stays draggable even when the collapsed chrome lets a short (e.g.
+      // filtered-down) list fit the viewport — see Resolved Reports for
+      // the failure mode this prevents.
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: EdgeInsets.fromLTRB(
         AppSpacing.md,
         AppSpacing.md,

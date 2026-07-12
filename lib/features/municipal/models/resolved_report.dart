@@ -10,7 +10,6 @@ class ResolvedReportItem {
     required this.resolvedTimeLabel,
     required this.durationDays,
     required this.slaPercent,
-    required this.citizenRating,
     required this.evidencePhotoCount,
     required this.resolutionNote,
   });
@@ -33,9 +32,6 @@ class ResolvedReportItem {
 
   final int durationDays;
   final int slaPercent;
-
-  /// Citizen satisfaction rating, 0.0–5.0.
-  final double citizenRating;
   final int evidencePhotoCount;
   final String resolutionNote;
 
@@ -63,7 +59,6 @@ class ResolvedReportItem {
         resolvedTimeLabel: '2:45 PM',
         durationDays: 2,
         slaPercent: 98,
-        citizenRating: 5.0,
         evidencePhotoCount: 2,
         resolutionNote: 'Technician completed repair and tested.',
       ),
@@ -76,7 +71,6 @@ class ResolvedReportItem {
         resolvedTimeLabel: '11:20 AM',
         durationDays: 3,
         slaPercent: 95,
-        citizenRating: 4.0,
         evidencePhotoCount: 2,
         resolutionNote: 'Potholes filled and resurfaced.',
       ),
@@ -89,7 +83,6 @@ class ResolvedReportItem {
         resolvedTimeLabel: '9:00 AM',
         durationDays: 1,
         slaPercent: 100,
-        citizenRating: 4.5,
         evidencePhotoCount: 1,
         resolutionNote: 'Graffiti pressure-washed and surface sealed.',
       ),
@@ -114,21 +107,29 @@ enum ResolvedReportFilter {
 /// Aggregate stats shown at the top of the list — fixed regardless of the
 /// active filter/search, matching Dashboard's stats grid (which likewise
 /// doesn't react to Recent Reports' own filtering).
+///
+/// The approved frame's third stat was an "Avg Rating" star score. Dropped
+/// deliberately: each resolved report would only ever have one possible
+/// rater (the original reporter), so per-report stars are n=1 sentiment
+/// presented as an aggregate — and subjective scores are the most gameable
+/// surface in an app whose whole premise is being resistant to political
+/// manipulation. SLA compliance carries the same "how well are we doing"
+/// signal, but derived from timestamps nobody can brigade.
 class ResolvedReportStats {
   const ResolvedReportStats({
     required this.resolvedThisMonth,
     required this.avgResolutionDays,
-    required this.avgRating,
+    required this.slaMetPercent,
   });
 
   final int resolvedThisMonth;
   final double avgResolutionDays;
-  final double avgRating;
+  final int slaMetPercent;
 
   static const mock = ResolvedReportStats(
     resolvedThisMonth: 128,
     avgResolutionDays: 2.4,
-    avgRating: 4.8,
+    slaMetPercent: 94,
   );
 }
 
@@ -136,8 +137,18 @@ class ResolvedReportStats {
 /// one call site (shared by the list and detail screens).
 String formatResolvedDate(DateTime date) {
   const months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
   return '${months[date.month - 1]} ${date.day}, ${date.year}';
 }
