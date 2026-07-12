@@ -7,31 +7,59 @@ import '../../../core/theme/app_theme.dart';
 /// destinations that aren't in the approved navigation architecture
 /// (see docs/DEVELOPMENT_RULES.md — Navigation).
 enum MunicipalTab {
-  dashboard(label: 'Dashboard', icon: AppIcons.home),
-  inbox(label: 'Inbox', icon: AppIcons.inbox),
-  active(label: 'Active', icon: AppIcons.analytics),
-  resolved(label: 'Resolved', icon: AppIcons.statusResolved);
+  dashboard(label: 'Dashboard', icon: AppIcons.home, headerTitle: 'CivicVoice'),
+  inbox(label: 'Inbox', icon: AppIcons.inbox, headerTitle: 'Incoming Reports'),
+  active(label: 'Active', icon: AppIcons.analytics, headerTitle: 'Active Reports'),
+  resolved(
+    label: 'Resolved',
+    icon: AppIcons.statusResolved,
+    headerTitle: 'Resolved Reports',
+  );
 
-  const MunicipalTab({required this.label, required this.icon});
+  const MunicipalTab({
+    required this.label,
+    required this.icon,
+    required this.headerTitle,
+  });
 
+  /// Short label under the bottom-nav icon.
   final String label;
   final IconData icon;
+
+  /// Full screen title shown in the header. Unused for [dashboard], whose
+  /// header is the brand mark instead of a text title.
+  final String headerTitle;
 }
 
 /// Shared shell (header + bottom navigation) for Municipal Officer screens —
 /// the "Header ↓ Primary Content ↓ Navigation" pattern from the Design
 /// System Requirements (§19.9 Screen Structure), reused across the module.
+///
+/// Only [MunicipalTab.dashboard] shows the CivicVoice brand mark in its
+/// header — every other tab shows its own [MunicipalTab.headerTitle]
+/// instead (e.g. "Incoming Reports", "Active Reports"), the same convention
+/// most tab-based apps use: the brand mark lives on the home tab, and every
+/// other tab is titled for what it actually shows. Besides matching that
+/// convention, repeating the logo bar *and* an in-body headline on every
+/// list screen was redundant chrome that ate vertical space the actual
+/// content (search, filters, cards) needed more.
 class MunicipalScaffold extends StatelessWidget {
   const MunicipalScaffold({
     super.key,
     required this.body,
     required this.selectedTab,
+    this.headerSubtitle,
     this.onNotificationsTap,
     this.onTabSelected,
   });
 
   final Widget body;
   final MunicipalTab selectedTab;
+
+  /// Optional second line under the screen title (e.g. a zone/district
+  /// scope) — ignored for [MunicipalTab.dashboard], whose header is the
+  /// brand mark rather than a text title.
+  final String? headerSubtitle;
   final VoidCallback? onNotificationsTap;
   final ValueChanged<MunicipalTab>? onTabSelected;
 
@@ -54,7 +82,11 @@ class MunicipalScaffold extends StatelessWidget {
           behavior: HitTestBehavior.translucent,
           child: Column(
             children: [
-              _Header(onNotificationsTap: onNotificationsTap),
+              _Header(
+                tab: selectedTab,
+                subtitle: headerSubtitle,
+                onNotificationsTap: onNotificationsTap,
+              ),
               Expanded(child: body),
               if (!keyboardVisible)
                 _BottomNav(selected: selectedTab, onSelected: onTabSelected),
@@ -67,8 +99,10 @@ class MunicipalScaffold extends StatelessWidget {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({this.onNotificationsTap});
+  const _Header({required this.tab, this.subtitle, this.onNotificationsTap});
 
+  final MunicipalTab tab;
+  final String? subtitle;
   final VoidCallback? onNotificationsTap;
 
   @override
@@ -83,21 +117,45 @@ class _Header extends StatelessWidget {
         border: Border(bottom: BorderSide(color: semantic.glassBorder)),
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            children: [
-              Image.asset(
-                AppAssets.logoApp,
-                width: AppIconSize.xl,
-                height: AppIconSize.xl,
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Text(
-                'CivicVoice',
-                style: textTheme.titleLarge?.copyWith(color: AppColors.primary),
-              ),
-            ],
+          Expanded(
+            child: tab == MunicipalTab.dashboard
+                ? Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Image.asset(
+                        AppAssets.logoApp,
+                        width: AppIconSize.xl,
+                        height: AppIconSize.xl,
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      Text(
+                        'CivicVoice',
+                        style: textTheme.titleLarge?.copyWith(
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ],
+                  )
+                : Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        tab.headerTitle,
+                        style: textTheme.titleMedium,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (subtitle != null)
+                        Text(
+                          subtitle!,
+                          style: textTheme.labelSmall?.copyWith(letterSpacing: 0.96),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                    ],
+                  ),
           ),
           _IconButton(
             icon: AppIcons.notifications,

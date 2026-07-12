@@ -24,8 +24,10 @@ import '../widgets/status_badge.dart';
 /// itself confirmed against an approved frame showing all four destinations
 /// together, and reusing a persistent nav icon to trigger a chrome-free
 /// drill-down would be inconsistent with how every other list screen in this
-/// module behaves. "Active Reports" / the zone name are kept as an in-content
-/// heading instead, mirroring Incoming Reports' "Incoming Reports" headline.
+/// module behaves. "Active Reports" / the zone name are shown via
+/// [MunicipalScaffold]'s header title/subtitle rather than an in-content
+/// heading — only the Dashboard tab shows the CivicVoice brand mark there;
+/// every other tab shows its own screen title.
 enum MunicipalActiveReportsViewState { loading, loaded, empty, error, offline }
 
 class MunicipalActiveReportsScreen extends StatefulWidget {
@@ -48,7 +50,9 @@ class MunicipalActiveReportsScreen extends StatefulWidget {
   final VoidCallback? onNavigateToDashboard;
   final VoidCallback? onNavigateToInbox;
 
-  /// Opens the tapped report's full detail (Report Review).
+  /// Opens the tapped report's full detail (Report Progress — every report
+  /// listed here is already past triage, so Report Review's Verify/Reject
+  /// decision doesn't apply).
   final ValueChanged<ActiveReportItem>? onReportTap;
 
   /// Wired to Empty's "View History" action — no destination screen exists
@@ -159,6 +163,7 @@ class _MunicipalActiveReportsScreenState
       // Notifications isn't one of the 9 approved MUN screens (Issue 03
       // §7) — left as a placeholder until that screen is specified.
       onNotificationsTap: () {},
+      headerSubtitle: widget.zoneName.toUpperCase(),
       onTabSelected: (tab) {
         if (tab == MunicipalTab.dashboard) widget.onNavigateToDashboard?.call();
         if (tab == MunicipalTab.inbox) widget.onNavigateToInbox?.call();
@@ -166,26 +171,6 @@ class _MunicipalActiveReportsScreenState
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.md,
-              AppSpacing.md,
-              AppSpacing.md,
-              0,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Active Reports', style: Theme.of(context).textTheme.headlineLarge),
-                Text(
-                  widget.zoneName.toUpperCase(),
-                  style: Theme.of(
-                    context,
-                  ).textTheme.labelSmall?.copyWith(letterSpacing: 0.96),
-                ),
-              ],
-            ),
-          ),
           if (_state == MunicipalActiveReportsViewState.offline)
             const _OfflineBanner(),
           Expanded(

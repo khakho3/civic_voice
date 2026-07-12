@@ -12,11 +12,12 @@ import '../widgets/status_badge.dart';
 /// Loading, Error — no Success/Disabled, matching MUN-001's reasoning (a
 /// read-only list has no completable action to confirm).
 ///
-/// Default/Empty/No-Results/Loading share one page shell (title, search,
-/// category chips) and only swap the list area — Error/Offline/Permission
-/// replace the whole body in a bordered card, confirmed against this
-/// screen's approved frames (unlike MUN-001, which was flat/unbordered
-/// before being retrofitted to match this same pattern).
+/// Default/Empty/No-Results/Loading share one page shell (search, category
+/// chips) and only swap the list area — Error/Offline/Permission replace
+/// the whole body in a bordered card, confirmed against this screen's
+/// approved frames (unlike MUN-001, which was flat/unbordered before being
+/// retrofitted to match this same pattern). The screen title itself lives
+/// in [MunicipalScaffold]'s header, not in this body content.
 enum MunicipalInboxViewState {
   loading,
   loaded,
@@ -205,7 +206,6 @@ class _InboxContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
     final isNoResults = !loading && rawReports.isNotEmpty && filteredReports.isEmpty;
     final isEmpty = !loading && rawReports.isEmpty;
 
@@ -221,8 +221,6 @@ class _InboxContent extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Incoming Reports', style: textTheme.headlineLarge),
-              const SizedBox(height: AppSpacing.md),
               _SearchField(controller: searchController, enabled: !loading),
               const SizedBox(height: AppSpacing.sm),
               if (isNoResults)
