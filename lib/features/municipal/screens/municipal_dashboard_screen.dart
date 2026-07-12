@@ -33,6 +33,7 @@ class MunicipalDashboardScreen extends StatefulWidget {
     this.onNavigateToInbox,
     this.onNavigateToActiveReports,
     this.onNavigateToResolvedReports,
+    this.onProfileTap,
   });
 
   /// Testing hook: defaults to the normal loaded view. Pass a different
@@ -51,6 +52,10 @@ class MunicipalDashboardScreen extends StatefulWidget {
   /// Wired by the app shell so the bottom nav's "Resolved" tab can switch
   /// to MUN-008 Resolved Reports, now that it exists.
   final VoidCallback? onNavigateToResolvedReports;
+
+  /// Opens MUN-009 Municipal Profile — wired to the header's profile
+  /// avatar, now that it exists.
+  final VoidCallback? onProfileTap;
 
   @override
   State<MunicipalDashboardScreen> createState() =>
@@ -75,6 +80,7 @@ class _MunicipalDashboardScreenState extends State<MunicipalDashboardScreen> {
       // Notifications isn't one of the 9 approved MUN screens (Issue 03
       // §7) — left as a placeholder until that screen is specified.
       onNotificationsTap: () {},
+      onProfileTap: widget.onProfileTap,
       onTabSelected: (tab) {
         if (tab == MunicipalTab.inbox) widget.onNavigateToInbox?.call();
         if (tab == MunicipalTab.active) {

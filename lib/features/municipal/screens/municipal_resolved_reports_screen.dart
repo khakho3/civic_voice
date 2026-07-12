@@ -36,6 +36,7 @@ class MunicipalResolvedReportsScreen extends StatefulWidget {
     this.onNavigateToDashboard,
     this.onNavigateToInbox,
     this.onNavigateToActiveReports,
+    this.onProfileTap,
     this.onReportTap,
     this.onNotificationsTap,
   });
@@ -47,6 +48,10 @@ class MunicipalResolvedReportsScreen extends StatefulWidget {
   final VoidCallback? onNavigateToDashboard;
   final VoidCallback? onNavigateToInbox;
   final VoidCallback? onNavigateToActiveReports;
+
+  /// Opens MUN-009 Municipal Profile — wired to the header's profile
+  /// avatar, now that it exists.
+  final VoidCallback? onProfileTap;
 
   final ValueChanged<ResolvedReportItem>? onReportTap;
   final VoidCallback? onNotificationsTap;
@@ -124,6 +129,7 @@ class _MunicipalResolvedReportsScreenState
     return MunicipalScaffold(
       selectedTab: MunicipalTab.resolved,
       onNotificationsTap: widget.onNotificationsTap ?? () {},
+      onProfileTap: widget.onProfileTap,
       onTabSelected: (tab) {
         if (tab == MunicipalTab.dashboard) widget.onNavigateToDashboard?.call();
         if (tab == MunicipalTab.inbox) widget.onNavigateToInbox?.call();

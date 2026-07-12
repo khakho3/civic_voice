@@ -84,7 +84,7 @@ abstract final class AppColorsLight {
 abstract final class AppColorsDark {
   const AppColorsDark._();
 
-  static const Color canvas = Color(0xFF0F172A);
+  static const Color canvas = Color.fromRGBO(15, 23, 42, 1);
   static const Color primarySurface = Color(0xFF111827);
   static const Color secondarySurface = Color(0xFF1E293B);
 

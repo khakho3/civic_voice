@@ -5,6 +5,7 @@ import 'features/municipal/screens/municipal_active_reports_screen.dart';
 import 'features/municipal/screens/municipal_assign_team_screen.dart';
 import 'features/municipal/screens/municipal_dashboard_screen.dart';
 import 'features/municipal/screens/municipal_inbox_screen.dart';
+import 'features/municipal/screens/municipal_profile_screen.dart';
 import 'features/municipal/screens/municipal_report_progress_screen.dart';
 import 'features/municipal/screens/municipal_report_review_screen.dart';
 import 'features/municipal/screens/municipal_resolution_details_screen.dart';
@@ -112,6 +113,22 @@ class _MunicipalRootState extends State<_MunicipalRoot> {
     );
   }
 
+  /// Profile is a personal-account screen reachable from every tab (the
+  /// header's profile avatar), not a report drill-down, so unlike the
+  /// routes above it doesn't need a referenceId/status carried in from a
+  /// list item.
+  Route<void> _profileRoute() {
+    return MaterialPageRoute(
+      builder: (context) => MunicipalProfileScreen(
+        onBack: () => Navigator.of(context).pop(),
+        // No account/session workflow is specified yet (Issue 03 §7) —
+        // placeholder pending spec, matching this screen's other unwired
+        // actions.
+        onLogOut: () {},
+      ),
+    );
+  }
+
   Route<void> _resolutionDetailsRoute(String referenceId) {
     return MaterialPageRoute(
       builder: (context) => MunicipalResolutionDetailsScreen(
@@ -136,6 +153,7 @@ class _MunicipalRootState extends State<_MunicipalRoot> {
             setState(() => _current = _MunicipalScreen.active),
         onNavigateToResolvedReports: () =>
             setState(() => _current = _MunicipalScreen.resolved),
+        onProfileTap: () => Navigator.of(context).push(_profileRoute()),
       ),
       _MunicipalScreen.inbox => MunicipalInboxScreen(
         onNavigateToDashboard: () =>
@@ -144,6 +162,7 @@ class _MunicipalRootState extends State<_MunicipalRoot> {
             setState(() => _current = _MunicipalScreen.active),
         onNavigateToResolvedReports: () =>
             setState(() => _current = _MunicipalScreen.resolved),
+        onProfileTap: () => Navigator.of(context).push(_profileRoute()),
         // Report Review is a drill-down detail screen, not a tab
         // destination, so it's pushed as a real route rather than switching
         // _current.
@@ -158,6 +177,7 @@ class _MunicipalRootState extends State<_MunicipalRoot> {
             setState(() => _current = _MunicipalScreen.inbox),
         onNavigateToResolvedReports: () =>
             setState(() => _current = _MunicipalScreen.resolved),
+        onProfileTap: () => Navigator.of(context).push(_profileRoute()),
         onReportTap: (report) => Navigator.of(
           context,
         ).push(_reportProgressRoute(report.referenceId, report.status)),
@@ -169,6 +189,7 @@ class _MunicipalRootState extends State<_MunicipalRoot> {
             setState(() => _current = _MunicipalScreen.inbox),
         onNavigateToActiveReports: () =>
             setState(() => _current = _MunicipalScreen.active),
+        onProfileTap: () => Navigator.of(context).push(_profileRoute()),
         onReportTap: (report) => Navigator.of(
           context,
         ).push(_resolutionDetailsRoute(report.referenceId)),

@@ -38,15 +38,20 @@ class ResolvedReportItem {
   /// Placeholder content matching the approved MUN-008 design, used until
   /// the Cloud Firestore-backed service (Issue 03 dependency) is wired up.
   ///
-  /// The approved frame showed these three reports with `MUN-002`/
-  /// `MUN-003`/`MUN-004` as report references — this project's own screen
-  /// spec numbering (MUN-001 through MUN-009), not a report ID format used
+  /// The approved frame showed three reports with `MUN-002`/`MUN-003`/
+  /// `MUN-004` as report references — this project's own screen spec
+  /// numbering (MUN-001 through MUN-009), not a report ID format used
   /// anywhere else in the app. Same category of mockup slip already
   /// corrected on Assign Team/Active Reports/Report Progress, so these are
-  /// given proper `REQ-` identifiers here too. None of the three is the
-  /// pothole report followed through the rest of the flow (REQ-8421) — it's
-  /// still "In Progress" on Report Progress, not resolved yet, so it
-  /// wouldn't belong in this list.
+  /// given proper `REQ-` identifiers here too. None of them is the pothole
+  /// report followed through the rest of the flow (REQ-8421) — it's still
+  /// "In Progress" on Report Progress, not resolved yet, so it wouldn't
+  /// belong in this list.
+  ///
+  /// Two more entries beyond the approved frame's three were added so the
+  /// list actually overflows a real device's viewport once the header/stats
+  /// chrome collapses — with only three short cards there wasn't enough
+  /// content to meaningfully exercise the scroll-collapse behavior at all.
   static List<ResolvedReportItem> mock() {
     final now = DateTime.now();
     return [
@@ -85,6 +90,30 @@ class ResolvedReportItem {
         slaPercent: 100,
         evidencePhotoCount: 1,
         resolutionNote: 'Graffiti pressure-washed and surface sealed.',
+      ),
+      ResolvedReportItem(
+        referenceId: 'REQ-8155',
+        title: 'Fallen Tree Branch — Oak Park',
+        locationLabel: 'Oak Park, North Entrance',
+        department: 'Parks & Recreation',
+        resolvedDate: now.subtract(const Duration(days: 13)),
+        resolvedTimeLabel: '3:30 PM',
+        durationDays: 1,
+        slaPercent: 100,
+        evidencePhotoCount: 2,
+        resolutionNote: 'Branch removed and pathway cleared.',
+      ),
+      ResolvedReportItem(
+        referenceId: 'REQ-8092',
+        title: 'Broken Sidewalk — 2nd St',
+        locationLabel: '412 2nd St',
+        department: 'Road Maintenance',
+        resolvedDate: now.subtract(const Duration(days: 20)),
+        resolvedTimeLabel: '10:15 AM',
+        durationDays: 4,
+        slaPercent: 90,
+        evidencePhotoCount: 3,
+        resolutionNote: 'Sidewalk slab replaced and leveled.',
       ),
     ];
   }

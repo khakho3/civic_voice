@@ -9,6 +9,7 @@ import 'package:civic_voice/features/municipal/screens/municipal_active_reports_
 import 'package:civic_voice/features/municipal/screens/municipal_assign_team_screen.dart';
 import 'package:civic_voice/features/municipal/screens/municipal_dashboard_screen.dart';
 import 'package:civic_voice/features/municipal/screens/municipal_inbox_screen.dart';
+import 'package:civic_voice/features/municipal/screens/municipal_profile_screen.dart';
 import 'package:civic_voice/features/municipal/screens/municipal_report_progress_screen.dart';
 import 'package:civic_voice/features/municipal/screens/municipal_report_review_screen.dart';
 import 'package:civic_voice/features/municipal/screens/municipal_resolution_details_screen.dart';
@@ -1490,6 +1491,243 @@ void main() {
         tester.getSize(topSectionFinder).height,
         greaterThan(topSectionExpandedHeight / 2),
       );
+    },
+  );
+
+  testWidgets(
+    'Municipal Dashboard header profile avatar opens Municipal Profile',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      var profileTapped = false;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: MunicipalDashboardScreen(
+            onProfileTap: () => profileTapped = true,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(AppIcons.profile));
+      await tester.pumpAndSettle();
+
+      expect(profileTapped, isTrue);
+    },
+  );
+
+  for (final state in MunicipalProfileViewState.values) {
+    testWidgets('Municipal Profile renders ${state.name} without error', (
+      WidgetTester tester,
+    ) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: MunicipalProfileScreen(initialState: state),
+        ),
+      );
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets('Municipal Profile shows the full account in its loaded state', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(theme: AppTheme.light, home: const MunicipalProfileScreen()),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Municipal Profile'), findsOneWidget);
+    expect(find.text('ID MC-4092'), findsOneWidget);
+    expect(find.text('Alex Johnston'), findsOneWidget);
+    expect(find.text('Senior Municipal Coordinator'), findsOneWidget);
+    expect(find.text('Verified Official'), findsOneWidget);
+    expect(find.text('alex.johnston@city.gov'), findsOneWidget);
+    expect(find.text('(555) 128-4092'), findsOneWidget);
+    expect(find.text('Urban Planning & Dev'), findsOneWidget);
+    expect(find.text('Director M. Chen'), findsOneWidget);
+    expect(find.text('Change Password'), findsOneWidget);
+    expect(find.text('Two-Factor Authentication'), findsOneWidget);
+    expect(find.text('Login Sessions'), findsOneWidget);
+  });
+
+  testWidgets(
+    'Municipal Profile Error state previews the exact approved failure '
+    'scenario',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: const MunicipalProfileScreen(
+            initialState: MunicipalProfileViewState.error,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Edit Profile'), findsOneWidget);
+      expect(find.text('Please enter a valid municipal email'), findsOneWidget);
+      expect(find.text('Phone number is required'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'Municipal Profile kebab menu Edit Profile opens the edit form with '
+    'current values',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: const MunicipalProfileScreen(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(AppIcons.more));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Edit Profile'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Edit Profile'), findsOneWidget);
+      expect(find.text('Personal Information'), findsOneWidget);
+      // Matches both the header's name display and the Full Name field's
+      // current value.
+      expect(find.text('Alex Johnston'), findsNWidgets(2));
+      expect(find.text('alex.johnston@city.gov'), findsOneWidget);
+      expect(find.text('(555) 128-4092'), findsOneWidget);
+      // Department is shown but locked, not part of the editable form.
+      expect(find.text('Set by your administrator'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'Municipal Profile Save fails validation on an invalid email and empty '
+    'phone, without leaving the edit form',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: const MunicipalProfileScreen(
+            initialState: MunicipalProfileViewState.editing,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final fields = find.byType(TextField);
+      await tester.enterText(fields.at(1), 'alex.johnston@example.com');
+      await tester.enterText(fields.at(2), '');
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Save Changes'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Please enter a valid municipal email'), findsOneWidget);
+      expect(find.text('Phone number is required'), findsOneWidget);
+      // Still editing — a failed save must not silently drop the user back
+      // to the read-only view.
+      expect(find.text('Personal Information'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'Municipal Profile Save succeeds with valid data and shows the updated '
+    'name back in the read-only view',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: const MunicipalProfileScreen(
+            initialState: MunicipalProfileViewState.editing,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField).first, 'Jordan Reyes');
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Save Changes'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Profile saved successfully'), findsOneWidget);
+      expect(find.text('Municipal Profile'), findsOneWidget);
+      expect(find.text('Jordan Reyes'), findsOneWidget);
+
+      // Let the success banner's auto-dismiss timer run to completion —
+      // otherwise it's still pending when the widget tree gets torn down
+      // at the end of the test.
+      await tester.pump(const Duration(seconds: 3));
+      await tester.pumpAndSettle();
+    },
+  );
+
+  testWidgets(
+    'Municipal Profile Cancel discards edits and returns to the read-only '
+    'view',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: const MunicipalProfileScreen(
+            initialState: MunicipalProfileViewState.editing,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField).first, 'Someone Else');
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Municipal Profile'), findsOneWidget);
+      expect(find.text('Alex Johnston'), findsOneWidget);
+      expect(find.text('Someone Else'), findsNothing);
     },
   );
 }

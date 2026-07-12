@@ -43,6 +43,7 @@ class MunicipalActiveReportsScreen extends StatefulWidget {
     this.onNavigateToDashboard,
     this.onNavigateToInbox,
     this.onNavigateToResolvedReports,
+    this.onProfileTap,
     this.onReportTap,
     this.onSystemStatus,
   });
@@ -59,6 +60,10 @@ class MunicipalActiveReportsScreen extends StatefulWidget {
   /// Resolved Reports exists, so one callback covers both rather than
   /// keeping a separately named one that did the identical thing.
   final VoidCallback? onNavigateToResolvedReports;
+
+  /// Opens MUN-009 Municipal Profile — wired to the header's profile
+  /// avatar, now that it exists.
+  final VoidCallback? onProfileTap;
 
   /// Opens the tapped report's full detail (Report Progress — every report
   /// listed here is already past triage, so Report Review's Verify/Reject
@@ -174,6 +179,7 @@ class _MunicipalActiveReportsScreenState
       // Notifications isn't one of the 9 approved MUN screens (Issue 03
       // §7) — left as a placeholder until that screen is specified.
       onNotificationsTap: () {},
+      onProfileTap: widget.onProfileTap,
       onTabSelected: (tab) {
         if (tab == MunicipalTab.dashboard) widget.onNavigateToDashboard?.call();
         if (tab == MunicipalTab.inbox) widget.onNavigateToInbox?.call();

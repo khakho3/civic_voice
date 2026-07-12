@@ -37,7 +37,7 @@ abstract final class AppDarkTheme {
         onSecondary: Colors.white,
         error: AppColors.error,
         onError: Colors.white,
-        surface: AppColorsDark.primarySurface,
+        surface: const Color(0xFF111827),
         onSurface: AppColorsDark.primaryText,
         surfaceContainerLowest: AppColorsDark.canvas,
         surfaceContainerLow: AppColorsDark.secondarySurface,

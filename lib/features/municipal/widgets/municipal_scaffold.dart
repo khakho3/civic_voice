@@ -65,6 +65,7 @@ class MunicipalScaffold extends StatelessWidget {
     required this.selectedTab,
     this.headerSubtitle,
     this.onNotificationsTap,
+    this.onProfileTap,
     this.onTabSelected,
   });
 
@@ -76,6 +77,11 @@ class MunicipalScaffold extends StatelessWidget {
   /// brand mark rather than a text title.
   final String? headerSubtitle;
   final VoidCallback? onNotificationsTap;
+
+  /// Opens Municipal Profile (MUN-009) — the only entry point to it, shown
+  /// on every tab rather than just Dashboard, since account access isn't
+  /// tied to any one tab's content.
+  final VoidCallback? onProfileTap;
   final ValueChanged<MunicipalTab>? onTabSelected;
 
   /// The top/bottom inset every [body] must reserve in its own scrollable
@@ -117,6 +123,7 @@ class MunicipalScaffold extends StatelessWidget {
                 tab: selectedTab,
                 subtitle: headerSubtitle,
                 onNotificationsTap: onNotificationsTap,
+                onProfileTap: onProfileTap,
               ),
             ),
             if (!keyboardVisible)
@@ -135,11 +142,17 @@ class MunicipalScaffold extends StatelessWidget {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({required this.tab, this.subtitle, this.onNotificationsTap});
+  const _Header({
+    required this.tab,
+    this.subtitle,
+    this.onNotificationsTap,
+    this.onProfileTap,
+  });
 
   final MunicipalTab tab;
   final String? subtitle;
   final VoidCallback? onNotificationsTap;
+  final VoidCallback? onProfileTap;
 
   @override
   Widget build(BuildContext context) {
@@ -201,7 +214,44 @@ class _Header extends StatelessWidget {
                   onPressed: onNotificationsTap,
                   semantic: semantic,
                 ),
+                const SizedBox(width: AppSpacing.xs),
+                _ProfileButton(onTap: onProfileTap),
               ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Opens Municipal Profile — a small circular avatar rather than a plain
+/// icon, so it visually reads as "your account" distinct from the bell.
+class _ProfileButton extends StatelessWidget {
+  const _ProfileButton({this.onTap});
+
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: AppDimensions.controlHeightStandard,
+      height: AppDimensions.controlHeightStandard,
+      child: Material(
+        color: Colors.transparent,
+        shape: const CircleBorder(),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: onTap,
+          child: Center(
+            child: CircleAvatar(
+              radius: AppIconSize.md / 2 + 2,
+              backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+              child: Icon(
+                AppIcons.profile,
+                size: AppIconSize.sm,
+                color: AppColors.primary,
+              ),
             ),
           ),
         ),

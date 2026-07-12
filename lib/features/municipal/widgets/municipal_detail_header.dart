@@ -16,12 +16,25 @@ class MunicipalDetailHeader extends StatelessWidget {
     super.key,
     required this.title,
     required this.referenceId,
+    this.subtitlePrefix = '#',
+    this.leadingIcon = AppIcons.back,
     this.onBack,
     this.trailing,
   });
 
   final String title;
   final String referenceId;
+
+  /// Prefixed onto [referenceId] for the subtitle line — '#' for a report
+  /// reference (the default, matching every existing caller), 'ID ' for an
+  /// account identifier (Municipal Profile).
+  final String subtitlePrefix;
+
+  /// Defaults to a back arrow; Municipal Profile's editing mode swaps in a
+  /// close (X) icon instead, since [onBack] there cancels the edit rather
+  /// than navigating up a level.
+  final IconData leadingIcon;
+
   final VoidCallback? onBack;
 
   /// Status badge, kebab menu, etc.
@@ -48,7 +61,7 @@ class MunicipalDetailHeader extends StatelessWidget {
               children: [
                 IconButton(
                   onPressed: onBack,
-                  icon: const Icon(AppIcons.back),
+                  icon: Icon(leadingIcon),
                   iconSize: AppIconSize.md,
                 ),
                 const SizedBox(width: AppSpacing.xs),
@@ -64,7 +77,7 @@ class MunicipalDetailHeader extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                       Text(
-                        '#$referenceId',
+                        '$subtitlePrefix$referenceId',
                         style: textTheme.bodySmall,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
