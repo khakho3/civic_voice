@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import 'glass_card.dart';
 
 /// Full-page state message — icon badge + title + message + up to two
 /// actions. Shared shape for Error / Offline / Permission (§19.18) across
@@ -64,11 +65,7 @@ class MunicipalStateMessage extends StatelessWidget {
         const SizedBox(height: AppSpacing.md),
         Text(title, style: textTheme.titleMedium, textAlign: TextAlign.center),
         const SizedBox(height: AppSpacing.sm),
-        Text(
-          message,
-          style: textTheme.bodyMedium,
-          textAlign: TextAlign.center,
-        ),
+        Text(message, style: textTheme.bodyMedium, textAlign: TextAlign.center),
         if (primaryActionLabel != null) ...[
           const SizedBox(height: AppSpacing.lg),
           SizedBox(
@@ -106,14 +103,7 @@ class MunicipalStateMessage extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.all(AppSpacing.md),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: colorScheme.surface,
-          border: Border.all(color: colorScheme.outline),
-          borderRadius: AppComponentRadius.card,
-        ),
-        child: padded,
-      ),
+      child: GlassCard(padding: EdgeInsets.zero, child: padded),
     );
   }
 }

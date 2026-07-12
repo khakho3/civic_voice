@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import 'glass_bar.dart';
 
 /// Primary bottom-navigation destinations for the Municipal Officer module —
 /// exactly the four shown in the approved Figma frames. Do not add
@@ -9,7 +10,11 @@ import '../../../core/theme/app_theme.dart';
 enum MunicipalTab {
   dashboard(label: 'Dashboard', icon: AppIcons.home, headerTitle: 'CivicVoice'),
   inbox(label: 'Inbox', icon: AppIcons.inbox, headerTitle: 'Incoming Reports'),
-  active(label: 'Active', icon: AppIcons.analytics, headerTitle: 'Active Reports'),
+  active(
+    label: 'Active',
+    icon: AppIcons.analytics,
+    headerTitle: 'Active Reports',
+  ),
   resolved(
     label: 'Resolved',
     icon: AppIcons.statusResolved,
@@ -43,6 +48,16 @@ enum MunicipalTab {
 /// convention, repeating the logo bar *and* an in-body headline on every
 /// list screen was redundant chrome that ate vertical space the actual
 /// content (search, filters, cards) needed more.
+///
+/// Header and bottom nav are [GlassBar]s (real backdrop blur, not just a
+/// translucent color) floating in a [Stack] above [body] — [body] is
+/// positioned edge-to-edge behind them, so its content actually scrolls
+/// underneath and gets frosted, rather than the blur having nothing behind
+/// it to blur. [body] is expected to reserve
+/// `MediaQuery.paddingOf(context).top + AppDimensions.headerHeight` of top
+/// padding and `MediaQuery.paddingOf(context).bottom +
+/// AppDimensions.bottomNavHeight` of bottom padding in its own scrollable
+/// content so nothing renders permanently hidden underneath the chrome.
 class MunicipalScaffold extends StatelessWidget {
   const MunicipalScaffold({
     super.key,
@@ -63,6 +78,20 @@ class MunicipalScaffold extends StatelessWidget {
   final VoidCallback? onNotificationsTap;
   final ValueChanged<MunicipalTab>? onTabSelected;
 
+  /// The top/bottom inset every [body] must reserve in its own scrollable
+  /// content so nothing sits permanently hidden behind the glass header/nav
+  /// — see the class doc comment. Screens add this to their own padding
+  /// rather than [MunicipalScaffold] wrapping [body] in a `Padding` itself,
+  /// since an outer wrapper would just shrink the scrollable's box instead
+  /// of letting its content actually scroll underneath the chrome.
+  static EdgeInsets contentPadding(BuildContext context) {
+    final viewPadding = MediaQuery.paddingOf(context);
+    return EdgeInsets.only(
+      top: viewPadding.top + AppDimensions.headerHeight,
+      bottom: viewPadding.bottom + AppDimensions.bottomNavHeight,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     // Hide the bottom nav while the keyboard is up: it has nothing to do
@@ -72,26 +101,33 @@ class MunicipalScaffold extends StatelessWidget {
     // nav's ~80px was available).
     final keyboardVisible = MediaQuery.viewInsetsOf(context).bottom > 0;
     return Scaffold(
-      body: SafeArea(
+      body: GestureDetector(
         // Tapping anywhere outside a focused text field dismisses the
         // keyboard, on top of the keyboard's own close button — standard
         // mobile convention, and without it the only way to dismiss is that
         // button (or focusing another field).
-        child: GestureDetector(
-          onTap: () => FocusScope.of(context).unfocus(),
-          behavior: HitTestBehavior.translucent,
-          child: Column(
-            children: [
-              _Header(
+        onTap: () => FocusScope.of(context).unfocus(),
+        behavior: HitTestBehavior.translucent,
+        child: Stack(
+          children: [
+            Positioned.fill(child: body),
+            Align(
+              alignment: Alignment.topCenter,
+              child: _Header(
                 tab: selectedTab,
                 subtitle: headerSubtitle,
                 onNotificationsTap: onNotificationsTap,
               ),
-              Expanded(child: body),
-              if (!keyboardVisible)
-                _BottomNav(selected: selectedTab, onSelected: onTabSelected),
-            ],
-          ),
+            ),
+            if (!keyboardVisible)
+              Align(
+                alignment: Alignment.bottomCenter,
+                child: _BottomNav(
+                  selected: selectedTab,
+                  onSelected: onTabSelected,
+                ),
+              ),
+          ],
         ),
       ),
     );
@@ -109,60 +145,66 @@ class _Header extends StatelessWidget {
   Widget build(BuildContext context) {
     final semantic = Theme.of(context).extension<AppSemanticColors>()!;
     final textTheme = Theme.of(context).textTheme;
-    return Container(
-      height: 64,
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-      decoration: BoxDecoration(
-        color: semantic.glassNavSurface,
-        border: Border(bottom: BorderSide(color: semantic.glassBorder)),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: tab == MunicipalTab.dashboard
-                ? Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Image.asset(
-                        AppAssets.logoApp,
-                        width: AppIconSize.xl,
-                        height: AppIconSize.xl,
-                      ),
-                      const SizedBox(width: AppSpacing.sm),
-                      Text(
-                        'CivicVoice',
-                        style: textTheme.titleLarge?.copyWith(
-                          color: AppColors.primary,
+    return GlassBar(
+      border: Border(bottom: BorderSide(color: semantic.glassBorder)),
+      child: SafeArea(
+        bottom: false,
+        child: SizedBox(
+          height: AppDimensions.headerHeight,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+            child: Row(
+              children: [
+                Expanded(
+                  child: tab == MunicipalTab.dashboard
+                      ? Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Image.asset(
+                              AppAssets.logoApp,
+                              width: AppIconSize.xl,
+                              height: AppIconSize.xl,
+                            ),
+                            const SizedBox(width: AppSpacing.sm),
+                            Text(
+                              'CivicVoice',
+                              style: textTheme.titleLarge?.copyWith(
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ],
+                        )
+                      : Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              tab.headerTitle,
+                              style: textTheme.titleMedium,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            if (subtitle != null)
+                              Text(
+                                subtitle!,
+                                style: textTheme.labelSmall?.copyWith(
+                                  letterSpacing: 0.96,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                          ],
                         ),
-                      ),
-                    ],
-                  )
-                : Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        tab.headerTitle,
-                        style: textTheme.titleMedium,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      if (subtitle != null)
-                        Text(
-                          subtitle!,
-                          style: textTheme.labelSmall?.copyWith(letterSpacing: 0.96),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                    ],
-                  ),
+                ),
+                _IconButton(
+                  icon: AppIcons.notifications,
+                  onPressed: onNotificationsTap,
+                  semantic: semantic,
+                ),
+              ],
+            ),
           ),
-          _IconButton(
-            icon: AppIcons.notifications,
-            onPressed: onNotificationsTap,
-            semantic: semantic,
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -210,27 +252,31 @@ class _BottomNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final semantic = Theme.of(context).extension<AppSemanticColors>()!;
-    return Container(
-      height: 80,
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-      decoration: BoxDecoration(
-        color: semantic.glassNavSurface,
-        border: Border(top: BorderSide(color: semantic.glassBorder)),
-      ),
-      child: Row(
-        children: [
-          for (final tab in MunicipalTab.values) ...[
-            Expanded(
-              child: _NavItem(
-                tab: tab,
-                isSelected: tab == selected,
-                onTap: onSelected == null ? null : () => onSelected!(tab),
-              ),
+    return GlassBar(
+      border: Border(top: BorderSide(color: semantic.glassBorder)),
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          height: AppDimensions.bottomNavHeight,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+            child: Row(
+              children: [
+                for (final tab in MunicipalTab.values) ...[
+                  Expanded(
+                    child: _NavItem(
+                      tab: tab,
+                      isSelected: tab == selected,
+                      onTap: onSelected == null ? null : () => onSelected!(tab),
+                    ),
+                  ),
+                  if (tab != MunicipalTab.values.last)
+                    const SizedBox(width: AppSpacing.sm),
+                ],
+              ],
             ),
-            if (tab != MunicipalTab.values.last)
-              const SizedBox(width: AppSpacing.sm),
-          ],
-        ],
+          ),
+        ),
       ),
     );
   }

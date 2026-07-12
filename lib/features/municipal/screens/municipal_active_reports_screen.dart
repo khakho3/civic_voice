@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../models/report_status.dart';
 import '../models/active_report.dart';
+import '../widgets/glass_card.dart';
 import '../widgets/municipal_scaffold.dart';
 import '../widgets/municipal_state_message.dart';
 import '../widgets/status_badge.dart';
@@ -108,11 +109,17 @@ class _MunicipalActiveReportsScreenState
       case ActiveReportFilter.all:
         break;
       case ActiveReportFilter.assigned:
-        reports = reports.where((r) => r.status == ReportStatus.assigned).toList();
+        reports = reports
+            .where((r) => r.status == ReportStatus.assigned)
+            .toList();
       case ActiveReportFilter.inProgress:
-        reports = reports.where((r) => r.status == ReportStatus.inProgress).toList();
+        reports = reports
+            .where((r) => r.status == ReportStatus.inProgress)
+            .toList();
       case ActiveReportFilter.resolved:
-        reports = reports.where((r) => r.status == ReportStatus.resolved).toList();
+        reports = reports
+            .where((r) => r.status == ReportStatus.resolved)
+            .toList();
     }
     switch (_sort) {
       case ActiveReportSort.mostRecent:
@@ -158,6 +165,7 @@ class _MunicipalActiveReportsScreenState
 
   @override
   Widget build(BuildContext context) {
+    final chromeInset = MunicipalScaffold.contentPadding(context);
     return MunicipalScaffold(
       selectedTab: MunicipalTab.active,
       // Notifications isn't one of the 9 approved MUN screens (Issue 03
@@ -171,11 +179,13 @@ class _MunicipalActiveReportsScreenState
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          SizedBox(height: chromeInset.top),
           if (_state == MunicipalActiveReportsViewState.offline)
             const _OfflineBanner(),
           Expanded(
             child: switch (_state) {
-              MunicipalActiveReportsViewState.loading => const _LoadingSkeleton(),
+              MunicipalActiveReportsViewState.loading =>
+                const _LoadingSkeleton(),
               MunicipalActiveReportsViewState.loaded => _ActiveReportsBody(
                 reports: _visibleReports,
                 cached: false,
@@ -194,30 +204,36 @@ class _MunicipalActiveReportsScreenState
                 onSortTap: _showSortMenu,
                 onReportTap: widget.onReportTap,
               ),
-              MunicipalActiveReportsViewState.empty => MunicipalStateMessage(
-                icon: AppIcons.empty,
-                badgeColor: AppColors.primary,
-                title: 'No Active Reports',
-                message:
-                    'There are no reports currently assigned to '
-                    'maintenance teams in this zone. You\'re all caught up.',
-                primaryActionLabel: 'View History',
-                onPrimaryAction: widget.onViewHistory,
-                secondaryActionLabel: 'Return to Dashboard',
-                onSecondaryAction: widget.onNavigateToDashboard,
+              MunicipalActiveReportsViewState.empty => Padding(
+                padding: EdgeInsets.only(bottom: chromeInset.bottom),
+                child: MunicipalStateMessage(
+                  icon: AppIcons.empty,
+                  badgeColor: AppColors.primary,
+                  title: 'No Active Reports',
+                  message:
+                      'There are no reports currently assigned to '
+                      'maintenance teams in this zone. You\'re all caught up.',
+                  primaryActionLabel: 'View History',
+                  onPrimaryAction: widget.onViewHistory,
+                  secondaryActionLabel: 'Return to Dashboard',
+                  onSecondaryAction: widget.onNavigateToDashboard,
+                ),
               ),
-              MunicipalActiveReportsViewState.error => MunicipalStateMessage(
-                icon: AppIcons.warning,
-                badgeColor: AppColors.error,
-                primaryActionColor: AppColors.error,
-                title: 'Failed to Load Reports',
-                message:
-                    'We couldn\'t fetch the latest reports. Check your '
-                    'connection and try again.',
-                primaryActionLabel: 'Try again',
-                onPrimaryAction: _retryLoad,
-                secondaryActionLabel: 'System Status',
-                onSecondaryAction: widget.onSystemStatus,
+              MunicipalActiveReportsViewState.error => Padding(
+                padding: EdgeInsets.only(bottom: chromeInset.bottom),
+                child: MunicipalStateMessage(
+                  icon: AppIcons.warning,
+                  badgeColor: AppColors.error,
+                  primaryActionColor: AppColors.error,
+                  title: 'Failed to Load Reports',
+                  message:
+                      'We couldn\'t fetch the latest reports. Check your '
+                      'connection and try again.',
+                  primaryActionLabel: 'Try again',
+                  onPrimaryAction: _retryLoad,
+                  secondaryActionLabel: 'System Status',
+                  onSecondaryAction: widget.onSystemStatus,
+                ),
               ),
             },
           ),
@@ -321,7 +337,8 @@ class _ActiveReportsBody extends StatelessWidget {
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
                   itemCount: ActiveReportFilter.values.length,
-                  separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.xs),
+                  separatorBuilder: (_, _) =>
+                      const SizedBox(width: AppSpacing.xs),
                   itemBuilder: (context, index) {
                     final option = ActiveReportFilter.values[index];
                     return _FilterChip(
@@ -341,10 +358,7 @@ class _ActiveReportsBody extends StatelessWidget {
                     style: textTheme.bodySmall,
                   ),
                   const Spacer(),
-                  TextButton(
-                    onPressed: onSortTap,
-                    child: const Text('Sort'),
-                  ),
+                  TextButton(onPressed: onSortTap, child: const Text('Sort')),
                 ],
               ),
             ],
@@ -354,7 +368,13 @@ class _ActiveReportsBody extends StatelessWidget {
           child: reports.isEmpty
               ? Center(
                   child: Padding(
-                    padding: const EdgeInsets.all(AppSpacing.xl),
+                    padding: EdgeInsets.fromLTRB(
+                      AppSpacing.xl,
+                      AppSpacing.xl,
+                      AppSpacing.xl,
+                      AppSpacing.xl +
+                          MunicipalScaffold.contentPadding(context).bottom,
+                    ),
                     child: Text(
                       'No reports match your search.',
                       style: textTheme.bodyMedium,
@@ -363,14 +383,16 @@ class _ActiveReportsBody extends StatelessWidget {
                   ),
                 )
               : ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(
+                  padding: EdgeInsets.fromLTRB(
                     AppSpacing.md,
                     0,
                     AppSpacing.md,
-                    AppSpacing.xl,
+                    AppSpacing.xl +
+                        MunicipalScaffold.contentPadding(context).bottom,
                   ),
                   itemCount: reports.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
+                  separatorBuilder: (_, _) =>
+                      const SizedBox(height: AppSpacing.sm),
                   itemBuilder: (context, index) {
                     final report = reports[index];
                     return _ActiveReportCard(
@@ -402,7 +424,9 @@ class _FilterChip extends StatelessWidget {
           ? AppColors.primary.withValues(alpha: 0.12)
           : Colors.transparent,
       shape: StadiumBorder(
-        side: BorderSide(color: selected ? AppColors.primary : colorScheme.outline),
+        side: BorderSide(
+          color: selected ? AppColors.primary : colorScheme.outline,
+        ),
       ),
       child: InkWell(
         customBorder: const StadiumBorder(),
@@ -415,7 +439,9 @@ class _FilterChip extends StatelessWidget {
           child: Text(
             label,
             style: Theme.of(context).textTheme.labelMedium?.copyWith(
-              color: selected ? AppColors.primary : colorScheme.onSurfaceVariant,
+              color: selected
+                  ? AppColors.primary
+                  : colorScheme.onSurfaceVariant,
             ),
           ),
         ),
@@ -435,119 +461,102 @@ class _ActiveReportCard extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
     final colorScheme = Theme.of(context).colorScheme;
 
-    return Material(
-      color: colorScheme.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: AppComponentRadius.card,
-        side: BorderSide(color: colorScheme.outline),
-      ),
-      child: InkWell(
-        borderRadius: AppComponentRadius.card,
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          child: Column(
+    return GlassCard(
+      onTap: onTap,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(report.referenceId, style: textTheme.bodySmall),
-                        const SizedBox(height: 2),
-                        Text(
-                          report.title,
-                          style: textTheme.titleMedium,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  ReportStatusBadge(status: report.status),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              Row(
-                children: [
-                  Icon(
-                    AppIcons.location,
-                    size: AppIconSize.sm,
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                  const SizedBox(width: 4),
-                  Expanded(
-                    child: Text(
-                      report.locationLabel,
-                      style: textTheme.bodySmall,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(report.referenceId, style: textTheme.bodySmall),
+                    const SizedBox(height: 2),
+                    Text(
+                      report.title,
+                      style: textTheme.titleMedium,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              Row(
-                children: [
-                  Text(
-                    'PROGRESS',
-                    style: textTheme.labelSmall?.copyWith(letterSpacing: 0.96),
-                  ),
-                  const Spacer(),
-                  Text(
-                    '${report.progressPercent}%',
-                    style: textTheme.titleSmall,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              ClipRRect(
-                borderRadius: AppRadius.allXs,
-                child: LinearProgressIndicator(
-                  value: report.progressPercent / 100,
-                  minHeight: 6,
-                  backgroundColor: colorScheme.surfaceContainer,
-                  color: report.status.color,
+                  ],
                 ),
               ),
-              const SizedBox(height: AppSpacing.sm),
-              Row(
-                children: [
-                  CircleAvatar(
-                    radius: 14,
-                    backgroundColor: colorScheme.surfaceContainer,
-                    child: Icon(
-                      AppIcons.team,
-                      size: AppIconSize.sm,
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(report.teamName, style: textTheme.titleSmall),
-                        Text(
-                          'ETA ${report.etaLabel} · ${report.updatedLabel}',
-                          style: textTheme.bodySmall,
-                        ),
-                      ],
-                    ),
-                  ),
-                  OutlinedButton(
-                    onPressed: onTap,
-                    child: const Text('View'),
-                  ),
-                ],
+              const SizedBox(width: AppSpacing.sm),
+              ReportStatusBadge(status: report.status),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Row(
+            children: [
+              Icon(
+                AppIcons.location,
+                size: AppIconSize.sm,
+                color: colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  report.locationLabel,
+                  style: textTheme.bodySmall,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ],
           ),
-        ),
+          const SizedBox(height: AppSpacing.sm),
+          Row(
+            children: [
+              Text(
+                'PROGRESS',
+                style: textTheme.labelSmall?.copyWith(letterSpacing: 0.96),
+              ),
+              const Spacer(),
+              Text('${report.progressPercent}%', style: textTheme.titleSmall),
+            ],
+          ),
+          const SizedBox(height: 4),
+          ClipRRect(
+            borderRadius: AppRadius.allXs,
+            child: LinearProgressIndicator(
+              value: report.progressPercent / 100,
+              minHeight: 6,
+              backgroundColor: colorScheme.surfaceContainer,
+              color: report.status.color,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 14,
+                backgroundColor: colorScheme.surfaceContainer,
+                child: Icon(
+                  AppIcons.team,
+                  size: AppIconSize.sm,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(report.teamName, style: textTheme.titleSmall),
+                    Text(
+                      'ETA ${report.etaLabel} · ${report.updatedLabel}',
+                      style: textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+              OutlinedButton(onPressed: onTap, child: const Text('View')),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -581,7 +590,8 @@ class _LoadingSkeletonState extends State<_LoadingSkeleton>
   Widget build(BuildContext context) {
     final base = Theme.of(context).colorScheme.surfaceContainer;
     final highlight = Theme.of(context).colorScheme.surfaceContainerLow;
-    final reduceMotion = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    final reduceMotion =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
 
     Widget block({double? width, double height = 44}) {
       return AnimatedBuilder(
@@ -604,7 +614,12 @@ class _LoadingSkeletonState extends State<_LoadingSkeleton>
     }
 
     return ListView(
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.md,
+        AppSpacing.md,
+        AppSpacing.md + MunicipalScaffold.contentPadding(context).bottom,
+      ),
       children: [
         block(height: 48),
         const SizedBox(height: AppSpacing.sm),

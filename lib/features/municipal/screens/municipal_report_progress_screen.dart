@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../models/report_status.dart';
 import '../models/report_progress_data.dart';
+import '../widgets/glass_card.dart';
+import '../widgets/municipal_detail_header.dart';
 import '../widgets/status_badge.dart';
 
 /// MUN-007 — Report Progress.
@@ -106,131 +108,84 @@ class _MunicipalReportProgressScreenState
     final showActionBar = _state != MunicipalReportProgressViewState.success;
 
     return Scaffold(
-      body: SafeArea(
-        child: Column(
-          children: [
-            _ProgressHeader(
-              referenceId: widget.referenceId,
-              status: widget.status,
-              onBack: widget.onBack,
-              onShareSummary: widget.onShareSummary,
-              onViewTimeline: _scrollToTimeline,
-            ),
-            if (_state == MunicipalReportProgressViewState.offline)
-              const _OfflineBanner(),
-            Expanded(
-              child: switch (_state) {
-                MunicipalReportProgressViewState.loading =>
-                  const _LoadingSkeleton(),
-                MunicipalReportProgressViewState.loaded ||
-                MunicipalReportProgressViewState.missingEvidence ||
-                MunicipalReportProgressViewState.offline => _ProgressBody(
-                  data: _data,
-                  evidenceCount: _evidenceCount,
-                  cached: _state == MunicipalReportProgressViewState.offline,
-                  timelineKey: _timelineKey,
-                  onAddEvidence: _addEvidencePhoto,
-                  onRetrySync: _retrySync,
-                ),
-                MunicipalReportProgressViewState.success => _SuccessBody(
-                  data: _data,
-                  onReturnToActiveReports: widget.onBack,
-                  onShareSummary: widget.onShareSummary,
-                ),
-              },
-            ),
-            if (showActionBar)
-              _ActionBar(
-                canResolve: _canResolve,
-                onResolve: _markResolved,
-                onViewTimeline: _scrollToTimeline,
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Header / banner
-// ---------------------------------------------------------------------------
-
-class _ProgressHeader extends StatelessWidget {
-  const _ProgressHeader({
-    required this.referenceId,
-    required this.status,
-    this.onBack,
-    this.onShareSummary,
-    this.onViewTimeline,
-  });
-
-  final String referenceId;
-  final ReportStatus status;
-  final VoidCallback? onBack;
-  final VoidCallback? onShareSummary;
-  final VoidCallback? onViewTimeline;
-
-  @override
-  Widget build(BuildContext context) {
-    final semantic = Theme.of(context).extension<AppSemanticColors>()!;
-    final textTheme = Theme.of(context).textTheme;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-      decoration: BoxDecoration(
-        color: semantic.glassNavSurface,
-        border: Border(bottom: BorderSide(color: semantic.glassBorder)),
-      ),
-      child: SizedBox(
-        height: 64,
-        child: Row(
-          children: [
-            IconButton(
-              onPressed: onBack,
-              icon: const Icon(AppIcons.back),
-              iconSize: AppIconSize.md,
-            ),
-            const SizedBox(width: AppSpacing.xs),
-            Expanded(
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: SafeArea(
+              top: false,
               child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Report Progress',
-                    style: textTheme.titleMedium,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  SizedBox(height: MunicipalDetailHeader.topInset(context)),
+                  if (_state == MunicipalReportProgressViewState.offline)
+                    const _OfflineBanner(),
+                  Expanded(
+                    child: switch (_state) {
+                      MunicipalReportProgressViewState.loading =>
+                        const _LoadingSkeleton(),
+                      MunicipalReportProgressViewState.loaded ||
+                      MunicipalReportProgressViewState.missingEvidence ||
+                      MunicipalReportProgressViewState.offline => _ProgressBody(
+                        data: _data,
+                        evidenceCount: _evidenceCount,
+                        cached:
+                            _state == MunicipalReportProgressViewState.offline,
+                        timelineKey: _timelineKey,
+                        onAddEvidence: _addEvidencePhoto,
+                        onRetrySync: _retrySync,
+                      ),
+                      MunicipalReportProgressViewState.success => _SuccessBody(
+                        data: _data,
+                        onReturnToActiveReports: widget.onBack,
+                        onShareSummary: widget.onShareSummary,
+                      ),
+                    },
                   ),
-                  Text(
-                    '#$referenceId',
-                    style: textTheme.bodySmall,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  if (showActionBar)
+                    _ActionBar(
+                      canResolve: _canResolve,
+                      onResolve: _markResolved,
+                      onViewTimeline: _scrollToTimeline,
+                    ),
+                ],
+              ),
+            ),
+          ),
+          Align(
+            alignment: Alignment.topCenter,
+            child: MunicipalDetailHeader(
+              title: 'Report Progress',
+              referenceId: widget.referenceId,
+              onBack: widget.onBack,
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ReportStatusBadge(status: widget.status),
+                  PopupMenuButton<void>(
+                    icon: const Icon(AppIcons.more, size: AppIconSize.md),
+                    itemBuilder: (context) => [
+                      PopupMenuItem(
+                        onTap: widget.onShareSummary,
+                        child: const Text('Share Summary'),
+                      ),
+                      PopupMenuItem(
+                        onTap: _scrollToTimeline,
+                        child: const Text('View Timeline'),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
-            ReportStatusBadge(status: status),
-            PopupMenuButton<void>(
-              icon: const Icon(AppIcons.more, size: AppIconSize.md),
-              itemBuilder: (context) => [
-                PopupMenuItem(
-                  onTap: onShareSummary,
-                  child: const Text('Share Summary'),
-                ),
-                PopupMenuItem(
-                  onTap: onViewTimeline,
-                  child: const Text('View Timeline'),
-                ),
-              ],
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
+
+// ---------------------------------------------------------------------------
+// Offline banner
+// ---------------------------------------------------------------------------
 
 class _OfflineBanner extends StatelessWidget {
   const _OfflineBanner();
@@ -309,11 +264,17 @@ class _ProgressBody extends StatelessWidget {
           const SizedBox(height: AppSpacing.md),
           _EvidenceRequiredCard(onUpload: onAddEvidence),
           const SizedBox(height: AppSpacing.md),
-          _VisualEvidenceCard(photoCount: evidenceCount, onAddPhoto: onAddEvidence),
+          _VisualEvidenceCard(
+            photoCount: evidenceCount,
+            onAddPhoto: onAddEvidence,
+          ),
         ],
         if (cached) ...[
           const SizedBox(height: AppSpacing.md),
-          _SyncPendingCard(pendingCount: data.cachedActivity.length, onRetry: onRetrySync),
+          _SyncPendingCard(
+            pendingCount: data.cachedActivity.length,
+            onRetry: onRetrySync,
+          ),
         ],
         const SizedBox(height: AppSpacing.md),
         _StatusTimelineCard(key: timelineKey, data: data),
@@ -335,14 +296,7 @@ class _SummaryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final colorScheme = Theme.of(context).colorScheme;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        border: Border.all(color: colorScheme.outline),
-        borderRadius: AppComponentRadius.card,
-      ),
+    return GlassCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -436,7 +390,11 @@ class _EvidenceRequiredCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(AppIcons.warning, size: AppIconSize.md, color: AppColors.warning),
+              const Icon(
+                AppIcons.warning,
+                size: AppIconSize.md,
+                color: AppColors.warning,
+              ),
               const SizedBox(width: AppSpacing.xs),
               Text('Evidence Required', style: textTheme.titleSmall),
             ],
@@ -460,7 +418,10 @@ class _EvidenceRequiredCard extends StatelessWidget {
 }
 
 class _VisualEvidenceCard extends StatelessWidget {
-  const _VisualEvidenceCard({required this.photoCount, required this.onAddPhoto});
+  const _VisualEvidenceCard({
+    required this.photoCount,
+    required this.onAddPhoto,
+  });
 
   final int photoCount;
   final VoidCallback onAddPhoto;
@@ -500,7 +461,11 @@ class _VisualEvidenceCard extends StatelessWidget {
               ),
               child: Column(
                 children: [
-                  Icon(AppIcons.add, size: AppIconSize.md, color: colorScheme.onSurfaceVariant),
+                  Icon(
+                    AppIcons.add,
+                    size: AppIconSize.md,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
                   const SizedBox(height: 4),
                   Text('Add Photo', style: textTheme.bodySmall),
                 ],
@@ -522,15 +487,8 @@ class _SyncPendingCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    final colorScheme = Theme.of(context).colorScheme;
-    return Container(
-      width: double.infinity,
+    return GlassCard(
       padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        border: Border.all(color: colorScheme.outline),
-        borderRadius: AppComponentRadius.card,
-      ),
       child: Column(
         children: [
           Container(
@@ -540,7 +498,11 @@ class _SyncPendingCard extends StatelessWidget {
               color: AppColors.primary.withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
-            child: const Icon(AppIcons.sync, size: AppIconSize.md, color: AppColors.primary),
+            child: const Icon(
+              AppIcons.sync,
+              size: AppIconSize.md,
+              color: AppColors.primary,
+            ),
           ),
           const SizedBox(height: AppSpacing.sm),
           Text('Sync Pending', style: textTheme.titleMedium),
@@ -571,14 +533,7 @@ class _StatusTimelineCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final colorScheme = Theme.of(context).colorScheme;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        border: Border.all(color: colorScheme.outline),
-        borderRadius: AppComponentRadius.card,
-      ),
+    return GlassCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -592,7 +547,8 @@ class _StatusTimelineCard extends StatelessWidget {
           const SizedBox(height: AppSpacing.md),
           for (final step in data.timeline) ...[
             _TimelineStepRow(step: step),
-            if (step != data.timeline.last) const SizedBox(height: AppSpacing.md),
+            if (step != data.timeline.last)
+              const SizedBox(height: AppSpacing.md),
           ],
           const SizedBox(height: AppSpacing.md),
           Container(
@@ -618,7 +574,9 @@ class _StatusTimelineCard extends StatelessWidget {
                     const SizedBox(width: 4),
                     Text(
                       data.latestUpdateTeam,
-                      style: textTheme.labelSmall?.copyWith(color: AppColors.primary),
+                      style: textTheme.labelSmall?.copyWith(
+                        color: AppColors.primary,
+                      ),
                     ),
                     const SizedBox(width: AppSpacing.xs),
                     _NewBadge(),
@@ -739,14 +697,7 @@ class _RecentActivityCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final colorScheme = Theme.of(context).colorScheme;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        border: Border.all(color: colorScheme.outline),
-        borderRadius: AppComponentRadius.card,
-      ),
+    return GlassCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -756,7 +707,9 @@ class _RecentActivityCard extends StatelessWidget {
               const SizedBox(width: AppSpacing.xs),
               Text(
                 '(Cached)',
-                style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
+                style: textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
               ),
             ],
           ),
@@ -766,7 +719,9 @@ class _RecentActivityCard extends StatelessWidget {
               children: [
                 Text(
                   entry.timeAgo,
-                  style: textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant),
+                  style: textTheme.labelSmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
                 ),
                 const SizedBox(width: 4),
                 Text('·', style: textTheme.labelSmall),
@@ -774,7 +729,9 @@ class _RecentActivityCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     entry.label,
-                    style: textTheme.labelSmall?.copyWith(color: AppColors.primary),
+                    style: textTheme.labelSmall?.copyWith(
+                      color: AppColors.primary,
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -821,7 +778,11 @@ class _SuccessBody extends StatelessWidget {
           ),
           margin: const EdgeInsets.symmetric(horizontal: 0),
           alignment: Alignment.center,
-          child: const Icon(AppIcons.success, size: AppIconSize.lg, color: AppColors.success),
+          child: const Icon(
+            AppIcons.success,
+            size: AppIconSize.lg,
+            color: AppColors.success,
+          ),
         ),
         const SizedBox(height: AppSpacing.md),
         Text(
@@ -867,15 +828,7 @@ class _CaseSummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    final colorScheme = Theme.of(context).colorScheme;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        border: Border.all(color: colorScheme.outline),
-        borderRadius: AppComponentRadius.card,
-      ),
+    return GlassCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -897,7 +850,10 @@ class _CaseSummaryCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: _LabeledValue(label: 'DEPARTMENT', value: summary.department),
+                child: _LabeledValue(
+                  label: 'DEPARTMENT',
+                  value: summary.department,
+                ),
               ),
               Expanded(
                 child: _LabeledValue(
@@ -919,7 +875,10 @@ class _CaseSummaryCard extends StatelessWidget {
                 ),
               ),
               Expanded(
-                child: _LabeledValue(label: 'REPORTER', value: summary.reporterName),
+                child: _LabeledValue(
+                  label: 'REPORTER',
+                  value: summary.reporterName,
+                ),
               ),
             ],
           ),
@@ -928,7 +887,10 @@ class _CaseSummaryCard extends StatelessWidget {
             children: [
               Text('Visual Evidence', style: textTheme.titleSmall),
               const Spacer(),
-              Text('${summary.evidencePhotoCount} Photos', style: textTheme.bodySmall),
+              Text(
+                '${summary.evidencePhotoCount} Photos',
+                style: textTheme.bodySmall,
+              ),
             ],
           ),
           const SizedBox(height: AppSpacing.sm),
@@ -936,7 +898,8 @@ class _CaseSummaryCard extends StatelessWidget {
             children: [
               for (var i = 0; i < summary.evidencePhotoCount; i++) ...[
                 Expanded(child: _EvidenceThumbnail()),
-                if (i != summary.evidencePhotoCount - 1) const SizedBox(width: AppSpacing.sm),
+                if (i != summary.evidencePhotoCount - 1)
+                  const SizedBox(width: AppSpacing.sm),
               ],
             ],
           ),
@@ -947,7 +910,11 @@ class _CaseSummaryCard extends StatelessWidget {
 }
 
 class _LabeledValue extends StatelessWidget {
-  const _LabeledValue({required this.label, required this.value, this.valueColor});
+  const _LabeledValue({
+    required this.label,
+    required this.value,
+    this.valueColor,
+  });
 
   final String label;
   final String value;
@@ -961,10 +928,7 @@ class _LabeledValue extends StatelessWidget {
       children: [
         Text(label, style: textTheme.labelSmall?.copyWith(letterSpacing: 0.96)),
         const SizedBox(height: 2),
-        Text(
-          value,
-          style: textTheme.titleSmall?.copyWith(color: valueColor),
-        ),
+        Text(value, style: textTheme.titleSmall?.copyWith(color: valueColor)),
       ],
     );
   }
@@ -983,7 +947,11 @@ class _EvidenceThumbnail extends StatelessWidget {
           color: colorScheme.surfaceContainer,
           borderRadius: AppComponentRadius.inputField,
         ),
-        child: Icon(AppIcons.camera, size: AppIconSize.lg, color: colorScheme.onSurfaceVariant),
+        child: Icon(
+          AppIcons.camera,
+          size: AppIconSize.lg,
+          color: colorScheme.onSurfaceVariant,
+        ),
       ),
     );
   }
@@ -1017,7 +985,8 @@ class _LoadingSkeletonState extends State<_LoadingSkeleton>
   Widget build(BuildContext context) {
     final base = Theme.of(context).colorScheme.surfaceContainer;
     final highlight = Theme.of(context).colorScheme.surfaceContainerLow;
-    final reduceMotion = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    final reduceMotion =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
 
     Widget block({double height = 96}) {
       return AnimatedBuilder(
@@ -1089,7 +1058,11 @@ class _ActionBar extends StatelessWidget {
             child: FilledButton.icon(
               onPressed: canResolve ? onResolve : null,
               icon: const Icon(AppIcons.success, size: AppIconSize.sm + 2),
-              label: Text(canResolve ? 'Mark Resolved' : 'Mark Resolved (Upload Required)'),
+              label: Text(
+                canResolve
+                    ? 'Mark Resolved'
+                    : 'Mark Resolved (Upload Required)',
+              ),
             ),
           ),
           const SizedBox(height: AppSpacing.sm),

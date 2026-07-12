@@ -17,7 +17,14 @@ import '../widgets/municipal_state_message.dart';
 /// stats grid) and only swap the data-driven parts — they are not full-page
 /// replacements. Error/Offline/Permission genuinely have nothing to show, so
 /// those replace the whole body.
-enum MunicipalDashboardViewState { loading, loaded, empty, error, offline, permissionDenied }
+enum MunicipalDashboardViewState {
+  loading,
+  loaded,
+  empty,
+  error,
+  offline,
+  permissionDenied,
+}
 
 class MunicipalDashboardScreen extends StatefulWidget {
   const MunicipalDashboardScreen({
@@ -65,7 +72,9 @@ class _MunicipalDashboardScreenState extends State<MunicipalDashboardScreen> {
       onNotificationsTap: () {},
       onTabSelected: (tab) {
         if (tab == MunicipalTab.inbox) widget.onNavigateToInbox?.call();
-        if (tab == MunicipalTab.active) widget.onNavigateToActiveReports?.call();
+        if (tab == MunicipalTab.active) {
+          widget.onNavigateToActiveReports?.call();
+        }
       },
       body: switch (_state) {
         MunicipalDashboardViewState.loading => _DashboardContent(
@@ -83,43 +92,51 @@ class _MunicipalDashboardScreenState extends State<MunicipalDashboardScreen> {
           loading: false,
           empty: true,
         ),
-        MunicipalDashboardViewState.error => MunicipalStateMessage(
-          icon: AppIcons.warning,
-          badgeColor: AppColors.error,
-          title: 'Unable to load dashboard',
-          message:
-              'Refresh the dashboard or try again in a few minutes.',
-          primaryActionLabel: 'Try again',
-          onPrimaryAction: _retry,
-          primaryActionColor: AppColors.error,
-          bordered: true,
+        MunicipalDashboardViewState.error => Padding(
+          padding: MunicipalScaffold.contentPadding(context),
+          child: MunicipalStateMessage(
+            icon: AppIcons.warning,
+            badgeColor: AppColors.error,
+            title: 'Unable to load dashboard',
+            message: 'Refresh the dashboard or try again in a few minutes.',
+            primaryActionLabel: 'Try again',
+            onPrimaryAction: _retry,
+            primaryActionColor: AppColors.error,
+            bordered: true,
+          ),
         ),
-        MunicipalDashboardViewState.offline => MunicipalStateMessage(
-          icon: AppIcons.offline,
-          badgeColor: AppColors.error,
-          title: 'You\'re offline',
-          message:
-              'Showing saved dashboard content until your connection returns.',
-          primaryActionLabel: 'Retry connection',
-          onPrimaryAction: _retry,
-          primaryActionColor: AppColors.error,
-          bordered: true,
+        MunicipalDashboardViewState.offline => Padding(
+          padding: MunicipalScaffold.contentPadding(context),
+          child: MunicipalStateMessage(
+            icon: AppIcons.offline,
+            badgeColor: AppColors.error,
+            title: 'You\'re offline',
+            message:
+                'Showing saved dashboard content until your connection returns.',
+            primaryActionLabel: 'Retry connection',
+            onPrimaryAction: _retry,
+            primaryActionColor: AppColors.error,
+            bordered: true,
+          ),
         ),
-        MunicipalDashboardViewState.permissionDenied => MunicipalStateMessage(
-          icon: AppIcons.permissionDenied,
-          badgeColor: AppColors.primary,
-          title: 'Access Restricted',
-          message:
-              'You currently do not have permission to view the Municipal '
-              'Dashboard for this district. Please request access from the '
-              'regional administrator.',
-          primaryActionLabel: 'Request Access',
-          // No access-request workflow is specified in Issue 03 — placeholder
-          // pending spec.
-          onPrimaryAction: () {},
-          secondaryActionLabel: 'Return to Home',
-          onSecondaryAction: () {},
-          bordered: true,
+        MunicipalDashboardViewState.permissionDenied => Padding(
+          padding: MunicipalScaffold.contentPadding(context),
+          child: MunicipalStateMessage(
+            icon: AppIcons.permissionDenied,
+            badgeColor: AppColors.primary,
+            title: 'Access Restricted',
+            message:
+                'You currently do not have permission to view the Municipal '
+                'Dashboard for this district. Please request access from the '
+                'regional administrator.',
+            primaryActionLabel: 'Request Access',
+            // No access-request workflow is specified in Issue 03 —
+            // placeholder pending spec.
+            onPrimaryAction: () {},
+            secondaryActionLabel: 'Return to Home',
+            onSecondaryAction: () {},
+            bordered: true,
+          ),
         ),
       },
     );
@@ -144,12 +161,13 @@ class _DashboardContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final stats = empty ? MunicipalDashboardStats.zero : data.stats;
+    final chromeInset = MunicipalScaffold.contentPadding(context);
     return ListView(
-      padding: const EdgeInsets.fromLTRB(
+      padding: EdgeInsets.fromLTRB(
         AppSpacing.md,
+        chromeInset.top + AppSpacing.md,
         AppSpacing.md,
-        AppSpacing.md,
-        AppSpacing.xl,
+        chromeInset.bottom + AppSpacing.xl,
       ),
       children: [
         _MunicipalitySelector(name: data.municipalityName),
@@ -344,7 +362,11 @@ class _StatCard extends StatelessWidget {
                   color: semantic.iconBadgeSurface,
                   shape: BoxShape.circle,
                 ),
-                child: Icon(icon, size: AppIconSize.sm + 2, color: AppColors.primary),
+                child: Icon(
+                  icon,
+                  size: AppIconSize.sm + 2,
+                  color: AppColors.primary,
+                ),
               ),
             ],
           ),
@@ -432,12 +454,16 @@ class _RecentReportsCard extends StatelessWidget {
             ),
           ),
           if (isLoading)
-            for (var i = 0; i < 4; i++) _RecentReportRowSkeleton(isFirst: i == 0)
+            for (var i = 0; i < 4; i++)
+              _RecentReportRowSkeleton(isFirst: i == 0)
           else if (isEmpty)
             const _RecentReportsEmpty()
           else
             for (final report in reports)
-              _RecentReportRow(report: report, isFirst: report == reports.first),
+              _RecentReportRow(
+                report: report,
+                isFirst: report == reports.first,
+              ),
         ],
       ),
     );
@@ -715,7 +741,8 @@ class _ShimmerBlockState extends State<_ShimmerBlock>
   Widget build(BuildContext context) {
     final base = Theme.of(context).colorScheme.surfaceContainer;
     final highlight = Theme.of(context).colorScheme.surfaceContainerLow;
-    final reduceMotion = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    final reduceMotion =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
 
     return FractionallySizedBox(
       widthFactor: widget.widthFactor,
@@ -739,4 +766,3 @@ class _ShimmerBlockState extends State<_ShimmerBlock>
     );
   }
 }
-

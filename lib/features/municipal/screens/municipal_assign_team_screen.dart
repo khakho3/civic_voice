@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../models/report_status.dart';
 import '../models/team_data.dart';
+import '../widgets/glass_card.dart';
+import '../widgets/municipal_detail_header.dart';
 import '../widgets/municipal_state_message.dart';
 import '../widgets/status_badge.dart';
 
@@ -60,8 +62,7 @@ class MunicipalAssignTeamScreen extends StatefulWidget {
       _MunicipalAssignTeamScreenState();
 }
 
-class _MunicipalAssignTeamScreenState
-    extends State<MunicipalAssignTeamScreen> {
+class _MunicipalAssignTeamScreenState extends State<MunicipalAssignTeamScreen> {
   late MunicipalAssignTeamViewState _state = widget.initialState;
   final AssignTeamData _data = AssignTeamData.mock();
   final _searchController = TextEditingController();
@@ -156,176 +157,131 @@ class _MunicipalAssignTeamScreenState
         selected.availability != TeamAvailability.offDuty;
 
     return Scaffold(
-      body: SafeArea(
-        child: Column(
-          children: [
-            _AssignHeader(
-              referenceId: widget.referenceId,
-              status: widget.status,
-              onBack: widget.onBack,
-            ),
-            if (_state == MunicipalAssignTeamViewState.offline)
-              const _OfflineBanner(),
-            Expanded(
-              child: switch (_state) {
-                MunicipalAssignTeamViewState.loading =>
-                  const _LoadingSkeleton(),
-                MunicipalAssignTeamViewState.loaded => _AssignBody(
-                  data: _data,
-                  teams: _visibleTeams,
-                  filter: _filter,
-                  onFilterChanged: (filter) =>
-                      setState(() => _filter = filter),
-                  searchController: _searchController,
-                  selected: selected,
-                  onSelect: _selectTeam,
-                  enabled: true,
-                ),
-                MunicipalAssignTeamViewState.offline => _AssignBody(
-                  data: _data,
-                  teams: _visibleTeams,
-                  filter: _filter,
-                  onFilterChanged: (filter) =>
-                      setState(() => _filter = filter),
-                  searchController: _searchController,
-                  selected: selected,
-                  onSelect: _selectTeam,
-                  enabled: true,
-                ),
-                MunicipalAssignTeamViewState.disabled => _AssignBody(
-                  data: _data,
-                  teams: _visibleTeams,
-                  filter: _filter,
-                  onFilterChanged: null,
-                  searchController: _searchController,
-                  selected: selected,
-                  onSelect: (_) {},
-                  enabled: false,
-                  disabledCaption:
-                      'This report is no longer available for assignment.',
-                ),
-                MunicipalAssignTeamViewState.empty => MunicipalStateMessage(
-                  icon: AppIcons.team,
-                  title: 'No Teams Available',
-                  message:
-                      'There are no maintenance teams available in this '
-                      'district right now.',
-                  primaryActionLabel: 'Refresh',
-                  onPrimaryAction: _retryLoad,
-                  secondaryActionLabel: 'Return to Dashboard',
-                  onSecondaryAction: widget.onNavigateToDashboard,
-                ),
-                MunicipalAssignTeamViewState.assigned => MunicipalStateMessage(
-                  icon: AppIcons.success,
-                  badgeColor: AppColors.success,
-                  title: 'Team Assigned',
-                  message: selected == null
-                      ? 'The maintenance team has been notified and will '
-                            'begin work shortly.'
-                      : '${selected.name} has been notified and will begin '
-                            'work shortly.',
-                  primaryActionLabel: 'Return to Dashboard',
-                  onPrimaryAction: widget.onNavigateToDashboard,
-                ),
-                MunicipalAssignTeamViewState.error => MunicipalStateMessage(
-                  icon: AppIcons.warning,
-                  badgeColor: AppColors.error,
-                  primaryActionColor: AppColors.error,
-                  title: 'Assignment Failed',
-                  message:
-                      'We couldn\'t assign this team. Check your connection '
-                      'and try again.',
-                  primaryActionLabel: 'Try again',
-                  onPrimaryAction: _submitAssign,
-                  secondaryActionLabel: 'Back to Report',
-                  onSecondaryAction: () => setState(
-                    () => _state = MunicipalAssignTeamViewState.loaded,
-                  ),
-                ),
-                MunicipalAssignTeamViewState.permissionDenied =>
-                  MunicipalStateMessage(
-                    icon: AppIcons.permissionDenied,
-                    badgeColor: AppColors.primary,
-                    title: 'Access Restricted',
-                    message:
-                        'You do not have permission to assign maintenance '
-                        'teams for this district.',
-                    primaryActionLabel: 'Back',
-                    onPrimaryAction: widget.onBack,
-                  ),
-              },
-            ),
-            if (showActionBar)
-              _ActionBar(enabled: canAssign, onAssign: _submitAssign),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Header / banner
-// ---------------------------------------------------------------------------
-
-class _AssignHeader extends StatelessWidget {
-  const _AssignHeader({
-    required this.referenceId,
-    required this.status,
-    this.onBack,
-  });
-
-  final String referenceId;
-  final ReportStatus status;
-  final VoidCallback? onBack;
-
-  @override
-  Widget build(BuildContext context) {
-    final semantic = Theme.of(context).extension<AppSemanticColors>()!;
-    final textTheme = Theme.of(context).textTheme;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-      decoration: BoxDecoration(
-        color: semantic.glassNavSurface,
-        border: Border(bottom: BorderSide(color: semantic.glassBorder)),
-      ),
-      child: SizedBox(
-        height: 64,
-        child: Row(
-          children: [
-            IconButton(
-              onPressed: onBack,
-              icon: const Icon(AppIcons.back),
-              iconSize: AppIconSize.md,
-            ),
-            const SizedBox(width: AppSpacing.xs),
-            Expanded(
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: SafeArea(
+              top: false,
               child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Assign Team',
-                    style: textTheme.titleMedium,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  SizedBox(height: MunicipalDetailHeader.topInset(context)),
+                  if (_state == MunicipalAssignTeamViewState.offline)
+                    const _OfflineBanner(),
+                  Expanded(
+                    child: switch (_state) {
+                      MunicipalAssignTeamViewState.loading =>
+                        const _LoadingSkeleton(),
+                      MunicipalAssignTeamViewState.loaded => _AssignBody(
+                        data: _data,
+                        teams: _visibleTeams,
+                        filter: _filter,
+                        onFilterChanged: (filter) =>
+                            setState(() => _filter = filter),
+                        searchController: _searchController,
+                        selected: selected,
+                        onSelect: _selectTeam,
+                        enabled: true,
+                      ),
+                      MunicipalAssignTeamViewState.offline => _AssignBody(
+                        data: _data,
+                        teams: _visibleTeams,
+                        filter: _filter,
+                        onFilterChanged: (filter) =>
+                            setState(() => _filter = filter),
+                        searchController: _searchController,
+                        selected: selected,
+                        onSelect: _selectTeam,
+                        enabled: true,
+                      ),
+                      MunicipalAssignTeamViewState.disabled => _AssignBody(
+                        data: _data,
+                        teams: _visibleTeams,
+                        filter: _filter,
+                        onFilterChanged: null,
+                        searchController: _searchController,
+                        selected: selected,
+                        onSelect: (_) {},
+                        enabled: false,
+                        disabledCaption:
+                            'This report is no longer available for assignment.',
+                      ),
+                      MunicipalAssignTeamViewState.empty =>
+                        MunicipalStateMessage(
+                          icon: AppIcons.team,
+                          title: 'No Teams Available',
+                          message:
+                              'There are no maintenance teams available in this '
+                              'district right now.',
+                          primaryActionLabel: 'Refresh',
+                          onPrimaryAction: _retryLoad,
+                          secondaryActionLabel: 'Return to Dashboard',
+                          onSecondaryAction: widget.onNavigateToDashboard,
+                        ),
+                      MunicipalAssignTeamViewState.assigned =>
+                        MunicipalStateMessage(
+                          icon: AppIcons.success,
+                          badgeColor: AppColors.success,
+                          title: 'Team Assigned',
+                          message: selected == null
+                              ? 'The maintenance team has been notified and will '
+                                    'begin work shortly.'
+                              : '${selected.name} has been notified and will begin '
+                                    'work shortly.',
+                          primaryActionLabel: 'Return to Dashboard',
+                          onPrimaryAction: widget.onNavigateToDashboard,
+                        ),
+                      MunicipalAssignTeamViewState.error => MunicipalStateMessage(
+                        icon: AppIcons.warning,
+                        badgeColor: AppColors.error,
+                        primaryActionColor: AppColors.error,
+                        title: 'Assignment Failed',
+                        message:
+                            'We couldn\'t assign this team. Check your connection '
+                            'and try again.',
+                        primaryActionLabel: 'Try again',
+                        onPrimaryAction: _submitAssign,
+                        secondaryActionLabel: 'Back to Report',
+                        onSecondaryAction: () => setState(
+                          () => _state = MunicipalAssignTeamViewState.loaded,
+                        ),
+                      ),
+                      MunicipalAssignTeamViewState.permissionDenied =>
+                        MunicipalStateMessage(
+                          icon: AppIcons.permissionDenied,
+                          badgeColor: AppColors.primary,
+                          title: 'Access Restricted',
+                          message:
+                              'You do not have permission to assign maintenance '
+                              'teams for this district.',
+                          primaryActionLabel: 'Back',
+                          onPrimaryAction: widget.onBack,
+                        ),
+                    },
                   ),
-                  Text(
-                    '#$referenceId',
-                    style: textTheme.bodySmall,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                  if (showActionBar)
+                    _ActionBar(enabled: canAssign, onAssign: _submitAssign),
                 ],
               ),
             ),
-            ReportStatusBadge(status: status),
-          ],
-        ),
+          ),
+          Align(
+            alignment: Alignment.topCenter,
+            child: MunicipalDetailHeader(
+              title: 'Assign Team',
+              referenceId: widget.referenceId,
+              onBack: widget.onBack,
+              trailing: ReportStatusBadge(status: widget.status),
+            ),
+          ),
+        ],
       ),
     );
   }
 }
+
+// ---------------------------------------------------------------------------
+// Offline banner
+// ---------------------------------------------------------------------------
 
 class _OfflineBanner extends StatelessWidget {
   const _OfflineBanner();
@@ -480,15 +436,7 @@ class _ReportSummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    final colorScheme = Theme.of(context).colorScheme;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        border: Border.all(color: colorScheme.outline),
-        borderRadius: AppComponentRadius.card,
-      ),
+    return GlassCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -533,11 +481,7 @@ class _NeutralTag extends StatelessWidget {
 }
 
 class _FilterChip extends StatelessWidget {
-  const _FilterChip({
-    required this.label,
-    required this.selected,
-    this.onTap,
-  });
+  const _FilterChip({required this.label, required this.selected, this.onTap});
 
   final String label;
   final bool selected;
@@ -566,7 +510,9 @@ class _FilterChip extends StatelessWidget {
           child: Text(
             label,
             style: Theme.of(context).textTheme.labelMedium?.copyWith(
-              color: selected ? AppColors.primary : colorScheme.onSurfaceVariant,
+              color: selected
+                  ? AppColors.primary
+                  : colorScheme.onSurfaceVariant,
             ),
           ),
         ),
@@ -619,113 +565,102 @@ class _TeamCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final colorScheme = Theme.of(context).colorScheme;
+    final semantic = Theme.of(context).extension<AppSemanticColors>()!;
 
     return Opacity(
       opacity: enabled || selected ? 1 : 0.5,
-      child: Material(
-        color: colorScheme.surface,
-        borderRadius: AppComponentRadius.card,
-        child: InkWell(
-          onTap: enabled ? onTap : null,
-          borderRadius: AppComponentRadius.card,
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(AppSpacing.md),
-            decoration: BoxDecoration(
-              border: Border.all(
-                color: selected ? AppColors.primary : colorScheme.outline,
-                width: selected ? 2 : 1,
-              ),
-              borderRadius: AppComponentRadius.card,
+      child: GlassCard(
+        onTap: enabled ? onTap : null,
+        border: Border.all(
+          color: selected ? AppColors.primary : semantic.glassBorder,
+          width: selected ? 2 : 1,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(team.name, style: textTheme.titleSmall),
+                      Text(team.specialty, style: textTheme.bodySmall),
+                    ],
+                  ),
+                ),
+                _AvailabilityBadge(availability: team.availability),
+              ],
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            const SizedBox(height: AppSpacing.sm),
+            Row(
+              children: [
+                Icon(
+                  AppIcons.team,
+                  size: AppIconSize.sm,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  '${team.leadName} · ${team.memberCount} members',
+                  style: textTheme.bodySmall,
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Wrap(
+              spacing: AppSpacing.md,
+              runSpacing: 4,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(team.name, style: textTheme.titleSmall),
-                          Text(team.specialty, style: textTheme.bodySmall),
-                        ],
-                      ),
-                    ),
-                    _AvailabilityBadge(availability: team.availability),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
-                      AppIcons.team,
+                      AppIcons.location,
                       size: AppIconSize.sm,
                       color: colorScheme.onSurfaceVariant,
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      '${team.leadName} · ${team.memberCount} members',
+                      '${team.distanceKm.toStringAsFixed(1)} km away',
                       style: textTheme.bodySmall,
                     ),
                   ],
                 ),
-                const SizedBox(height: AppSpacing.xs),
-                Wrap(
-                  spacing: AppSpacing.md,
-                  runSpacing: 4,
-                  crossAxisAlignment: WrapCrossAlignment.center,
+                Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          AppIcons.location,
-                          size: AppIconSize.sm,
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${team.distanceKm.toStringAsFixed(1)} km away',
-                          style: textTheme.bodySmall,
-                        ),
-                      ],
+                    Icon(
+                      AppIcons.eta,
+                      size: AppIconSize.sm,
+                      color: colorScheme.onSurfaceVariant,
                     ),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          AppIcons.eta,
-                          size: AppIconSize.sm,
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          'ETA ${team.etaMinutes} min',
-                          style: textTheme.bodySmall,
-                        ),
-                      ],
+                    const SizedBox(width: 4),
+                    Text(
+                      'ETA ${team.etaMinutes} min',
+                      style: textTheme.bodySmall,
                     ),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          AppIcons.rating,
-                          size: AppIconSize.sm,
-                          color: AppColors.warning,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          team.rating.toStringAsFixed(1),
-                          style: textTheme.bodySmall,
-                        ),
-                      ],
+                  ],
+                ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      AppIcons.rating,
+                      size: AppIconSize.sm,
+                      color: AppColors.warning,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      team.rating.toStringAsFixed(1),
+                      style: textTheme.bodySmall,
                     ),
                   ],
                 ),
               ],
             ),
-          ),
+          ],
         ),
       ),
     );
@@ -750,7 +685,11 @@ class _AssignmentSummaryCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(AppIcons.info, size: AppIconSize.md, color: AppColors.primary),
+          const Icon(
+            AppIcons.info,
+            size: AppIconSize.md,
+            color: AppColors.primary,
+          ),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(
@@ -793,7 +732,8 @@ class _LoadingSkeletonState extends State<_LoadingSkeleton>
   Widget build(BuildContext context) {
     final base = Theme.of(context).colorScheme.surfaceContainer;
     final highlight = Theme.of(context).colorScheme.surfaceContainerLow;
-    final reduceMotion = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    final reduceMotion =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
 
     Widget block({double height = 96}) {
       return AnimatedBuilder(

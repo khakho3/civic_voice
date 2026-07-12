@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../models/incoming_report.dart';
+import '../widgets/glass_card.dart';
 import '../widgets/municipal_scaffold.dart';
 import '../widgets/municipal_state_message.dart';
 import '../widgets/status_badge.dart';
@@ -61,7 +62,8 @@ class _MunicipalInboxScreenState extends State<MunicipalInboxScreen> {
   late MunicipalInboxViewState _state = widget.initialState;
   final _searchController = TextEditingController();
   ReportCategory? _selectedCategory;
-  late final List<IncomingReportItem> _reports = widget.initialState == MunicipalInboxViewState.empty
+  late final List<IncomingReportItem> _reports =
+      widget.initialState == MunicipalInboxViewState.empty
       ? const []
       : IncomingReportItem.mock();
 
@@ -119,7 +121,9 @@ class _MunicipalInboxScreenState extends State<MunicipalInboxScreen> {
       onNotificationsTap: () {},
       onTabSelected: (tab) {
         if (tab == MunicipalTab.dashboard) widget.onNavigateToDashboard?.call();
-        if (tab == MunicipalTab.active) widget.onNavigateToActiveReports?.call();
+        if (tab == MunicipalTab.active) {
+          widget.onNavigateToActiveReports?.call();
+        }
       },
       body: switch (_state) {
         MunicipalInboxViewState.loading => const _InboxContent(loading: true),
@@ -137,40 +141,50 @@ class _MunicipalInboxScreenState extends State<MunicipalInboxScreen> {
           onClearFilters: _clearFilters,
           onReportTap: widget.onReportTap,
         ),
-        MunicipalInboxViewState.error => MunicipalStateMessage(
-          icon: AppIcons.warning,
-          badgeColor: AppColors.error,
-          title: 'Unable to load reports',
-          message: 'Refresh the inbox or try again in a few minutes.',
-          primaryActionLabel: 'Try again',
-          onPrimaryAction: _retry,
-          primaryActionColor: AppColors.error,
-          bordered: true,
+        MunicipalInboxViewState.error => Padding(
+          padding: MunicipalScaffold.contentPadding(context),
+          child: MunicipalStateMessage(
+            icon: AppIcons.warning,
+            badgeColor: AppColors.error,
+            title: 'Unable to load reports',
+            message: 'Refresh the inbox or try again in a few minutes.',
+            primaryActionLabel: 'Try again',
+            onPrimaryAction: _retry,
+            primaryActionColor: AppColors.error,
+            bordered: true,
+          ),
         ),
-        MunicipalInboxViewState.offline => MunicipalStateMessage(
-          icon: AppIcons.offline,
-          badgeColor: AppColors.error,
-          title: 'You\'re offline',
-          message: 'Check your connection and retry loading incoming reports.',
-          primaryActionLabel: 'Retry connection',
-          onPrimaryAction: _retry,
-          primaryActionColor: AppColors.error,
-          bordered: true,
+        MunicipalInboxViewState.offline => Padding(
+          padding: MunicipalScaffold.contentPadding(context),
+          child: MunicipalStateMessage(
+            icon: AppIcons.offline,
+            badgeColor: AppColors.error,
+            title: 'You\'re offline',
+            message:
+                'Check your connection and retry loading incoming reports.',
+            primaryActionLabel: 'Retry connection',
+            onPrimaryAction: _retry,
+            primaryActionColor: AppColors.error,
+            bordered: true,
+          ),
         ),
-        MunicipalInboxViewState.permissionDenied => MunicipalStateMessage(
-          icon: AppIcons.permissionDenied,
-          badgeColor: AppColors.primary,
-          title: 'Access Restricted',
-          message:
-              'You do not have permission to view incoming reports for this '
-              'municipality.',
-          primaryActionLabel: 'Request Access',
-          // No access-request workflow is specified in Issue 03 — placeholder
-          // pending spec.
-          onPrimaryAction: () {},
-          secondaryActionLabel: 'Return to Dashboard',
-          onSecondaryAction: widget.onNavigateToDashboard,
-          bordered: true,
+        MunicipalInboxViewState.permissionDenied => Padding(
+          padding: MunicipalScaffold.contentPadding(context),
+          child: MunicipalStateMessage(
+            icon: AppIcons.permissionDenied,
+            badgeColor: AppColors.primary,
+            title: 'Access Restricted',
+            message:
+                'You do not have permission to view incoming reports for this '
+                'municipality.',
+            primaryActionLabel: 'Request Access',
+            // No access-request workflow is specified in Issue 03 —
+            // placeholder pending spec.
+            onPrimaryAction: () {},
+            secondaryActionLabel: 'Return to Dashboard',
+            onSecondaryAction: widget.onNavigateToDashboard,
+            bordered: true,
+          ),
         ),
       },
     );
@@ -206,15 +220,17 @@ class _InboxContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isNoResults = !loading && rawReports.isNotEmpty && filteredReports.isEmpty;
+    final isNoResults =
+        !loading && rawReports.isNotEmpty && filteredReports.isEmpty;
     final isEmpty = !loading && rawReports.isEmpty;
+    final topChromeInset = MunicipalScaffold.contentPadding(context).top;
 
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(
+          padding: EdgeInsets.fromLTRB(
             AppSpacing.md,
-            AppSpacing.md,
+            topChromeInset + AppSpacing.md,
             AppSpacing.md,
             0,
           ),
@@ -407,13 +423,12 @@ class _FilterTag extends StatelessWidget {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     return Container(
-      padding: const EdgeInsets.only(
-        left: AppSpacing.md,
-        right: AppSpacing.sm,
-      ),
+      padding: const EdgeInsets.only(left: AppSpacing.md, right: AppSpacing.sm),
       decoration: BoxDecoration(
         color: AppColors.statusAssigned.withValues(alpha: 0.12),
-        border: Border.all(color: AppColors.statusAssigned.withValues(alpha: 0.24)),
+        border: Border.all(
+          color: AppColors.statusAssigned.withValues(alpha: 0.24),
+        ),
         borderRadius: AppRadius.allXl,
       ),
       child: Row(
@@ -421,7 +436,9 @@ class _FilterTag extends StatelessWidget {
         children: [
           Text(
             label,
-            style: textTheme.labelLarge?.copyWith(color: AppColors.statusAssigned),
+            style: textTheme.labelLarge?.copyWith(
+              color: AppColors.statusAssigned,
+            ),
           ),
           InkWell(
             onTap: onCleared,
@@ -450,7 +467,12 @@ class _ReportList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView.separated(
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.md,
+        AppSpacing.md,
+        AppSpacing.md + MunicipalScaffold.contentPadding(context).bottom,
+      ),
       itemCount: reports.length,
       separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
       itemBuilder: (context, index) => _ReportCard(
@@ -470,73 +492,63 @@ class _ReportCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    final colorScheme = Theme.of(context).colorScheme;
-    return Material(
-      color: colorScheme.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: AppComponentRadius.card,
-        side: BorderSide(color: colorScheme.outline),
-      ),
-      child: InkWell(
-        borderRadius: AppComponentRadius.card,
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          child: Column(
+    return GlassCard(
+      onTap: onTap,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Wrap(
-                      spacing: AppSpacing.xs,
-                      runSpacing: AppSpacing.xs,
-                      children: [
-                        ReportSeverityBadge(severity: report.severity),
-                        ReportStatusBadge(status: report.status),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Text(report.timeAgo, style: textTheme.bodySmall),
-                ],
+              Expanded(
+                child: Wrap(
+                  spacing: AppSpacing.xs,
+                  runSpacing: AppSpacing.xs,
+                  children: [
+                    ReportSeverityBadge(severity: report.severity),
+                    ReportStatusBadge(status: report.status),
+                  ],
+                ),
               ),
-              const SizedBox(height: AppSpacing.sm),
-              Text(report.title, style: textTheme.titleMedium),
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                report.description,
-                style: textTheme.bodyMedium,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: AppSpacing.md),
-              Row(
-                children: [
-                  _ReportAvatar(photoUrl: report.photoUrl),
-                  const SizedBox(width: AppSpacing.sm),
-                  Icon(
-                    AppIcons.location,
-                    size: AppIconSize.sm,
-                    color: AppColors.primary,
-                  ),
-                  const SizedBox(width: 2),
-                  Expanded(
-                    child: Text(
-                      'View Location',
-                      style: textTheme.labelLarge?.copyWith(color: AppColors.primary),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  _CategoryTag(category: report.category),
-                ],
-              ),
+              const SizedBox(width: AppSpacing.sm),
+              Text(report.timeAgo, style: textTheme.bodySmall),
             ],
           ),
-        ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(report.title, style: textTheme.titleMedium),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            report.description,
+            style: textTheme.bodyMedium,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Row(
+            children: [
+              _ReportAvatar(photoUrl: report.photoUrl),
+              const SizedBox(width: AppSpacing.sm),
+              Icon(
+                AppIcons.location,
+                size: AppIconSize.sm,
+                color: AppColors.primary,
+              ),
+              const SizedBox(width: 2),
+              Expanded(
+                child: Text(
+                  'View Location',
+                  style: textTheme.labelLarge?.copyWith(
+                    color: AppColors.primary,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              _CategoryTag(category: report.category),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -574,7 +586,10 @@ class _CategoryTag extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 4),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: 4,
+      ),
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainer,
         borderRadius: AppRadius.allXl,
@@ -597,7 +612,12 @@ class _ReportListSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView.separated(
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.md,
+        AppSpacing.md,
+        AppSpacing.md + MunicipalScaffold.contentPadding(context).bottom,
+      ),
       itemCount: 3,
       separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
       itemBuilder: (context, _) => _ReportCardSkeleton(),
@@ -748,13 +768,25 @@ class _CenteredScrollable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // This sits inside the Expanded area below the header, whose box
+    // extends to the true screen bottom (behind the glass bottom nav, so
+    // list content can scroll under it) — without accounting for that, the
+    // illustration would visually center a bit low, biased toward the
+    // hidden strip behind the nav.
+    final bottomChromeInset = MunicipalScaffold.contentPadding(context).bottom;
     return LayoutBuilder(
       builder: (context, constraints) {
+        final verticalPadding = AppSpacing.xl * 2 + bottomChromeInset;
         return SingleChildScrollView(
-          padding: const EdgeInsets.all(AppSpacing.xl),
+          padding: EdgeInsets.fromLTRB(
+            AppSpacing.xl,
+            AppSpacing.xl,
+            AppSpacing.xl,
+            AppSpacing.xl + bottomChromeInset,
+          ),
           child: ConstrainedBox(
             constraints: BoxConstraints(
-              minHeight: (constraints.maxHeight - AppSpacing.xl * 2).clamp(
+              minHeight: (constraints.maxHeight - verticalPadding).clamp(
                 0.0,
                 double.infinity,
               ),
@@ -799,7 +831,8 @@ class _ShimmerBlockState extends State<_ShimmerBlock>
   Widget build(BuildContext context) {
     final base = Theme.of(context).colorScheme.surfaceContainer;
     final highlight = Theme.of(context).colorScheme.surfaceContainerLow;
-    final reduceMotion = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    final reduceMotion =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
 
     return FractionallySizedBox(
       widthFactor: widget.widthFactor,

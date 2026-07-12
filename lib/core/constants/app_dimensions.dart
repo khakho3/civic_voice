@@ -43,4 +43,11 @@ abstract final class AppDimensions {
   /// breakpoint (§19.9 Content Width Rules) — prevents unbounded single-column
   /// text measure on wide screens while leaving mobile widths unconstrained.
   static const double maxContentWidth = AppBreakpoints.tablet;
+
+  /// Height of the glass header bar (screen title/brand mark + actions),
+  /// shared by every Municipal Officer screen.
+  static const double headerHeight = 64;
+
+  /// Height of the glass bottom navigation bar.
+  static const double bottomNavHeight = 80;
 }

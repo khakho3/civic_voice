@@ -4,7 +4,9 @@ import '../../../core/theme/app_theme.dart';
 import '../../../models/report_status.dart';
 import '../models/report_review_data.dart';
 import '../widgets/dashed_border_box.dart';
+import '../widgets/glass_card.dart';
 import '../widgets/map_preview.dart';
+import '../widgets/municipal_detail_header.dart';
 import '../widgets/municipal_state_message.dart';
 import '../widgets/status_badge.dart';
 
@@ -100,122 +102,84 @@ class _MunicipalReportReviewScreenState
         _state == MunicipalReportReviewViewState.noEvidence;
 
     return Scaffold(
-      body: SafeArea(
-        child: Column(
-          children: [
-            _ReviewHeader(
-              referenceId: widget.referenceId,
-              status: widget.status,
-              onBack: widget.onBack,
-            ),
-            if (_state == MunicipalReportReviewViewState.offline)
-              const _OfflineBanner(),
-            Expanded(
-              child: switch (_state) {
-                MunicipalReportReviewViewState.loading =>
-                  const _LoadingSkeleton(),
-                MunicipalReportReviewViewState.loaded => _ReviewBody(
-                  data: _data,
-                ),
-                MunicipalReportReviewViewState.noEvidence => _ReviewBody(
-                  data: _noEvidenceData,
-                ),
-                MunicipalReportReviewViewState.offline => _ReviewBody(
-                  data: _data,
-                ),
-                MunicipalReportReviewViewState.error => MunicipalStateMessage(
-                  icon: AppIcons.warning,
-                  badgeColor: AppColors.error,
-                  primaryActionColor: AppColors.error,
-                  title: 'Failed to load report',
-                  message:
-                      'We encountered a network issue while retrieving '
-                      'this report. Check your connection and try again.',
-                  primaryActionLabel: 'Try again',
-                  onPrimaryAction: _retry,
-                  secondaryActionLabel: 'Return to Dashboard',
-                  onSecondaryAction: widget.onNavigateToDashboard,
-                ),
-                MunicipalReportReviewViewState.permissionDenied =>
-                  MunicipalStateMessage(
-                    icon: AppIcons.permissionDenied,
-                    badgeColor: AppColors.primary,
-                    title: 'Access Restricted',
-                    message:
-                        'You do not have permission to view report details '
-                        'for this district.',
-                    // The approved frame shows "Return to Dashboard" twice
-                    // (evidently a copy/paste slip) — using the same
-                    // Request Access + Return pattern as Dashboard/Inbox's
-                    // Permission states instead, for consistency.
-                    primaryActionLabel: 'Request Access',
-                    onPrimaryAction: () {},
-                    secondaryActionLabel: 'Return to Dashboard',
-                    onSecondaryAction: widget.onNavigateToDashboard,
-                  ),
-              },
-            ),
-            if (showActionBar)
-              _ActionBar(
-                enabled: actionsEnabled,
-                onReject: () => widget.onOpenVerification?.call(),
-                onVerify: () => widget.onOpenVerification?.call(),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Header
-// ---------------------------------------------------------------------------
-
-class _ReviewHeader extends StatelessWidget {
-  const _ReviewHeader({
-    required this.referenceId,
-    required this.status,
-    this.onBack,
-  });
-
-  final String referenceId;
-  final ReportStatus status;
-  final VoidCallback? onBack;
-
-  @override
-  Widget build(BuildContext context) {
-    final semantic = Theme.of(context).extension<AppSemanticColors>()!;
-    final textTheme = Theme.of(context).textTheme;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-      decoration: BoxDecoration(
-        color: semantic.glassNavSurface,
-        border: Border(bottom: BorderSide(color: semantic.glassBorder)),
-      ),
-      child: SizedBox(
-        height: 64,
-        child: Row(
-          children: [
-            IconButton(
-              onPressed: onBack,
-              icon: const Icon(AppIcons.back),
-              iconSize: AppIconSize.md,
-            ),
-            const SizedBox(width: AppSpacing.xs),
-            Expanded(
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: SafeArea(
+              top: false,
               child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Report Review', style: textTheme.titleMedium),
-                  Text('#$referenceId', style: textTheme.bodySmall),
+                  SizedBox(height: MunicipalDetailHeader.topInset(context)),
+                  if (_state == MunicipalReportReviewViewState.offline)
+                    const _OfflineBanner(),
+                  Expanded(
+                    child: switch (_state) {
+                      MunicipalReportReviewViewState.loading =>
+                        const _LoadingSkeleton(),
+                      MunicipalReportReviewViewState.loaded => _ReviewBody(
+                        data: _data,
+                      ),
+                      MunicipalReportReviewViewState.noEvidence => _ReviewBody(
+                        data: _noEvidenceData,
+                      ),
+                      MunicipalReportReviewViewState.offline => _ReviewBody(
+                        data: _data,
+                      ),
+                      MunicipalReportReviewViewState.error =>
+                        MunicipalStateMessage(
+                          icon: AppIcons.warning,
+                          badgeColor: AppColors.error,
+                          primaryActionColor: AppColors.error,
+                          title: 'Failed to load report',
+                          message:
+                              'We encountered a network issue while '
+                              'retrieving this report. Check your '
+                              'connection and try again.',
+                          primaryActionLabel: 'Try again',
+                          onPrimaryAction: _retry,
+                          secondaryActionLabel: 'Return to Dashboard',
+                          onSecondaryAction: widget.onNavigateToDashboard,
+                        ),
+                      MunicipalReportReviewViewState.permissionDenied =>
+                        MunicipalStateMessage(
+                          icon: AppIcons.permissionDenied,
+                          badgeColor: AppColors.primary,
+                          title: 'Access Restricted',
+                          message:
+                              'You do not have permission to view report '
+                              'details for this district.',
+                          // The approved frame shows "Return to Dashboard"
+                          // twice (evidently a copy/paste slip) — using the
+                          // same Request Access + Return pattern as
+                          // Dashboard/Inbox's Permission states instead, for
+                          // consistency.
+                          primaryActionLabel: 'Request Access',
+                          onPrimaryAction: () {},
+                          secondaryActionLabel: 'Return to Dashboard',
+                          onSecondaryAction: widget.onNavigateToDashboard,
+                        ),
+                    },
+                  ),
+                  if (showActionBar)
+                    _ActionBar(
+                      enabled: actionsEnabled,
+                      onReject: () => widget.onOpenVerification?.call(),
+                      onVerify: () => widget.onOpenVerification?.call(),
+                    ),
                 ],
               ),
             ),
-            ReportStatusBadge(status: status),
-          ],
-        ),
+          ),
+          Align(
+            alignment: Alignment.topCenter,
+            child: MunicipalDetailHeader(
+              title: 'Report Review',
+              referenceId: widget.referenceId,
+              onBack: widget.onBack,
+              trailing: ReportStatusBadge(status: widget.status),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -235,14 +199,18 @@ class _OfflineBanner extends StatelessWidget {
       color: AppColors.error.withValues(alpha: 0.12),
       child: Row(
         children: [
-          const Icon(AppIcons.offline, size: AppIconSize.sm, color: AppColors.error),
+          const Icon(
+            AppIcons.offline,
+            size: AppIconSize.sm,
+            color: AppColors.error,
+          ),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(
               'No internet connection — using cached data',
-              style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                color: AppColors.error,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.labelMedium?.copyWith(color: AppColors.error),
             ),
           ),
         ],
@@ -319,20 +287,17 @@ class _SectionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        border: Border.all(color: colorScheme.outline),
-        borderRadius: AppComponentRadius.card,
-      ),
+    return GlassCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(icon, size: AppIconSize.md, color: colorScheme.onSurfaceVariant),
+              Icon(
+                icon,
+                size: AppIconSize.md,
+                color: colorScheme.onSurfaceVariant,
+              ),
               const SizedBox(width: AppSpacing.xs),
               Text(
                 title,
@@ -375,7 +340,9 @@ class _CitizenInfo extends StatelessWidget {
                     .take(2)
                     .join()
                     .toUpperCase(),
-                style: textTheme.labelMedium?.copyWith(color: AppColors.primary),
+                style: textTheme.labelMedium?.copyWith(
+                  color: AppColors.primary,
+                ),
               ),
             ),
             const SizedBox(width: AppSpacing.sm),
@@ -399,7 +366,11 @@ class _CitizenInfo extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(AppIcons.permissionDenied, size: AppIconSize.sm, color: AppColors.primary),
+              Icon(
+                AppIcons.permissionDenied,
+                size: AppIconSize.sm,
+                color: AppColors.primary,
+              ),
               const SizedBox(width: AppSpacing.xs),
               Expanded(
                 child: Text(
@@ -454,7 +425,10 @@ class _NeutralTag extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 4),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: 4,
+      ),
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainer,
         borderRadius: AppRadius.allXl,
@@ -635,7 +609,8 @@ class _LoadingSkeletonState extends State<_LoadingSkeleton>
     final base = Theme.of(context).colorScheme.surfaceContainer;
     final highlight = Theme.of(context).colorScheme.surfaceContainerLow;
     final colorScheme = Theme.of(context).colorScheme;
-    final reduceMotion = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    final reduceMotion =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
 
     Widget block({double? width, double height = 14}) {
       return AnimatedBuilder(

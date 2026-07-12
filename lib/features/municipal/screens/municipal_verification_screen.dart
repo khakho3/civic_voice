@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../models/report_status.dart';
 import '../models/verification_data.dart';
+import '../widgets/glass_card.dart';
+import '../widgets/municipal_detail_header.dart';
 import '../widgets/municipal_state_message.dart';
 import '../widgets/status_badge.dart';
 
@@ -131,187 +133,157 @@ class _MunicipalVerificationScreenState
     final formEnabled = _state == MunicipalVerificationViewState.loaded;
 
     return Scaffold(
-      body: SafeArea(
-        child: Column(
-          children: [
-            _VerificationHeader(
-              referenceId: widget.referenceId,
-              status: widget.status,
-              onBack: widget.onBack,
-            ),
-            if (_state == MunicipalVerificationViewState.offline)
-              const _OfflineBanner(),
-            Expanded(
-              child: switch (_state) {
-                MunicipalVerificationViewState.loading =>
-                  const _LoadingSkeleton(),
-                MunicipalVerificationViewState.loaded => _VerificationForm(
-                  data: _data,
-                  enabled: true,
-                  checked: _checked,
-                  onToggle: _toggleChecklistItem,
-                  reasonController: _reasonController,
-                  onQuickReasonSelected: _selectQuickReason,
-                ),
-                MunicipalVerificationViewState.offline => _VerificationForm(
-                  data: _data,
-                  enabled: false,
-                  checked: _checked,
-                  onToggle: _toggleChecklistItem,
-                  reasonController: _reasonController,
-                  onQuickReasonSelected: _selectQuickReason,
-                  disabledCaption: 'Checklist disabled while offline.',
-                ),
-                MunicipalVerificationViewState.disabled => _VerificationForm(
-                  data: _data,
-                  enabled: false,
-                  checked: _checked,
-                  onToggle: _toggleChecklistItem,
-                  reasonController: _reasonController,
-                  onQuickReasonSelected: _selectQuickReason,
-                  // The approved frame reuses the Offline caption verbatim
-                  // here too, which reads as a copy/paste leftover (this
-                  // state shows no offline banner) — using accurate, generic
-                  // copy instead of a factually wrong "while offline" claim.
-                  disabledCaption:
-                      'This report is no longer available for review.',
-                ),
-                MunicipalVerificationViewState.verified => MunicipalStateMessage(
-                  icon: AppIcons.success,
-                  badgeColor: AppColors.success,
-                  title: 'Report Verified Successfully',
-                  message:
-                      'The report is now ready for maintenance assignment.',
-                  primaryActionLabel: 'Assign Maintenance Team',
-                  onPrimaryAction: widget.onAssignTeam,
-                  secondaryActionLabel: 'Back to Dashboard',
-                  onSecondaryAction: widget.onNavigateToDashboard,
-                  bordered: true,
-                ),
-                MunicipalVerificationViewState.rejected => MunicipalStateMessage(
-                  icon: AppIcons.success,
-                  badgeColor: AppColors.success,
-                  title: 'Report Rejected',
-                  message: _rejectedWithReason
-                      ? 'The citizen has been notified with the provided '
-                            'reason.'
-                      : 'The citizen has been notified of the rejection.',
-                  primaryActionLabel: 'Back to Inbox',
-                  onPrimaryAction: widget.onBackToInbox,
-                  secondaryActionLabel: 'Return to Dashboard',
-                  onSecondaryAction: widget.onNavigateToDashboard,
-                  bordered: true,
-                ),
-                MunicipalVerificationViewState.failed => MunicipalStateMessage(
-                  icon: AppIcons.warning,
-                  badgeColor: AppColors.error,
-                  primaryActionColor: AppColors.error,
-                  title: 'Verification Failed',
-                  message:
-                      'We couldn\'t submit the verification. Check your '
-                      'connection and try again.',
-                  primaryActionLabel: 'Try again',
-                  onPrimaryAction: _submitVerify,
-                  secondaryActionLabel: 'Back to Report',
-                  onSecondaryAction: () => setState(
-                    () => _state = MunicipalVerificationViewState.loaded,
-                  ),
-                  bordered: true,
-                ),
-                MunicipalVerificationViewState.error => MunicipalStateMessage(
-                  icon: AppIcons.warning,
-                  badgeColor: AppColors.error,
-                  primaryActionColor: AppColors.error,
-                  title: 'Something went wrong',
-                  message:
-                      'We encountered a network issue while loading this '
-                      'report. Please try again.',
-                  primaryActionLabel: 'Try again',
-                  onPrimaryAction: _retryLoad,
-                  secondaryActionLabel: 'Return to Dashboard',
-                  onSecondaryAction: widget.onNavigateToDashboard,
-                  bordered: true,
-                ),
-                MunicipalVerificationViewState.permissionDenied =>
-                  MunicipalStateMessage(
-                    icon: AppIcons.permissionDenied,
-                    badgeColor: AppColors.primary,
-                    title: 'Access Restricted',
-                    message:
-                        'You do not have permission to verify or reject '
-                        'reports for this district.',
-                    primaryActionLabel: 'Return to Dashboard',
-                    onPrimaryAction: widget.onNavigateToDashboard,
-                    bordered: true,
-                  ),
-              },
-            ),
-            if (showActionBar)
-              _ActionBar(
-                canVerify: formEnabled && _allConfirmed,
-                canReject: formEnabled,
-                onVerify: _submitVerify,
-                onReject: _submitReject,
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Header / banner
-// ---------------------------------------------------------------------------
-
-class _VerificationHeader extends StatelessWidget {
-  const _VerificationHeader({
-    required this.referenceId,
-    required this.status,
-    this.onBack,
-  });
-
-  final String referenceId;
-  final ReportStatus status;
-  final VoidCallback? onBack;
-
-  @override
-  Widget build(BuildContext context) {
-    final semantic = Theme.of(context).extension<AppSemanticColors>()!;
-    final textTheme = Theme.of(context).textTheme;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-      decoration: BoxDecoration(
-        color: semantic.glassNavSurface,
-        border: Border(bottom: BorderSide(color: semantic.glassBorder)),
-      ),
-      child: SizedBox(
-        height: 64,
-        child: Row(
-          children: [
-            IconButton(
-              onPressed: onBack,
-              icon: const Icon(AppIcons.back),
-              iconSize: AppIconSize.md,
-            ),
-            const SizedBox(width: AppSpacing.xs),
-            Expanded(
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: SafeArea(
+              top: false,
               child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Verify Report', style: textTheme.titleMedium),
-                  Text('#$referenceId', style: textTheme.bodySmall),
+                  SizedBox(height: MunicipalDetailHeader.topInset(context)),
+                  if (_state == MunicipalVerificationViewState.offline)
+                    const _OfflineBanner(),
+                  Expanded(
+                    child: switch (_state) {
+                      MunicipalVerificationViewState.loading =>
+                        const _LoadingSkeleton(),
+                      MunicipalVerificationViewState.loaded =>
+                        _VerificationForm(
+                          data: _data,
+                          enabled: true,
+                          checked: _checked,
+                          onToggle: _toggleChecklistItem,
+                          reasonController: _reasonController,
+                          onQuickReasonSelected: _selectQuickReason,
+                        ),
+                      MunicipalVerificationViewState.offline =>
+                        _VerificationForm(
+                          data: _data,
+                          enabled: false,
+                          checked: _checked,
+                          onToggle: _toggleChecklistItem,
+                          reasonController: _reasonController,
+                          onQuickReasonSelected: _selectQuickReason,
+                          disabledCaption: 'Checklist disabled while offline.',
+                        ),
+                      MunicipalVerificationViewState.disabled => _VerificationForm(
+                        data: _data,
+                        enabled: false,
+                        checked: _checked,
+                        onToggle: _toggleChecklistItem,
+                        reasonController: _reasonController,
+                        onQuickReasonSelected: _selectQuickReason,
+                        // The approved frame reuses the Offline caption verbatim
+                        // here too, which reads as a copy/paste leftover (this
+                        // state shows no offline banner) — using accurate, generic
+                        // copy instead of a factually wrong "while offline" claim.
+                        disabledCaption:
+                            'This report is no longer available for review.',
+                      ),
+                      MunicipalVerificationViewState.verified =>
+                        MunicipalStateMessage(
+                          icon: AppIcons.success,
+                          badgeColor: AppColors.success,
+                          title: 'Report Verified Successfully',
+                          message:
+                              'The report is now ready for maintenance assignment.',
+                          primaryActionLabel: 'Assign Maintenance Team',
+                          onPrimaryAction: widget.onAssignTeam,
+                          secondaryActionLabel: 'Back to Dashboard',
+                          onSecondaryAction: widget.onNavigateToDashboard,
+                          bordered: true,
+                        ),
+                      MunicipalVerificationViewState.rejected =>
+                        MunicipalStateMessage(
+                          icon: AppIcons.success,
+                          badgeColor: AppColors.success,
+                          title: 'Report Rejected',
+                          message: _rejectedWithReason
+                              ? 'The citizen has been notified with the provided '
+                                    'reason.'
+                              : 'The citizen has been notified of the rejection.',
+                          primaryActionLabel: 'Back to Inbox',
+                          onPrimaryAction: widget.onBackToInbox,
+                          secondaryActionLabel: 'Return to Dashboard',
+                          onSecondaryAction: widget.onNavigateToDashboard,
+                          bordered: true,
+                        ),
+                      MunicipalVerificationViewState.failed =>
+                        MunicipalStateMessage(
+                          icon: AppIcons.warning,
+                          badgeColor: AppColors.error,
+                          primaryActionColor: AppColors.error,
+                          title: 'Verification Failed',
+                          message:
+                              'We couldn\'t submit the verification. Check your '
+                              'connection and try again.',
+                          primaryActionLabel: 'Try again',
+                          onPrimaryAction: _submitVerify,
+                          secondaryActionLabel: 'Back to Report',
+                          onSecondaryAction: () => setState(
+                            () =>
+                                _state = MunicipalVerificationViewState.loaded,
+                          ),
+                          bordered: true,
+                        ),
+                      MunicipalVerificationViewState.error =>
+                        MunicipalStateMessage(
+                          icon: AppIcons.warning,
+                          badgeColor: AppColors.error,
+                          primaryActionColor: AppColors.error,
+                          title: 'Something went wrong',
+                          message:
+                              'We encountered a network issue while loading this '
+                              'report. Please try again.',
+                          primaryActionLabel: 'Try again',
+                          onPrimaryAction: _retryLoad,
+                          secondaryActionLabel: 'Return to Dashboard',
+                          onSecondaryAction: widget.onNavigateToDashboard,
+                          bordered: true,
+                        ),
+                      MunicipalVerificationViewState.permissionDenied =>
+                        MunicipalStateMessage(
+                          icon: AppIcons.permissionDenied,
+                          badgeColor: AppColors.primary,
+                          title: 'Access Restricted',
+                          message:
+                              'You do not have permission to verify or reject '
+                              'reports for this district.',
+                          primaryActionLabel: 'Return to Dashboard',
+                          onPrimaryAction: widget.onNavigateToDashboard,
+                          bordered: true,
+                        ),
+                    },
+                  ),
+                  if (showActionBar)
+                    _ActionBar(
+                      canVerify: formEnabled && _allConfirmed,
+                      canReject: formEnabled,
+                      onVerify: _submitVerify,
+                      onReject: _submitReject,
+                    ),
                 ],
               ),
             ),
-            ReportStatusBadge(status: status),
-          ],
-        ),
+          ),
+          Align(
+            alignment: Alignment.topCenter,
+            child: MunicipalDetailHeader(
+              title: 'Verify Report',
+              referenceId: widget.referenceId,
+              onBack: widget.onBack,
+              trailing: ReportStatusBadge(status: widget.status),
+            ),
+          ),
+        ],
       ),
     );
   }
 }
+
+// ---------------------------------------------------------------------------
+// Offline banner
+// ---------------------------------------------------------------------------
 
 class _OfflineBanner extends StatelessWidget {
   const _OfflineBanner();
@@ -327,15 +299,19 @@ class _OfflineBanner extends StatelessWidget {
       color: AppColors.error.withValues(alpha: 0.12),
       child: Row(
         children: [
-          const Icon(AppIcons.offline, size: AppIconSize.sm, color: AppColors.error),
+          const Icon(
+            AppIcons.offline,
+            size: AppIconSize.sm,
+            color: AppColors.error,
+          ),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(
               'No internet connection — changes will sync when you\'re '
               'back online',
-              style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                color: AppColors.error,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.labelMedium?.copyWith(color: AppColors.error),
             ),
           ),
         ],
@@ -380,14 +356,7 @@ class _VerificationForm extends StatelessWidget {
         AppSpacing.xl,
       ),
       children: [
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(AppSpacing.md),
-          decoration: BoxDecoration(
-            color: colorScheme.surface,
-            border: Border.all(color: colorScheme.outline),
-            borderRadius: AppComponentRadius.card,
-          ),
+        GlassCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -400,7 +369,10 @@ class _VerificationForm extends StatelessWidget {
                   Expanded(
                     child: _LabeledValue(
                       label: 'CATEGORY',
-                      child: Text(data.category.label, style: textTheme.titleSmall),
+                      child: Text(
+                        data.category.label,
+                        style: textTheme.titleSmall,
+                      ),
                     ),
                   ),
                   Expanded(
@@ -440,7 +412,9 @@ class _VerificationForm extends StatelessWidget {
                     // across screens.
                     CircleAvatar(
                       radius: 14,
-                      backgroundColor: colorScheme.primary.withValues(alpha: 0.12),
+                      backgroundColor: colorScheme.primary.withValues(
+                        alpha: 0.12,
+                      ),
                       child: Text(
                         data.citizenName
                             .trim()
@@ -449,7 +423,9 @@ class _VerificationForm extends StatelessWidget {
                             .take(2)
                             .join()
                             .toUpperCase(),
-                        style: textTheme.labelSmall?.copyWith(color: AppColors.primary),
+                        style: textTheme.labelSmall?.copyWith(
+                          color: AppColors.primary,
+                        ),
                       ),
                     ),
                     const SizedBox(width: AppSpacing.sm),
@@ -474,7 +450,11 @@ class _VerificationForm extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Icon(AppIcons.reportVerified, size: AppIconSize.md, color: colorScheme.onSurfaceVariant),
+                  Icon(
+                    AppIcons.reportVerified,
+                    size: AppIconSize.md,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
                   const SizedBox(width: AppSpacing.xs),
                   Text('Verification Checklist', style: textTheme.titleSmall),
                 ],
@@ -508,10 +488,8 @@ class _VerificationForm extends StatelessWidget {
             const SizedBox(width: AppSpacing.sm),
             ValueListenableBuilder(
               valueListenable: reasonController,
-              builder: (context, value, _) => Text(
-                '${value.text.length}/500',
-                style: textTheme.bodySmall,
-              ),
+              builder: (context, value, _) =>
+                  Text('${value.text.length}/500', style: textTheme.bodySmall),
             ),
           ],
         ),
@@ -521,7 +499,13 @@ class _VerificationForm extends StatelessWidget {
           enabled: enabled,
           maxLines: 4,
           maxLength: 500,
-          buildCounter: (context, {required currentLength, required isFocused, maxLength}) => null,
+          buildCounter:
+              (
+                context, {
+                required currentLength,
+                required isFocused,
+                maxLength,
+              }) => null,
           decoration: const InputDecoration(
             hintText: 'Provide details if rejecting this report...',
           ),
@@ -562,7 +546,9 @@ class _LabeledValue extends StatelessWidget {
       children: [
         Text(
           label,
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(letterSpacing: 0.96),
+          style: Theme.of(
+            context,
+          ).textTheme.labelSmall?.copyWith(letterSpacing: 0.96),
         ),
         const SizedBox(height: 2),
         child,
@@ -595,7 +581,10 @@ class _ChecklistRow extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: Container(
-        padding: EdgeInsets.only(top: isFirst ? AppSpacing.md : AppSpacing.sm, bottom: AppSpacing.sm),
+        padding: EdgeInsets.only(
+          top: isFirst ? AppSpacing.md : AppSpacing.sm,
+          bottom: AppSpacing.sm,
+        ),
         decoration: BoxDecoration(
           border: isFirst
               ? null
@@ -613,13 +602,15 @@ class _ChecklistRow extends StatelessWidget {
                   shape: BoxShape.circle,
                   color: isChecked ? AppColors.success : Colors.transparent,
                   border: Border.all(
-                    color: isChecked
-                        ? AppColors.success
-                        : colorScheme.outline,
+                    color: isChecked ? AppColors.success : colorScheme.outline,
                   ),
                 ),
                 child: isChecked
-                    ? const Icon(AppIcons.success, size: AppIconSize.sm, color: Colors.white)
+                    ? const Icon(
+                        AppIcons.success,
+                        size: AppIconSize.sm,
+                        color: Colors.white,
+                      )
                     : null,
               ),
             ),
@@ -634,10 +625,7 @@ class _ChecklistRow extends StatelessWidget {
                       color: muted ? colorScheme.onSurfaceVariant : null,
                     ),
                   ),
-                  Text(
-                    item.description,
-                    style: textTheme.bodySmall,
-                  ),
+                  Text(item.description, style: textTheme.bodySmall),
                 ],
               ),
             ),
@@ -663,19 +651,28 @@ class _QuickReasonChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return Material(
-      color: selected ? AppColors.primary.withValues(alpha: 0.12) : Colors.transparent,
+      color: selected
+          ? AppColors.primary.withValues(alpha: 0.12)
+          : Colors.transparent,
       shape: StadiumBorder(
-        side: BorderSide(color: selected ? AppColors.primary : colorScheme.outline),
+        side: BorderSide(
+          color: selected ? AppColors.primary : colorScheme.outline,
+        ),
       ),
       child: InkWell(
         customBorder: const StadiumBorder(),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.sm,
+          ),
           child: Text(
             label,
             style: Theme.of(context).textTheme.labelMedium?.copyWith(
-              color: selected ? AppColors.primary : colorScheme.onSurfaceVariant,
+              color: selected
+                  ? AppColors.primary
+                  : colorScheme.onSurfaceVariant,
             ),
           ),
         ),
@@ -712,7 +709,8 @@ class _LoadingSkeletonState extends State<_LoadingSkeleton>
   Widget build(BuildContext context) {
     final base = Theme.of(context).colorScheme.surfaceContainer;
     final highlight = Theme.of(context).colorScheme.surfaceContainerLow;
-    final reduceMotion = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    final reduceMotion =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
 
     Widget block({double height = 120}) {
       return AnimatedBuilder(
@@ -723,7 +721,11 @@ class _LoadingSkeletonState extends State<_LoadingSkeleton>
             height: height,
             margin: const EdgeInsets.only(bottom: AppSpacing.md),
             decoration: BoxDecoration(
-              color: Color.lerp(base, highlight, reduceMotion ? 0.5 : _controller.value),
+              color: Color.lerp(
+                base,
+                highlight,
+                reduceMotion ? 0.5 : _controller.value,
+              ),
               borderRadius: AppRadius.allXs,
             ),
           );
@@ -733,7 +735,12 @@ class _LoadingSkeletonState extends State<_LoadingSkeleton>
 
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.md),
-      children: [block(), block(height: 60), block(height: 60), block(height: 200)],
+      children: [
+        block(),
+        block(height: 60),
+        block(height: 60),
+        block(height: 200),
+      ],
     );
   }
 }
@@ -787,7 +794,10 @@ class _ActionBar extends StatelessWidget {
                 foregroundColor: AppColors.error,
                 side: const BorderSide(color: AppColors.error),
               ),
-              icon: const Icon(AppIcons.statusRejected, size: AppIconSize.sm + 2),
+              icon: const Icon(
+                AppIcons.statusRejected,
+                size: AppIconSize.sm + 2,
+              ),
               label: const Text('Reject Report'),
             ),
           ),
