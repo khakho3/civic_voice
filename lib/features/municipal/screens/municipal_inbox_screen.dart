@@ -4,6 +4,7 @@ import '../../../core/theme/app_theme.dart';
 import '../models/incoming_report.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/municipal_scaffold.dart';
+import '../widgets/municipal_search_field.dart';
 import '../widgets/municipal_state_message.dart';
 import '../widgets/status_badge.dart';
 
@@ -237,7 +238,11 @@ class _InboxContent extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _SearchField(controller: searchController, enabled: !loading),
+              MunicipalSearchField(
+                controller: searchController,
+                hintText: 'Search incoming reports...',
+                enabled: !loading,
+              ),
               const SizedBox(height: AppSpacing.sm),
               if (isNoResults)
                 _ActiveFilterTags(
@@ -264,42 +269,6 @@ class _InboxContent extends StatelessWidget {
               : _ReportList(reports: filteredReports, onReportTap: onReportTap),
         ),
       ],
-    );
-  }
-}
-
-class _SearchField extends StatelessWidget {
-  const _SearchField({required this.controller, required this.enabled});
-
-  final TextEditingController? controller;
-  final bool enabled;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return TextField(
-      controller: controller,
-      enabled: enabled,
-      decoration: InputDecoration(
-        hintText: 'Search incoming reports...',
-        prefixIcon: const Icon(AppIcons.search, size: AppIconSize.md),
-        suffixIcon: controller != null && controller!.text.isNotEmpty
-            ? IconButton(
-                icon: const Icon(AppIcons.close, size: AppIconSize.md),
-                onPressed: controller!.clear,
-              )
-            : null,
-        border: OutlineInputBorder(
-          borderRadius: AppRadius.allLg,
-          borderSide: BorderSide(color: colorScheme.outline),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: AppRadius.allLg,
-          borderSide: BorderSide(color: colorScheme.outline),
-        ),
-        filled: true,
-        fillColor: colorScheme.surface,
-      ),
     );
   }
 }

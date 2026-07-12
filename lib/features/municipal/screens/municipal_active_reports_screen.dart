@@ -5,6 +5,7 @@ import '../../../models/report_status.dart';
 import '../models/active_report.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/municipal_scaffold.dart';
+import '../widgets/municipal_search_field.dart';
 import '../widgets/municipal_state_message.dart';
 import '../widgets/status_badge.dart';
 
@@ -25,16 +26,18 @@ import '../widgets/status_badge.dart';
 /// itself confirmed against an approved frame showing all four destinations
 /// together, and reusing a persistent nav icon to trigger a chrome-free
 /// drill-down would be inconsistent with how every other list screen in this
-/// module behaves. "Active Reports" / the zone name are shown via
-/// [MunicipalScaffold]'s header title/subtitle rather than an in-content
-/// heading — only the Dashboard tab shows the CivicVoice brand mark there;
-/// every other tab shows its own screen title.
+/// module behaves. "Active Reports" is shown via [MunicipalScaffold]'s
+/// header title rather than an in-content heading — only the Dashboard tab
+/// shows the CivicVoice brand mark there; every other tab shows its own
+/// screen title. The approved frame's "DOWNTOWN ZONE" subtitle wasn't
+/// carried over: it's not backed by any real scoping/filtering, and a
+/// single-line header keeps this consistent with every other tab (none of
+/// which show a subtitle).
 enum MunicipalActiveReportsViewState { loading, loaded, empty, error, offline }
 
 class MunicipalActiveReportsScreen extends StatefulWidget {
   const MunicipalActiveReportsScreen({
     super.key,
-    this.zoneName = 'Downtown Zone',
     this.initialState = MunicipalActiveReportsViewState.loaded,
     this.onNavigateToDashboard,
     this.onNavigateToInbox,
@@ -43,7 +46,6 @@ class MunicipalActiveReportsScreen extends StatefulWidget {
     this.onSystemStatus,
   });
 
-  final String zoneName;
   final MunicipalActiveReportsViewState initialState;
 
   /// Wired by the app shell so the bottom nav can switch tabs, and to
@@ -171,7 +173,6 @@ class _MunicipalActiveReportsScreenState
       // Notifications isn't one of the 9 approved MUN screens (Issue 03
       // §7) — left as a placeholder until that screen is specified.
       onNotificationsTap: () {},
-      headerSubtitle: widget.zoneName.toUpperCase(),
       onTabSelected: (tab) {
         if (tab == MunicipalTab.dashboard) widget.onNavigateToDashboard?.call();
         if (tab == MunicipalTab.inbox) widget.onNavigateToInbox?.call();
@@ -320,15 +321,12 @@ class _ActiveReportsBody extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              TextField(
+              MunicipalSearchField(
                 controller: searchController,
-                decoration: InputDecoration(
-                  hintText: 'Search report ID or street...',
-                  prefixIcon: const Icon(AppIcons.search, size: AppIconSize.md),
-                  suffixIcon: IconButton(
-                    icon: const Icon(AppIcons.filter, size: AppIconSize.md),
-                    onPressed: onSortTap,
-                  ),
+                hintText: 'Search report ID or street...',
+                trailing: IconButton(
+                  icon: const Icon(AppIcons.filter, size: AppIconSize.md),
+                  onPressed: onSortTap,
                 ),
               ),
               const SizedBox(height: AppSpacing.sm),

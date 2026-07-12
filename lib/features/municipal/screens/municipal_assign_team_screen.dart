@@ -5,6 +5,7 @@ import '../../../models/report_status.dart';
 import '../models/team_data.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/municipal_detail_header.dart';
+import '../widgets/municipal_search_field.dart';
 import '../widgets/municipal_state_message.dart';
 import '../widgets/status_badge.dart';
 
@@ -372,13 +373,10 @@ class _AssignBody extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.md),
         ],
-        TextField(
+        MunicipalSearchField(
           controller: searchController,
+          hintText: 'Search teams...',
           enabled: enabled,
-          decoration: const InputDecoration(
-            hintText: 'Search teams...',
-            prefixIcon: Icon(AppIcons.search, size: AppIconSize.sm),
-          ),
         ),
         const SizedBox(height: AppSpacing.sm),
         SizedBox(

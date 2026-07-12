@@ -610,7 +610,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('DOWNTOWN ZONE'), findsOneWidget);
+    expect(find.text('Active Reports'), findsOneWidget);
     expect(find.text('Severe Pothole on Main St.'), findsOneWidget);
     expect(find.text('Broken Streetlight'), findsOneWidget);
     expect(find.text('Overflowing Trash Bin'), findsOneWidget);
