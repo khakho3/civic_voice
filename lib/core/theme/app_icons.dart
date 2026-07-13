@@ -140,4 +140,7 @@ abstract final class AppIcons {
   static const IconData responseTime = LucideIcons.timer;
   static const IconData resolutionGauge = LucideIcons.gaugeCircle;
   static const IconData achievement = LucideIcons.trophy;
+  static const IconData insight = LucideIcons.lightbulb;
+  static const IconData pace = LucideIcons.zap;
+  static const IconData focusArea = LucideIcons.target;
 }

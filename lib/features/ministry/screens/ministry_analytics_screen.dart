@@ -6,6 +6,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../widgets/app_state_message.dart';
 import '../../../widgets/collapsible_list_header.dart';
 import '../../../widgets/glass_card.dart';
+import '../../../widgets/simple_bar_chart.dart';
 import '../models/ministry_analytics_data.dart';
 import '../widgets/ministry_scaffold.dart';
 
@@ -40,6 +41,7 @@ class MinistryAnalyticsScreen extends StatefulWidget {
     this.onNavigateToMunicipalities,
     this.onNavigateToReports,
     this.onProfileTap,
+    this.onViewReportInsights,
   });
 
   final MinistryAnalyticsViewState initialState;
@@ -51,6 +53,11 @@ class MinistryAnalyticsScreen extends StatefulWidget {
 
   /// Opens MIN-006 Ministry Profile — wired to the header's profile avatar.
   final VoidCallback? onProfileTap;
+
+  /// Opens MIN-005 Report Insights — wired to the "Trend Insights" callout,
+  /// one of that screen's two spec'd entry points (the other is MIN-004
+  /// Reports Overview's own "Report Insights" card).
+  final VoidCallback? onViewReportInsights;
 
   @override
   State<MinistryAnalyticsScreen> createState() =>
@@ -137,7 +144,11 @@ class _MinistryAnalyticsScreenState extends State<MinistryAnalyticsScreen> {
               onDateRangeTap: _pickDateRange,
               onDimensionSelected: (d) => setState(() => _dimension = d),
             ),
-            child: _AnalyticsContent(data: _data, dimension: _dimension),
+            child: _AnalyticsContent(
+              data: _data,
+              dimension: _dimension,
+              onViewReportInsights: widget.onViewReportInsights,
+            ),
           ),
         ),
         _ => Column(
@@ -363,10 +374,15 @@ class _DimensionChip extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _AnalyticsContent extends StatelessWidget {
-  const _AnalyticsContent({required this.data, required this.dimension});
+  const _AnalyticsContent({
+    required this.data,
+    required this.dimension,
+    this.onViewReportInsights,
+  });
 
   final MinistryAnalyticsData data;
   final AnalyticsDimension dimension;
+  final VoidCallback? onViewReportInsights;
 
   @override
   Widget build(BuildContext context) {
@@ -422,7 +438,7 @@ class _AnalyticsContent extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: AppSpacing.md),
-              _BarChart(values: data.trendValues),
+              SimpleBarChart(values: data.trendValues),
               const SizedBox(height: AppSpacing.sm),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -520,7 +536,10 @@ class _AnalyticsContent extends StatelessWidget {
           ),
         ),
         const SizedBox(height: AppSpacing.md),
-        _TrendInsightsCallout(text: data.trendInsight),
+        _TrendInsightsCallout(
+          text: data.trendInsight,
+          onViewReportInsights: onViewReportInsights,
+        ),
       ],
     );
   }
@@ -619,41 +638,64 @@ class _BreakdownRow extends StatelessWidget {
   }
 }
 
+/// Doubles as the entry point into MIN-005 Report Insights when
+/// [onViewReportInsights] is set — one of that screen's two spec'd entry
+/// points, alongside MIN-004 Reports Overview's own "Report Insights" card.
 class _TrendInsightsCallout extends StatelessWidget {
-  const _TrendInsightsCallout({required this.text});
+  const _TrendInsightsCallout({required this.text, this.onViewReportInsights});
 
   final String text;
+  final VoidCallback? onViewReportInsights;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.primary.withValues(alpha: 0.08),
+    return Material(
+      color: AppColors.primary.withValues(alpha: 0.08),
+      borderRadius: AppComponentRadius.card,
+      child: InkWell(
         borderRadius: AppComponentRadius.card,
-        border: Border.all(color: AppColors.primary.withValues(alpha: 0.16)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+        onTap: onViewReportInsights,
+        child: Container(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          decoration: BoxDecoration(
+            borderRadius: AppComponentRadius.card,
+            border: Border.all(
+              color: AppColors.primary.withValues(alpha: 0.16),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(
-                AppIcons.trendUp,
-                size: AppIconSize.md,
-                color: AppColors.primary,
+              Row(
+                children: [
+                  const Icon(
+                    AppIcons.trendUp,
+                    size: AppIconSize.md,
+                    color: AppColors.primary,
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                  Expanded(
+                    child: Text(
+                      'Trend Insights',
+                      style: textTheme.titleSmall?.copyWith(
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ),
+                  if (onViewReportInsights != null)
+                    Icon(
+                      AppIcons.chevronRight,
+                      size: AppIconSize.sm,
+                      color: AppColors.primary,
+                    ),
+                ],
               ),
-              const SizedBox(width: AppSpacing.xs),
-              Text(
-                'Trend Insights',
-                style: textTheme.titleSmall?.copyWith(color: AppColors.primary),
-              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(text, style: textTheme.bodyMedium),
             ],
           ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(text, style: textTheme.bodyMedium),
-        ],
+        ),
       ),
     );
   }
@@ -662,41 +704,6 @@ class _TrendInsightsCallout extends StatelessWidget {
 // ---------------------------------------------------------------------------
 // Charts
 // ---------------------------------------------------------------------------
-
-class _BarChart extends StatelessWidget {
-  const _BarChart({required this.values});
-
-  final List<int> values;
-
-  @override
-  Widget build(BuildContext context) {
-    final maxValue = values.reduce((a, b) => a > b ? a : b);
-    return SizedBox(
-      height: 120,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          for (final value in values) ...[
-            Expanded(
-              child: FractionallySizedBox(
-                heightFactor: value / maxValue,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(4),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            if (value != values.last) const SizedBox(width: AppSpacing.xs),
-          ],
-        ],
-      ),
-    );
-  }
-}
 
 /// A ring chart with one arc segment per slice — the fixed "Report Status"
 /// breakdown. Segment order/angles are illustrative: this is placeholder

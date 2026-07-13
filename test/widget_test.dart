@@ -5,6 +5,7 @@ import 'package:civic_voice/core/theme/app_theme.dart';
 import 'package:civic_voice/features/ministry/screens/ministry_analytics_screen.dart';
 import 'package:civic_voice/features/ministry/screens/ministry_dashboard_screen.dart';
 import 'package:civic_voice/features/ministry/screens/ministry_municipal_performance_screen.dart';
+import 'package:civic_voice/features/ministry/screens/ministry_report_insights_screen.dart';
 import 'package:civic_voice/features/ministry/screens/ministry_reports_screen.dart';
 
 void main() {
@@ -534,6 +535,32 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(profileTapped, isTrue);
+    },
+  );
+
+  testWidgets(
+    'Ministry Analytics Trend Insights callout opens Report Insights',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      var insightsTapped = false;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: MinistryAnalyticsScreen(
+            onViewReportInsights: () => insightsTapped = true,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Trend Insights'));
+      await tester.pumpAndSettle();
+
+      expect(insightsTapped, isTrue);
     },
   );
 
@@ -1093,6 +1120,331 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(profileTapped, isTrue);
+    },
+  );
+
+  testWidgets(
+    'Ministry Reports Overview "Report Insights" card opens Report Insights',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      var insightsTapped = false;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: MinistryReportsScreen(
+            onViewReportInsights: () => insightsTapped = true,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Report Insights'));
+      await tester.pumpAndSettle();
+
+      expect(insightsTapped, isTrue);
+    },
+  );
+
+  // ---------------------------------------------------------------------
+  // MIN-005 Report Insights
+  // ---------------------------------------------------------------------
+
+  for (final state in MinistryReportInsightsViewState.values) {
+    testWidgets(
+      'Ministry Report Insights renders ${state.name} without error',
+      (WidgetTester tester) async {
+        tester.view.physicalSize = const Size(428, 2600);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.light,
+            home: MinistryReportInsightsScreen(initialState: state),
+          ),
+        );
+        await tester.pump();
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
+  testWidgets(
+    'Ministry Report Insights renders without overflow on a narrow phone '
+    '(375px)',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(375, 812);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: const MinistryReportInsightsScreen(),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'Ministry Report Insights has no bottom nav — it is a drill-down, not a '
+    'tab',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: const MinistryReportInsightsScreen(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Dashboard'), findsNothing);
+      expect(find.text('Municipalities'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'Ministry Report Insights shows the full analysis in its loaded state',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: const MinistryReportInsightsScreen(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Report Insights'), findsOneWidget);
+      expect(find.text('30 days'), findsOneWidget);
+      expect(find.text('Category'), findsOneWidget);
+      expect(find.text('Status'), findsOneWidget);
+
+      expect(find.text('Category Peak'), findsOneWidget);
+      expect(find.text('Sanitation'), findsOneWidget);
+      expect(find.text('31% share'), findsOneWidget);
+      expect(find.text('Resolution'), findsOneWidget);
+      expect(find.text('74%'), findsOneWidget);
+      expect(find.text('+6.2%'), findsOneWidget);
+
+      expect(find.text('Critical Insights'), findsOneWidget);
+      expect(find.text('Sanitation reports are rising'), findsOneWidget);
+      expect(find.text('+18% from previous period'), findsOneWidget);
+      expect(find.text('Resolution pace improved'), findsOneWidget);
+      expect(find.text('Infrastructure needs focus'), findsOneWidget);
+
+      expect(find.text('Strategic Focus'), findsOneWidget);
+      expect(find.text('View focus summary'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'Ministry Report Insights date range picker opens a bottom sheet and '
+    'updates the selected chip',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: const MinistryReportInsightsScreen(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('30 days'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('90 days'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('90 days'), findsOneWidget);
+      expect(find.text('30 days'), findsNothing);
+    },
+  );
+
+  testWidgets('Ministry Report Insights category chip opens a bottom sheet and '
+      'updates the selected chip', (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: const MinistryReportInsightsScreen(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Category'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Sanitation').last);
+    await tester.pumpAndSettle();
+
+    // "Sanitation" also appears as the Category Peak stat value — the
+    // chip is now a second, separate match.
+    expect(find.text('Sanitation'), findsNWidgets(2));
+    expect(find.text('Category'), findsNothing);
+  });
+
+  Future<void> pumpMinistryReportInsights(
+    WidgetTester tester,
+    MinistryReportInsightsViewState state,
+  ) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: MinistryReportInsightsScreen(initialState: state),
+      ),
+    );
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets(
+    'Ministry Report Insights Empty shows the approved copy, with filter '
+    'chrome still visible',
+    (WidgetTester tester) async {
+      await pumpMinistryReportInsights(
+        tester,
+        MinistryReportInsightsViewState.empty,
+      );
+      expect(find.text('No Insights'), findsOneWidget);
+      expect(find.text('Refresh'), findsOneWidget);
+      expect(find.text('30 days'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'Ministry Report Insights No Results clears filters and returns to the '
+    'loaded state',
+    (WidgetTester tester) async {
+      await pumpMinistryReportInsights(
+        tester,
+        MinistryReportInsightsViewState.noResults,
+      );
+      expect(find.text('No Results'), findsOneWidget);
+      expect(
+        find.text('No report insights match the selected filters.'),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.text('Clear Filters'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Category Peak'), findsOneWidget);
+    },
+  );
+
+  testWidgets('Ministry Report Insights Offline shows the approved copy', (
+    WidgetTester tester,
+  ) async {
+    await pumpMinistryReportInsights(
+      tester,
+      MinistryReportInsightsViewState.offline,
+    );
+    expect(find.text('You\'re offline'), findsOneWidget);
+    expect(find.text('Retry connection'), findsOneWidget);
+  });
+
+  testWidgets('Ministry Report Insights Error shows the approved copy', (
+    WidgetTester tester,
+  ) async {
+    await pumpMinistryReportInsights(
+      tester,
+      MinistryReportInsightsViewState.error,
+    );
+    expect(find.text('Unable to Load Insights'), findsOneWidget);
+    expect(find.text('Try again'), findsOneWidget);
+  });
+
+  testWidgets(
+    'Ministry Report Insights Unauthorized shows the approved copy with no '
+    'action buttons',
+    (WidgetTester tester) async {
+      await pumpMinistryReportInsights(
+        tester,
+        MinistryReportInsightsViewState.unauthorized,
+      );
+      expect(find.text('Unauthorized Access'), findsOneWidget);
+      expect(find.byType(FilledButton), findsNothing);
+      expect(find.byType(OutlinedButton), findsNothing);
+    },
+  );
+
+  testWidgets('Ministry Report Insights back arrow returns to Dashboard', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    var backTapped = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: MinistryReportInsightsScreen(onBack: () => backTapped = true),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(AppIcons.back));
+    await tester.pumpAndSettle();
+
+    expect(backTapped, isTrue);
+  });
+
+  testWidgets(
+    'Ministry Report Insights "View focus summary" fires the callback',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      var focusSummaryTapped = false;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: MinistryReportInsightsScreen(
+            onViewFocusSummary: () => focusSummaryTapped = true,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('View focus summary'));
+      await tester.pumpAndSettle();
+
+      expect(focusSummaryTapped, isTrue);
     },
   );
 }

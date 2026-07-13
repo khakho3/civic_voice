@@ -4,6 +4,7 @@ import 'core/theme/app_theme.dart';
 import 'features/ministry/screens/ministry_analytics_screen.dart';
 import 'features/ministry/screens/ministry_dashboard_screen.dart';
 import 'features/ministry/screens/ministry_municipal_performance_screen.dart';
+import 'features/ministry/screens/ministry_report_insights_screen.dart';
 import 'features/ministry/screens/ministry_reports_screen.dart';
 
 void main() {
@@ -30,7 +31,18 @@ class CivicVoiceApp extends StatelessWidget {
 /// far — a placeholder until a proper named-route/navigator setup is worth
 /// introducing (once more of the module's six screens exist), matching how
 /// the Municipal Officer module's own root started.
-enum _MinistryScreen { dashboard, analytics, municipalities, reports }
+///
+/// [_MinistryScreen.reportInsights] isn't a bottom-nav tab (see MIN-005's
+/// own doc comment) — it's a drill-down reached from Analytics or Reports
+/// Overview, whose back arrow always returns to Dashboard, the spec's only
+/// exit point.
+enum _MinistryScreen {
+  dashboard,
+  analytics,
+  municipalities,
+  reports,
+  reportInsights,
+}
 
 class _MinistryRoot extends StatefulWidget {
   const _MinistryRoot();
@@ -62,6 +74,8 @@ class _MinistryRootState extends State<_MinistryRoot> {
             setState(() => _current = _MinistryScreen.municipalities),
         onNavigateToReports: () =>
             setState(() => _current = _MinistryScreen.reports),
+        onViewReportInsights: () =>
+            setState(() => _current = _MinistryScreen.reportInsights),
       ),
       _MinistryScreen.municipalities => MinistryMunicipalPerformanceScreen(
         onNavigateToDashboard: () =>
@@ -78,8 +92,13 @@ class _MinistryRootState extends State<_MinistryRoot> {
             setState(() => _current = _MinistryScreen.analytics),
         onNavigateToMunicipalities: () =>
             setState(() => _current = _MinistryScreen.municipalities),
-        // onViewReportInsights isn't built yet (MIN-005) — wire this up
-        // once it lands.
+        onViewReportInsights: () =>
+            setState(() => _current = _MinistryScreen.reportInsights),
+      ),
+      _MinistryScreen.reportInsights => MinistryReportInsightsScreen(
+        onBack: () => setState(() => _current = _MinistryScreen.dashboard),
+        // onViewFocusSummary isn't built yet — no dedicated screen is
+        // specified for it.
       ),
     };
   }

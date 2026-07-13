@@ -4,6 +4,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../widgets/app_state_message.dart';
 import '../../../widgets/collapsible_list_header.dart';
 import '../../../widgets/glass_card.dart';
+import '../../../widgets/simple_bar_chart.dart';
 import '../models/municipal_performance_data.dart';
 import '../widgets/ministry_scaffold.dart';
 
@@ -439,7 +440,7 @@ class _PerformanceContent extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: AppSpacing.md),
-              _BarChart(values: trendValues),
+              SimpleBarChart(values: trendValues),
               const SizedBox(height: AppSpacing.sm),
               Text(
                 data.trendCaption,
@@ -597,41 +598,6 @@ class _MetricToggle extends StatelessWidget {
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _BarChart extends StatelessWidget {
-  const _BarChart({required this.values});
-
-  final List<int> values;
-
-  @override
-  Widget build(BuildContext context) {
-    final maxValue = values.reduce((a, b) => a > b ? a : b);
-    return SizedBox(
-      height: 120,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          for (final value in values) ...[
-            Expanded(
-              child: FractionallySizedBox(
-                heightFactor: value / maxValue,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(4),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            if (value != values.last) const SizedBox(width: AppSpacing.xs),
-          ],
-        ],
       ),
     );
   }
