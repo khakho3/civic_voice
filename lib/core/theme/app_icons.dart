@@ -143,4 +143,7 @@ abstract final class AppIcons {
   static const IconData insight = LucideIcons.lightbulb;
   static const IconData pace = LucideIcons.zap;
   static const IconData focusArea = LucideIcons.target;
+  static const IconData security = LucideIcons.lock;
+  static const IconData language = LucideIcons.languages;
+  static const IconData save = LucideIcons.save;
 }

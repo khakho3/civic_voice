@@ -5,6 +5,7 @@ import 'package:civic_voice/core/theme/app_theme.dart';
 import 'package:civic_voice/features/ministry/screens/ministry_analytics_screen.dart';
 import 'package:civic_voice/features/ministry/screens/ministry_dashboard_screen.dart';
 import 'package:civic_voice/features/ministry/screens/ministry_municipal_performance_screen.dart';
+import 'package:civic_voice/features/ministry/screens/ministry_profile_screen.dart';
 import 'package:civic_voice/features/ministry/screens/ministry_report_insights_screen.dart';
 import 'package:civic_voice/features/ministry/screens/ministry_reports_screen.dart';
 
@@ -1447,4 +1448,443 @@ void main() {
       expect(focusSummaryTapped, isTrue);
     },
   );
+
+  // ---------------------------------------------------------------------
+  // MIN-006 Ministry Profile
+  // ---------------------------------------------------------------------
+
+  for (final state in MinistryProfileViewState.values) {
+    testWidgets('Ministry Profile renders ${state.name} without error', (
+      WidgetTester tester,
+    ) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: MinistryProfileScreen(initialState: state),
+        ),
+      );
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets(
+    'Ministry Profile renders without overflow on a narrow phone (375px)',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(375, 812);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(theme: AppTheme.light, home: const MinistryProfileScreen()),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'Ministry Profile has no bottom nav — it is a drill-down, not a tab',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(theme: AppTheme.light, home: const MinistryProfileScreen()),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Dashboard'), findsNothing);
+      expect(find.text('Municipalities'), findsNothing);
+    },
+  );
+
+  testWidgets('Ministry Profile shows the full profile in its view state', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(theme: AppTheme.light, home: const MinistryProfileScreen()),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('My Profile'), findsOneWidget);
+    // Each also appears a second time in the Personal Information
+    // display card below the header card.
+    expect(find.text('Ministry Supervisor'), findsNWidgets(2));
+    expect(find.text('Public Works Ministry'), findsOneWidget);
+    expect(find.text('Read-only supervisor'), findsOneWidget);
+    expect(find.text('supervisor@ministry.gov'), findsNWidgets(2));
+    expect(find.text('+233 20 000 0000'), findsNWidgets(2));
+
+    expect(find.text('Personal Information'), findsOneWidget);
+    expect(find.text('Full Name'), findsOneWidget);
+
+    expect(find.text('Security'), findsOneWidget);
+    expect(find.text('Change Password'), findsOneWidget);
+    expect(find.text('Two-factor authentication'), findsOneWidget);
+    expect(find.text('Enabled'), findsOneWidget);
+
+    expect(find.text('Preferences'), findsOneWidget);
+    expect(find.text('Dark Theme'), findsOneWidget);
+    expect(find.text('Language'), findsOneWidget);
+
+    expect(find.text('Account Metadata'), findsOneWidget);
+    expect(find.text('Supervisor'), findsOneWidget);
+    expect(find.text('Read-only module'), findsOneWidget);
+    expect(find.text('Analytics access'), findsOneWidget);
+
+    expect(find.text('Log Out'), findsOneWidget);
+    expect(find.text('Save'), findsNothing);
+  });
+
+  testWidgets(
+    'Ministry Profile tapping Personal Information enters edit mode',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(theme: AppTheme.light, home: const MinistryProfileScreen()),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Full Name'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Save'), findsOneWidget);
+      expect(find.text('Save changes'), findsOneWidget);
+      expect(find.text('Cancel'), findsOneWidget);
+      expect(find.byType(TextField), findsNWidgets(3));
+      expect(find.byIcon(AppIcons.close), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'Ministry Profile Save with an empty name shows a validation error and '
+    'stays in edit mode',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(theme: AppTheme.light, home: const MinistryProfileScreen()),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Full Name'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField).first, '');
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Full name is required.'), findsOneWidget);
+      // Still editing, not bounced back to the view state.
+      expect(find.text('Save changes'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'Ministry Profile Save with valid data moves through loading to success '
+    'and auto-reverts to the view state',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(theme: AppTheme.light, home: const MinistryProfileScreen()),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Full Name'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField).first, 'Updated Name');
+      await tester.tap(find.text('Save'));
+      // Bounded pumps rather than pumpAndSettle: the loading skeleton's
+      // shimmer never settles on its own (matches every other screen's
+      // loading state).
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 600));
+
+      expect(find.text('Profile updated'), findsOneWidget);
+      expect(find.text('Updated Name'), findsNWidgets(2));
+
+      await tester.pump(const Duration(seconds: 4));
+      expect(find.text('Profile updated'), findsNothing);
+    },
+  );
+
+  testWidgets('Ministry Profile Cancel discards edits and returns to view', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(theme: AppTheme.light, home: const MinistryProfileScreen()),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Full Name'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField).first, 'Discarded Name');
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Ministry Supervisor'), findsNWidgets(2));
+    expect(find.text('Discarded Name'), findsNothing);
+    expect(find.text('Save changes'), findsNothing);
+  });
+
+  testWidgets('Ministry Profile header close icon during edit also cancels', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(theme: AppTheme.light, home: const MinistryProfileScreen()),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Full Name'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(AppIcons.close));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Save changes'), findsNothing);
+    expect(find.byIcon(AppIcons.back), findsOneWidget);
+  });
+
+  testWidgets(
+    'Ministry Profile Validation shows the approved copy with an empty Full '
+    'Name field',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: const MinistryProfileScreen(
+            initialState: MinistryProfileViewState.validation,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Full name is required.'), findsOneWidget);
+      final nameField = tester.widget<TextField>(find.byType(TextField).first);
+      expect(nameField.controller?.text, isEmpty);
+    },
+  );
+
+  testWidgets(
+    'Ministry Profile Log Out row asks for confirmation before firing the '
+    'callback',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      var loggedOut = false;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: MinistryProfileScreen(onLogOut: () => loggedOut = true),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Log Out'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Are you sure you want to log out?'), findsOneWidget);
+      expect(loggedOut, isFalse);
+
+      // "Log Out" appears both on the row (now dimmed behind the dialog)
+      // and as the dialog's confirm button — the confirm button is built
+      // last.
+      await tester.tap(find.text('Log Out').last);
+      await tester.pumpAndSettle();
+
+      expect(loggedOut, isTrue);
+    },
+  );
+
+  testWidgets(
+    'Ministry Profile Log Out confirmation Cancel does not fire the callback',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      var loggedOut = false;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: MinistryProfileScreen(onLogOut: () => loggedOut = true),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Log Out'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      expect(loggedOut, isFalse);
+      expect(find.text('Are you sure you want to log out?'), findsNothing);
+    },
+  );
+
+  Future<void> pumpMinistryProfile(
+    WidgetTester tester,
+    MinistryProfileViewState state,
+  ) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: MinistryProfileScreen(initialState: state),
+      ),
+    );
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets(
+    'Ministry Profile Error shows a dialog over a dimmed, disabled backdrop',
+    (WidgetTester tester) async {
+      await pumpMinistryProfile(tester, MinistryProfileViewState.error);
+
+      expect(find.text('Something went wrong'), findsOneWidget);
+      expect(find.text('Retry'), findsOneWidget);
+      expect(find.text('Back to Safety'), findsOneWidget);
+
+      // The dimmed backdrop is still present but not interactive — tapping
+      // through it must not start an edit.
+      await tester.tap(find.text('Full Name'), warnIfMissed: false);
+      await tester.pumpAndSettle();
+      expect(find.text('Save changes'), findsNothing);
+    },
+  );
+
+  testWidgets('Ministry Profile Offline shows the approved copy', (
+    WidgetTester tester,
+  ) async {
+    await pumpMinistryProfile(tester, MinistryProfileViewState.offline);
+    expect(find.text('You\'re offline'), findsOneWidget);
+    expect(find.text('Retry connection'), findsOneWidget);
+    expect(find.text('Back to Safety'), findsOneWidget);
+  });
+
+  testWidgets(
+    'Ministry Profile Unauthorized shows the approved copy with no retry '
+    'action',
+    (WidgetTester tester) async {
+      await pumpMinistryProfile(tester, MinistryProfileViewState.unauthorized);
+      expect(find.text('Unauthorized Access'), findsOneWidget);
+      expect(find.text('Back to Safety'), findsOneWidget);
+      expect(find.text('Retry'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'Ministry Profile Retry moves the Error dialog through loading back to '
+    'the view state',
+    (WidgetTester tester) async {
+      await pumpMinistryProfile(tester, MinistryProfileViewState.error);
+
+      await tester.tap(find.text('Retry'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 600));
+
+      expect(find.text('Something went wrong'), findsNothing);
+      expect(find.text('Ministry Supervisor'), findsNWidgets(2));
+    },
+  );
+
+  testWidgets('Ministry Profile Back to Safety returns to Dashboard', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    var backTapped = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: MinistryProfileScreen(
+          initialState: MinistryProfileViewState.offline,
+          onBack: () => backTapped = true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Back to Safety'));
+    await tester.pumpAndSettle();
+
+    expect(backTapped, isTrue);
+  });
+
+  testWidgets('Ministry Profile header back arrow returns to Dashboard', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    var backTapped = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: MinistryProfileScreen(onBack: () => backTapped = true),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(AppIcons.back));
+    await tester.pumpAndSettle();
+
+    expect(backTapped, isTrue);
+  });
 }

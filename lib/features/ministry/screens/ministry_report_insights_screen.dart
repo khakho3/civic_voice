@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../widgets/app_state_message.dart';
 import '../../../widgets/collapsible_list_header.dart';
-import '../../../widgets/glass_bar.dart';
+import '../../../widgets/detail_header.dart';
 import '../../../widgets/glass_card.dart';
 import '../models/ministry_report_insights_data.dart';
 
@@ -186,7 +186,7 @@ class _MinistryReportInsightsScreenState
               MinistryReportInsightsViewState.loading =>
                 const _LoadingSkeleton(),
               MinistryReportInsightsViewState.loaded => Padding(
-                padding: EdgeInsets.only(top: _DetailHeader.topInset(context)),
+                padding: EdgeInsets.only(top: DetailHeader.topInset(context)),
                 child: CollapsibleListHeader(
                   header: _FilterChrome(
                     dateRangeLabel: _dateRange.label,
@@ -205,7 +205,7 @@ class _MinistryReportInsightsScreenState
               ),
               _ => Column(
                 children: [
-                  SizedBox(height: _DetailHeader.topInset(context)),
+                  SizedBox(height: DetailHeader.topInset(context)),
                   _FilterChrome(
                     dateRangeLabel: _dateRange.label,
                     categoryLabel: _category.label,
@@ -293,67 +293,12 @@ class _MinistryReportInsightsScreenState
           ),
           Align(
             alignment: Alignment.topCenter,
-            child: _DetailHeader(onBack: widget.onBack),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Header — back arrow + title, no bottom nav (this is a drill-down, not a
-// tab; see the class doc comment above).
-// ---------------------------------------------------------------------------
-
-class _DetailHeader extends StatelessWidget {
-  const _DetailHeader({this.onBack});
-
-  final VoidCallback? onBack;
-
-  static double topInset(BuildContext context) =>
-      MediaQuery.paddingOf(context).top + AppDimensions.headerHeight;
-
-  @override
-  Widget build(BuildContext context) {
-    final semantic = Theme.of(context).extension<AppSemanticColors>()!;
-    final textTheme = Theme.of(context).textTheme;
-    return GlassBar(
-      border: Border(bottom: BorderSide(color: semantic.glassBorder)),
-      child: SafeArea(
-        bottom: false,
-        child: SizedBox(
-          height: AppDimensions.headerHeight,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-            child: Row(
-              children: [
-                SizedBox(
-                  width: AppDimensions.controlHeightStandard,
-                  height: AppDimensions.controlHeightStandard,
-                  child: Material(
-                    color: Colors.transparent,
-                    shape: const CircleBorder(),
-                    child: InkWell(
-                      customBorder: const CircleBorder(),
-                      onTap: onBack,
-                      child: Icon(AppIcons.back, size: AppIconSize.md),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.xs),
-                Expanded(
-                  child: Text(
-                    'Report Insights',
-                    style: textTheme.titleMedium,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
+            child: DetailHeader(
+              title: 'Report Insights',
+              onBack: widget.onBack,
             ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -694,7 +639,7 @@ class _LoadingSkeletonState extends State<_LoadingSkeleton>
     final highlight = Theme.of(context).colorScheme.surfaceContainerLow;
     final reduceMotion =
         MediaQuery.maybeOf(context)?.disableAnimations ?? false;
-    final topInset = _DetailHeader.topInset(context);
+    final topInset = DetailHeader.topInset(context);
     final bottomInset = MediaQuery.paddingOf(context).bottom;
 
     Widget block({double? width, double height = 16, double? radius}) {

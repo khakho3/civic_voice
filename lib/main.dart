@@ -4,6 +4,7 @@ import 'core/theme/app_theme.dart';
 import 'features/ministry/screens/ministry_analytics_screen.dart';
 import 'features/ministry/screens/ministry_dashboard_screen.dart';
 import 'features/ministry/screens/ministry_municipal_performance_screen.dart';
+import 'features/ministry/screens/ministry_profile_screen.dart';
 import 'features/ministry/screens/ministry_report_insights_screen.dart';
 import 'features/ministry/screens/ministry_reports_screen.dart';
 
@@ -27,21 +28,21 @@ class CivicVoiceApp extends StatelessWidget {
   }
 }
 
-/// Temporary root shell wiring the Ministry Supervisor screens built so
-/// far — a placeholder until a proper named-route/navigator setup is worth
-/// introducing (once more of the module's six screens exist), matching how
-/// the Municipal Officer module's own root started.
+/// Root shell wiring all six Ministry Supervisor screens — a placeholder
+/// until a proper named-route/navigator setup is worth introducing, matching
+/// how the Municipal Officer module's own root started.
 ///
-/// [_MinistryScreen.reportInsights] isn't a bottom-nav tab (see MIN-005's
-/// own doc comment) — it's a drill-down reached from Analytics or Reports
-/// Overview, whose back arrow always returns to Dashboard, the spec's only
-/// exit point.
+/// [_MinistryScreen.reportInsights] and [_MinistryScreen.profile] aren't
+/// bottom-nav tabs (see their own screens' doc comments) — both are
+/// drill-downs whose back arrow always returns to Dashboard, the spec's
+/// exit point for each.
 enum _MinistryScreen {
   dashboard,
   analytics,
   municipalities,
   reports,
   reportInsights,
+  profile,
 }
 
 class _MinistryRoot extends StatefulWidget {
@@ -64,8 +65,7 @@ class _MinistryRootState extends State<_MinistryRoot> {
             setState(() => _current = _MinistryScreen.municipalities),
         onNavigateToReports: () =>
             setState(() => _current = _MinistryScreen.reports),
-        // Profile isn't built yet (MIN-006) — wire this up once it lands,
-        // matching how Municipal Officer's root grew incrementally.
+        onProfileTap: () => setState(() => _current = _MinistryScreen.profile),
       ),
       _MinistryScreen.analytics => MinistryAnalyticsScreen(
         onNavigateToDashboard: () =>
@@ -76,6 +76,7 @@ class _MinistryRootState extends State<_MinistryRoot> {
             setState(() => _current = _MinistryScreen.reports),
         onViewReportInsights: () =>
             setState(() => _current = _MinistryScreen.reportInsights),
+        onProfileTap: () => setState(() => _current = _MinistryScreen.profile),
       ),
       _MinistryScreen.municipalities => MinistryMunicipalPerformanceScreen(
         onNavigateToDashboard: () =>
@@ -84,6 +85,7 @@ class _MinistryRootState extends State<_MinistryRoot> {
             setState(() => _current = _MinistryScreen.analytics),
         onNavigateToReports: () =>
             setState(() => _current = _MinistryScreen.reports),
+        onProfileTap: () => setState(() => _current = _MinistryScreen.profile),
       ),
       _MinistryScreen.reports => MinistryReportsScreen(
         onNavigateToDashboard: () =>
@@ -94,11 +96,17 @@ class _MinistryRootState extends State<_MinistryRoot> {
             setState(() => _current = _MinistryScreen.municipalities),
         onViewReportInsights: () =>
             setState(() => _current = _MinistryScreen.reportInsights),
+        onProfileTap: () => setState(() => _current = _MinistryScreen.profile),
       ),
       _MinistryScreen.reportInsights => MinistryReportInsightsScreen(
         onBack: () => setState(() => _current = _MinistryScreen.dashboard),
         // onViewFocusSummary isn't built yet — no dedicated screen is
         // specified for it.
+      ),
+      _MinistryScreen.profile => MinistryProfileScreen(
+        onBack: () => setState(() => _current = _MinistryScreen.dashboard),
+        // onLogOut isn't wired to a real auth/session flow yet — no such
+        // system exists in this mock-data-only app.
       ),
     };
   }
