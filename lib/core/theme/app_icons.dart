@@ -102,6 +102,13 @@ abstract final class AppIcons {
   static const IconData systemAdministrator = LucideIcons.building2;
   static const IconData team = LucideIcons.users;
 
+  /// Same glyph as [ministrySupervisor] — the classic civic/government
+  /// building silhouette (columns + dome) reads clearly as "a municipality"
+  /// the way a generic office tower ([systemAdministrator]'s `building2`)
+  /// doesn't; that one reads as a corporate/organization icon instead. Same
+  /// reuse pattern as [citizen]/[profile] both aliasing the plain user icon.
+  static const IconData municipality = LucideIcons.landmark;
+
   // Content & reporting.
   static const IconData report = LucideIcons.fileText;
   static const IconData reportVerified = LucideIcons.fileCheck2;
@@ -115,4 +122,18 @@ abstract final class AppIcons {
   static const IconData eta = LucideIcons.clock;
   static const IconData more = LucideIcons.ellipsisVertical;
   static const IconData sync = LucideIcons.refreshCcw;
+  static const IconData chartBreakdown = LucideIcons.chartPie;
+  static const IconData trendUp = LucideIcons.trendingUp;
+
+  /// A document containing a small bar chart — "there's no report data to
+  /// summarize yet", distinct from [empty] (a plain inbox, used for "no
+  /// items in this list") since an analytics screen's empty state is about
+  /// missing aggregate data, not a missing list.
+  static const IconData noDataFile = LucideIcons.fileBarChart;
+
+  /// A magnifying glass with an X — "your current filters exclude
+  /// everything", distinct from [empty]/[noDataFile] (no data exists at
+  /// all) since here the data exists but the active filter combination
+  /// doesn't match any of it.
+  static const IconData noFilterMatch = LucideIcons.searchX;
 }
