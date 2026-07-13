@@ -136,4 +136,8 @@ abstract final class AppIcons {
   /// all) since here the data exists but the active filter combination
   /// doesn't match any of it.
   static const IconData noFilterMatch = LucideIcons.searchX;
+
+  static const IconData responseTime = LucideIcons.timer;
+  static const IconData resolutionGauge = LucideIcons.gaugeCircle;
+  static const IconData achievement = LucideIcons.trophy;
 }

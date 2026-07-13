@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:civic_voice/core/theme/app_theme.dart';
 import 'package:civic_voice/features/ministry/screens/ministry_analytics_screen.dart';
 import 'package:civic_voice/features/ministry/screens/ministry_dashboard_screen.dart';
+import 'package:civic_voice/features/ministry/screens/ministry_municipal_performance_screen.dart';
 
 void main() {
   for (final state in MinistryDashboardViewState.values) {
@@ -522,6 +523,291 @@ void main() {
         MaterialApp(
           theme: AppTheme.light,
           home: MinistryAnalyticsScreen(
+            onProfileTap: () => profileTapped = true,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(AppIcons.profile));
+      await tester.pumpAndSettle();
+
+      expect(profileTapped, isTrue);
+    },
+  );
+
+  // ---------------------------------------------------------------------
+  // MIN-003 Municipal Performance
+  // ---------------------------------------------------------------------
+
+  for (final state in MinistryMunicipalPerformanceViewState.values) {
+    testWidgets(
+      'Ministry Municipal Performance renders ${state.name} without error',
+      (WidgetTester tester) async {
+        tester.view.physicalSize = const Size(428, 2600);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.light,
+            home: MinistryMunicipalPerformanceScreen(initialState: state),
+          ),
+        );
+        await tester.pump();
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
+  testWidgets(
+    'Ministry Municipal Performance renders without overflow on a narrow '
+    'phone (375px)',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(375, 812);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: const MinistryMunicipalPerformanceScreen(),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'Ministry Municipal Performance shows the full breakdown in its loaded '
+    'state',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: const MinistryMunicipalPerformanceScreen(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Municipal Performance'), findsOneWidget);
+      expect(
+        find.text(
+          'Aggregated response and resolution metrics across '
+          'municipalities.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('All'), findsOneWidget);
+      expect(find.text('Top 10'), findsOneWidget);
+
+      expect(find.text('Avg Response'), findsOneWidget);
+      expect(find.text('18h'), findsOneWidget);
+      // Appears on both the stat card and the Efficiency Trend toggle.
+      expect(find.text('Resolution'), findsNWidgets(2));
+      expect(find.text('76%'), findsOneWidget);
+      expect(find.text('SLA Met'), findsOneWidget);
+      expect(find.text('84%'), findsOneWidget);
+      expect(find.text('Backlog'), findsOneWidget);
+      expect(find.text('1.2K'), findsOneWidget);
+
+      expect(find.text('Regional Leaders'), findsOneWidget);
+      expect(find.text('Greater Accra'), findsOneWidget);
+      expect(find.text('92% resolved · 14h response'), findsOneWidget);
+      expect(find.text('Kumasi Metro'), findsOneWidget);
+      expect(find.text('Tamale Metro'), findsOneWidget);
+
+      expect(find.text('Efficiency Trend'), findsOneWidget);
+      expect(
+        find.text('Last 7 reporting periods · aggregated only'),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets(
+    'Ministry Municipal Performance Efficiency Trend toggle switches series '
+    'without error',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: const MinistryMunicipalPerformanceScreen(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // "Resolution" also appears as a stat card label — target the toggle
+      // specifically via .last (it's built after the stat cards in tree
+      // order).
+      await tester.tap(find.text('Resolution').last);
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  Future<void> pumpMinistryMunicipalPerformance(
+    WidgetTester tester,
+    MinistryMunicipalPerformanceViewState state,
+  ) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: MinistryMunicipalPerformanceScreen(initialState: state),
+      ),
+    );
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets(
+    'Ministry Municipal Performance Empty shows the approved copy, with '
+    'filter chrome still visible',
+    (WidgetTester tester) async {
+      await pumpMinistryMunicipalPerformance(
+        tester,
+        MinistryMunicipalPerformanceViewState.empty,
+      );
+      expect(find.text('No Performance Data'), findsOneWidget);
+      expect(find.text('Refresh'), findsOneWidget);
+      // Shorter subtitle than Default, and filter chrome stays visible —
+      // both confirmed against the approved frame.
+      expect(
+        find.text('Aggregated municipality metrics only.'),
+        findsOneWidget,
+      );
+      expect(find.text('All'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'Ministry Municipal Performance No Results clears filters and returns '
+    'to the loaded state',
+    (WidgetTester tester) async {
+      await pumpMinistryMunicipalPerformance(
+        tester,
+        MinistryMunicipalPerformanceViewState.noResults,
+      );
+      expect(find.text('No Results'), findsOneWidget);
+      expect(
+        find.text(
+          'No municipality performance records match the selected filters.',
+        ),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.text('Clear Filters'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Regional Leaders'), findsOneWidget);
+      expect(find.text('Greater Accra'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'Ministry Municipal Performance Offline shows the approved copy',
+    (WidgetTester tester) async {
+      await pumpMinistryMunicipalPerformance(
+        tester,
+        MinistryMunicipalPerformanceViewState.offline,
+      );
+      expect(find.text('You\'re offline'), findsOneWidget);
+      expect(find.text('Retry connection'), findsOneWidget);
+    },
+  );
+
+  testWidgets('Ministry Municipal Performance Error shows the approved copy', (
+    WidgetTester tester,
+  ) async {
+    await pumpMinistryMunicipalPerformance(
+      tester,
+      MinistryMunicipalPerformanceViewState.error,
+    );
+    expect(find.text('Unable to Load Performance'), findsOneWidget);
+    expect(find.text('Try again'), findsOneWidget);
+  });
+
+  testWidgets(
+    'Ministry Municipal Performance Unauthorized shows the approved copy '
+    'with no action buttons',
+    (WidgetTester tester) async {
+      await pumpMinistryMunicipalPerformance(
+        tester,
+        MinistryMunicipalPerformanceViewState.unauthorized,
+      );
+      expect(find.text('Unauthorized Access'), findsOneWidget);
+      expect(find.byType(FilledButton), findsNothing);
+      expect(find.byType(OutlinedButton), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'Ministry Municipal Performance is a tab-shell screen: bottom nav stays '
+    'visible and switches tabs',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      var dashboardTapped = false;
+      var analyticsTapped = false;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: MinistryMunicipalPerformanceScreen(
+            onNavigateToDashboard: () => dashboardTapped = true,
+            onNavigateToAnalytics: () => analyticsTapped = true,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Dashboard'), findsOneWidget);
+      expect(find.text('Reports'), findsOneWidget);
+
+      await tester.tap(find.text('Dashboard'));
+      await tester.pumpAndSettle();
+      expect(dashboardTapped, isTrue);
+
+      await tester.tap(find.text('Analytics'));
+      await tester.pumpAndSettle();
+      expect(analyticsTapped, isTrue);
+    },
+  );
+
+  testWidgets(
+    'Ministry Municipal Performance header profile avatar opens Ministry '
+    'Profile',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      var profileTapped = false;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: MinistryMunicipalPerformanceScreen(
             onProfileTap: () => profileTapped = true,
           ),
         ),
