@@ -189,7 +189,11 @@ class _DashboardContent extends StatelessWidget {
           const SizedBox(height: AppSpacing.sm),
           const _LoadingIndicatorRow(),
         ],
-        const SizedBox(height: AppSpacing.xl),
+        // Tighter than the xl gap used between the major content sections
+        // below — the municipality card reads as a compact context strip
+        // ahead of the stats, not a section in its own right, so xl here
+        // left a visibly oversized gap.
+        const SizedBox(height: AppSpacing.lg),
         _StatsGrid(stats: stats, isLoading: loading),
         if (!loading) ...[
           const SizedBox(height: AppSpacing.xl),
@@ -242,49 +246,54 @@ class _MunicipalitySelector extends StatelessWidget {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final colorScheme = Theme.of(context).colorScheme;
-    return Material(
-      color: colorScheme.surface,
-      shape: RoundedRectangleBorder(
+    // Officers are scoped to a single municipality, assigned by the System
+    // Administrator at account creation (Issue 03 business rule) — there's
+    // no self-service switch workflow, and there shouldn't be, so this is a
+    // plain read-only card rather than anything styled or wrapped to look
+    // tappable (a chevron/input-field border/InkWell all imply a picker
+    // that doesn't exist and would suggest an officer can reassign
+    // themselves to another district).
+    return Container(
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
         borderRadius: AppComponentRadius.inputField,
-        side: BorderSide(color: colorScheme.outline),
+        border: Border.all(color: colorScheme.outline),
       ),
-      child: InkWell(
-        borderRadius: AppComponentRadius.inputField,
-        // Officers are scoped to a single municipality (Issue 03 business
-        // rule); no multi-municipality switch workflow is specified, so this
-        // is a static display for now rather than a live picker.
-        onTap: null,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.sm,
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'MUNICIPALITY',
-                    style: textTheme.labelSmall?.copyWith(letterSpacing: 0.96),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'MUNICIPALITY',
+                  style: textTheme.labelSmall?.copyWith(letterSpacing: 0.96),
+                ),
+                Text(
+                  name,
+                  style: textTheme.bodyLarge?.copyWith(
+                    fontWeight: AppFontWeight.semiBold,
                   ),
-                  Text(
-                    name,
-                    style: textTheme.bodyLarge?.copyWith(
-                      fontWeight: AppFontWeight.semiBold,
-                    ),
+                ),
+                Text(
+                  'Assigned by your administrator',
+                  style: textTheme.labelSmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
                   ),
-                ],
-              ),
-              Icon(
-                AppIcons.chevronDown,
-                size: AppIconSize.md,
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ],
+                ),
+              ],
+            ),
           ),
-        ),
+          Icon(
+            AppIcons.permissionDenied,
+            size: AppIconSize.md,
+            color: colorScheme.onSurfaceVariant,
+          ),
+        ],
       ),
     );
   }

@@ -121,6 +121,9 @@ class _MunicipalRootState extends State<_MunicipalRoot> {
     return MaterialPageRoute(
       builder: (context) => MunicipalProfileScreen(
         onBack: () => Navigator.of(context).pop(),
+        // Settings isn't in this module's scope, or specified anywhere in
+        // the project yet — placeholder pending a future spec.
+        onSettingsTap: () {},
         // No account/session workflow is specified yet (Issue 03 §7) —
         // placeholder pending spec, matching this screen's other unwired
         // actions.

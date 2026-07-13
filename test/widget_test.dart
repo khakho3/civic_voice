@@ -45,6 +45,33 @@ void main() {
     expect(find.text('Assignment Summary'), findsOneWidget);
   });
 
+  testWidgets(
+    'Municipal Dashboard municipality card reads as assigned, not a picker '
+    'the officer can open',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: const MunicipalDashboardScreen(
+            initialState: MunicipalDashboardViewState.loaded,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('MUNICIPALITY'), findsOneWidget);
+      expect(find.text('Assigned by your administrator'), findsOneWidget);
+      // A chevron-down is the "tap to open a picker" affordance — it must
+      // not be present now that officers can't self-select a municipality.
+      expect(find.byIcon(AppIcons.chevronDown), findsNothing);
+    },
+  );
+
   for (final state in MunicipalInboxViewState.values) {
     testWidgets('Municipal Inbox renders ${state.name} without error', (
       WidgetTester tester,
@@ -1623,6 +1650,40 @@ void main() {
       expect(find.text('(555) 128-4092'), findsOneWidget);
       // Department is shown but locked, not part of the editable form.
       expect(find.text('Set by your administrator'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'Municipal Profile kebab menu offers Settings alongside Edit Profile '
+    'and Log Out',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      var settingsTapped = false;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: MunicipalProfileScreen(
+            onSettingsTap: () => settingsTapped = true,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(AppIcons.more));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Edit Profile'), findsOneWidget);
+      expect(find.text('Settings'), findsOneWidget);
+      expect(find.text('Log Out'), findsOneWidget);
+
+      await tester.tap(find.text('Settings'));
+      await tester.pumpAndSettle();
+
+      expect(settingsTapped, isTrue);
     },
   );
 

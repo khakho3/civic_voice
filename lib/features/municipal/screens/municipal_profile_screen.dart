@@ -35,6 +35,7 @@ class MunicipalProfileScreen extends StatefulWidget {
     super.key,
     this.initialState = MunicipalProfileViewState.loaded,
     this.onBack,
+    this.onSettingsTap,
     this.onLogOut,
   });
 
@@ -44,6 +45,12 @@ class MunicipalProfileScreen extends StatefulWidget {
   /// Success/Offline) only; the same slot shows a close (X) icon during
   /// Editing/Error, which cancels the edit instead (see [_cancel]).
   final VoidCallback? onBack;
+
+  /// Settings isn't part of this module (Issue 03) or any other module —
+  /// it isn't in the project's approved scope anywhere yet, so this is a
+  /// placeholder pending a future spec, not a screen this module should
+  /// build.
+  final VoidCallback? onSettingsTap;
 
   /// No account/session workflow is specified yet (Issue 03 §7) —
   /// placeholder pending spec, matching this module's other unwired
@@ -203,6 +210,10 @@ class _MunicipalProfileScreenState extends State<MunicipalProfileScreen> {
                         PopupMenuItem(
                           onTap: _startEditing,
                           child: const Text('Edit Profile'),
+                        ),
+                        PopupMenuItem(
+                          onTap: widget.onSettingsTap,
+                          child: const Text('Settings'),
                         ),
                         PopupMenuItem(
                           onTap: widget.onLogOut,

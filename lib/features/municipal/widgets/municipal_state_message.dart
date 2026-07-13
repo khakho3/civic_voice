@@ -101,9 +101,15 @@ class MunicipalStateMessage extends StatelessWidget {
       return Center(child: padded);
     }
 
-    return Padding(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      child: GlassCard(padding: EdgeInsets.zero, child: padded),
+    // Every caller renders this inside a full-height Expanded with nothing
+    // else competing for the space, so — matching the unbordered path
+    // above — it should be vertically centered too; sizing the card to its
+    // own content without centering just left a large empty gap below it.
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: GlassCard(padding: EdgeInsets.zero, child: padded),
+      ),
     );
   }
 }
