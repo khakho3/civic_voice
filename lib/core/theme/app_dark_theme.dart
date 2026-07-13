@@ -37,7 +37,7 @@ abstract final class AppDarkTheme {
         onSecondary: Colors.white,
         error: AppColors.error,
         onError: Colors.white,
-        surface: AppColorsDark.primarySurface,
+        surface: const Color(0xFF111827),
         onSurface: AppColorsDark.primaryText,
         surfaceContainerLowest: AppColorsDark.canvas,
         surfaceContainerLow: AppColorsDark.secondarySurface,
@@ -98,7 +98,9 @@ abstract final class AppDarkTheme {
       surfaceTintColor: Colors.transparent,
       elevation: AppElevation.level1,
       shadowColor: AppColorsDark.border,
-      shape: const RoundedRectangleBorder(borderRadius: AppComponentRadius.card),
+      shape: const RoundedRectangleBorder(
+        borderRadius: AppComponentRadius.card,
+      ),
       clipBehavior: Clip.antiAlias,
     ),
 
@@ -145,8 +147,10 @@ abstract final class AppDarkTheme {
         foregroundColor: Colors.white,
         disabledBackgroundColor: AppColorsDark.border,
         disabledForegroundColor: AppColorsDark.secondaryText,
-        minimumSize: Size(double.infinity, AppDimensions.controlHeightStandard),
-        shape: const RoundedRectangleBorder(borderRadius: AppComponentRadius.button),
+        minimumSize: const Size(64, AppDimensions.controlHeightStandard),
+        shape: const RoundedRectangleBorder(
+          borderRadius: AppComponentRadius.button,
+        ),
         textStyle: _textTheme.labelLarge,
         elevation: AppElevation.level0,
       ),
@@ -156,8 +160,10 @@ abstract final class AppDarkTheme {
       style: FilledButton.styleFrom(
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
-        minimumSize: Size(double.infinity, AppDimensions.controlHeightStandard),
-        shape: const RoundedRectangleBorder(borderRadius: AppComponentRadius.button),
+        minimumSize: const Size(64, AppDimensions.controlHeightStandard),
+        shape: const RoundedRectangleBorder(
+          borderRadius: AppComponentRadius.button,
+        ),
         textStyle: _textTheme.labelLarge,
       ),
     ),
@@ -167,8 +173,10 @@ abstract final class AppDarkTheme {
         foregroundColor: AppColors.primary,
         disabledForegroundColor: AppColorsDark.secondaryText,
         side: const BorderSide(color: AppColorsDark.border),
-        minimumSize: Size(double.infinity, AppDimensions.controlHeightStandard),
-        shape: const RoundedRectangleBorder(borderRadius: AppComponentRadius.button),
+        minimumSize: const Size(64, AppDimensions.controlHeightStandard),
+        shape: const RoundedRectangleBorder(
+          borderRadius: AppComponentRadius.button,
+        ),
         textStyle: _textTheme.labelLarge,
       ),
     ),
@@ -178,7 +186,9 @@ abstract final class AppDarkTheme {
         foregroundColor: AppColors.primary,
         disabledForegroundColor: AppColorsDark.secondaryText,
         minimumSize: const Size(64, AppDimensions.controlHeightStandard),
-        shape: const RoundedRectangleBorder(borderRadius: AppComponentRadius.button),
+        shape: const RoundedRectangleBorder(
+          borderRadius: AppComponentRadius.button,
+        ),
         textStyle: _textTheme.labelLarge,
       ),
     ),
@@ -187,7 +197,9 @@ abstract final class AppDarkTheme {
       backgroundColor: AppColorsDark.primarySurface,
       surfaceTintColor: Colors.transparent,
       elevation: AppElevation.level2,
-      shape: const RoundedRectangleBorder(borderRadius: AppComponentRadius.dialog),
+      shape: const RoundedRectangleBorder(
+        borderRadius: AppComponentRadius.dialog,
+      ),
       titleTextStyle: _textTheme.headlineSmall,
       contentTextStyle: _textTheme.bodyMedium,
     ),
@@ -198,7 +210,9 @@ abstract final class AppDarkTheme {
       modalBackgroundColor: AppColorsDark.primarySurface,
       elevation: AppElevation.level2,
       modalElevation: AppElevation.level2,
-      shape: const RoundedRectangleBorder(borderRadius: AppComponentRadius.bottomSheet),
+      shape: const RoundedRectangleBorder(
+        borderRadius: AppComponentRadius.bottomSheet,
+      ),
       showDragHandle: true,
       dragHandleColor: AppColorsDark.border,
     ),
@@ -246,7 +260,9 @@ abstract final class AppDarkTheme {
       actionTextColor: AppColors.primary,
       behavior: SnackBarBehavior.floating,
       elevation: AppElevation.level2,
-      shape: const RoundedRectangleBorder(borderRadius: AppComponentRadius.inputField),
+      shape: const RoundedRectangleBorder(
+        borderRadius: AppComponentRadius.inputField,
+      ),
     ),
 
     tooltipTheme: TooltipThemeData(

@@ -104,7 +104,9 @@ abstract final class AppLightTheme {
       surfaceTintColor: Colors.transparent,
       elevation: AppElevation.level1,
       shadowColor: AppColorsLight.primaryText,
-      shape: const RoundedRectangleBorder(borderRadius: AppComponentRadius.card),
+      shape: const RoundedRectangleBorder(
+        borderRadius: AppComponentRadius.card,
+      ),
       clipBehavior: Clip.antiAlias,
     ),
 
@@ -151,8 +153,11 @@ abstract final class AppLightTheme {
         foregroundColor: Colors.white,
         disabledBackgroundColor: AppColorsLight.border,
         disabledForegroundColor: AppColorsLight.secondaryText,
-        minimumSize: Size(double.infinity, AppDimensions.controlHeightStandard),
-        shape: const RoundedRectangleBorder(borderRadius: AppComponentRadius.button),
+        // Intrinsic width by default — see textButtonTheme below.
+        minimumSize: const Size(64, AppDimensions.controlHeightStandard),
+        shape: const RoundedRectangleBorder(
+          borderRadius: AppComponentRadius.button,
+        ),
         textStyle: _textTheme.labelLarge,
         elevation: AppElevation.level0,
       ),
@@ -162,8 +167,11 @@ abstract final class AppLightTheme {
       style: FilledButton.styleFrom(
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
-        minimumSize: Size(double.infinity, AppDimensions.controlHeightStandard),
-        shape: const RoundedRectangleBorder(borderRadius: AppComponentRadius.button),
+        // Intrinsic width by default — see textButtonTheme below.
+        minimumSize: const Size(64, AppDimensions.controlHeightStandard),
+        shape: const RoundedRectangleBorder(
+          borderRadius: AppComponentRadius.button,
+        ),
         textStyle: _textTheme.labelLarge,
       ),
     ),
@@ -173,18 +181,30 @@ abstract final class AppLightTheme {
         foregroundColor: AppColors.primary,
         disabledForegroundColor: AppColorsLight.secondaryText,
         side: const BorderSide(color: AppColorsLight.border),
-        minimumSize: Size(double.infinity, AppDimensions.controlHeightStandard),
-        shape: const RoundedRectangleBorder(borderRadius: AppComponentRadius.button),
+        // Intrinsic width by default — see textButtonTheme below.
+        minimumSize: const Size(64, AppDimensions.controlHeightStandard),
+        shape: const RoundedRectangleBorder(
+          borderRadius: AppComponentRadius.button,
+        ),
         textStyle: _textTheme.labelLarge,
       ),
     ),
 
+    // Every button theme above uses a 64px intrinsic-width minimum, not a
+    // full-width default: some buttons need their natural width (e.g. a
+    // "Reject" button beside an Expanded "Verify Report" in a Row), and a
+    // widget wrapped in a full-width theme default cannot un-request that
+    // width when placed in a context — like a Row — that gives it loose
+    // constraints. Screens that want a full-width button wrap it explicitly
+    // in Expanded/SizedBox(width: double.infinity) at the call site.
     textButtonTheme: TextButtonThemeData(
       style: TextButton.styleFrom(
         foregroundColor: AppColors.primary,
         disabledForegroundColor: AppColorsLight.secondaryText,
         minimumSize: const Size(64, AppDimensions.controlHeightStandard),
-        shape: const RoundedRectangleBorder(borderRadius: AppComponentRadius.button),
+        shape: const RoundedRectangleBorder(
+          borderRadius: AppComponentRadius.button,
+        ),
         textStyle: _textTheme.labelLarge,
       ),
     ),
@@ -193,7 +213,9 @@ abstract final class AppLightTheme {
       backgroundColor: AppColorsLight.primarySurface,
       surfaceTintColor: Colors.transparent,
       elevation: AppElevation.level2,
-      shape: const RoundedRectangleBorder(borderRadius: AppComponentRadius.dialog),
+      shape: const RoundedRectangleBorder(
+        borderRadius: AppComponentRadius.dialog,
+      ),
       titleTextStyle: _textTheme.headlineSmall,
       contentTextStyle: _textTheme.bodyMedium,
     ),
@@ -204,7 +226,9 @@ abstract final class AppLightTheme {
       modalBackgroundColor: AppColorsLight.primarySurface,
       elevation: AppElevation.level2,
       modalElevation: AppElevation.level2,
-      shape: const RoundedRectangleBorder(borderRadius: AppComponentRadius.bottomSheet),
+      shape: const RoundedRectangleBorder(
+        borderRadius: AppComponentRadius.bottomSheet,
+      ),
       showDragHandle: true,
       dragHandleColor: AppColorsLight.border,
     ),
@@ -250,7 +274,9 @@ abstract final class AppLightTheme {
       actionTextColor: AppColors.primary,
       behavior: SnackBarBehavior.floating,
       elevation: AppElevation.level2,
-      shape: const RoundedRectangleBorder(borderRadius: AppComponentRadius.inputField),
+      shape: const RoundedRectangleBorder(
+        borderRadius: AppComponentRadius.inputField,
+      ),
     ),
 
     tooltipTheme: TooltipThemeData(

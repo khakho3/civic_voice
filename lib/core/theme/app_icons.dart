@@ -35,6 +35,7 @@ abstract final class AppIcons {
   // Navigation & chrome.
   static const IconData home = LucideIcons.house;
   static const IconData dashboard = LucideIcons.layoutDashboard;
+  static const IconData inbox = LucideIcons.inbox;
   static const IconData menu = LucideIcons.menu;
   static const IconData back = LucideIcons.arrowLeft;
   static const IconData close = LucideIcons.x;
@@ -61,6 +62,7 @@ abstract final class AppIcons {
   static const IconData myLocation = LucideIcons.crosshair;
   static const IconData calendar = LucideIcons.calendar;
   static const IconData refresh = LucideIcons.refreshCw;
+  static const IconData verify = LucideIcons.shieldCheck;
 
   // Report status — pair with the matching [AppColors] status color and a
   // text label; color/icon alone must never carry meaning (§19.3 Rule 3).
@@ -109,4 +111,8 @@ abstract final class AppIcons {
   static const IconData criticalAlert = LucideIcons.octagonAlert;
   static const IconData navigate = LucideIcons.navigation;
   static const IconData pinned = LucideIcons.mapPinned;
+  static const IconData rating = LucideIcons.star;
+  static const IconData eta = LucideIcons.clock;
+  static const IconData more = LucideIcons.ellipsisVertical;
+  static const IconData sync = LucideIcons.refreshCcw;
 }

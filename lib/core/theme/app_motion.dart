@@ -53,7 +53,8 @@ abstract final class AppMotion {
   /// Returns [Duration.zero] when the platform requests reduced motion,
   /// otherwise returns [base]. Use for any non-essential animation.
   static Duration duration(BuildContext context, Duration base) {
-    final disableAnimations = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    final disableAnimations =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
     return disableAnimations ? Duration.zero : base;
   }
 }
