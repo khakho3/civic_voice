@@ -28,10 +28,12 @@ abstract final class AppDimensions {
 
   /// Standard control height (inputs, buttons) — equal to the touch target
   /// minimum, the smallest height that stays accessible.
-  static const double controlHeightStandard = AppAccessibility.touchTargetMinimum;
+  static const double controlHeightStandard =
+      AppAccessibility.touchTargetMinimum;
 
   /// Large emphasis control height (primary CTA buttons, FAB diameter).
-  static const double controlHeightLarge = AppAccessibility.touchTargetMinimum + 8;
+  static const double controlHeightLarge =
+      AppAccessibility.touchTargetMinimum + 8;
 
   /// Hairline border/divider thickness.
   static const double borderWidthThin = 1.0;
@@ -43,4 +45,12 @@ abstract final class AppDimensions {
   /// breakpoint (§19.9 Content Width Rules) — prevents unbounded single-column
   /// text measure on wide screens while leaving mobile widths unconstrained.
   static const double maxContentWidth = AppBreakpoints.tablet;
+
+  /// Height of the glass header bar (screen title/brand mark + actions),
+  /// shared across every role-scaffold (Municipal Officer, Ministry
+  /// Supervisor, ...) that uses the Civic Glass header/nav shell.
+  static const double headerHeight = 64;
+
+  /// Height of the glass bottom navigation bar.
+  static const double bottomNavHeight = 80;
 }
