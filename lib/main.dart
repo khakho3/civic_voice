@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'core/theme/app_theme.dart';
 import 'features/admin/screens/admin_dashboard_screen.dart';
+import 'features/admin/screens/admin_user_management_screen.dart';
 
 void main() {
   runApp(const CivicVoiceApp());
@@ -28,7 +29,7 @@ class CivicVoiceApp extends StatelessWidget {
 /// introducing (once more of the module's eight screens exist), matching
 /// how the Municipal Officer and Ministry Supervisor modules' own roots
 /// started.
-enum _AdminScreen { dashboard }
+enum _AdminScreen { dashboard, users }
 
 class _AdminRoot extends StatefulWidget {
   const _AdminRoot();
@@ -38,16 +39,22 @@ class _AdminRoot extends StatefulWidget {
 }
 
 class _AdminRootState extends State<_AdminRoot> {
-  final _AdminScreen _current = _AdminScreen.dashboard;
+  _AdminScreen _current = _AdminScreen.dashboard;
 
   @override
   Widget build(BuildContext context) {
     return switch (_current) {
-      _AdminScreen.dashboard => const AdminDashboardScreen(
-        // Users/Roles/Settings/System Activity aren't built yet
-        // (ADM-002, ADM-004, ADM-007, ADM-006) — wire these up as each
-        // screen lands, matching how the other modules' roots grew
-        // incrementally.
+      _AdminScreen.dashboard => AdminDashboardScreen(
+        onNavigateToUsers: () => setState(() => _current = _AdminScreen.users),
+        // Roles/Settings/System Activity aren't built yet (ADM-004,
+        // ADM-007, ADM-006) — wire these up as each screen lands, matching
+        // how the other modules' roots grew incrementally.
+      ),
+      _AdminScreen.users => AdminUserManagementScreen(
+        onNavigateToDashboard: () =>
+            setState(() => _current = _AdminScreen.dashboard),
+        // onNavigateToRoles/onNavigateToSettings/onOpenUserDetails aren't
+        // built yet (ADM-004, ADM-007, ADM-003).
       ),
     };
   }
