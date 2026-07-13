@@ -2,9 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:civic_voice/core/theme/app_theme.dart';
 
 /// MNT-001 — Maintenance Team Dashboard.
-///
-/// Implements all AppScreenState variants approved in the Figma review:
-/// success, loading, empty, error, offline, permission, disabled.
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
 

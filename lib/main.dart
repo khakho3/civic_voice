@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:civic_voice/core/theme/app_theme.dart';
-import 'package:civic_voice/features/maintenance/screens/dashboard_screen.dart';
+import 'package:civic_voice/features/maintenance/screens/assigned_tasks_screen.dart';
 
 void main() {
   runApp(const CivicVoiceApp());
@@ -17,7 +17,7 @@ class CivicVoiceApp extends StatelessWidget {
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       themeMode: AppTheme.themeMode,
-      home: const DashboardScreen(),
+      home: const AssignedTasksScreen(),
     );
   }
 }
