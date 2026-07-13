@@ -5,6 +5,7 @@ import 'package:civic_voice/core/theme/app_theme.dart';
 import 'package:civic_voice/features/ministry/screens/ministry_analytics_screen.dart';
 import 'package:civic_voice/features/ministry/screens/ministry_dashboard_screen.dart';
 import 'package:civic_voice/features/ministry/screens/ministry_municipal_performance_screen.dart';
+import 'package:civic_voice/features/ministry/screens/ministry_reports_screen.dart';
 
 void main() {
   for (final state in MinistryDashboardViewState.values) {
@@ -810,6 +811,280 @@ void main() {
           home: MinistryMunicipalPerformanceScreen(
             onProfileTap: () => profileTapped = true,
           ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(AppIcons.profile));
+      await tester.pumpAndSettle();
+
+      expect(profileTapped, isTrue);
+    },
+  );
+
+  // ---------------------------------------------------------------------
+  // MIN-004 Reports Overview
+  // ---------------------------------------------------------------------
+
+  for (final state in MinistryReportsViewState.values) {
+    testWidgets(
+      'Ministry Reports Overview renders ${state.name} without error',
+      (WidgetTester tester) async {
+        tester.view.physicalSize = const Size(428, 2600);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.light,
+            home: MinistryReportsScreen(initialState: state),
+          ),
+        );
+        await tester.pump();
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
+  testWidgets(
+    'Ministry Reports Overview renders without overflow on a narrow phone '
+    '(375px)',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(375, 812);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(theme: AppTheme.light, home: const MinistryReportsScreen()),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'Ministry Reports Overview shows the full report list in its loaded '
+    'state',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(theme: AppTheme.light, home: const MinistryReportsScreen()),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Reports Overview'), findsOneWidget);
+      expect(find.text('Search aggregated reports'), findsOneWidget);
+      expect(find.text('All'), findsOneWidget);
+      // Each of these also labels a status badge on one of the report
+      // cards below, in addition to its own filter chip — "Submitted"
+      // (chip + Pothole's badge), "Resolved" (chip + stat card label +
+      // Broken Streetlight's + Damaged Footbridge's badges). "Review" is
+      // chip-only: badges spell out "Under Review" in full, a different
+      // string.
+      expect(find.text('Submitted'), findsNWidgets(2));
+      expect(find.text('Review'), findsOneWidget);
+      expect(find.text('Resolved'), findsNWidgets(4));
+
+      expect(find.text('Aggregated Reports'), findsOneWidget);
+      expect(find.text('24,812'), findsOneWidget);
+      expect(
+        find.text('National report volume · current period'),
+        findsOneWidget,
+      );
+      // Stat card label + Overflowing Drainage's status badge.
+      expect(find.text('Under Review'), findsNWidgets(2));
+      expect(find.text('3,248'), findsOneWidget);
+      expect(find.text('18,604'), findsOneWidget);
+
+      expect(find.text('7 shown'), findsOneWidget);
+      expect(find.text('Pothole on Main Street'), findsOneWidget);
+      expect(
+        find.text('Accra Municipal · Road Infrastructure'),
+        findsOneWidget,
+      );
+      expect(find.text('2 days ago'), findsOneWidget);
+      expect(find.text('Broken Streetlight'), findsOneWidget);
+
+      expect(find.text('Report Insights'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'Ministry Reports Overview search field filters the report list',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(theme: AppTheme.light, home: const MinistryReportsScreen()),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField), 'pothole');
+      await tester.pumpAndSettle();
+
+      expect(find.text('1 shown'), findsOneWidget);
+      expect(find.text('Pothole on Main Street'), findsOneWidget);
+      expect(find.text('Broken Streetlight'), findsNothing);
+    },
+  );
+
+  testWidgets('Ministry Reports Overview status chip filters the report list', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(theme: AppTheme.light, home: const MinistryReportsScreen()),
+    );
+    await tester.pumpAndSettle();
+
+    // "Review" is chip-only — unlike "Submitted"/"Resolved", no status
+    // badge spells out that exact string ("Under Review" is a different
+    // string), so this is unambiguous without needing .first/.last.
+    await tester.tap(find.text('Review'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('1 shown'), findsOneWidget);
+    expect(find.text('Overflowing Drainage'), findsOneWidget);
+    expect(find.text('Pothole on Main Street'), findsNothing);
+  });
+
+  Future<void> pumpMinistryReports(
+    WidgetTester tester,
+    MinistryReportsViewState state,
+  ) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: MinistryReportsScreen(initialState: state),
+      ),
+    );
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets(
+    'Ministry Reports Overview Empty shows the approved copy, with filter '
+    'chrome still visible',
+    (WidgetTester tester) async {
+      await pumpMinistryReports(tester, MinistryReportsViewState.empty);
+      expect(find.text('No Reports'), findsOneWidget);
+      expect(find.text('Refresh'), findsOneWidget);
+      expect(find.text('Search aggregated reports'), findsOneWidget);
+      expect(find.text('All'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'Ministry Reports Overview No Results clears filters and returns to the '
+    'loaded state',
+    (WidgetTester tester) async {
+      await pumpMinistryReports(tester, MinistryReportsViewState.noResults);
+      expect(find.text('No Results'), findsOneWidget);
+      expect(
+        find.text('No aggregated reports match the current search or filters.'),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.text('Clear Filters'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('7 shown'), findsOneWidget);
+      expect(find.text('Pothole on Main Street'), findsOneWidget);
+    },
+  );
+
+  testWidgets('Ministry Reports Overview Offline shows the approved copy', (
+    WidgetTester tester,
+  ) async {
+    await pumpMinistryReports(tester, MinistryReportsViewState.offline);
+    expect(find.text('You\'re offline'), findsOneWidget);
+    expect(find.text('Retry connection'), findsOneWidget);
+  });
+
+  testWidgets('Ministry Reports Overview Error shows the approved copy', (
+    WidgetTester tester,
+  ) async {
+    await pumpMinistryReports(tester, MinistryReportsViewState.error);
+    expect(find.text('Unable to Load Reports'), findsOneWidget);
+    expect(find.text('Try again'), findsOneWidget);
+  });
+
+  testWidgets(
+    'Ministry Reports Overview Unauthorized shows the approved copy with no '
+    'action buttons',
+    (WidgetTester tester) async {
+      await pumpMinistryReports(tester, MinistryReportsViewState.unauthorized);
+      expect(find.text('Unauthorized Access'), findsOneWidget);
+      expect(find.byType(FilledButton), findsNothing);
+      expect(find.byType(OutlinedButton), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'Ministry Reports Overview is a tab-shell screen: bottom nav stays '
+    'visible and switches tabs',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      var dashboardTapped = false;
+      var analyticsTapped = false;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: MinistryReportsScreen(
+            onNavigateToDashboard: () => dashboardTapped = true,
+            onNavigateToAnalytics: () => analyticsTapped = true,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Dashboard'), findsOneWidget);
+      expect(find.text('Municipalities'), findsOneWidget);
+
+      await tester.tap(find.text('Dashboard'));
+      await tester.pumpAndSettle();
+      expect(dashboardTapped, isTrue);
+
+      await tester.tap(find.text('Analytics'));
+      await tester.pumpAndSettle();
+      expect(analyticsTapped, isTrue);
+    },
+  );
+
+  testWidgets(
+    'Ministry Reports Overview header profile avatar opens Ministry Profile',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      var profileTapped = false;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: MinistryReportsScreen(onProfileTap: () => profileTapped = true),
         ),
       );
       await tester.pumpAndSettle();
