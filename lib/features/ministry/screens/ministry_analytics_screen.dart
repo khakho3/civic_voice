@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../widgets/app_state_message.dart';
+import '../../../widgets/collapsible_list_header.dart';
 import '../../../widgets/glass_card.dart';
 import '../models/ministry_analytics_data.dart';
 import '../widgets/ministry_scaffold.dart';
@@ -101,12 +102,13 @@ class _MinistryAnalyticsScreenState extends State<MinistryAnalyticsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // The date-range/dimension chrome stays interactive whenever the
-    // service is actually reachable — Loading has its own skeleton in
-    // place of it, and Offline/Error/Unauthorized disable it rather than
-    // removing it (see class doc comment).
+    // Empty/No Results keep the chrome fixed (not collapsible) rather than
+    // wrapping it in CollapsibleListHeader like Loaded does: their content
+    // is a short, centered state card with nothing to scroll, so there's no
+    // scroll gesture to drive a collapse in the first place. Offline/Error/
+    // Unauthorized go a step further and disable the chrome entirely, same
+    // as before.
     final chromeEnabled =
-        _state == MinistryAnalyticsViewState.loaded ||
         _state == MinistryAnalyticsViewState.empty ||
         _state == MinistryAnalyticsViewState.noResults;
 
@@ -121,97 +123,109 @@ class _MinistryAnalyticsScreenState extends State<MinistryAnalyticsScreen> {
         }
         if (tab == MinistryTab.reports) widget.onNavigateToReports?.call();
       },
-      body: _state == MinistryAnalyticsViewState.loading
-          ? const _LoadingSkeleton()
-          : Column(
-              children: [
-                SizedBox(height: MinistryScaffold.contentPadding(context).top),
-                _FilterChrome(
-                  dateRangeLabel: _dateRange.label,
-                  dimension: _dimension,
-                  enabled: chromeEnabled,
-                  onDateRangeTap: chromeEnabled ? _pickDateRange : null,
-                  onDimensionSelected: chromeEnabled
-                      ? (d) => setState(() => _dimension = d)
-                      : null,
-                ),
-                Expanded(
-                  child: switch (_state) {
-                    MinistryAnalyticsViewState.loading =>
-                      const SizedBox.shrink(),
-                    MinistryAnalyticsViewState.loaded => _AnalyticsContent(
-                      data: _data,
-                      dimension: _dimension,
-                    ),
-                    MinistryAnalyticsViewState.empty => Padding(
-                      padding: const EdgeInsets.all(AppSpacing.md),
-                      child: AppStateMessage(
-                        icon: AppIcons.noDataFile,
-                        badgeColor: AppColors.primary,
-                        title: 'No Analytics Available',
-                        message:
-                            'Aggregated analytics will appear here once '
-                            'reports are available.',
-                        primaryActionLabel: 'Refresh',
-                        onPrimaryAction: _retry,
-                      ),
-                    ),
-                    MinistryAnalyticsViewState.noResults => Padding(
-                      padding: const EdgeInsets.all(AppSpacing.md),
-                      child: AppStateMessage(
-                        icon: AppIcons.noFilterMatch,
-                        badgeColor: AppColors.primary,
-                        title: 'No Results',
-                        message:
-                            'No aggregated analytics match the selected '
-                            'filters.',
-                        primaryActionLabel: 'Clear Filters',
-                        onPrimaryAction: _clearFilters,
-                      ),
-                    ),
-                    MinistryAnalyticsViewState.offline => Padding(
-                      padding: const EdgeInsets.all(AppSpacing.md),
-                      child: AppStateMessage(
-                        icon: AppIcons.offline,
-                        badgeColor: AppColors.error,
-                        title: 'You\'re offline',
-                        message:
-                            'Check your connection and retry loading '
-                            'analytics.',
-                        primaryActionLabel: 'Retry connection',
-                        onPrimaryAction: _retry,
-                        primaryActionColor: AppColors.error,
-                      ),
-                    ),
-                    MinistryAnalyticsViewState.error => Padding(
-                      padding: const EdgeInsets.all(AppSpacing.md),
-                      child: AppStateMessage(
-                        icon: AppIcons.warning,
-                        badgeColor: AppColors.error,
-                        title: 'Unable to Load Analytics',
-                        message:
-                            'The analytics service could not return '
-                            'aggregated data right now.',
-                        primaryActionLabel: 'Try again',
-                        onPrimaryAction: _retry,
-                        primaryActionColor: AppColors.error,
-                      ),
-                    ),
-                    MinistryAnalyticsViewState.unauthorized => Padding(
-                      padding: const EdgeInsets.all(AppSpacing.md),
-                      child: const AppStateMessage(
-                        icon: AppIcons.permissionDenied,
-                        badgeColor: AppColors.error,
-                        title: 'Unauthorized Access',
-                        message:
-                            'This read-only ministry analytics screen '
-                            'requires supervisor permissions.',
-                      ),
-                    ),
-                  },
-                ),
-              ],
+      body: switch (_state) {
+        MinistryAnalyticsViewState.loading => const _LoadingSkeleton(),
+        MinistryAnalyticsViewState.loaded => Padding(
+          padding: EdgeInsets.only(
+            top: MinistryScaffold.contentPadding(context).top,
+          ),
+          child: CollapsibleListHeader(
+            header: _FilterChrome(
+              dateRangeLabel: _dateRange.label,
+              dimension: _dimension,
+              enabled: true,
+              onDateRangeTap: _pickDateRange,
+              onDimensionSelected: (d) => setState(() => _dimension = d),
             ),
+            child: _AnalyticsContent(data: _data, dimension: _dimension),
+          ),
+        ),
+        _ => Column(
+          children: [
+            SizedBox(height: MinistryScaffold.contentPadding(context).top),
+            _FilterChrome(
+              dateRangeLabel: _dateRange.label,
+              dimension: _dimension,
+              enabled: chromeEnabled,
+              onDateRangeTap: chromeEnabled ? _pickDateRange : null,
+              onDimensionSelected: chromeEnabled
+                  ? (d) => setState(() => _dimension = d)
+                  : null,
+            ),
+            Expanded(
+              child: switch (_state) {
+                MinistryAnalyticsViewState.loading ||
+                MinistryAnalyticsViewState.loaded => const SizedBox.shrink(),
+                MinistryAnalyticsViewState.empty => Padding(
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  child: AppStateMessage(
+                    icon: AppIcons.noDataFile,
+                    badgeColor: AppColors.primary,
+                    title: 'No Analytics Available',
+                    message:
+                        'Aggregated analytics will appear here once '
+                        'reports are available.',
+                    primaryActionLabel: 'Refresh',
+                    onPrimaryAction: _retry,
+                  ),
+                ),
+                MinistryAnalyticsViewState.noResults => Padding(
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  child: AppStateMessage(
+                    icon: AppIcons.noFilterMatch,
+                    badgeColor: AppColors.primary,
+                    title: 'No Results',
+                    message:
+                        'No aggregated analytics match the selected '
+                        'filters.',
+                    primaryActionLabel: 'Clear Filters',
+                    onPrimaryAction: _clearFilters,
+                  ),
+                ),
+                MinistryAnalyticsViewState.offline => Padding(
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  child: AppStateMessage(
+                    icon: AppIcons.offline,
+                    badgeColor: AppColors.error,
+                    title: 'You\'re offline',
+                    message:
+                        'Check your connection and retry loading '
+                        'analytics.',
+                    primaryActionLabel: 'Retry connection',
+                    onPrimaryAction: _retry,
+                    primaryActionColor: AppColors.error,
+                  ),
+                ),
+                MinistryAnalyticsViewState.error => Padding(
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  child: AppStateMessage(
+                    icon: AppIcons.warning,
+                    badgeColor: AppColors.error,
+                    title: 'Unable to Load Analytics',
+                    message:
+                        'The analytics service could not return '
+                        'aggregated data right now.',
+                    primaryActionLabel: 'Try again',
+                    onPrimaryAction: _retry,
+                    primaryActionColor: AppColors.error,
+                  ),
+                ),
+                MinistryAnalyticsViewState.unauthorized => Padding(
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  child: const AppStateMessage(
+                    icon: AppIcons.permissionDenied,
+                    badgeColor: AppColors.error,
+                    title: 'Unauthorized Access',
+                    message:
+                        'This read-only ministry analytics screen '
+                        'requires supervisor permissions.',
+                  ),
+                ),
+              },
+            ),
+          ],
+        ),
+      },
     );
   }
 }
