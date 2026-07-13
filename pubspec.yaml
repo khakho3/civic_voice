@@ -41,6 +41,7 @@ dependencies:
   geocoding: ^5.0.0
   google_maps_flutter: ^2.17.1
   http: ^1.6.0
+  shared_preferences: ^2.5.5
 
 dev_dependencies:
   flutter_test:

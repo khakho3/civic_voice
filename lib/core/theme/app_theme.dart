@@ -50,5 +50,5 @@ abstract final class AppTheme {
   /// Every screen must support both Light Mode and Dark Mode (§19.20
   /// Governance Rule 7), so the app follows the platform brightness by
   /// default rather than forcing a single theme.
-  static const ThemeMode themeMode = ThemeMode.system;
+  static const ThemeMode themeMode = ThemeMode.light;
 }

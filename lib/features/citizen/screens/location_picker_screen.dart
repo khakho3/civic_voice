@@ -85,7 +85,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
           ),
           Positioned(
             right: AppSpacing.md,
-            bottom: 264,
+            bottom: 320,
             child: _CurrentLocationButton(
               onPressed: _controller.useCurrentLocation,
             ),
@@ -247,42 +247,45 @@ class _SelectedLocationCard extends StatelessWidget {
 
     return CivicGlassCard(
       borderRadius: AppRadius.allXl,
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      padding: const EdgeInsets.all(AppSpacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
           Text('Selected Address', style: theme.textTheme.labelLarge),
-          const SizedBox(height: AppSpacing.xs),
+          const SizedBox(height: 4),
           Text(
             location?.formattedAddress ?? 'Move the map to select a location',
             style: theme.textTheme.titleMedium,
-            maxLines: 2,
+            maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
-          const SizedBox(height: AppSpacing.md),
-          Wrap(
-            spacing: AppSpacing.sm,
-            runSpacing: AppSpacing.sm,
-            children: [
-              _InfoChip(
-                icon: AppIcons.pinned,
-                label: _fallback(location?.landmark, 'Landmark pending'),
-              ),
-              _InfoChip(
-                icon: AppIcons.navigate,
-                label: _fallback(location?.locality, 'Town/City pending'),
-              ),
-              _InfoChip(
-                icon: AppIcons.location,
-                label: _fallback(
-                  location?.administrativeArea,
-                  'Region pending',
+          const SizedBox(height: AppSpacing.sm),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _InfoChip(
+                  icon: AppIcons.pinned,
+                  label: _fallback(location?.landmark, 'Landmark pending'),
                 ),
-              ),
-            ],
+                const SizedBox(width: AppSpacing.sm),
+                _InfoChip(
+                  icon: AppIcons.navigate,
+                  label: _fallback(location?.locality, 'Town/City pending'),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                _InfoChip(
+                  icon: AppIcons.location,
+                  label: _fallback(
+                    location?.administrativeArea,
+                    'Region pending',
+                  ),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: AppSpacing.lg),
+          const SizedBox(height: AppSpacing.sm),
           FilledButton.icon(
             onPressed: location == null || picker.resolvingAddress
                 ? null

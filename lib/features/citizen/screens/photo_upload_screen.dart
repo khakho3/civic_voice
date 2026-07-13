@@ -8,6 +8,10 @@ import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/civic_glass_card.dart';
 import '../models/photo_upload_view_state.dart';
 import '../widgets/civic_app_chrome.dart';
+import 'citizen_alerts_screen.dart';
+import 'citizen_profile_screen.dart';
+import 'citizen_reports_screen.dart';
+import 'review_report_screen.dart';
 
 class PhotoUploadScreen extends StatefulWidget {
   const PhotoUploadScreen({
@@ -47,10 +51,7 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
   late final List<XFile> _photos;
 
   bool get _hasPhotos => _photos.isNotEmpty;
-  bool get _isBlocked =>
-      _state == PhotoUploadViewState.cameraDenied ||
-      _state == PhotoUploadViewState.galleryDenied ||
-      _state == PhotoUploadViewState.offline;
+  bool get _isBlocked => _state == PhotoUploadViewState.offline;
 
   @override
   void initState() {
@@ -161,18 +162,21 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
     });
   }
 
-  void _finishReport({required bool skippedPhotos}) {
-    final title = widget.reportTitle ?? 'Report';
-    final location = widget.reportCommunity ?? widget.reportLocationLabel;
-    final photosText = skippedPhotos
-        ? 'without photos'
-        : '${_photos.length} photos';
-    final locationText = location?.isNotEmpty == true ? ' for $location' : '';
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$title is ready $photosText$locationText.')),
+  void _openReview({required bool skippedPhotos}) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => ReviewReportScreen(
+          reportTitle: widget.reportTitle,
+          reportDescription: widget.reportDescription,
+          reportCategory: widget.reportCategory,
+          reportLocationLabel: widget.reportLocationLabel,
+          reportCommunity: widget.reportCommunity,
+          reportLatitude: widget.reportLatitude,
+          reportLongitude: widget.reportLongitude,
+          photos: skippedPhotos ? const [] : List<XFile>.of(_photos),
+        ),
+      ),
     );
-    Navigator.of(context).popUntil((route) => route.isFirst);
   }
 
   @override
@@ -211,17 +215,11 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
                 const SizedBox(height: AppSpacing.lg),
-                _ReportSummaryCard(
-                  title: widget.reportTitle,
-                  category: widget.reportCategory,
-                  description: widget.reportDescription,
-                  locationLabel: widget.reportLocationLabel,
-                  community: widget.reportCommunity,
-                  latitude: widget.reportLatitude,
-                  longitude: widget.reportLongitude,
+                _PhotoUploadBanner(
+                  state: _state,
+                  onRetryCamera: _takePhoto,
+                  onRetryGallery: _pickFromGallery,
                 ),
-                const SizedBox(height: AppSpacing.lg),
-                _PhotoUploadBanner(state: _state),
                 _UploadActions(
                   disabled: _isBlocked,
                   uploading: _state == PhotoUploadViewState.uploading,
@@ -241,8 +239,8 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
                 _PhotoActionsCard(
                   enabled: !_isBlocked,
                   hasPhotos: _hasPhotos,
-                  onContinue: () => _finishReport(skippedPhotos: false),
-                  onSkip: () => _finishReport(skippedPhotos: true),
+                  onContinue: () => _openReview(skippedPhotos: false),
+                  onSkip: () => _openReview(skippedPhotos: true),
                 ),
               ],
             );
@@ -252,7 +250,24 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
       bottomNavigationBar: CivicBottomNav(
         selectedIndex: 2,
         onDestinationSelected: (index) {
-          if (index == 0) Navigator.of(context).maybePop();
+          if (index == 0) {
+            Navigator.of(context).maybePop();
+          } else if (index == 1) {
+            Navigator.of(context).pushNamedAndRemoveUntil(
+              CitizenReportsScreen.routeName,
+              (route) => route.isFirst,
+            );
+          } else if (index == 3) {
+            Navigator.of(context).pushNamedAndRemoveUntil(
+              CitizenAlertsScreen.routeName,
+              (route) => route.isFirst,
+            );
+          } else if (index == 4) {
+            Navigator.of(context).pushNamedAndRemoveUntil(
+              CitizenProfileScreen.routeName,
+              (route) => route.isFirst,
+            );
+          }
         },
       ),
     );
@@ -297,136 +312,22 @@ class _StepProgress extends StatelessWidget {
   }
 }
 
-class _ReportSummaryCard extends StatelessWidget {
-  const _ReportSummaryCard({
-    required this.title,
-    required this.category,
-    required this.description,
-    required this.locationLabel,
-    required this.community,
-    required this.latitude,
-    required this.longitude,
+class _PhotoUploadBanner extends StatelessWidget {
+  const _PhotoUploadBanner({
+    required this.state,
+    required this.onRetryCamera,
+    required this.onRetryGallery,
   });
 
-  final String? title;
-  final String? category;
-  final String? description;
-  final String? locationLabel;
-  final String? community;
-  final double? latitude;
-  final double? longitude;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final hasLocation = latitude != null && longitude != null;
-    final cleanTitle = title?.trim();
-    final cleanDescription = description?.trim();
-    final cleanLocation = locationLabel?.trim();
-    final cleanCommunity = community?.trim();
-
-    return CivicGlassCard(
-      borderRadius: AppRadius.allXl,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(AppIcons.reportVerified, color: AppColors.primary),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Text(
-                  cleanTitle?.isNotEmpty == true
-                      ? cleanTitle!
-                      : 'Current report',
-                  style: theme.textTheme.titleMedium,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Wrap(
-            spacing: AppSpacing.sm,
-            runSpacing: AppSpacing.sm,
-            children: [
-              _SummaryChip(
-                icon: AppIcons.report,
-                label: category?.isNotEmpty == true ? category! : 'Category',
-              ),
-              _SummaryChip(
-                icon: hasLocation ? AppIcons.pinned : AppIcons.location,
-                label: cleanLocation?.isNotEmpty == true
-                    ? cleanLocation!
-                    : hasLocation
-                    ? 'Selected report location'
-                    : 'No GPS yet',
-              ),
-              if (cleanCommunity?.isNotEmpty == true)
-                _SummaryChip(icon: AppIcons.navigate, label: cleanCommunity!),
-            ],
-          ),
-          if (cleanDescription?.isNotEmpty == true) ...[
-            const SizedBox(height: AppSpacing.md),
-            Text(
-              cleanDescription!,
-              style: theme.textTheme.bodySmall,
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _SummaryChip extends StatelessWidget {
-  const _SummaryChip({required this.icon, required this.label});
-
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xs,
-      ),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerLow,
-        borderRadius: AppRadius.allLg,
-        border: Border.all(color: theme.colorScheme.outlineVariant),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: AppIconSize.sm, color: AppColors.primary),
-          const SizedBox(width: AppSpacing.xs),
-          Flexible(
-            child: Text(
-              label,
-              style: theme.textTheme.labelSmall,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PhotoUploadBanner extends StatelessWidget {
-  const _PhotoUploadBanner({required this.state});
-
   final PhotoUploadViewState state;
+  final VoidCallback onRetryCamera;
+  final VoidCallback onRetryGallery;
 
   @override
   Widget build(BuildContext context) {
+    VoidCallback? action;
+    String? actionLabel;
+
     final data = switch (state) {
       PhotoUploadViewState.empty => null,
       PhotoUploadViewState.uploadComplete => (
@@ -445,7 +346,7 @@ class _PhotoUploadBanner extends StatelessWidget {
         AppIcons.permissionDenied,
         AppColors.error,
         'Camera access denied',
-        'Enable camera permission or choose photos from your gallery.',
+        'Try again to show the camera permission request.',
       ),
       PhotoUploadViewState.galleryPermission => (
         AppIcons.permissionDenied,
@@ -457,7 +358,7 @@ class _PhotoUploadBanner extends StatelessWidget {
         AppIcons.permissionDenied,
         AppColors.error,
         'Gallery access denied',
-        'Enable gallery permission or take a new photo.',
+        'Try again to show the gallery permission request.',
       ),
       PhotoUploadViewState.uploading => (
         AppIcons.upload,
@@ -480,6 +381,13 @@ class _PhotoUploadBanner extends StatelessWidget {
     };
 
     if (data == null) return const SizedBox.shrink();
+    if (state == PhotoUploadViewState.cameraDenied) {
+      action = onRetryCamera;
+      actionLabel = 'Try Again';
+    } else if (state == PhotoUploadViewState.galleryDenied) {
+      action = onRetryGallery;
+      actionLabel = 'Try Again';
+    }
 
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.lg),
@@ -488,6 +396,8 @@ class _PhotoUploadBanner extends StatelessWidget {
         color: data.$2,
         title: data.$3,
         message: data.$4,
+        actionLabel: actionLabel,
+        onAction: action,
       ),
     );
   }
@@ -815,6 +725,8 @@ class _PhotoActionsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return CivicGlassCard(
       borderRadius: AppRadius.allXl,
       child: Column(
@@ -829,6 +741,14 @@ class _PhotoActionsCard extends StatelessWidget {
             onPressed: enabled ? onSkip : null,
             child: const Text('Skip for Now'),
           ),
+          if (hasPhotos) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              'Review your title, category, and GPS location before submitting.',
+              style: theme.textTheme.labelSmall,
+              textAlign: TextAlign.center,
+            ),
+          ],
         ],
       ),
     );
@@ -841,12 +761,16 @@ class _InlineState extends StatelessWidget {
     required this.color,
     required this.title,
     required this.message,
+    this.actionLabel,
+    this.onAction,
   });
 
   final IconData icon;
   final Color color;
   final String title;
   final String message;
+  final String? actionLabel;
+  final VoidCallback? onAction;
 
   @override
   Widget build(BuildContext context) {
@@ -871,6 +795,17 @@ class _InlineState extends StatelessWidget {
                 Text(title, style: theme.textTheme.titleSmall),
                 const SizedBox(height: AppSpacing.xs),
                 Text(message, style: theme.textTheme.bodySmall),
+                if (actionLabel != null && onAction != null) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton.icon(
+                      onPressed: onAction,
+                      icon: const Icon(AppIcons.permissionDenied),
+                      label: Text(actionLabel!),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

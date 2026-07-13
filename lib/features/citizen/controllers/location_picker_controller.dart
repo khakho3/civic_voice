@@ -37,6 +37,7 @@ class LocationPickerController extends ChangeNotifier {
   LatLng get cameraTarget => _cameraTarget;
   bool get placesConfigured => _placesService.isConfigured;
   String? get mapConfigurationWarning {
+    if (initializing) return null;
     if (placesConfigured) return null;
     return 'Google Maps API key is missing. Map tiles and search may appear blank.';
   }
@@ -49,7 +50,8 @@ class LocationPickerController extends ChangeNotifier {
     initializing = true;
     statusMessage = 'Detecting your current location...';
     notifyListeners();
-    await useCurrentLocation(animate: false);
+    await _placesService.initialize();
+    await useCurrentLocation();
     initializing = false;
     notifyListeners();
   }
@@ -148,6 +150,7 @@ class LocationPickerController extends ChangeNotifier {
       return;
     }
 
+    await _placesService.initialize();
     searching = true;
     statusMessage = placesConfigured ? null : 'Google Places API key missing.';
     notifyListeners();

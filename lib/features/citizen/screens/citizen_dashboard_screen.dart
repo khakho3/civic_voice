@@ -4,15 +4,23 @@ import 'package:geolocator/geolocator.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/civic_glass_card.dart';
 import '../../../shared/widgets/civic_status_panel.dart';
+import '../models/citizen_profile.dart';
 import '../models/civic_report.dart';
 import '../models/dashboard_view_state.dart';
+import '../services/dashboard_state_service.dart';
+import '../services/profile_crud_service.dart';
+import '../services/report_crud_service.dart';
 import '../widgets/civic_app_chrome.dart';
+import 'citizen_alerts_screen.dart';
+import 'citizen_profile_screen.dart';
+import 'citizen_reports_screen.dart';
 import 'create_report_screen.dart';
+import 'report_tracking_screen.dart';
 
 class CitizenDashboardScreen extends StatefulWidget {
   const CitizenDashboardScreen({
     super.key,
-    this.initialState = DashboardViewState.content,
+    this.initialState = DashboardViewState.empty,
   });
 
   static const String routeName = '/citizen/dashboard';
@@ -25,35 +33,17 @@ class CitizenDashboardScreen extends StatefulWidget {
 
 class _CitizenDashboardScreenState extends State<CitizenDashboardScreen>
     with WidgetsBindingObserver {
-  late DashboardViewState _state;
   int _selectedIndex = 0;
   bool _locationDialogVisible = false;
-
-  static const List<CivicReport> _recentReports = [
-    CivicReport(
-      title: 'Street light outage',
-      location: 'Victoria Island',
-      timeLabel: '2h ago',
-      status: ReportStatus.inProgress,
-    ),
-    CivicReport(
-      title: 'Drainage blockage',
-      location: 'Lekki Phase 1',
-      timeLabel: 'Yesterday',
-      status: ReportStatus.underReview,
-    ),
-    CivicReport(
-      title: 'Pothole on service lane',
-      location: 'Ikeja GRA',
-      timeLabel: 'Jun 28',
-      status: ReportStatus.resolved,
-    ),
-  ];
+  final DashboardStateService _dashboardStateService =
+      DashboardStateService.instance;
+  final ReportCrudService _reportCrudService = ReportCrudService.instance;
+  final ProfileCrudService _profileCrudService = ProfileCrudService.instance;
 
   @override
   void initState() {
     super.initState();
-    _state = widget.initialState;
+    _dashboardStateService.setState(widget.initialState);
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkLocationAccess(requestPermission: true);
@@ -96,7 +86,7 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen>
       }
 
       if (permission == LocationPermission.denied) {
-        setState(() => _state = DashboardViewState.permissionRequired);
+        _dashboardStateService.setState(DashboardViewState.permissionRequired);
         _showLocationDialog(
           title: 'Allow Location',
           message:
@@ -108,7 +98,7 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen>
       }
 
       if (permission == LocationPermission.deniedForever) {
-        setState(() => _state = DashboardViewState.permissionRequired);
+        _dashboardStateService.setState(DashboardViewState.permissionRequired);
         _showLocationDialog(
           title: 'Location Blocked',
           message:
@@ -119,8 +109,13 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen>
         return;
       }
 
-      if (_state == DashboardViewState.permissionRequired) {
-        setState(() => _state = DashboardViewState.content);
+      if (_dashboardStateService.state.value ==
+          DashboardViewState.permissionRequired) {
+        final restoredState =
+            widget.initialState == DashboardViewState.permissionRequired
+            ? DashboardViewState.empty
+            : widget.initialState;
+        _dashboardStateService.setState(restoredState);
       }
     } catch (_) {
       // In tests or unsupported platforms the plugin can be unavailable; keep
@@ -169,19 +164,55 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       extendBody: true,
-      appBar: const CivicTopBar(),
+      appBar: const CivicTopBar(showNotifications: false),
       body: SafeArea(
         top: false,
-        child: _DashboardBody(
-          state: _state,
-          onReset: () => setState(() => _state = DashboardViewState.content),
+        child: ValueListenableBuilder<DashboardViewState>(
+          valueListenable: _dashboardStateService.state,
+          builder: (context, dashboardState, _) {
+            return ValueListenableBuilder<CitizenProfile>(
+              valueListenable: _profileCrudService.profile,
+              builder: (context, profile, _) {
+                return ValueListenableBuilder<List<CivicReport>>(
+                  valueListenable: _reportCrudService.reports,
+                  builder: (context, reports, _) {
+                    return _DashboardBody(
+                      state: dashboardState,
+                      reports: reports,
+                      displayName: profile.fullName,
+                      onReset: _dashboardStateService.reset,
+                      onOpenSettings: Geolocator.openAppSettings,
+                      onCreateReport: () => Navigator.of(
+                        context,
+                      ).pushNamed(CreateReportScreen.routeName),
+                      onViewReports: () => Navigator.of(
+                        context,
+                      ).pushNamed(CitizenReportsScreen.routeName),
+                    );
+                  },
+                );
+              },
+            );
+          },
         ),
       ),
       bottomNavigationBar: CivicBottomNav(
         selectedIndex: _selectedIndex,
         onDestinationSelected: (index) {
+          if (index == 1) {
+            Navigator.of(context).pushNamed(CitizenReportsScreen.routeName);
+            return;
+          }
           if (index == 2) {
             Navigator.of(context).pushNamed(CreateReportScreen.routeName);
+            return;
+          }
+          if (index == 3) {
+            Navigator.of(context).pushNamed(CitizenAlertsScreen.routeName);
+            return;
+          }
+          if (index == 4) {
+            Navigator.of(context).pushNamed(CitizenProfileScreen.routeName);
             return;
           }
           setState(() => _selectedIndex = index);
@@ -192,25 +223,44 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen>
 }
 
 class _DashboardBody extends StatelessWidget {
-  const _DashboardBody({required this.state, required this.onReset});
+  const _DashboardBody({
+    required this.state,
+    required this.reports,
+    required this.displayName,
+    required this.onReset,
+    required this.onOpenSettings,
+    required this.onCreateReport,
+    required this.onViewReports,
+  });
 
   final DashboardViewState state;
+  final List<CivicReport> reports;
+  final String displayName;
   final VoidCallback onReset;
+  final VoidCallback onOpenSettings;
+  final VoidCallback onCreateReport;
+  final VoidCallback onViewReports;
 
   @override
   Widget build(BuildContext context) {
+    final reportState = switch (state) {
+      DashboardViewState.content || DashboardViewState.empty =>
+        reports.isEmpty ? DashboardViewState.empty : DashboardViewState.content,
+      _ => state,
+    };
+
     return AnimatedSwitcher(
       duration: AppMotion.duration(context, AppMotionDuration.standard),
-      child: switch (state) {
+      child: switch (reportState) {
         DashboardViewState.loading => const _DashboardLoading(),
-        DashboardViewState.content => const _DashboardContent(),
-        DashboardViewState.empty => _DashboardStatePanel(
-          icon: AppIcons.empty,
-          title: 'No reports yet',
-          message:
-              'Create your first community report to start tracking progress.',
-          actionLabel: 'Report Now',
-          onAction: onReset,
+        DashboardViewState.content => _DashboardContent(
+          reports: reports,
+          displayName: displayName,
+          onViewReports: onViewReports,
+        ),
+        DashboardViewState.empty => _DashboardEmptyContent(
+          displayName: displayName,
+          onCreateReport: onCreateReport,
         ),
         DashboardViewState.success => _DashboardStatePanel(
           icon: AppIcons.success,
@@ -218,7 +268,7 @@ class _DashboardBody extends StatelessWidget {
           message:
               'Your report was received and routed to the responsible civic team.',
           actionLabel: 'View My Reports',
-          onAction: onReset,
+          onAction: onViewReports,
         ),
         DashboardViewState.error => _DashboardStatePanel(
           icon: AppIcons.error,
@@ -239,10 +289,13 @@ class _DashboardBody extends StatelessWidget {
           title: 'Permission required',
           message: 'Enable location permission to view nearby civic issues.',
           actionLabel: 'Open Settings',
-          onAction: onReset,
+          onAction: onOpenSettings,
         ),
-        DashboardViewState.disabled => const _DashboardContent(
+        DashboardViewState.disabled => _DashboardContent(
+          reports: <CivicReport>[],
+          displayName: displayName,
           actionsDisabled: true,
+          onViewReports: null,
         ),
       },
     );
@@ -250,8 +303,16 @@ class _DashboardBody extends StatelessWidget {
 }
 
 class _DashboardContent extends StatelessWidget {
-  const _DashboardContent({this.actionsDisabled = false});
+  const _DashboardContent({
+    required this.reports,
+    required this.displayName,
+    required this.onViewReports,
+    this.actionsDisabled = false,
+  });
 
+  final List<CivicReport> reports;
+  final String displayName;
+  final VoidCallback? onViewReports;
   final bool actionsDisabled;
 
   @override
@@ -272,7 +333,7 @@ class _DashboardContent extends StatelessWidget {
           ),
           children: [
             Text(
-              'Good Morning, Abdul Malik',
+              'Good Morning, ${displayName.trim().isEmpty ? 'Citizen' : displayName.trim()}',
               style: compact
                   ? theme.textTheme.headlineMedium
                   : theme.textTheme.headlineLarge,
@@ -289,6 +350,7 @@ class _DashboardContent extends StatelessWidget {
               actionsDisabled: actionsDisabled,
               onReportNow: () =>
                   Navigator.of(context).pushNamed(CreateReportScreen.routeName),
+              onViewReports: onViewReports,
             ),
             const SizedBox(height: AppSpacing.xl),
             if (actionsDisabled) ...[
@@ -302,9 +364,73 @@ class _DashboardContent extends StatelessWidget {
             ],
             const _QuickActionGrid(),
             const SizedBox(height: AppSpacing.xl),
-            const _AnalyticsRow(),
+            _AnalyticsRow(reports: reports),
             const SizedBox(height: AppSpacing.xl),
-            const _RecentReportsSection(),
+            _RecentReportsSection(
+              reports: reports,
+              onViewReports: onViewReports,
+            ),
+            const SizedBox(height: AppSpacing.xl),
+            const _CommunityUpdatesSection(),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _DashboardEmptyContent extends StatelessWidget {
+  const _DashboardEmptyContent({
+    required this.displayName,
+    required this.onCreateReport,
+  });
+
+  final String displayName;
+  final VoidCallback onCreateReport;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 360;
+        final horizontalPadding = compact ? AppSpacing.sm : AppSpacing.md;
+
+        return ListView(
+          key: const ValueKey('dashboard-empty-content'),
+          padding: EdgeInsets.fromLTRB(
+            horizontalPadding,
+            AppSpacing.lg,
+            horizontalPadding,
+            120,
+          ),
+          children: [
+            Text(
+              'Good Morning, ${displayName.trim().isEmpty ? 'Citizen' : displayName.trim()}',
+              style: compact
+                  ? theme.textTheme.headlineMedium
+                  : theme.textTheme.headlineLarge,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              "Let's improve our community together.",
+              style: theme.textTheme.bodyLarge?.copyWith(
+                color: theme.colorScheme.secondary,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xl),
+            _ReportHeroCard(
+              actionsDisabled: false,
+              onReportNow: onCreateReport,
+              onViewReports: null,
+            ),
+            const SizedBox(height: AppSpacing.xl),
+            const _QuickActionGrid(),
+            const SizedBox(height: AppSpacing.xl),
+            const _EmptyAnalyticsRow(),
+            const SizedBox(height: AppSpacing.xl),
+            _EmptyRecentReportsCard(onCreateReport: onCreateReport),
             const SizedBox(height: AppSpacing.xl),
             const _CommunityUpdatesSection(),
           ],
@@ -318,10 +444,12 @@ class _ReportHeroCard extends StatelessWidget {
   const _ReportHeroCard({
     required this.actionsDisabled,
     required this.onReportNow,
+    required this.onViewReports,
   });
 
   final bool actionsDisabled;
   final VoidCallback onReportNow;
+  final VoidCallback? onViewReports;
 
   @override
   Widget build(BuildContext context) {
@@ -352,7 +480,7 @@ class _ReportHeroCard extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.md),
           OutlinedButton(
-            onPressed: actionsDisabled ? null : () {},
+            onPressed: actionsDisabled ? null : onViewReports,
             child: const Text('View My Reports'),
           ),
         ],
@@ -370,6 +498,169 @@ class _QuickActionGrid extends StatelessWidget {
     (AppIcons.pinned, 'Nearby Issues', 'See local activity'),
     (AppIcons.notificationsActive, 'Community', 'Read updates'),
   ];
+
+  void _handleAction(BuildContext context, int index) {
+    switch (index) {
+      case 0:
+        Navigator.of(context).pushNamed(CreateReportScreen.routeName);
+      case 1:
+        Navigator.of(context).pushNamed(CitizenReportsScreen.routeName);
+      case 2:
+        _showNearbyIssues(context);
+      case 3:
+        _showCommunityUpdates(context);
+    }
+  }
+
+  void _showNearbyIssues(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) {
+        return SafeArea(
+          child: ValueListenableBuilder<List<CivicReport>>(
+            valueListenable: ReportCrudService.instance.reports,
+            builder: (context, reports, _) {
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.md,
+                  AppSpacing.sm,
+                  AppSpacing.md,
+                  AppSpacing.lg,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Nearby Issues',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: AppFontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      'Recent report activity around your community.',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    if (reports.isEmpty)
+                      CivicGlassCard(
+                        child: Row(
+                          children: [
+                            const Icon(
+                              AppIcons.empty,
+                              color: AppColors.primary,
+                            ),
+                            const SizedBox(width: AppSpacing.md),
+                            Expanded(
+                              child: Text(
+                                'No nearby issues yet. Create the first report for your community.',
+                                style: Theme.of(context).textTheme.bodyMedium,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      Flexible(
+                        child: ListView.separated(
+                          shrinkWrap: true,
+                          itemCount: reports.take(5).length,
+                          separatorBuilder: (_, _) =>
+                              const SizedBox(height: AppSpacing.sm),
+                          itemBuilder: (context, index) {
+                            final report = reports[index];
+                            return _ReportListTile(
+                              report: report,
+                              onTap: () {
+                                Navigator.of(context).pop();
+                                Navigator.of(context).push(
+                                  MaterialPageRoute<void>(
+                                    builder: (_) => ReportTrackingScreen(
+                                      reportId: report.id,
+                                    ),
+                                  ),
+                                );
+                              },
+                            );
+                          },
+                        ),
+                      ),
+                    const SizedBox(height: AppSpacing.md),
+                    FilledButton.icon(
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                        Navigator.of(context).pushNamed(
+                          CitizenReportsScreen.routeName,
+                        );
+                      },
+                      icon: const Icon(AppIcons.report),
+                      label: const Text('View All Reports'),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  void _showCommunityUpdates(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.md,
+              AppSpacing.sm,
+              AppSpacing.md,
+              AppSpacing.lg,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Community',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: AppFontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                const _UpdateCard(
+                  title: 'Water works scheduled',
+                  message:
+                      'Maintenance begins Friday at 9:00 AM across Ward 4.',
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                const _UpdateCard(
+                  title: 'Sanitation response improved',
+                  message:
+                      'Average closure time dropped to 3.2 days this month.',
+                ),
+                const SizedBox(height: AppSpacing.md),
+                OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    Navigator.of(context).pushNamed(
+                      CitizenAlertsScreen.routeName,
+                    );
+                  },
+                  icon: const Icon(AppIcons.notificationsActive),
+                  label: const Text('Open Alerts'),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -393,6 +684,7 @@ class _QuickActionGrid extends StatelessWidget {
               icon: action.$1,
               title: action.$2,
               subtitle: action.$3,
+              onTap: () => _handleAction(context, index),
             );
           },
         );
@@ -406,47 +698,105 @@ class _QuickActionCard extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.subtitle,
+    required this.onTap,
   });
 
   final IconData icon;
   final String title;
   final String subtitle;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return CivicGlassCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: AppIconSize.xl,
-            height: AppIconSize.xl,
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.1),
-              borderRadius: AppRadius.allLg,
-            ),
-            child: Icon(icon, color: AppColors.primary),
+    return Semantics(
+      button: true,
+      label: title,
+      child: GestureDetector(
+        onTap: onTap,
+        child: CivicGlassCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: AppIconSize.xl,
+                height: AppIconSize.xl,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  borderRadius: AppRadius.allLg,
+                ),
+                child: Icon(icon, color: AppColors.primary),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Text(title, style: theme.textTheme.titleSmall),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                subtitle,
+                style: theme.textTheme.bodySmall,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
           ),
-          const SizedBox(height: AppSpacing.md),
-          Text(title, style: theme.textTheme.titleSmall),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            subtitle,
-            style: theme.textTheme.bodySmall,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
+        ),
       ),
     );
   }
 }
 
 class _AnalyticsRow extends StatelessWidget {
-  const _AnalyticsRow();
+  const _AnalyticsRow({required this.reports});
+
+  final List<CivicReport> reports;
+
+  @override
+  Widget build(BuildContext context) {
+    final submittedCount = reports.length;
+    final reviewCount = reports
+        .where(
+          (report) =>
+              report.status == ReportStatus.underReview ||
+              report.status == ReportStatus.inProgress,
+        )
+        .length;
+    final resolvedCount = reports
+        .where((report) => report.status == ReportStatus.resolved)
+        .length;
+
+    return Row(
+      children: [
+        Expanded(
+          child: _AnalyticsCard(
+            icon: AppIcons.statusSubmitted,
+            count: submittedCount.toString(),
+            label: 'Submitted',
+          ),
+        ),
+        const SizedBox(width: AppSpacing.md),
+        Expanded(
+          child: _AnalyticsCard(
+            icon: AppIcons.statusUnderReview,
+            count: reviewCount.toString(),
+            label: 'In Review',
+          ),
+        ),
+        const SizedBox(width: AppSpacing.md),
+        Expanded(
+          child: _AnalyticsCard(
+            icon: AppIcons.statusResolved,
+            count: resolvedCount.toString(),
+            label: 'Resolved',
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _EmptyAnalyticsRow extends StatelessWidget {
+  const _EmptyAnalyticsRow();
 
   @override
   Widget build(BuildContext context) {
@@ -455,7 +805,7 @@ class _AnalyticsRow extends StatelessWidget {
         Expanded(
           child: _AnalyticsCard(
             icon: AppIcons.statusSubmitted,
-            count: '12',
+            count: '0',
             label: 'Submitted',
           ),
         ),
@@ -463,7 +813,7 @@ class _AnalyticsRow extends StatelessWidget {
         Expanded(
           child: _AnalyticsCard(
             icon: AppIcons.statusUnderReview,
-            count: '5',
+            count: '0',
             label: 'In Review',
           ),
         ),
@@ -471,7 +821,7 @@ class _AnalyticsRow extends StatelessWidget {
         Expanded(
           child: _AnalyticsCard(
             icon: AppIcons.statusResolved,
-            count: '7',
+            count: '0',
             label: 'Resolved',
           ),
         ),
@@ -515,7 +865,13 @@ class _AnalyticsCard extends StatelessWidget {
 }
 
 class _RecentReportsSection extends StatelessWidget {
-  const _RecentReportsSection();
+  const _RecentReportsSection({
+    required this.reports,
+    required this.onViewReports,
+  });
+
+  final List<CivicReport> reports;
+  final VoidCallback? onViewReports;
 
   @override
   Widget build(BuildContext context) {
@@ -529,12 +885,24 @@ class _RecentReportsSection extends StatelessWidget {
             Expanded(
               child: Text('Recent Reports', style: theme.textTheme.titleLarge),
             ),
-            TextButton(onPressed: () {}, child: const Text('View all')),
+            TextButton(
+              onPressed: onViewReports,
+              child: const Text('View all'),
+            ),
           ],
         ),
         const SizedBox(height: AppSpacing.md),
-        for (final report in _CitizenDashboardScreenState._recentReports) ...[
-          _ReportListTile(report: report),
+        for (final report in reports.take(3)) ...[
+          _ReportListTile(
+            report: report,
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => ReportTrackingScreen(reportId: report.id),
+                ),
+              );
+            },
+          ),
           const SizedBox(height: AppSpacing.md),
         ],
       ],
@@ -542,10 +910,71 @@ class _RecentReportsSection extends StatelessWidget {
   }
 }
 
+class _EmptyRecentReportsCard extends StatelessWidget {
+  const _EmptyRecentReportsCard({required this.onCreateReport});
+
+  final VoidCallback onCreateReport;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Recent Reports', style: theme.textTheme.titleLarge),
+        const SizedBox(height: AppSpacing.md),
+        CivicGlassCard(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: AppIconSize.xl,
+                height: AppIconSize.xl,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  borderRadius: AppRadius.allLg,
+                ),
+                child: const Icon(AppIcons.empty, color: AppColors.primary),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('No reports yet', style: theme.textTheme.titleSmall),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      'Your first report will appear here after submission.',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: FilledButton(
+                        onPressed: onCreateReport,
+                        child: const Text('Report Now'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _ReportListTile extends StatelessWidget {
-  const _ReportListTile({required this.report});
+  const _ReportListTile({
+    required this.report,
+    this.onTap,
+  });
 
   final CivicReport report;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -553,26 +982,33 @@ class _ReportListTile extends StatelessWidget {
       builder: (context, constraints) {
         final compact = constraints.maxWidth < 330;
 
-        return CivicGlassCard(
-          child: compact
-              ? Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _ReportTileMainContent(report: report),
-                    const SizedBox(height: AppSpacing.md),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: _StatusChip(status: report.status),
+        return Semantics(
+          button: onTap != null,
+          label: 'Track ${report.title}',
+          child: GestureDetector(
+            onTap: onTap,
+            child: CivicGlassCard(
+              child: compact
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _ReportTileMainContent(report: report),
+                        const SizedBox(height: AppSpacing.md),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: _StatusChip(status: report.status),
+                        ),
+                      ],
+                    )
+                  : Row(
+                      children: [
+                        Expanded(child: _ReportTileMainContent(report: report)),
+                        const SizedBox(width: AppSpacing.sm),
+                        _StatusChip(status: report.status),
+                      ],
                     ),
-                  ],
-                )
-              : Row(
-                  children: [
-                    Expanded(child: _ReportTileMainContent(report: report)),
-                    const SizedBox(width: AppSpacing.sm),
-                    _StatusChip(status: report.status),
-                  ],
-                ),
+            ),
+          ),
         );
       },
     );
@@ -702,11 +1138,16 @@ class _UpdateCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: theme.textTheme.titleMedium),
+          Text(
+            title,
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: AppFontWeight.bold,
+            ),
+          ),
           const SizedBox(height: AppSpacing.xs),
           Text(
             message,
-            style: theme.textTheme.bodySmall?.copyWith(
+            style: theme.textTheme.bodyMedium?.copyWith(
               color: theme.colorScheme.secondary,
             ),
           ),

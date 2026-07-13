@@ -21,12 +21,26 @@ class CivicTopBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return AppBar(
       toolbarHeight: 64,
+      backgroundColor: theme.extension<AppSemanticColors>()!.glassSurface
+          .withValues(alpha: theme.brightness == Brightness.dark ? 0.75 : 0.8),
+      elevation: AppElevation.level1,
+      shadowColor: theme.colorScheme.shadow.withValues(alpha: 0.04),
+      surfaceTintColor: Colors.transparent,
+      centerTitle: true,
+      shape: Border(
+        bottom: BorderSide(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.36),
+          width: 0.667,
+        ),
+      ),
       titleSpacing: AppSpacing.md,
-      leadingWidth: 68,
+      leadingWidth: 84,
       leading: Padding(
-        padding: const EdgeInsets.only(left: AppSpacing.md, top: 8, bottom: 8),
+        padding: const EdgeInsets.only(left: AppSpacing.md, top: 2, bottom: 2),
         child: onBack == null
             ? _BrandMark(tooltip: title)
             : _ChromeIconButton(
@@ -37,7 +51,7 @@ class CivicTopBar extends StatelessWidget implements PreferredSizeWidget {
       ),
       title: Text(
         title,
-        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+        style: theme.textTheme.titleLarge?.copyWith(
           color: AppColors.primary,
           fontWeight: AppFontWeight.bold,
         ),
@@ -47,16 +61,10 @@ class CivicTopBar extends StatelessWidget implements PreferredSizeWidget {
           const _ChromeIconButton(
             icon: AppIcons.notifications,
             tooltip: 'Notifications',
-          ),
-        const SizedBox(width: AppSpacing.xs),
-        const Padding(
-          padding: EdgeInsets.only(right: AppSpacing.md),
-          child: _ChromeIconButton(
-            icon: AppIcons.profile,
-            tooltip: 'Profile',
-            outlined: true,
-          ),
-        ),
+          )
+        else
+          const SizedBox(width: 52),
+        const SizedBox(width: AppSpacing.md),
       ],
     );
   }
@@ -77,7 +85,7 @@ class CivicBottomNav extends StatelessWidget {
     final theme = Theme.of(context);
     final glass = theme.extension<AppSemanticColors>()!.glassSurface;
     final glassFill = glass.withValues(
-      alpha: theme.brightness == Brightness.dark ? 0.42 : 0.30,
+      alpha: theme.brightness == Brightness.dark ? 0.75 : 0.8,
     );
 
     return SafeArea(
@@ -220,9 +228,13 @@ class _BrandMark extends StatelessWidget {
   Widget build(BuildContext context) {
     return Tooltip(
       message: tooltip,
-      child: SizedBox.square(
-        dimension: 48,
-        child: Image.asset(AppAssets.logoApp, fit: BoxFit.contain),
+      child: SizedBox(
+        width: 60,
+        height: 60,
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.xs),
+          child: Image.asset(AppAssets.logoApp, fit: BoxFit.contain),
+        ),
       ),
     );
   }

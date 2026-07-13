@@ -52,12 +52,22 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
-        manifestPlaceholders["GOOGLE_MAPS_API_KEY"] =
+        val googleMapsApiKey =
             (project.findProperty("GOOGLE_MAPS_API_KEY") as String?)
                 ?: googleMapsApiKeyFromDartDefines()
                 ?: googleMapsApiKeyFromLocalProperties()
                 ?: System.getenv("GOOGLE_MAPS_API_KEY")
                 ?: ""
+        manifestPlaceholders["GOOGLE_MAPS_API_KEY"] = googleMapsApiKey
+        buildConfigField(
+            "String",
+            "GOOGLE_MAPS_API_KEY",
+            "\"${googleMapsApiKey.replace("\\", "\\\\").replace("\"", "\\\"")}\"",
+        )
+    }
+
+    buildFeatures {
+        buildConfig = true
     }
 
     buildTypes {

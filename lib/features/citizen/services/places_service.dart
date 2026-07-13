@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/services.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
 
@@ -22,16 +23,39 @@ class PlaceSuggestion {
 class PlacesService {
   PlacesService({
     http.Client? client,
-    this._apiKey = const String.fromEnvironment('GOOGLE_MAPS_API_KEY'),
-  }) : _client = client ?? http.Client();
+    String apiKey = const String.fromEnvironment('GOOGLE_MAPS_API_KEY'),
+  }) : _client = client ?? http.Client(),
+       _apiKey = apiKey;
+
+  static const MethodChannel _configChannel = MethodChannel(
+    'civic_voice/config',
+  );
 
   final http.Client _client;
-  final String _apiKey;
+  String _apiKey;
 
   bool get isConfigured => _apiKey.trim().isNotEmpty;
 
+  Future<void> initialize() async {
+    if (isConfigured) return;
+
+    try {
+      final apiKey = await _configChannel.invokeMethod<String>(
+        'googleMapsApiKey',
+      );
+      if (apiKey != null && apiKey.trim().isNotEmpty) {
+        _apiKey = apiKey;
+      }
+    } on PlatformException {
+      // Non-Android builds can still use --dart-define.
+    } on MissingPluginException {
+      // Tests and unsupported platforms do not expose the native config channel.
+    }
+  }
+
   Future<List<PlaceSuggestion>> autocomplete(String input) async {
     final query = input.trim();
+    await initialize();
     if (!isConfigured || query.length < 2) return const [];
 
     final uri = Uri.https(
@@ -70,6 +94,7 @@ class PlacesService {
   }
 
   Future<Location> fetchPlace(String placeId) async {
+    await initialize();
     if (!isConfigured) {
       throw const PlacesException('Google Places API key is not configured.');
     }

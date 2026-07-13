@@ -3,12 +3,16 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:geocoding/geocoding.dart' as geocoding;
 import 'package:geolocator/geolocator.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/civic_glass_card.dart';
 import '../models/create_report_view_state.dart';
 import '../models/location.dart';
 import '../widgets/civic_app_chrome.dart';
+import 'citizen_alerts_screen.dart';
+import 'citizen_profile_screen.dart';
+import 'citizen_reports_screen.dart';
 import 'location_picker_screen.dart';
 import 'photo_upload_screen.dart';
 
@@ -45,7 +49,7 @@ class _CreateReportScreenState extends State<CreateReportScreen>
   Location? _selectedLocation;
   bool _locationLoading = false;
   bool _locationPickerOpening = false;
-  String _locationLabel = 'Requesting GPS permission...';
+  String _locationLabel = 'Tap to choose current GPS location.';
   String? _locationAddress;
   String? _locationCommunity;
   String? _locationError;
@@ -66,7 +70,6 @@ class _CreateReportScreenState extends State<CreateReportScreen>
     _titleController = TextEditingController();
     _descriptionController = TextEditingController();
     WidgetsBinding.instance.addObserver(this);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _openLocationPicker());
   }
 
   @override
@@ -327,7 +330,11 @@ class _CreateReportScreenState extends State<CreateReportScreen>
       return;
     }
     if (_selectedLocation == null && _capturedPosition == null) {
-      _openLocationPicker();
+      setState(() {
+        _state = CreateReportViewState.validationError;
+        _locationError = 'Choose a current GPS location before continuing.';
+        _locationLabel = 'Tap to choose current GPS location.';
+      });
       return;
     }
 
@@ -452,20 +459,10 @@ class _CreateReportScreenState extends State<CreateReportScreen>
                 const SizedBox(height: AppSpacing.lg),
                 CivicGlassCard(
                   borderRadius: AppRadius.allXl,
-                  child: Column(
-                    children: [
-                      FilledButton.icon(
-                        onPressed: _isDisabled ? null : _continueToPhotos,
-                        icon: const Icon(AppIcons.chevronRight),
-                        label: const Text('Continue to Photos'),
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
-                      Text(
-                        'Review your title, category, and GPS location before adding photos.',
-                        style: Theme.of(context).textTheme.labelSmall,
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
+                  child: FilledButton.icon(
+                    onPressed: _isDisabled ? null : _continueToPhotos,
+                    icon: const Icon(AppIcons.chevronRight),
+                    label: const Text('Continue to Photos'),
                   ),
                 ),
               ],
@@ -476,7 +473,24 @@ class _CreateReportScreenState extends State<CreateReportScreen>
       bottomNavigationBar: CivicBottomNav(
         selectedIndex: 2,
         onDestinationSelected: (index) {
-          if (index == 0) Navigator.of(context).maybePop();
+          if (index == 0) {
+            Navigator.of(context).maybePop();
+          } else if (index == 1) {
+            Navigator.of(context).pushNamedAndRemoveUntil(
+              CitizenReportsScreen.routeName,
+              (route) => route.isFirst,
+            );
+          } else if (index == 3) {
+            Navigator.of(context).pushNamedAndRemoveUntil(
+              CitizenAlertsScreen.routeName,
+              (route) => route.isFirst,
+            );
+          } else if (index == 4) {
+            Navigator.of(context).pushNamedAndRemoveUntil(
+              CitizenProfileScreen.routeName,
+              (route) => route.isFirst,
+            );
+          }
         },
       ),
     );
@@ -664,26 +678,29 @@ class _CategorySection extends StatelessWidget {
         const SizedBox(height: AppSpacing.md),
         LayoutBuilder(
           builder: (context, constraints) {
-            final compact = constraints.maxWidth < 340;
-            final itemWidth =
-                (constraints.maxWidth - AppSpacing.sm) / (compact ? 1 : 2);
+            final columns = constraints.maxWidth >= 560 ? 3 : 2;
 
-            return Wrap(
-              spacing: AppSpacing.sm,
-              runSpacing: AppSpacing.sm,
-              children: [
-                for (final category in categories)
-                  SizedBox(
-                    width: itemWidth,
-                    child: _CategoryButton(
-                      label: category,
-                      selected: category == selectedCategory,
-                      onTap: onSelected == null
-                          ? null
-                          : () => onSelected!(category),
-                    ),
-                  ),
-              ],
+            return GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: categories.length,
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: columns,
+                crossAxisSpacing: AppSpacing.sm,
+                mainAxisSpacing: AppSpacing.sm,
+                mainAxisExtent: 48,
+              ),
+              itemBuilder: (context, index) {
+                final category = categories[index];
+                final selectCategory = onSelected;
+                return _CategoryButton(
+                  label: category,
+                  selected: category == selectedCategory,
+                  onTap: selectCategory == null
+                      ? null
+                      : () => selectCategory(category),
+                );
+              },
             );
           },
         ),
@@ -710,6 +727,8 @@ class _CategoryButton extends StatelessWidget {
     return OutlinedButton(
       onPressed: onTap,
       style: OutlinedButton.styleFrom(
+        minimumSize: const Size.fromHeight(48),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
         backgroundColor: selected
             ? AppColors.primary.withValues(alpha: 0.1)
             : null,
@@ -761,17 +780,36 @@ class _LocationCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final hasLocation = selectedLocation != null || position != null;
-    final readableAddress = selectedLocation?.formattedAddress ?? address;
+    final selected = selectedLocation;
+    final captured = position;
+    final hasLocation = selected != null || captured != null;
+    final readableAddress = selected?.formattedAddress ?? address;
     final readableCommunity =
-        selectedLocation?.locality ??
-        selectedLocation?.administrativeArea ??
+        selected?.locality ??
+        selected?.administrativeArea ??
         community;
     final locationColor = hasLocation ? AppColors.success : AppColors.warning;
+    final LatLng? previewTarget;
+    if (selected != null) {
+      previewTarget = LatLng(
+        selected.latitude,
+        selected.longitude,
+      );
+    } else if (captured != null) {
+      previewTarget = LatLng(captured.latitude, captured.longitude);
+    } else {
+      previewTarget = null;
+    }
 
-    return CivicGlassCard(
-      child: Column(
-        children: [
+    return Semantics(
+      button: true,
+      label: 'Choose current GPS location',
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: loading ? null : onCaptureLocation,
+        child: CivicGlassCard(
+          child: Column(
+            children: [
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -810,33 +848,34 @@ class _LocationCard extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.md),
           Container(
-            height: 112,
+            height: 168,
             decoration: BoxDecoration(
               color: theme.colorScheme.surfaceContainerLow,
               borderRadius: AppRadius.allMd,
               border: Border.all(color: theme.colorScheme.outline),
             ),
-            child: Center(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    hasLocation ? AppIcons.pinned : AppIcons.location,
-                    color: hasLocation ? AppColors.primary : null,
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Flexible(
-                    child: Text(
-                      hasLocation
-                          ? (readableAddress ?? 'Selected report location')
-                          : 'Map preview appears after GPS capture',
-                      style: theme.textTheme.bodySmall,
-                      overflow: TextOverflow.ellipsis,
+            clipBehavior: Clip.antiAlias,
+            child: previewTarget == null
+                ? Center(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(AppIcons.location),
+                        const SizedBox(width: AppSpacing.sm),
+                        Flexible(
+                          child: Text(
+                            'Map preview appears after GPS capture',
+                            style: theme.textTheme.bodySmall,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
                     ),
+                  )
+                : _LocationMapPreview(
+                    target: previewTarget,
+                    label: readableAddress ?? 'Selected report location',
                   ),
-                ],
-              ),
-            ),
           ),
           const SizedBox(height: AppSpacing.md),
           Wrap(
@@ -886,15 +925,93 @@ class _LocationCard extends StatelessWidget {
                   ),
                 _LocationMetaChip(
                   icon: AppIcons.myLocation,
-                  label: position == null
+                  label: captured == null
                       ? 'Google Maps selected'
-                      : 'Accuracy: ${position!.accuracy.toStringAsFixed(0)} m',
+                      : 'Accuracy: ${captured.accuracy.toStringAsFixed(0)} m',
                 ),
               ],
             ),
           ],
-        ],
+            ],
+          ),
+        ),
       ),
+    );
+  }
+}
+
+class _LocationMapPreview extends StatelessWidget {
+  const _LocationMapPreview({required this.target, required this.label});
+
+  final LatLng target;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        GoogleMap(
+          key: ValueKey(
+            '${target.latitude.toStringAsFixed(6)},'
+            '${target.longitude.toStringAsFixed(6)}',
+          ),
+          initialCameraPosition: CameraPosition(target: target, zoom: 16),
+          markers: {
+            Marker(
+              markerId: const MarkerId('report-location'),
+              position: target,
+            ),
+          },
+          compassEnabled: false,
+          liteModeEnabled: true,
+          mapToolbarEnabled: false,
+          myLocationButtonEnabled: false,
+          rotateGesturesEnabled: false,
+          scrollGesturesEnabled: false,
+          tiltGesturesEnabled: false,
+          zoomControlsEnabled: false,
+          zoomGesturesEnabled: false,
+        ),
+        Positioned(
+          left: AppSpacing.sm,
+          right: AppSpacing.sm,
+          bottom: AppSpacing.sm,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surface.withValues(alpha: 0.92),
+              borderRadius: AppRadius.allMd,
+              border: Border.all(color: theme.colorScheme.outlineVariant),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.sm,
+                vertical: AppSpacing.xs,
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    AppIcons.pinned,
+                    color: AppColors.primary,
+                    size: AppIconSize.sm,
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                  Expanded(
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.labelSmall,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
