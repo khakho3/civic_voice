@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../widgets/app_state_message.dart';
 import '../../../widgets/collapsible_list_header.dart';
+import '../../../widgets/confirm_dialog.dart';
 import '../../../widgets/glass_card.dart';
 import '../models/admin_user_management_data.dart';
 import '../widgets/admin_scaffold.dart';
@@ -122,7 +123,20 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
     });
   }
 
-  void _toggleActive(AdminUserItem user) {
+  Future<void> _toggleActive(AdminUserItem user) async {
+    final deactivating = user.status != AdminUserStatus.inactive;
+    if (deactivating) {
+      final confirmed = await showConfirmDialog(
+        context,
+        title: 'Deactivate account?',
+        message:
+            '${user.name} will immediately lose access to CivicVoice '
+            'until reactivated.',
+        confirmLabel: 'Deactivate',
+        destructive: true,
+      );
+      if (!confirmed || !mounted) return;
+    }
     setState(() {
       _users = [
         for (final u in _users)
@@ -259,7 +273,7 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
                     message:
                         'The user management service could not return '
                         'account data right now.',
-                    primaryActionLabel: 'Try again',
+                    primaryActionLabel: 'Retry',
                     onPrimaryAction: _retry,
                     primaryActionColor: AppColors.error,
                   ),

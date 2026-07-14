@@ -25,12 +25,21 @@ import '../widgets/admin_scaffold.dart';
 /// header's leading glyph is the CivicVoice logo mark, not a hamburger
 /// drawer trigger — see [AdminScaffold]'s own doc comment.
 ///
-/// Offline/Error/Unauthorized keep the "Platform Overview" title, subtitle,
-/// and uptime badge visible but visually de-emphasized (confirmed against
-/// the approved frames — that block noticeably lightens in contrast versus
-/// Default) while everything below it — the System Settings CTA, stat
-/// cards, Management list, and Activity Monitoring — is replaced by a
-/// single [AppStateMessage].
+/// Offline/Error/Unauthorized keep the "Platform Overview" title and API
+/// status badge visible but visually de-emphasized (confirmed against the
+/// approved frames — that block noticeably lightens in contrast versus
+/// Default) while everything below it — stat cards, Management list, and
+/// Activity Monitoring — is replaced by a single [AppStateMessage].
+///
+/// Two post-launch revisions on top of the approved frame:
+/// - The top "System Settings" CTA button was dropped — it pointed at the
+///   exact same destination as the Management row's own "System Settings"
+///   entry, one screen down, with nothing distinguishing when you'd use
+///   one over the other.
+/// - The subtitle ("Real-time metrics and system administrative
+///   summary.") was dropped, and the uptime badge ("System Live: 99.9%
+///   Uptime") was replaced with a plain API Status badge in that same
+///   spot — see [AdminDashboardData.apiStatusOnline]'s own doc comment.
 enum AdminDashboardViewState { loading, loaded, offline, error, unauthorized }
 
 class AdminDashboardScreen extends StatefulWidget {
@@ -52,10 +61,7 @@ class AdminDashboardScreen extends StatefulWidget {
   final VoidCallback? onNavigateToUsers;
   final VoidCallback? onNavigateToRoles;
 
-  /// Also the destination for the top "System Settings" CTA button — both
-  /// point at the same ADM-007 screen, so they share one callback rather
-  /// than the frame's two different icons (gear on the CTA, sliders on the
-  /// row) implying two different destinations.
+  /// Also the destination for the matching "Management" row.
   final VoidCallback? onNavigateToSettings;
 
   /// Opens ADM-006 System Activity — the spec'd destination for "View
@@ -156,13 +162,8 @@ class _DashboardBody extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text('Platform Overview', style: textTheme.headlineSmall),
-              const SizedBox(height: 2),
-              Text(
-                'Real-time metrics and system administrative summary.',
-                style: textTheme.bodyMedium,
-              ),
-              const SizedBox(height: AppSpacing.md),
-              _UptimeBadge(uptimePercent: data.uptimePercent),
+              const SizedBox(height: AppSpacing.sm),
+              _ApiStatusBadge(online: data.apiStatusOnline),
             ],
           ),
         ),
@@ -199,7 +200,7 @@ class _DashboardBody extends StatelessWidget {
             message:
                 'The administrative dashboard service could not return '
                 'system data right now.',
-            primaryActionLabel: 'Try again',
+            primaryActionLabel: 'Retry',
             onPrimaryAction: onRetry,
             primaryActionColor: AppColors.error,
             bordered: true,
@@ -219,32 +220,33 @@ class _DashboardBody extends StatelessWidget {
   }
 }
 
-class _UptimeBadge extends StatelessWidget {
-  const _UptimeBadge({required this.uptimePercent});
+class _ApiStatusBadge extends StatelessWidget {
+  const _ApiStatusBadge({required this.online});
 
-  final num uptimePercent;
+  final bool online;
 
   @override
   Widget build(BuildContext context) {
+    final color = online ? AppColors.statusResolved : AppColors.error;
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.md,
         vertical: AppSpacing.xs,
       ),
       decoration: BoxDecoration(
-        color: AppColors.statusResolved.withValues(alpha: 0.12),
+        color: color.withValues(alpha: 0.12),
         borderRadius: AppRadius.allXl,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const _BreathingDot(),
+          _BreathingDot(color: color),
           const SizedBox(width: AppSpacing.xs),
           Flexible(
             child: Text(
-              'System Live: $uptimePercent% Uptime',
+              'API Status: ${online ? 'Online' : 'Offline'}',
               style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                color: AppColors.statusResolved,
+                color: color,
                 fontWeight: AppFontWeight.semiBold,
               ),
               maxLines: 1,
@@ -257,12 +259,14 @@ class _UptimeBadge extends StatelessWidget {
   }
 }
 
-/// A slow, gentle opacity pulse on the "System Live" dot — reads as an
+/// A slow, gentle opacity pulse on the API status dot — reads as an
 /// ambient "this is a live status, still updating" signal rather than the
 /// loading skeleton's much faster shimmer (that one signals "content is
 /// still arriving"; this one signals "content is current and alive").
 class _BreathingDot extends StatefulWidget {
-  const _BreathingDot();
+  const _BreathingDot({required this.color});
+
+  final Color color;
 
   @override
   State<_BreathingDot> createState() => _BreathingDotState();
@@ -286,23 +290,24 @@ class _BreathingDotState extends State<_BreathingDot>
     final reduceMotion =
         MediaQuery.maybeOf(context)?.disableAnimations ?? false;
     if (reduceMotion) {
-      return const _Dot(opacity: 1);
+      return _Dot(opacity: 1, color: widget.color);
     }
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, _) {
         final opacity =
             0.35 + (Curves.easeInOut.transform(_controller.value) * 0.65);
-        return _Dot(opacity: opacity);
+        return _Dot(opacity: opacity, color: widget.color);
       },
     );
   }
 }
 
 class _Dot extends StatelessWidget {
-  const _Dot({required this.opacity});
+  const _Dot({required this.opacity, required this.color});
 
   final double opacity;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
@@ -311,10 +316,7 @@ class _Dot extends StatelessWidget {
       child: Container(
         width: 8,
         height: 8,
-        decoration: const BoxDecoration(
-          color: AppColors.statusResolved,
-          shape: BoxShape.circle,
-        ),
+        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
       ),
     );
   }
@@ -347,15 +349,6 @@ class _LoadedContent extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SizedBox(
-          width: double.infinity,
-          child: FilledButton.icon(
-            onPressed: onNavigateToSettings,
-            icon: const Icon(AppIcons.settings, size: AppIconSize.sm),
-            label: const Text('System Settings'),
-          ),
-        ),
-        const SizedBox(height: AppSpacing.md),
         IntrinsicHeight(
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -714,12 +707,8 @@ class _LoadingSkeletonState extends State<_LoadingSkeleton>
       children: [
         block(height: 24, width: 200),
         const SizedBox(height: AppSpacing.sm),
-        block(height: 16, width: 260),
-        const SizedBox(height: AppSpacing.md),
         block(height: 32, width: 180, radius: 20),
         const SizedBox(height: AppSpacing.lg),
-        block(height: 48, radius: 12),
-        const SizedBox(height: AppSpacing.md),
         IntrinsicHeight(
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,

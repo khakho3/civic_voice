@@ -90,12 +90,35 @@ class AdminScaffold extends StatelessWidget {
     this.onOpenSystemActivity,
     this.onOpenProfile,
     this.headerTitle,
+    this.hideBottomNav = false,
   });
 
   final Widget body;
-  final AdminTab selectedTab;
+
+  /// Which tab the bottom nav highlights — null shows none selected. Only
+  /// a screen that's a tab's own root, or an exclusive drill-down from
+  /// exactly one tab's own list (ADM-003 User Details, only ever reached
+  /// by tapping a row in ADM-002 User Management), passes a real value.
+  /// A screen reachable from more than one place, or from the drawer only
+  /// — ADM-006 System Activity (Dashboard's card *and* every screen's
+  /// drawer) and ADM-008 Admin Profile (drawer only) — passes null:
+  /// highlighting a tab it doesn't actually belong to would just tell the
+  /// user they're somewhere they're not.
+  final AdminTab? selectedTab;
+
+  /// Left unwired by every caller — there's no Notifications screen
+  /// anywhere in the eight-screen ADM-00x spec, matching the Ministry
+  /// Supervisor and Municipal Officer modules' own precedent of leaving
+  /// this stub for now rather than inventing a destination.
   final VoidCallback? onNotificationsTap;
   final ValueChanged<AdminTab>? onTabSelected;
+
+  /// Hides the floating bottom nav outright, same as it already hides
+  /// while the keyboard is up — for a screen mid-edit (ADM-008 Admin
+  /// Profile's own edit mode) where navigating away via the nav bar
+  /// mid-form is more likely a mistake than an intent, and where it would
+  /// otherwise sit directly on top of that screen's own sticky Save bar.
+  final bool hideBottomNav;
 
   /// Opens ADM-006 System Activity — reachable from the drawer on every
   /// screen (Dashboard's own "Activity Monitoring" card is a second,
@@ -146,7 +169,7 @@ class AdminScaffold extends StatelessWidget {
                 titleOverride: headerTitle,
               ),
             ),
-            if (!keyboardVisible)
+            if (!keyboardVisible && !hideBottomNav)
               Align(
                 alignment: Alignment.bottomCenter,
                 child: _BottomNav(
@@ -168,7 +191,7 @@ class _Header extends StatelessWidget {
     this.titleOverride,
   });
 
-  final AdminTab tab;
+  final AdminTab? tab;
   final VoidCallback? onNotificationsTap;
   final String? titleOverride;
 
@@ -212,7 +235,7 @@ class _Header extends StatelessWidget {
                           ),
                         )
                       : Text(
-                          titleOverride ?? tab.headerTitle,
+                          titleOverride ?? tab?.headerTitle ?? '',
                           style: textTheme.titleMedium,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -356,7 +379,7 @@ class _DrawerItem extends StatelessWidget {
 class _BottomNav extends StatelessWidget {
   const _BottomNav({required this.selected, this.onSelected});
 
-  final AdminTab selected;
+  final AdminTab? selected;
   final ValueChanged<AdminTab>? onSelected;
 
   @override

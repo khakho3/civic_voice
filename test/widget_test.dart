@@ -73,15 +73,13 @@ void main() {
       // wordmark text — that now lives only in the drawer.
       expect(find.image(const AssetImage(AppAssets.logoApp)), findsOneWidget);
       expect(find.text('Platform Overview'), findsOneWidget);
-      expect(
-        find.text('Real-time metrics and system administrative summary.'),
-        findsOneWidget,
-      );
-      expect(find.text('System Live: 99.9% Uptime'), findsOneWidget);
+      expect(find.text('API Status: Online'), findsOneWidget);
 
-      // "System Settings" labels both the CTA button and the Management
-      // row — the bottom-nav tab's own label is the shorter "Settings".
-      expect(find.text('System Settings'), findsNWidgets(2));
+      // "System Settings" labels only the Management row now — the top
+      // CTA button was dropped as a redundant path to the same
+      // destination, and the bottom-nav tab's own label is the shorter
+      // "Settings".
+      expect(find.text('System Settings'), findsOneWidget);
 
       expect(find.text('Total Users'), findsOneWidget);
       expect(find.text('12.4k'), findsOneWidget);
@@ -142,7 +140,7 @@ void main() {
       expect(find.text('Users'), findsOneWidget);
       expect(find.text('Roles'), findsOneWidget);
       // The bottom-nav tab's own label is "Settings" — shorter than the
-      // CTA button's/Management row's "System Settings".
+      // Management row's "System Settings".
       expect(find.text('Settings'), findsOneWidget);
 
       await tester.tap(find.text('Users'));
@@ -160,8 +158,8 @@ void main() {
   );
 
   testWidgets(
-    'Admin Dashboard System Settings CTA and Management row both fire the '
-    'same callback',
+    'Admin Dashboard Management row System Settings entry fires the '
+    'callback',
     (WidgetTester tester) async {
       tester.view.physicalSize = const Size(428, 2600);
       tester.view.devicePixelRatio = 1.0;
@@ -177,9 +175,7 @@ void main() {
       );
       await tester.pump();
 
-      // .first is the top CTA button (built before the Management row and
-      // the bottom-nav tab in tree order).
-      await tester.tap(find.text('System Settings').first);
+      await tester.tap(find.text('System Settings'));
       await tester.pump();
       expect(tapCount, 1);
     },
@@ -237,7 +233,7 @@ void main() {
       expect(find.text('You\'re offline'), findsOneWidget);
       expect(find.text('Retry connection'), findsOneWidget);
       expect(find.text('Platform Overview'), findsOneWidget);
-      expect(find.text('System Live: 99.9% Uptime'), findsOneWidget);
+      expect(find.text('API Status: Online'), findsOneWidget);
     },
   );
 
@@ -246,7 +242,7 @@ void main() {
   ) async {
     await pumpAdminDashboard(tester, AdminDashboardViewState.error);
     expect(find.text('Unable to Load Dashboard'), findsOneWidget);
-    expect(find.text('Try again'), findsOneWidget);
+    expect(find.text('Retry'), findsOneWidget);
   });
 
   testWidgets(
@@ -272,7 +268,7 @@ void main() {
   ) async {
     await pumpAdminDashboard(tester, AdminDashboardViewState.error);
 
-    await tester.tap(find.text('Try again'));
+    await tester.tap(find.text('Retry'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 600));
 
@@ -570,6 +566,11 @@ void main() {
       await tester.tap(find.text('Deactivate account'));
       await tester.pumpAndSettle();
 
+      // Deactivating asks for confirmation first.
+      expect(find.text('Deactivate account?'), findsOneWidget);
+      await tester.tap(find.text('Deactivate'));
+      await tester.pumpAndSettle();
+
       // Ama Boateng and Kojo Mensah are now both "Inactive" (joining the
       // filter chip of the same name) — Yaw Asare and Genevieve Amadapah
       // are still "Active" (Esi Owusu and Kwame Nyarko remain "Review").
@@ -673,7 +674,7 @@ void main() {
   ) async {
     await pumpAdminUserManagement(tester, AdminUserManagementViewState.error);
     expect(find.text('Unable to Load Users'), findsOneWidget);
-    expect(find.text('Try again'), findsOneWidget);
+    expect(find.text('Retry'), findsOneWidget);
   });
 
   testWidgets(
@@ -1111,6 +1112,14 @@ void main() {
 
       await tester.tap(find.text('Save Changes'));
       await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      // Saving asks for confirmation first — its own confirm button
+      // shares the same label as the page's Save Changes button.
+      expect(find.text('Save access changes?'), findsOneWidget);
+      await tester.tap(find.text('Save Changes').last);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
 
       expect(find.text('Changes saved'), findsOneWidget);
       expect(saved?.role, AppRole.maintenanceTeam);
@@ -1721,6 +1730,13 @@ void main() {
     await tester.pump();
     await tester.tap(find.text('Save Changes'));
     await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    // Saving asks for confirmation first — its own confirm button shares
+    // the same label as the page's Save Changes button.
+    expect(find.text('Save system settings?'), findsOneWidget);
+    await tester.tap(find.text('Save Changes').last);
+    await tester.pump();
 
     // The save completes after a simulated delay — a single pump only
     // advances one frame, not the full delay.
@@ -2007,12 +2023,19 @@ void main() {
       );
       await tester.pump();
 
+      expect(find.text('Dashboard'), findsOneWidget);
+
       await tester.tap(find.byTooltip('Edit'));
       await tester.pump();
 
       expect(find.byType(TextFormField), findsNWidgets(3));
       expect(find.text('Save Changes'), findsOneWidget);
       expect(find.text('Cancel'), findsOneWidget);
+      // The bottom nav hides while editing — it would otherwise sit
+      // directly on top of the sticky Save bar, and navigating away
+      // mid-edit without going through Cancel/Save is more likely a
+      // mistake than an intent.
+      expect(find.text('Dashboard'), findsNothing);
 
       await tester.enterText(
         find.widgetWithText(TextFormField, 'Platform Administration'),
@@ -2027,6 +2050,52 @@ void main() {
       expect(find.text('Save Changes'), findsNothing);
       expect(find.text('Platform Administration'), findsOneWidget);
       expect(find.text('Civic Operations'), findsNothing);
+      expect(find.text('Dashboard'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'Admin Profile Sign Out asks for confirmation before firing the '
+    'callback',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      var signedOut = false;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: AdminProfileScreen(onSignOut: () => signedOut = true),
+        ),
+      );
+      await tester.pump();
+
+      await tester.tap(find.text('Sign Out'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text('Sign out?'), findsOneWidget);
+      expect(signedOut, isFalse);
+
+      // Dismissing via Cancel doesn't sign out.
+      await tester.tap(find.text('Cancel'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(signedOut, isFalse);
+      expect(find.text('Sign out?'), findsNothing);
+
+      // Confirming via the dialog's own button (shares the trigger
+      // button's label, hence .last) does sign out.
+      await tester.tap(find.text('Sign Out'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.tap(find.text('Sign Out').last);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(signedOut, isTrue);
     },
   );
 

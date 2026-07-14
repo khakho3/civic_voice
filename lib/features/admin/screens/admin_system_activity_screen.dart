@@ -59,13 +59,13 @@ String _formatActivityTimestamp(DateTime date) {
 /// split-across-two-folders slip already seen throughout this app.
 ///
 /// This screen has no persistent tab slot of its own (see
-/// [AdminScaffold]'s doc comment) — it's a drill-down reachable from
-/// Dashboard's "Activity Monitoring" card and every screen's drawer, so
-/// [AdminTab.dashboard] stays selected underneath it (Dashboard being its
-/// first/primary entry point) while [AdminScaffold.headerTitle] overrides
-/// the header to read "System Activity" instead of the dashboard brand
-/// mark, the same drill-down treatment ADM-003 User Details already
-/// established for [AdminTab.users].
+/// [AdminScaffold]'s doc comment) and no single exclusive parent either —
+/// it's reachable from both Dashboard's "Activity Monitoring" card and
+/// every screen's drawer, unlike ADM-003 User Details' one-and-only path
+/// through User Management. [AdminScaffold.selectedTab] is null here, so
+/// the bottom nav shows no tab as active rather than falsely implying
+/// this is Dashboard, while [AdminScaffold.headerTitle] still overrides
+/// the header to read "System Activity".
 ///
 /// Error/Offline/Unauthorized render as a floating card over dimmed stat
 /// cards in the export, which this implementation keeps (unlike other
@@ -152,7 +152,7 @@ class _AdminSystemActivityScreenState extends State<AdminSystemActivityScreen> {
         _state == AdminSystemActivityViewState.noResults;
 
     return AdminScaffold(
-      selectedTab: AdminTab.dashboard,
+      selectedTab: null,
       headerTitle: 'System Activity',
       onNotificationsTap: widget.onNotificationsTap,
       onTabSelected: (tab) {

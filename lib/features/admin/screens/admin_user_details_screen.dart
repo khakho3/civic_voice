@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../models/app_role.dart';
 import '../../../widgets/app_state_message.dart';
+import '../../../widgets/confirm_dialog.dart';
 import '../models/admin_role_management_data.dart';
 import '../models/admin_user_management_data.dart';
 import '../widgets/admin_scaffold.dart';
@@ -126,7 +127,20 @@ class _AdminUserDetailsScreenState extends State<AdminUserDetailsScreen> {
     });
   }
 
-  void _save() {
+  Future<void> _save() async {
+    final roleChanged = _role != widget.user.role;
+    final confirmed = await showConfirmDialog(
+      context,
+      title: 'Save access changes?',
+      message: roleChanged
+          ? '${widget.user.name}\'s role will change to ${_role.label} '
+                'and their account status will be updated.'
+          : '${widget.user.name}\'s account status will be updated.',
+      confirmLabel: 'Save Changes',
+      destructive: roleChanged,
+    );
+    if (!confirmed || !mounted) return;
+
     final updated = widget.user.copyWith(
       role: _role,
       status: _status,

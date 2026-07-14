@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../widgets/app_state_message.dart';
+import '../../../widgets/confirm_dialog.dart';
 import '../models/admin_system_settings_data.dart';
 import '../widgets/admin_scaffold.dart';
 
@@ -111,11 +112,23 @@ class _AdminSystemSettingsScreenState extends State<AdminSystemSettingsScreen> {
     });
   }
 
-  void _saveChanges() {
+  Future<void> _saveChanges() async {
     if (_draft.platformName.trim().isEmpty) {
       setState(() => _saveState = SystemSettingsSaveState.validationError);
       return;
     }
+
+    final confirmed = await showConfirmDialog(
+      context,
+      title: 'Save system settings?',
+      message:
+          'These changes apply platform-wide and take effect '
+          'immediately for every account.',
+      confirmLabel: 'Save Changes',
+      destructive: true,
+    );
+    if (!confirmed || !mounted) return;
+
     setState(() => _saveState = SystemSettingsSaveState.saving);
     Future.delayed(const Duration(milliseconds: 500), () {
       if (!mounted) return;

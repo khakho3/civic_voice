@@ -34,12 +34,16 @@ class AdminActivityItem {
 /// Data backing ADM-001 Admin Dashboard's loaded state.
 class AdminDashboardData {
   const AdminDashboardData({
-    required this.uptimePercent,
+    required this.apiStatusOnline,
     required this.stats,
     required this.activity,
   });
 
-  final num uptimePercent;
+  /// Whether the platform API is reporting healthy. Replaces the original
+  /// uptime-percentage display ("System Live: 99.9% Uptime") — Francis's
+  /// call: the percentage was "making things look too much" for what's
+  /// meant to be a glanceable status badge, not a metric.
+  final bool apiStatusOnline;
   final AdminDashboardStats stats;
   final List<AdminActivityItem> activity;
 
@@ -48,7 +52,7 @@ class AdminDashboardData {
   /// is wired up.
   static AdminDashboardData mock() {
     return const AdminDashboardData(
-      uptimePercent: 99.9,
+      apiStatusOnline: true,
       stats: AdminDashboardStats(
         totalUsers: 12400,
         totalUsersChangePercent: 4.2,

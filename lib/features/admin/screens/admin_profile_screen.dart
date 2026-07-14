@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../widgets/app_state_message.dart';
+import '../../../widgets/confirm_dialog.dart';
 import '../models/admin_profile_data.dart';
 import '../widgets/admin_scaffold.dart';
 
@@ -50,12 +51,10 @@ String _formatActivity(DateTime date) {
 /// actually fail a save against.
 ///
 /// Reachable only from [AdminScaffold]'s drawer (see that class's own doc
-/// comment) — there's no tab slot and no other screen links to it. It has
-/// no natural "parent" tab the way ADM-006 System Activity (Dashboard) or
-/// ADM-003 User Details (Users) do, so [AdminTab.dashboard] is used here
-/// too as an interim default; this is one of the things flagged for a
-/// real decision once the rest of the module's cross-screen navigation
-/// gets its own pass.
+/// comment) — there's no tab slot and no other screen links to it, so
+/// [AdminScaffold.selectedTab] is null: the bottom nav shows no tab as
+/// active rather than falsely implying this is any one of the four,
+/// matching ADM-006 System Activity's own treatment.
 ///
 /// The export's Retry/Retry connection buttons render primary-blue rather
 /// than the error-red every other screen's Offline/Error state uses, and
@@ -171,8 +170,9 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return AdminScaffold(
-      selectedTab: AdminTab.dashboard,
+      selectedTab: null,
       headerTitle: 'Admin Profile',
+      hideBottomNav: _editing,
       onNotificationsTap: widget.onNotificationsTap,
       onTabSelected: (tab) {
         if (tab == AdminTab.dashboard) widget.onNavigateToDashboard?.call();
@@ -276,12 +276,29 @@ class _ProfileBody extends StatelessWidget {
         saveState == AdminProfileSaveState.validationError &&
         draft.fullName.trim().isEmpty;
 
+    return Column(
+      children: [
+        Expanded(child: _buildList(context, chromeInset, showNameError)),
+        // A sticky bar, not the last item in the scrollable list — on a
+        // screen this long, a Save button that only appears after
+        // scrolling all the way down is easy to miss entirely.
+        if (editing)
+          _SaveBar(saveState: saveState, onCancel: onCancel, onSave: onSave),
+      ],
+    );
+  }
+
+  Widget _buildList(
+    BuildContext context,
+    EdgeInsets chromeInset,
+    bool showNameError,
+  ) {
     return ListView(
       padding: EdgeInsets.fromLTRB(
         AppSpacing.md,
         chromeInset.top + AppSpacing.md,
         AppSpacing.md,
-        chromeInset.bottom + AppSpacing.xl,
+        editing ? AppSpacing.md : chromeInset.bottom + AppSpacing.xl,
       ),
       children: [
         _ProfileCard(fullName: draft.fullName),
@@ -396,7 +413,20 @@ class _ProfileBody extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child: OutlinedButton(
-                onPressed: onSignOut,
+                onPressed: onSignOut == null
+                    ? null
+                    : () async {
+                        final confirmed = await showConfirmDialog(
+                          context,
+                          title: 'Sign out?',
+                          message:
+                              'You\'ll need to sign back in to access the '
+                              'admin console.',
+                          confirmLabel: 'Sign Out',
+                          destructive: true,
+                        );
+                        if (confirmed) onSignOut!();
+                      },
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.error,
                   side: BorderSide(
@@ -408,38 +438,69 @@ class _ProfileBody extends StatelessWidget {
             ),
           ],
         ),
-        if (editing) ...[
-          const SizedBox(height: AppSpacing.lg),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: onCancel,
-                  child: const Text('Cancel'),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: FilledButton(
-                  onPressed: saveState == AdminProfileSaveState.saving
-                      ? null
-                      : onSave,
-                  child: saveState == AdminProfileSaveState.saving
-                      ? const SizedBox(
-                          width: AppIconSize.sm,
-                          height: AppIconSize.sm,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Text('Save Changes'),
-                ),
-              ),
-            ],
+      ],
+    );
+  }
+}
+
+/// Sits at the bottom of the screen, below the scrollable list — not the
+/// last item inside it — so Save/Cancel stay reachable without scrolling
+/// all the way down a screen this long to find them. [AdminScaffold]'s
+/// floating bottom nav is hidden while editing (via `hideBottomNav`), so
+/// this only needs to clear the raw safe-area inset, not the nav's own
+/// height on top of it.
+class _SaveBar extends StatelessWidget {
+  const _SaveBar({
+    required this.saveState,
+    required this.onCancel,
+    required this.onSave,
+  });
+
+  final AdminProfileSaveState saveState;
+  final VoidCallback onCancel;
+  final VoidCallback onSave;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final safeAreaBottom = MediaQuery.paddingOf(context).bottom;
+    return Container(
+      padding: EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.sm,
+        AppSpacing.md,
+        safeAreaBottom + AppSpacing.sm,
+      ),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        border: Border(top: BorderSide(color: colorScheme.outlineVariant)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: OutlinedButton(
+              onPressed: onCancel,
+              child: const Text('Cancel'),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: FilledButton(
+              onPressed: saveState == AdminProfileSaveState.saving ? null : onSave,
+              child: saveState == AdminProfileSaveState.saving
+                  ? const SizedBox(
+                      width: AppIconSize.sm,
+                      height: AppIconSize.sm,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Text('Save Changes'),
+            ),
           ),
         ],
-      ],
+      ),
     );
   }
 }
