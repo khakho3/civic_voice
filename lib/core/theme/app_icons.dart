@@ -153,4 +153,5 @@ abstract final class AppIcons {
   static const IconData activityPulse = LucideIcons.activity;
   static const IconData roleManagement = LucideIcons.userCog;
   static const IconData activityLog = LucideIcons.history;
+  static const IconData cloud = LucideIcons.cloud;
 }

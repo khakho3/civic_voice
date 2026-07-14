@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:civic_voice/core/theme/app_theme.dart';
+import 'package:civic_voice/features/admin/models/admin_system_activity_data.dart';
 import 'package:civic_voice/features/admin/models/admin_user_management_data.dart';
 import 'package:civic_voice/features/admin/screens/admin_dashboard_screen.dart';
 import 'package:civic_voice/features/admin/screens/admin_role_management_screen.dart';
+import 'package:civic_voice/features/admin/screens/admin_system_activity_screen.dart';
 import 'package:civic_voice/features/admin/screens/admin_user_details_screen.dart';
 import 'package:civic_voice/features/admin/screens/admin_user_management_screen.dart';
 import 'package:civic_voice/models/app_role.dart';
@@ -1256,6 +1258,333 @@ void main() {
 
       await tester.pump(const Duration(milliseconds: 600));
       expect(find.text('Yaw Asare'), findsWidgets);
+    },
+  );
+
+  // ---------------------------------------------------------------------
+  // ADM-006 System Activity
+  // ---------------------------------------------------------------------
+
+  for (final state in AdminSystemActivityViewState.values) {
+    testWidgets('Admin System Activity renders ${state.name} without error', (
+      WidgetTester tester,
+    ) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: AdminSystemActivityScreen(initialState: state),
+        ),
+      );
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets(
+    'Admin System Activity renders without overflow on a narrow phone '
+    '(375px)',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(375, 812);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: const AdminSystemActivityScreen(),
+        ),
+      );
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'Admin System Activity shows the stats, filters, and activity feed in '
+    'its loaded state',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: const AdminSystemActivityScreen(),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('System Activity'), findsOneWidget);
+      expect(find.text('Total Events'), findsOneWidget);
+      expect(find.text('2.4k'), findsOneWidget);
+      expect(find.text('Login Events'), findsOneWidget);
+      expect(find.text('Admin Actions'), findsOneWidget);
+      expect(find.text('Security Alerts'), findsOneWidget);
+      expect(find.text('Today'), findsOneWidget);
+      expect(find.text('All Events'), findsOneWidget);
+      expect(find.text('System Updates'), findsOneWidget);
+      // "User Modifications" — the third, widest chip — sits beyond the
+      // horizontally-scrollable chip row's initial build extent at this
+      // width, matching the approved frame's own cut-off rendering of it.
+      expect(find.text('Last 24 Hours'), findsOneWidget);
+      expect(find.text('Recent Activity'), findsOneWidget);
+
+      expect(find.text('Unauthorized Login Attempt'), findsOneWidget);
+      expect(find.text('System Policy Update'), findsOneWidget);
+      expect(find.text('Automated Backup Complete'), findsOneWidget);
+      expect(find.text('Critical'), findsOneWidget);
+      expect(find.text('Standard'), findsOneWidget);
+      expect(find.text('Info'), findsOneWidget);
+      // "Administrative Credential Issued" happened over a day ago, so
+      // the default "Last 24 Hours" range already excludes it — covered
+      // separately by the time-range dropdown test below.
+      expect(find.text('Administrative Credential Issued'), findsNothing);
+
+      // Still shows Dashboard as the selected tab — this screen has no
+      // persistent tab slot of its own.
+      final dashboardTab = find.ancestor(
+        of: find.text('Dashboard'),
+        matching: find.byType(InkWell),
+      );
+      expect(dashboardTab, findsOneWidget);
+    },
+  );
+
+  testWidgets('Admin System Activity filter chip narrows the activity feed', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: const AdminSystemActivityScreen(),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.text('System Updates'));
+    await tester.pump();
+
+    expect(find.text('System Policy Update'), findsOneWidget);
+    expect(find.text('Automated Backup Complete'), findsOneWidget);
+    expect(find.text('Unauthorized Login Attempt'), findsNothing);
+    expect(find.text('Administrative Credential Issued'), findsNothing);
+  });
+
+  testWidgets(
+    'Admin System Activity time range dropdown filters out older events',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: const AdminSystemActivityScreen(),
+        ),
+      );
+      await tester.pump();
+
+      // "Administrative Credential Issued" happened over a day ago, so
+      // the default "Last 24 Hours" range already excludes it.
+      expect(find.text('Administrative Credential Issued'), findsNothing);
+      expect(find.text('Automated Backup Complete'), findsOneWidget);
+
+      // No indefinitely-repeating animation exists in this screen's loaded
+      // state, so pumpAndSettle is safe and more robust than guessing a
+      // fixed settle duration for the dropdown's own open/close route
+      // animation.
+      await tester.tap(find.byType(DropdownButton<ActivityTimeRange>));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Last 7 Days').last);
+      await tester.pumpAndSettle();
+
+      // Broadening the range reveals it.
+      expect(find.text('Administrative Credential Issued'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'Admin System Activity is a tab-shell screen: bottom nav switches tabs',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      var usersTapped = false;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: AdminSystemActivityScreen(
+            onNavigateToUsers: () => usersTapped = true,
+          ),
+        ),
+      );
+      await tester.pump();
+
+      await tester.tap(find.text('Users'));
+      await tester.pump();
+      expect(usersTapped, isTrue);
+    },
+  );
+
+  testWidgets(
+    'Admin System Activity No Results clears filters and returns to the '
+    'loaded state',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: const AdminSystemActivityScreen(
+            initialState: AdminSystemActivityViewState.noResults,
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('No Results'), findsOneWidget);
+      // Filter chrome stays visible and interactive in No Results.
+      expect(find.text('All Events'), findsOneWidget);
+
+      await tester.tap(find.text('Clear Filters'));
+      await tester.pump();
+
+      expect(find.text('No Results'), findsNothing);
+      expect(find.text('Unauthorized Login Attempt'), findsOneWidget);
+    },
+  );
+
+  testWidgets('Admin System Activity Empty shows the approved copy', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: const AdminSystemActivityScreen(
+          initialState: AdminSystemActivityViewState.empty,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('No Activity'), findsOneWidget);
+  });
+
+  testWidgets('Admin System Activity Offline shows the approved copy', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: const AdminSystemActivityScreen(
+          initialState: AdminSystemActivityViewState.offline,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('You\'re offline'), findsOneWidget);
+  });
+
+  testWidgets('Admin System Activity Error shows the approved copy', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: const AdminSystemActivityScreen(
+          initialState: AdminSystemActivityViewState.error,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Something went wrong'), findsOneWidget);
+  });
+
+  testWidgets(
+    'Admin System Activity Unauthorized shows the approved copy with no '
+    'action buttons',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: const AdminSystemActivityScreen(
+            initialState: AdminSystemActivityViewState.unauthorized,
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('Unauthorized Access'), findsOneWidget);
+      expect(find.byType(FilledButton), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'Admin System Activity Retry moves Error through loading to loaded',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: const AdminSystemActivityScreen(
+            initialState: AdminSystemActivityViewState.error,
+          ),
+        ),
+      );
+      await tester.pump();
+
+      await tester.tap(find.text('Retry'));
+      await tester.pump();
+      expect(find.text('Something went wrong'), findsNothing);
+
+      await tester.pump(const Duration(milliseconds: 600));
+      expect(find.text('Recent Activity'), findsOneWidget);
     },
   );
 }

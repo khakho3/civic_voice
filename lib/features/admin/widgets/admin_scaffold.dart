@@ -193,13 +193,17 @@ class _Header extends StatelessWidget {
                 ),
                 const SizedBox(width: AppSpacing.xs),
                 Expanded(
-                  child: tab == AdminTab.dashboard
+                  child: tab == AdminTab.dashboard && titleOverride == null
                       // A lone centered mark, not the full wordmark — the
                       // hamburger and bell are equal-width, so centering
                       // inside this Expanded lands the logo at the bar's
                       // true midpoint. The "CivicVoice" wordmark now lives
                       // only in the drawer, so it isn't shown twice at once
-                      // when the drawer opens over this header.
+                      // when the drawer opens over this header. Only the
+                      // literal Dashboard screen gets this treatment — a
+                      // drill-down that keeps Dashboard selected as its
+                      // parent tab (ADM-006 System Activity) still needs
+                      // its own text title, via [titleOverride].
                       ? Center(
                           child: Image.asset(
                             AppAssets.logoApp,
