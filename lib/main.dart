@@ -5,6 +5,7 @@ import 'features/admin/models/admin_user_management_data.dart';
 import 'features/admin/screens/admin_dashboard_screen.dart';
 import 'features/admin/screens/admin_role_management_screen.dart';
 import 'features/admin/screens/admin_system_activity_screen.dart';
+import 'features/admin/screens/admin_system_settings_screen.dart';
 import 'features/admin/screens/admin_user_details_screen.dart';
 import 'features/admin/screens/admin_user_management_screen.dart';
 
@@ -33,7 +34,14 @@ class CivicVoiceApp extends StatelessWidget {
 /// introducing (once more of the module's eight screens exist), matching
 /// how the Municipal Officer and Ministry Supervisor modules' own roots
 /// started.
-enum _AdminScreen { dashboard, users, roles, userDetails, systemActivity }
+enum _AdminScreen {
+  dashboard,
+  users,
+  roles,
+  userDetails,
+  systemActivity,
+  settings,
+}
 
 class _AdminRoot extends StatefulWidget {
   const _AdminRoot();
@@ -57,11 +65,12 @@ class _AdminRootState extends State<_AdminRoot> {
       _AdminScreen.dashboard => AdminDashboardScreen(
         onNavigateToUsers: () => setState(() => _current = _AdminScreen.users),
         onNavigateToRoles: () => setState(() => _current = _AdminScreen.roles),
+        onNavigateToSettings: () =>
+            setState(() => _current = _AdminScreen.settings),
         onViewSystemActivity: () =>
             setState(() => _current = _AdminScreen.systemActivity),
-        // Settings/Profile aren't built yet (ADM-007, ADM-008) — wire
-        // these up as each screen lands, matching how the other modules'
-        // roots grew incrementally.
+        // Profile isn't built yet (ADM-008) — wire it up once it lands,
+        // matching how the other modules' roots grew incrementally.
       ),
       _AdminScreen.users => AdminUserManagementScreen(
         onNavigateToDashboard: () =>
@@ -73,8 +82,9 @@ class _AdminRootState extends State<_AdminRoot> {
         }),
         onOpenSystemActivity: () =>
             setState(() => _current = _AdminScreen.systemActivity),
-        // onNavigateToSettings/onOpenProfile aren't built yet (ADM-007,
-        // ADM-008).
+        onNavigateToSettings: () =>
+            setState(() => _current = _AdminScreen.settings),
+        // onOpenProfile isn't built yet (ADM-008).
       ),
       _AdminScreen.roles => AdminRoleManagementScreen(
         onNavigateToDashboard: () =>
@@ -82,8 +92,9 @@ class _AdminRootState extends State<_AdminRoot> {
         onNavigateToUsers: () => setState(() => _current = _AdminScreen.users),
         onOpenSystemActivity: () =>
             setState(() => _current = _AdminScreen.systemActivity),
-        // onNavigateToSettings/onOpenProfile aren't built yet (ADM-007,
-        // ADM-008).
+        onNavigateToSettings: () =>
+            setState(() => _current = _AdminScreen.settings),
+        // onOpenProfile isn't built yet (ADM-008).
       ),
       _AdminScreen.userDetails => AdminUserDetailsScreen(
         user: _selectedUser!,
@@ -93,16 +104,27 @@ class _AdminRootState extends State<_AdminRoot> {
         onNavigateToRoles: () => setState(() => _current = _AdminScreen.roles),
         onOpenSystemActivity: () =>
             setState(() => _current = _AdminScreen.systemActivity),
-        // onNavigateToSettings/onOpenProfile aren't built yet (ADM-007,
-        // ADM-008).
+        onNavigateToSettings: () =>
+            setState(() => _current = _AdminScreen.settings),
+        // onOpenProfile isn't built yet (ADM-008).
       ),
       _AdminScreen.systemActivity => AdminSystemActivityScreen(
         onNavigateToDashboard: () =>
             setState(() => _current = _AdminScreen.dashboard),
         onNavigateToUsers: () => setState(() => _current = _AdminScreen.users),
         onNavigateToRoles: () => setState(() => _current = _AdminScreen.roles),
-        // onNavigateToSettings/onOpenProfile aren't built yet (ADM-007,
-        // ADM-008).
+        onNavigateToSettings: () =>
+            setState(() => _current = _AdminScreen.settings),
+        // onOpenProfile isn't built yet (ADM-008).
+      ),
+      _AdminScreen.settings => AdminSystemSettingsScreen(
+        onNavigateToDashboard: () =>
+            setState(() => _current = _AdminScreen.dashboard),
+        onNavigateToUsers: () => setState(() => _current = _AdminScreen.users),
+        onNavigateToRoles: () => setState(() => _current = _AdminScreen.roles),
+        onOpenSystemActivity: () =>
+            setState(() => _current = _AdminScreen.systemActivity),
+        // onOpenProfile isn't built yet (ADM-008).
       ),
     };
   }

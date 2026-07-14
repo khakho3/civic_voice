@@ -154,4 +154,6 @@ abstract final class AppIcons {
   static const IconData roleManagement = LucideIcons.userCog;
   static const IconData activityLog = LucideIcons.history;
   static const IconData cloud = LucideIcons.cloud;
+  static const IconData database = LucideIcons.database;
+  static const IconData globe = LucideIcons.globe;
 }

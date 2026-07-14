@@ -6,7 +6,9 @@ import 'package:civic_voice/features/admin/models/admin_system_activity_data.dar
 import 'package:civic_voice/features/admin/models/admin_user_management_data.dart';
 import 'package:civic_voice/features/admin/screens/admin_dashboard_screen.dart';
 import 'package:civic_voice/features/admin/screens/admin_role_management_screen.dart';
+import 'package:civic_voice/features/admin/models/admin_system_settings_data.dart';
 import 'package:civic_voice/features/admin/screens/admin_system_activity_screen.dart';
+import 'package:civic_voice/features/admin/screens/admin_system_settings_screen.dart';
 import 'package:civic_voice/features/admin/screens/admin_user_details_screen.dart';
 import 'package:civic_voice/features/admin/screens/admin_user_management_screen.dart';
 import 'package:civic_voice/models/app_role.dart';
@@ -1585,6 +1587,326 @@ void main() {
 
       await tester.pump(const Duration(milliseconds: 600));
       expect(find.text('Recent Activity'), findsOneWidget);
+    },
+  );
+
+  // ---------------------------------------------------------------------
+  // ADM-007 System Settings
+  // ---------------------------------------------------------------------
+
+  for (final state in AdminSystemSettingsViewState.values) {
+    testWidgets('Admin System Settings renders ${state.name} without error', (
+      WidgetTester tester,
+    ) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: AdminSystemSettingsScreen(initialState: state),
+        ),
+      );
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets(
+    'Admin System Settings renders without overflow on a narrow phone '
+    '(375px)',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(375, 812);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: const AdminSystemSettingsScreen(),
+        ),
+      );
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'Admin System Settings shows every section and field in its loaded '
+    'state, with no Save bar when clean',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: const AdminSystemSettingsScreen(),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('General Configuration'), findsOneWidget);
+      expect(find.text('Platform Name'), findsOneWidget);
+      expect(find.text('CivicVoice'), findsOneWidget);
+      expect(find.text('Default Language'), findsOneWidget);
+      expect(find.text('Maintenance Mode'), findsOneWidget);
+      expect(find.text('Security & Access'), findsOneWidget);
+      expect(find.text('Enforce two-factor authentication'), findsOneWidget);
+      expect(find.text('Session timeout'), findsOneWidget);
+      expect(find.text('Audit logging'), findsOneWidget);
+      expect(find.text('Data Retention'), findsOneWidget);
+      expect(find.text('Audit log retention'), findsOneWidget);
+      expect(find.text('Backup schedule'), findsOneWidget);
+      expect(find.text('Service Preferences'), findsOneWidget);
+      expect(find.text('Public status page'), findsOneWidget);
+      expect(find.text('Regional data routing'), findsOneWidget);
+
+      expect(find.text('Save Changes'), findsNothing);
+      expect(find.text('Reset Changes'), findsNothing);
+    },
+  );
+
+  testWidgets('Admin System Settings shows the Save bar once dirty and Reset '
+      'Changes reverts it', (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: const AdminSystemSettingsScreen(),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.byType(Switch).first);
+    await tester.pump();
+
+    expect(find.text('Save Changes'), findsOneWidget);
+    expect(find.text('Reset Changes'), findsOneWidget);
+
+    await tester.tap(find.text('Reset Changes'));
+    await tester.pump();
+
+    expect(find.text('Save Changes'), findsNothing);
+    expect(find.text('Reset Changes'), findsNothing);
+  });
+
+  testWidgets('Admin System Settings Save Changes shows the success banner and '
+      'clears the dirty state', (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: const AdminSystemSettingsScreen(),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.byType(Switch).first);
+    await tester.pump();
+    await tester.tap(find.text('Save Changes'));
+    await tester.pump();
+
+    // The save completes after a simulated delay — a single pump only
+    // advances one frame, not the full delay.
+    await tester.pump(const Duration(milliseconds: 600));
+
+    expect(find.text('Configuration saved'), findsOneWidget);
+    expect(find.text('Save Changes'), findsNothing);
+    expect(find.text('Reset Changes'), findsNothing);
+  });
+
+  testWidgets(
+    'Admin System Settings blocks saving with an empty Platform Name and '
+    'shows the validation copy',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: const AdminSystemSettingsScreen(),
+        ),
+      );
+      await tester.pump();
+
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'CivicVoice'),
+        '',
+      );
+      await tester.pump();
+      await tester.tap(find.text('Save Changes'));
+      await tester.pump();
+
+      expect(find.text('Validation Error'), findsOneWidget);
+      expect(find.text('Platform name is required.'), findsOneWidget);
+      // Still dirty — the failed save doesn't clear the bar.
+      expect(find.text('Save Changes'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'Admin System Settings initialSaveState previews the Update Failed '
+    'banner',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: const AdminSystemSettingsScreen(
+            initialSaveState: SystemSettingsSaveState.failed,
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('Update Failed'), findsOneWidget);
+      expect(
+        find.text(
+          'System settings could not be saved. No changes were applied.',
+        ),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets('Admin System Settings is a tab-shell screen: bottom nav stays '
+      'visible and switches tabs', (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    var usersTapped = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: AdminSystemSettingsScreen(
+          onNavigateToUsers: () => usersTapped = true,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Dashboard'), findsOneWidget);
+    expect(find.text('Users'), findsOneWidget);
+    expect(find.text('Settings'), findsOneWidget);
+
+    await tester.tap(find.text('Users'));
+    await tester.pump();
+    expect(usersTapped, isTrue);
+  });
+
+  testWidgets('Admin System Settings Offline shows the approved copy', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: const AdminSystemSettingsScreen(
+          initialState: AdminSystemSettingsViewState.offline,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('You\'re offline'), findsOneWidget);
+  });
+
+  testWidgets('Admin System Settings Error shows the approved copy', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: const AdminSystemSettingsScreen(
+          initialState: AdminSystemSettingsViewState.error,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Something went wrong'), findsOneWidget);
+  });
+
+  testWidgets(
+    'Admin System Settings Unauthorized shows the approved copy with no '
+    'action buttons',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: const AdminSystemSettingsScreen(
+            initialState: AdminSystemSettingsViewState.unauthorized,
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('Unauthorized Access'), findsOneWidget);
+      expect(find.byType(FilledButton), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'Admin System Settings Retry moves Error through loading to loaded',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: const AdminSystemSettingsScreen(
+            initialState: AdminSystemSettingsViewState.error,
+          ),
+        ),
+      );
+      await tester.pump();
+
+      await tester.tap(find.text('Retry'));
+      await tester.pump();
+      expect(find.text('Something went wrong'), findsNothing);
+
+      await tester.pump(const Duration(milliseconds: 600));
+      expect(find.text('General Configuration'), findsOneWidget);
     },
   );
 }
