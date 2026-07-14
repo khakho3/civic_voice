@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:civic_voice/core/theme/app_theme.dart';
+import 'package:civic_voice/features/maintenance/screens/dashboard_screen.dart';
+import 'package:civic_voice/features/maintenance/screens/assigned_tasks_screen.dart';
+import 'package:civic_voice/features/maintenance/screens/upload_evidence_screen.dart';
+import 'package:civic_voice/features/maintenance/screens/profile_screen.dart';
 
 enum _TaskStatus { inProgress, delayed, blocked }
 
@@ -39,6 +43,11 @@ class _UpdateProgressScreenState extends State<UpdateProgressScreen> {
       _validationError = null;
       _saved = true;
     });
+    Future.delayed(const Duration(milliseconds: 600), () {
+      if (mounted) {
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const UploadEvidenceScreen()));
+      }
+    });
   }
 
   @override
@@ -59,7 +68,15 @@ class _UpdateProgressScreenState extends State<UpdateProgressScreen> {
           NavigationDestination(icon: Icon(AppIcons.task), label: 'Tasks'),
           NavigationDestination(icon: Icon(AppIcons.profile), label: 'Profile'),
         ],
-        onDestinationSelected: (_) {},
+        onDestinationSelected: (index) {
+          if (index == 0) {
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const DashboardScreen()));
+          } else if (index == 1) {
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const AssignedTasksScreen()));
+          } else if (index == 2) {
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen()));
+          }
+        },
       ),
     );
   }
@@ -69,8 +86,6 @@ class _UpdateProgressScreenState extends State<UpdateProgressScreen> {
       case AppScreenState.loading:
         return const _LoadingView();
       case AppScreenState.empty:
-        // Not applicable to this screen per the approved states — treated as
-        // success to avoid inventing an unspecified state.
         return _buildForm(context);
       case AppScreenState.error:
         return _ErrorView(onRetry: () => setState(() => _state = AppScreenState.success));
@@ -169,7 +184,6 @@ class _UpdateProgressForm extends StatelessWidget {
               style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
             ),
             const SizedBox(height: AppSpacing.lg),
-
             Text('Current Status', style: textTheme.titleSmall),
             const SizedBox(height: AppSpacing.sm),
             _StatusOption(
@@ -199,7 +213,6 @@ class _UpdateProgressForm extends StatelessWidget {
               onTap: onStatusChanged == null ? null : () => onStatusChanged!(_TaskStatus.blocked),
             ),
             const SizedBox(height: AppSpacing.lg),
-
             Text('Work Notes', style: textTheme.titleSmall),
             const SizedBox(height: AppSpacing.sm),
             TextField(
@@ -219,7 +232,6 @@ class _UpdateProgressForm extends StatelessWidget {
                 style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
               ),
             const SizedBox(height: AppSpacing.lg),
-
             Text('Evidence / Photos', style: textTheme.titleSmall),
             const SizedBox(height: AppSpacing.sm),
             Row(
@@ -230,7 +242,6 @@ class _UpdateProgressForm extends StatelessWidget {
               ],
             ),
             const SizedBox(height: AppSpacing.xl),
-
             SizedBox(
               width: double.infinity,
               child: FilledButton(onPressed: onSave, child: const Text('Save Update')),
@@ -365,10 +376,7 @@ class _PhotoThumbnail extends StatelessWidget {
     return Container(
       width: 72,
       height: 72,
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerLow,
-        borderRadius: AppComponentRadius.card,
-      ),
+      decoration: BoxDecoration(color: colorScheme.surfaceContainerLow, borderRadius: AppComponentRadius.card),
       child: Icon(AppIcons.imageUnavailable, color: colorScheme.onSurfaceVariant),
     );
   }

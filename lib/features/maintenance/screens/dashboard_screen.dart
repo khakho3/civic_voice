@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:civic_voice/core/theme/app_theme.dart';
+import 'package:civic_voice/features/maintenance/screens/assigned_tasks_screen.dart';
+import 'package:civic_voice/features/maintenance/screens/task_details_screen.dart';
+import 'package:civic_voice/features/maintenance/screens/profile_screen.dart';
 
 /// MNT-001 — Maintenance Team Dashboard.
 class DashboardScreen extends StatefulWidget {
@@ -55,7 +58,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
           NavigationDestination(icon: Icon(AppIcons.task), label: 'Tasks'),
           NavigationDestination(icon: Icon(AppIcons.profile), label: 'Profile'),
         ],
-        onDestinationSelected: (_) {},
+        onDestinationSelected: (index) {
+          if (index == 1) {
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const AssignedTasksScreen()));
+          } else if (index == 2) {
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen()));
+          }
+        },
       ),
     );
   }
@@ -85,7 +94,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 }
 
-/// Success state — the real dashboard content.
 class _DashboardContent extends StatelessWidget {
   const _DashboardContent({
     required this.assignedCount,
@@ -123,8 +131,6 @@ class _DashboardContent extends StatelessWidget {
                 style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
               ),
               const SizedBox(height: AppSpacing.lg),
-
-              // Stat cards row.
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -158,8 +164,6 @@ class _DashboardContent extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: AppSpacing.md),
-
-              // Search bar — themed InputDecorationTheme, no manual styling.
               TextField(
                 decoration: InputDecoration(
                   hintText: 'Search assigned tasks...',
@@ -171,12 +175,8 @@ class _DashboardContent extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: AppSpacing.md),
-
-              // Map placeholder — real Google Maps integration is a
-              // separate follow-up task (API key + google_maps_flutter).
               _MapPlaceholder(),
               const SizedBox(height: AppSpacing.lg),
-
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -219,11 +219,6 @@ class _StatCard extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Card(
-      shape: RoundedRectangleBorder(
-        borderRadius: AppComponentRadius.card,
-        side: BorderSide(color: accentColor.withValues(alpha: 0.3)),
-      ),
-      color: accentColor.withValues(alpha: 0.06),
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.sm),
         child: Column(
@@ -235,17 +230,14 @@ class _StatCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(AppSpacing.xs),
                   decoration: BoxDecoration(
-                    color: accentColor.withValues(alpha: 0.15),
+                    color: accentColor.withValues(alpha: 0.12),
                     borderRadius: AppRadius.allXs,
                   ),
                   child: Icon(icon, size: AppIconSize.sm, color: accentColor),
                 ),
                 if (tag != null)
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.xs,
-                      vertical: 2,
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs, vertical: 2),
                     decoration: BoxDecoration(
                       color: colorScheme.surfaceContainerLow,
                       borderRadius: AppRadius.allXs,
@@ -269,8 +261,6 @@ class _StatCard extends StatelessWidget {
   }
 }
 
-/// Placeholder for the live map — layout-accurate, not yet wired to
-/// google_maps_flutter. Follow-up task, not a redesign of the approved screen.
 class _MapPlaceholder extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -289,9 +279,7 @@ class _MapPlaceholder extends StatelessWidget {
           const SizedBox(height: AppSpacing.xs),
           Text(
             'Nearby Tasks map coming soon',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
           ),
         ],
       ),
@@ -309,6 +297,7 @@ class _TaskListTile extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     return Card(
       child: ListTile(
+        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TaskDetailsScreen())),
         leading: CircleAvatar(
           backgroundColor: colorScheme.primaryContainer,
           child: Icon(task.icon, color: colorScheme.primary),
@@ -321,7 +310,6 @@ class _TaskListTile extends StatelessWidget {
   }
 }
 
-/// Composed manually per DESIGN_SYSTEM.md — Status Badge is "Tokens only".
 class _StatusBadge extends StatelessWidget {
   const _StatusBadge({required this.label, required this.color});
 

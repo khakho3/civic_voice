@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:civic_voice/core/theme/app_theme.dart';
+import 'package:civic_voice/features/maintenance/screens/dashboard_screen.dart';
+import 'package:civic_voice/features/maintenance/screens/assigned_tasks_screen.dart';
+import 'package:civic_voice/features/maintenance/screens/task_completed_screen.dart';
+import 'package:civic_voice/features/maintenance/screens/profile_screen.dart';
 
 enum _UploadStatus { idle, uploading, success }
 
@@ -16,7 +20,7 @@ class _UploadEvidenceScreenState extends State<UploadEvidenceScreen> {
 
   _UploadStatus _uploadStatus = _UploadStatus.idle;
   double _uploadProgress = 0;
-  int _photoCount = 2;
+  final int _photoCount = 2;
   final TextEditingController _notesController = TextEditingController();
   String? _validationError;
 
@@ -43,6 +47,11 @@ class _UploadEvidenceScreenState extends State<UploadEvidenceScreen> {
       _uploadStatus = _UploadStatus.success;
       _validationError = null;
     });
+    Future.delayed(const Duration(milliseconds: 600), () {
+      if (mounted) {
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const TaskCompletedScreen()));
+      }
+    });
   }
 
   @override
@@ -63,7 +72,15 @@ class _UploadEvidenceScreenState extends State<UploadEvidenceScreen> {
           NavigationDestination(icon: Icon(AppIcons.task), label: 'Tasks'),
           NavigationDestination(icon: Icon(AppIcons.profile), label: 'Profile'),
         ],
-        onDestinationSelected: (_) {},
+        onDestinationSelected: (index) {
+          if (index == 0) {
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const DashboardScreen()));
+          } else if (index == 1) {
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const AssignedTasksScreen()));
+          } else if (index == 2) {
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen()));
+          }
+        },
       ),
     );
   }
@@ -142,11 +159,7 @@ class _UploadEvidenceForm extends StatelessWidget {
               style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
             ),
             const SizedBox(height: AppSpacing.md),
-
-            _CapturePanel(
-              hasError: validationError != null,
-              onTap: onCapture,
-            ),
+            _CapturePanel(hasError: validationError != null, onTap: onCapture),
             const SizedBox(height: AppSpacing.sm),
             Row(
               children: [
@@ -167,33 +180,20 @@ class _UploadEvidenceForm extends StatelessWidget {
                 ),
               ],
             ),
-
             if (uploadStatus == _UploadStatus.uploading) ...[
               const SizedBox(height: AppSpacing.md),
-              Text(
-                'Uploading evidence',
-                style: textTheme.labelLarge?.copyWith(color: colorScheme.primary),
-              ),
+              Text('Uploading evidence', style: textTheme.labelLarge?.copyWith(color: colorScheme.primary)),
               const SizedBox(height: AppSpacing.xs),
-              ClipRRect(
-                borderRadius: AppRadius.allXs,
-                child: LinearProgressIndicator(value: uploadProgress),
-              ),
+              ClipRRect(borderRadius: AppRadius.allXs, child: LinearProgressIndicator(value: uploadProgress)),
             ],
-
             if (uploadStatus == _UploadStatus.success) ...[
               const SizedBox(height: AppSpacing.md),
               _InlineSuccessNote(semantic: semantic),
             ],
-
             if (validationError != null) ...[
               const SizedBox(height: AppSpacing.sm),
-              Text(
-                validationError!,
-                style: textTheme.bodySmall?.copyWith(color: semantic.error),
-              ),
+              Text(validationError!, style: textTheme.bodySmall?.copyWith(color: semantic.error)),
             ],
-
             const SizedBox(height: AppSpacing.lg),
             Text('Image Previews', style: textTheme.titleSmall),
             const SizedBox(height: AppSpacing.sm),
@@ -207,7 +207,6 @@ class _UploadEvidenceForm extends StatelessWidget {
               ),
             ),
             const SizedBox(height: AppSpacing.lg),
-
             Text('Completion Notes', style: textTheme.titleSmall),
             const SizedBox(height: AppSpacing.sm),
             TextField(
@@ -219,7 +218,6 @@ class _UploadEvidenceForm extends StatelessWidget {
               ),
             ),
             const SizedBox(height: AppSpacing.xl),
-
             SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
@@ -267,9 +265,7 @@ class _CapturePanel extends StatelessWidget {
                 Text(
                   'Camera capture or gallery selection · JPG, PNG up to 10MB',
                   textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                      ),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
                 ),
               ],
             ),
@@ -306,10 +302,7 @@ class _PhotoThumbnail extends StatelessWidget {
     return Container(
       width: 64,
       height: 64,
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerLow,
-        borderRadius: AppComponentRadius.card,
-      ),
+      decoration: BoxDecoration(color: colorScheme.surfaceContainerLow, borderRadius: AppComponentRadius.card),
       child: Icon(AppIcons.imageUnavailable, color: colorScheme.onSurfaceVariant),
     );
   }

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:civic_voice/core/theme/app_theme.dart';
+import 'package:civic_voice/features/maintenance/screens/dashboard_screen.dart';
+import 'package:civic_voice/features/maintenance/screens/assigned_tasks_screen.dart';
+import 'package:civic_voice/features/maintenance/screens/profile_screen.dart';
 
 /// MNT-006 — Task Completed.
-///
-/// This screen is always read-only once a task is complete — the AppBar
-/// carries a persistent "READ ONLY" indicator across every state.
 class TaskCompletedScreen extends StatefulWidget {
   const TaskCompletedScreen({super.key});
 
@@ -53,7 +53,23 @@ class _TaskCompletedScreenState extends State<TaskCompletedScreen> {
           NavigationDestination(icon: Icon(AppIcons.task), label: 'Tasks'),
           NavigationDestination(icon: Icon(AppIcons.profile), label: 'Profile'),
         ],
-        onDestinationSelected: (_) {},
+        onDestinationSelected: (index) {
+          if (index == 0) {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (_) => const DashboardScreen()),
+              (route) => false,
+            );
+          } else if (index == 1) {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (_) => const AssignedTasksScreen()),
+              (route) => false,
+            );
+          } else if (index == 2) {
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen()));
+          }
+        },
       ),
     );
   }
@@ -63,7 +79,6 @@ class _TaskCompletedScreenState extends State<TaskCompletedScreen> {
       case AppScreenState.loading:
         return const _LoadingView();
       case AppScreenState.empty:
-        // Not applicable per approved states — treated as success.
         return const _TaskCompletedContent();
       case AppScreenState.error:
         return _ErrorView(onRetry: () => setState(() => _state = AppScreenState.success));
@@ -109,7 +124,6 @@ class _TaskCompletedContent extends StatelessWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.xl),
-
           Text('Task Summary', style: textTheme.titleSmall),
           const SizedBox(height: AppSpacing.sm),
           Card(
@@ -117,38 +131,22 @@ class _TaskCompletedContent extends StatelessWidget {
               padding: const EdgeInsets.all(AppSpacing.md),
               child: Column(
                 children: [
-                  _SummaryRow(
-                    icon: AppIcons.task,
-                    label: 'Task',
-                    value: 'Street Light Repair - Sector 4',
-                  ),
+                  _SummaryRow(icon: AppIcons.task, label: 'Task', value: 'Street Light Repair - Sector 4'),
                   const Divider(height: AppSpacing.lg),
-                  _SummaryRow(
-                    icon: AppIcons.location,
-                    label: 'Location',
-                    value: 'Central lighting grid',
-                  ),
+                  _SummaryRow(icon: AppIcons.location, label: 'Location', value: 'Central lighting grid'),
                   const Divider(height: AppSpacing.lg),
-                  _SummaryRow(
-                    icon: AppIcons.calendar,
-                    label: 'Completed',
-                    value: 'Oct 14, 04:28 PM',
-                  ),
+                  _SummaryRow(icon: AppIcons.calendar, label: 'Completed', value: 'Oct 14, 04:28 PM'),
                 ],
               ),
             ),
           ),
           const SizedBox(height: AppSpacing.lg),
-
           Text('Completion Notes', style: textTheme.titleSmall),
           const SizedBox(height: AppSpacing.sm),
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(AppSpacing.md),
-            decoration: BoxDecoration(
-              color: colorScheme.surfaceContainerLow,
-              borderRadius: AppComponentRadius.card,
-            ),
+            decoration: BoxDecoration(color: colorScheme.surfaceContainerLow, borderRadius: AppComponentRadius.card),
             child: Text(
               'The asphalt has been leveled and sealed. Proper drainage was checked and confirmed functional. Area cleared of debris and reopened for pedestrian and vehicle traffic.',
               style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
@@ -188,8 +186,6 @@ class _SummaryRow extends StatelessWidget {
   }
 }
 
-/// Disabled state — explicit read-only explainer per the approved design,
-/// shown above the same task summary content.
 class _ReadOnlyExplainerView extends StatelessWidget {
   const _ReadOnlyExplainerView();
 

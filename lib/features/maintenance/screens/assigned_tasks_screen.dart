@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:civic_voice/core/theme/app_theme.dart';
+import 'package:civic_voice/features/maintenance/screens/dashboard_screen.dart';
+import 'package:civic_voice/features/maintenance/screens/task_details_screen.dart';
+import 'package:civic_voice/features/maintenance/screens/profile_screen.dart';
 
 /// MNT-002 — Maintenance Team Assigned Tasks.
 class AssignedTasksScreen extends StatefulWidget {
@@ -43,7 +46,13 @@ class _AssignedTasksScreenState extends State<AssignedTasksScreen> {
           NavigationDestination(icon: Icon(AppIcons.task), label: 'Tasks'),
           NavigationDestination(icon: Icon(AppIcons.profile), label: 'Profile'),
         ],
-        onDestinationSelected: (_) {},
+        onDestinationSelected: (index) {
+          if (index == 0) {
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const DashboardScreen()));
+          } else if (index == 2) {
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen()));
+          }
+        },
       ),
     );
   }
@@ -189,9 +198,7 @@ class _TaskCard extends StatelessWidget {
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: Text(task.title, style: textTheme.titleMedium),
-                        ),
+                        Expanded(child: Text(task.title, style: textTheme.titleMedium)),
                         _StatusBadge(label: task.status, color: statusColor, icon: statusIcon),
                       ],
                     ),
@@ -217,7 +224,10 @@ class _TaskCard extends StatelessWidget {
                           style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
                         ),
                         TextButton(
-                          onPressed: () {},
+                          onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const TaskDetailsScreen()),
+                          ),
                           child: const Text('View Task Details'),
                         ),
                       ],
@@ -233,10 +243,8 @@ class _TaskCard extends StatelessWidget {
   }
 }
 
-/// Composed manually per DESIGN_SYSTEM.md — Status Badge is "Tokens only".
 class _StatusBadge extends StatelessWidget {
   const _StatusBadge({required this.label, required this.color, required this.icon});
-
   final String label;
   final Color color;
   final IconData icon;

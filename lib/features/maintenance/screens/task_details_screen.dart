@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:civic_voice/core/theme/app_theme.dart';
+import 'package:civic_voice/features/maintenance/screens/dashboard_screen.dart';
+import 'package:civic_voice/features/maintenance/screens/assigned_tasks_screen.dart';
+import 'package:civic_voice/features/maintenance/screens/update_progress_screen.dart';
+import 'package:civic_voice/features/maintenance/screens/profile_screen.dart';
 
 /// MNT-003 — Maintenance Team Task Details.
-///
-/// Citizen PII is never displayed on this screen (per README Issue 04 and
-/// DESIGN_SYSTEM.md) — the status pipeline reads "Report submitted via
-/// Mobile App", never a citizen name.
 class TaskDetailsScreen extends StatefulWidget {
   const TaskDetailsScreen({super.key});
 
@@ -40,7 +40,15 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
           NavigationDestination(icon: Icon(AppIcons.task), label: 'Tasks'),
           NavigationDestination(icon: Icon(AppIcons.profile), label: 'Profile'),
         ],
-        onDestinationSelected: (_) {},
+        onDestinationSelected: (index) {
+          if (index == 0) {
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const DashboardScreen()));
+          } else if (index == 1) {
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const AssignedTasksScreen()));
+          } else if (index == 2) {
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen()));
+          }
+        },
       ),
     );
   }
@@ -82,16 +90,12 @@ class _TaskDetailsContent extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Status pipeline — never displays citizen identity.
             const _StatusPipeline(),
             const SizedBox(height: AppSpacing.lg),
-
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Text('Broken Street Light', style: textTheme.headlineSmall),
-                ),
+                Expanded(child: Text('Broken Street Light', style: textTheme.headlineSmall)),
                 const SizedBox(width: AppSpacing.sm),
                 _PriorityBadge(color: semantic.error),
               ],
@@ -104,7 +108,6 @@ class _TaskDetailsContent extends StatelessWidget {
             const SizedBox(height: AppSpacing.sm),
             _StatusBadge(label: 'Assigned', color: AppColors.statusAssigned, icon: AppIcons.statusAssigned),
             const SizedBox(height: AppSpacing.lg),
-
             Row(
               children: [
                 Icon(AppIcons.camera, size: AppIconSize.sm, color: colorScheme.onSurfaceVariant),
@@ -121,11 +124,15 @@ class _TaskDetailsContent extends StatelessWidget {
               ],
             ),
             const SizedBox(height: AppSpacing.lg),
-
             SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
-                onPressed: disabled ? null : () {},
+                onPressed: disabled
+                    ? null
+                    : () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const UpdateProgressScreen()),
+                        ),
                 icon: const Icon(AppIcons.edit),
                 label: const Text('Update Progress'),
               ),
@@ -137,8 +144,6 @@ class _TaskDetailsContent extends StatelessWidget {
   }
 }
 
-/// Status pipeline — the first step deliberately says "Report submitted via
-/// Mobile App" and never a citizen name (privacy requirement).
 class _StatusPipeline extends StatelessWidget {
   const _StatusPipeline();
 
@@ -229,10 +234,7 @@ class _PipelineStep extends StatelessWidget {
                       fontWeight: isActive ? AppFontWeight.semiBold : AppFontWeight.regular,
                     ),
                   ),
-                  Text(
-                    timestamp,
-                    style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
-                  ),
+                  Text(timestamp, style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant)),
                 ],
               ),
             ),
@@ -255,10 +257,7 @@ class _PriorityBadge extends StatelessWidget {
         color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(AppRadius.xl),
       ),
-      child: Text(
-        'High Priority',
-        style: Theme.of(context).textTheme.labelMedium?.copyWith(color: color),
-      ),
+      child: Text('High Priority', style: Theme.of(context).textTheme.labelMedium?.copyWith(color: color)),
     );
   }
 }
@@ -296,10 +295,7 @@ class _PhotoPlaceholder extends StatelessWidget {
     return AspectRatio(
       aspectRatio: 4 / 3,
       child: Container(
-        decoration: BoxDecoration(
-          color: colorScheme.surfaceContainerLow,
-          borderRadius: AppComponentRadius.card,
-        ),
+        decoration: BoxDecoration(color: colorScheme.surfaceContainerLow, borderRadius: AppComponentRadius.card),
         child: Icon(AppIcons.imageUnavailable, color: colorScheme.onSurfaceVariant),
       ),
     );
@@ -330,37 +326,6 @@ class _LoadingView extends StatelessWidget {
           ),
         ),
       );
-}
-
-class _EmptyView extends StatelessWidget {
-  const _EmptyView({required this.onRetry});
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(AppIcons.empty, size: AppIconSize.xl, color: colorScheme.onSurfaceVariant),
-            const SizedBox(height: AppSpacing.md),
-            Text('No task details', style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              'No assigned task information is available.',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            FilledButton(onPressed: onRetry, child: const Text('Retry')),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 class _ErrorView extends StatelessWidget {
@@ -456,6 +421,36 @@ class _PermissionView extends StatelessWidget {
             const SizedBox(height: AppSpacing.xs),
             Text(
               'Maintenance access is required to view this assigned task.',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            FilledButton(onPressed: onRetry, child: const Text('Retry')),
+          ],
+        ),
+      ),
+    );
+  }
+}
+class _EmptyView extends StatelessWidget {
+  const _EmptyView({required this.onRetry});
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(AppIcons.empty, size: AppIconSize.xl, color: colorScheme.onSurfaceVariant),
+            const SizedBox(height: AppSpacing.md),
+            Text('No task details', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              'No assigned task information is available.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
             ),

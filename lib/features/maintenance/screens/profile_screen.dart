@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:civic_voice/core/theme/app_theme.dart';
+import 'package:civic_voice/features/maintenance/screens/dashboard_screen.dart';
+import 'package:civic_voice/features/maintenance/screens/assigned_tasks_screen.dart';
 
 /// MNT-007 — Maintenance Profile.
 class ProfileScreen extends StatefulWidget {
@@ -55,7 +57,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
           NavigationDestination(icon: Icon(AppIcons.task), label: 'Tasks'),
           NavigationDestination(icon: Icon(AppIcons.profile), label: 'Profile'),
         ],
-        onDestinationSelected: (_) {},
+        onDestinationSelected: (index) {
+          if (index == 0) {
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const DashboardScreen()));
+          } else if (index == 1) {
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const AssignedTasksScreen()));
+          }
+        },
       ),
     );
   }
@@ -140,12 +148,10 @@ class _ProfileForm extends StatelessWidget {
               style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
             ),
             const SizedBox(height: AppSpacing.lg),
-
             if (changesSaved) ...[
               _SavedBanner(semantic: semantic),
               const SizedBox(height: AppSpacing.md),
             ],
-
             Center(
               child: Column(
                 children: [
@@ -162,33 +168,22 @@ class _ProfileForm extends StatelessWidget {
               ),
             ),
             const SizedBox(height: AppSpacing.lg),
-
             Row(
               children: [
                 Expanded(
-                  child: _InfoTile(
-                    icon: AppIcons.maintenanceTeam,
-                    label: 'Department',
-                    value: 'Maintenance',
-                  ),
+                  child: _InfoTile(icon: AppIcons.maintenanceTeam, label: 'Department', value: 'Maintenance'),
                 ),
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
-                  child: _InfoTile(
-                    icon: AppIcons.location,
-                    label: 'District',
-                    value: 'West District',
-                  ),
+                  child: _InfoTile(icon: AppIcons.location, label: 'District', value: 'West District'),
                 ),
               ],
             ),
             const SizedBox(height: AppSpacing.sm),
             _InfoTile(icon: AppIcons.idCard, label: 'Employee ID', value: 'CV-2940-MJ'),
             const SizedBox(height: AppSpacing.lg),
-
             Text('Contact Information', style: textTheme.titleSmall),
             const SizedBox(height: AppSpacing.sm),
-
             Text('Email', style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant)),
             const SizedBox(height: AppSpacing.xs),
             TextField(
@@ -203,7 +198,6 @@ class _ProfileForm extends StatelessWidget {
               ),
             ),
             const SizedBox(height: AppSpacing.sm),
-
             Text('Phone', style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant)),
             const SizedBox(height: AppSpacing.xs),
             TextField(
@@ -211,13 +205,9 @@ class _ProfileForm extends StatelessWidget {
               onChanged: onFieldChanged,
               enabled: !disabled,
               keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(
-                hintText: 'Phone',
-                prefixIcon: Icon(AppIcons.phone),
-              ),
+              decoration: const InputDecoration(hintText: 'Phone', prefixIcon: Icon(AppIcons.phone)),
             ),
             const SizedBox(height: AppSpacing.xl),
-
             SizedBox(
               width: double.infinity,
               child: FilledButton(onPressed: onSave, child: const Text('Save Changes')),
