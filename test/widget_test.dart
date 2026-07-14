@@ -6,7 +6,9 @@ import 'package:civic_voice/features/admin/models/admin_system_activity_data.dar
 import 'package:civic_voice/features/admin/models/admin_user_management_data.dart';
 import 'package:civic_voice/features/admin/screens/admin_dashboard_screen.dart';
 import 'package:civic_voice/features/admin/screens/admin_role_management_screen.dart';
+import 'package:civic_voice/features/admin/models/admin_profile_data.dart';
 import 'package:civic_voice/features/admin/models/admin_system_settings_data.dart';
+import 'package:civic_voice/features/admin/screens/admin_profile_screen.dart';
 import 'package:civic_voice/features/admin/screens/admin_system_activity_screen.dart';
 import 'package:civic_voice/features/admin/screens/admin_system_settings_screen.dart';
 import 'package:civic_voice/features/admin/screens/admin_user_details_screen.dart';
@@ -1909,4 +1911,334 @@ void main() {
       expect(find.text('General Configuration'), findsOneWidget);
     },
   );
+
+  // ---------------------------------------------------------------------
+  // ADM-008 Admin Profile
+  // ---------------------------------------------------------------------
+
+  for (final state in AdminProfileViewState.values) {
+    testWidgets('Admin Profile renders ${state.name} without error', (
+      WidgetTester tester,
+    ) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: AdminProfileScreen(initialState: state),
+        ),
+      );
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets(
+    'Admin Profile renders without overflow on a narrow phone (375px)',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(375, 812);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(theme: AppTheme.light, home: const AdminProfileScreen()),
+      );
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'Admin Profile shows every section in its loaded state, read-only '
+    'and with no Save bar by default',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(theme: AppTheme.light, home: const AdminProfileScreen()),
+      );
+      await tester.pump();
+
+      expect(find.text('Admin Profile'), findsOneWidget);
+      // Appears twice — the profile card headline and the "Full Name"
+      // field value.
+      expect(find.text('System Administrator'), findsNWidgets(2));
+      expect(find.text('admin@civicvoice.gov'), findsOneWidget);
+      expect(find.text('Platform Administration'), findsOneWidget);
+      expect(find.text('ADM-001'), findsOneWidget);
+      expect(find.text('Access Summary'), findsOneWidget);
+      expect(find.text('92% governance checklist complete'), findsOneWidget);
+      expect(find.text('Security Settings'), findsOneWidget);
+      expect(find.text('Change Password'), findsOneWidget);
+      expect(find.text('Two-factor authentication'), findsOneWidget);
+      expect(find.text('Enabled'), findsOneWidget);
+      expect(find.text('Administrative Scope'), findsOneWidget);
+      expect(find.text('Users'), findsWidgets);
+      expect(find.text('Roles'), findsWidgets);
+      expect(find.text('Governance Level'), findsOneWidget);
+      expect(find.text('Approved administrator'), findsOneWidget);
+      expect(find.text('Session'), findsOneWidget);
+      expect(find.text('Sign Out'), findsOneWidget);
+
+      expect(find.byType(TextFormField), findsNothing);
+      expect(find.text('Save Changes'), findsNothing);
+      expect(find.text('Cancel'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'Admin Profile Edit reveals editable fields and the Save bar, Cancel '
+    'reverts',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(theme: AppTheme.light, home: const AdminProfileScreen()),
+      );
+      await tester.pump();
+
+      await tester.tap(find.byTooltip('Edit'));
+      await tester.pump();
+
+      expect(find.byType(TextFormField), findsNWidgets(3));
+      expect(find.text('Save Changes'), findsOneWidget);
+      expect(find.text('Cancel'), findsOneWidget);
+
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Platform Administration'),
+        'Civic Operations',
+      );
+      await tester.pump();
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pump();
+
+      expect(find.byType(TextFormField), findsNothing);
+      expect(find.text('Save Changes'), findsNothing);
+      expect(find.text('Platform Administration'), findsOneWidget);
+      expect(find.text('Civic Operations'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'Admin Profile Save Changes shows the success banner and exits edit '
+    'mode',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(theme: AppTheme.light, home: const AdminProfileScreen()),
+      );
+      await tester.pump();
+
+      await tester.tap(find.byTooltip('Edit'));
+      await tester.pump();
+
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Platform Administration'),
+        'Civic Operations',
+      );
+      await tester.pump();
+      await tester.tap(find.text('Save Changes'));
+      await tester.pump();
+
+      // The save completes after a simulated delay — a single pump only
+      // advances one frame, not the full delay.
+      await tester.pump(const Duration(milliseconds: 600));
+
+      expect(find.text('Profile updated'), findsOneWidget);
+      expect(find.text('Civic Operations'), findsOneWidget);
+      expect(find.byType(TextFormField), findsNothing);
+      expect(find.text('Save Changes'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'Admin Profile blocks saving with an empty Full Name and shows the '
+    'validation copy',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(theme: AppTheme.light, home: const AdminProfileScreen()),
+      );
+      await tester.pump();
+
+      await tester.tap(find.byTooltip('Edit'));
+      await tester.pump();
+
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'System Administrator'),
+        '',
+      );
+      await tester.pump();
+      await tester.tap(find.text('Save Changes'));
+      await tester.pump();
+
+      expect(find.text('Full name is required.'), findsOneWidget);
+      // Still editing — the failed save doesn't clear the bar.
+      expect(find.text('Save Changes'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'Admin Profile initialSaveState previews the Update Failed banner',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: const AdminProfileScreen(
+            initialSaveState: AdminProfileSaveState.failed,
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('Update Failed'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'Admin Profile is a tab-shell screen: bottom nav stays visible and '
+    'switches tabs',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      var usersTapped = false;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: AdminProfileScreen(onNavigateToUsers: () => usersTapped = true),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('Dashboard'), findsOneWidget);
+      // "Users"/"Settings" also appear as Administrative Scope pills.
+      expect(find.text('Users'), findsWidgets);
+      expect(find.text('Settings'), findsWidgets);
+
+      // The Administrative Scope pill ("Users") is built before the
+      // bottom-nav tab of the same name.
+      await tester.tap(find.text('Users').last);
+      await tester.pump();
+      expect(usersTapped, isTrue);
+    },
+  );
+
+  testWidgets('Admin Profile Offline shows the approved copy', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: const AdminProfileScreen(
+          initialState: AdminProfileViewState.offline,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('You\'re offline'), findsOneWidget);
+  });
+
+  testWidgets('Admin Profile Error shows the approved copy', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: const AdminProfileScreen(
+          initialState: AdminProfileViewState.error,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Something went wrong'), findsOneWidget);
+  });
+
+  testWidgets(
+    'Admin Profile Unauthorized shows the approved copy with no action '
+    'buttons',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: const AdminProfileScreen(
+            initialState: AdminProfileViewState.unauthorized,
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('Unauthorized Access'), findsOneWidget);
+      expect(find.byType(FilledButton), findsNothing);
+    },
+  );
+
+  testWidgets('Admin Profile Retry moves Error through loading to loaded', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: const AdminProfileScreen(
+          initialState: AdminProfileViewState.error,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.text('Retry'));
+    await tester.pump();
+    expect(find.text('Something went wrong'), findsNothing);
+
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(find.text('Access Summary'), findsOneWidget);
+  });
 }
