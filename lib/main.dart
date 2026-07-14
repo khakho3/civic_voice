@@ -46,15 +46,16 @@ class _AdminRootState extends State<_AdminRoot> {
     return switch (_current) {
       _AdminScreen.dashboard => AdminDashboardScreen(
         onNavigateToUsers: () => setState(() => _current = _AdminScreen.users),
-        // Roles/Settings/System Activity aren't built yet (ADM-004,
-        // ADM-007, ADM-006) — wire these up as each screen lands, matching
-        // how the other modules' roots grew incrementally.
+        // Roles/Settings/System Activity/Profile aren't built yet (ADM-004,
+        // ADM-007, ADM-006, ADM-008) — wire these up as each screen lands,
+        // matching how the other modules' roots grew incrementally.
       ),
       _AdminScreen.users => AdminUserManagementScreen(
         onNavigateToDashboard: () =>
             setState(() => _current = _AdminScreen.dashboard),
-        // onNavigateToRoles/onNavigateToSettings/onOpenUserDetails aren't
-        // built yet (ADM-004, ADM-007, ADM-003).
+        // onNavigateToRoles/onNavigateToSettings/onOpenUserDetails/
+        // onOpenSystemActivity/onOpenProfile aren't built yet (ADM-004,
+        // ADM-007, ADM-003, ADM-006, ADM-008).
       ),
     };
   }

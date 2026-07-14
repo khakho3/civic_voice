@@ -41,6 +41,7 @@ class AdminDashboardScreen extends StatefulWidget {
     this.onNavigateToRoles,
     this.onNavigateToSettings,
     this.onViewSystemActivity,
+    this.onOpenProfile,
     this.onNotificationsTap,
   });
 
@@ -58,9 +59,14 @@ class AdminDashboardScreen extends StatefulWidget {
   final VoidCallback? onNavigateToSettings;
 
   /// Opens ADM-006 System Activity — the spec'd destination for "View
-  /// System Activity", wired to the Activity Monitoring card. Nullable:
-  /// ADM-006 isn't built yet.
+  /// System Activity", wired to both the Activity Monitoring card and
+  /// [AdminScaffold]'s drawer (same destination, not two competing ones).
+  /// Nullable: ADM-006 isn't built yet.
   final VoidCallback? onViewSystemActivity;
+
+  /// Opens ADM-008 Admin Profile via [AdminScaffold]'s drawer. Nullable:
+  /// ADM-008 isn't built yet.
+  final VoidCallback? onOpenProfile;
 
   final VoidCallback? onNotificationsTap;
 
@@ -89,6 +95,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         if (tab == AdminTab.roles) widget.onNavigateToRoles?.call();
         if (tab == AdminTab.settings) widget.onNavigateToSettings?.call();
       },
+      onOpenSystemActivity: widget.onViewSystemActivity,
+      onOpenProfile: widget.onOpenProfile,
       body: switch (_state) {
         AdminDashboardViewState.loading => const _LoadingSkeleton(),
         _ => _DashboardBody(

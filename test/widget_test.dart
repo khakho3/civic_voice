@@ -60,7 +60,9 @@ void main() {
       );
       await tester.pump();
 
-      expect(find.text('CivicVoice'), findsOneWidget);
+      // Dashboard's header shows a centered logo mark, not the "CivicVoice"
+      // wordmark text — that now lives only in the drawer.
+      expect(find.image(const AssetImage(AppAssets.logoApp)), findsOneWidget);
       expect(find.text('Platform Overview'), findsOneWidget);
       expect(
         find.text('Real-time metrics and system administrative summary.'),
@@ -267,6 +269,130 @@ void main() {
 
     expect(find.text('Unable to Load Dashboard'), findsNothing);
     expect(find.text('Management'), findsOneWidget);
+  });
+
+  // ---------------------------------------------------------------------
+  // Admin drawer (shared AdminScaffold chrome, exercised via Dashboard)
+  // ---------------------------------------------------------------------
+
+  testWidgets('Admin drawer opens from the header hamburger icon', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(theme: AppTheme.light, home: const AdminDashboardScreen()),
+    );
+    await tester.pump();
+
+    expect(find.byType(Drawer), findsNothing);
+
+    await tester.tap(find.byIcon(AppIcons.menu));
+    // The drawer's slide-in is a spring (`fling`) animation: its ticker only
+    // establishes its own elapsed-time epoch on the frame it starts, so a
+    // single large `pump(duration)` right after the tap that triggers it
+    // evaluates the spring at t=0 and freezes it fully closed. It needs a
+    // zero-duration pump first (to start the ticker) before a second pump
+    // lets it settle.
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.byType(Drawer), findsOneWidget);
+    expect(find.text('CivicVoice'), findsOneWidget);
+    expect(find.text('System Activity'), findsOneWidget);
+    expect(find.text('Admin Profile'), findsOneWidget);
+  });
+
+  testWidgets(
+    'Admin drawer does not repeat the four bottom-nav tab destinations',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(theme: AppTheme.light, home: const AdminDashboardScreen()),
+      );
+      await tester.pump();
+
+      await tester.tap(find.byIcon(AppIcons.menu));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      // Dashboard/Users/Roles/Settings are already one tap away on the
+      // bottom nav, so the drawer's own ListView shouldn't repeat them —
+      // only the two destinations with no tab slot.
+      final drawerTiles = tester.widgetList<ListTile>(
+        find.descendant(
+          of: find.byType(Drawer),
+          matching: find.byType(ListTile),
+        ),
+      );
+      final drawerLabels = drawerTiles
+          .map((tile) => (tile.title! as Text).data)
+          .toList();
+      expect(drawerLabels, ['System Activity', 'Admin Profile']);
+    },
+  );
+
+  testWidgets('Admin drawer System Activity and Admin Profile items fire their '
+      'callbacks and close the drawer', (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    var activityTapped = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: AdminDashboardScreen(
+          onViewSystemActivity: () => activityTapped = true,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.byIcon(AppIcons.menu));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    await tester.tap(find.text('System Activity'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(activityTapped, isTrue);
+    expect(find.byType(Drawer), findsNothing);
+  });
+
+  testWidgets('Admin drawer Admin Profile item is disabled when unwired', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(theme: AppTheme.light, home: const AdminDashboardScreen()),
+    );
+    await tester.pump();
+
+    await tester.tap(find.byIcon(AppIcons.menu));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    final tile = tester.widget<ListTile>(
+      find.ancestor(
+        of: find.text('Admin Profile'),
+        matching: find.byType(ListTile),
+      ),
+    );
+    expect(tile.enabled, isFalse);
   });
 
   // ---------------------------------------------------------------------

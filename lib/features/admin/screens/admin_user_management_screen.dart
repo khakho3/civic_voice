@@ -65,6 +65,8 @@ class AdminUserManagementScreen extends StatefulWidget {
     this.onNavigateToRoles,
     this.onNavigateToSettings,
     this.onOpenUserDetails,
+    this.onOpenSystemActivity,
+    this.onOpenProfile,
     this.onNotificationsTap,
   });
 
@@ -78,6 +80,11 @@ class AdminUserManagementScreen extends StatefulWidget {
   /// Opens ADM-003 User Details for the tapped user — the spec's only exit
   /// point. Nullable: ADM-003 isn't built yet.
   final ValueChanged<AdminUserItem>? onOpenUserDetails;
+
+  /// Forwarded to [AdminScaffold]'s drawer. Nullable: neither ADM-006 nor
+  /// ADM-008 is built yet.
+  final VoidCallback? onOpenSystemActivity;
+  final VoidCallback? onOpenProfile;
 
   final VoidCallback? onNotificationsTap;
 
@@ -161,6 +168,8 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
         if (tab == AdminTab.roles) widget.onNavigateToRoles?.call();
         if (tab == AdminTab.settings) widget.onNavigateToSettings?.call();
       },
+      onOpenSystemActivity: widget.onOpenSystemActivity,
+      onOpenProfile: widget.onOpenProfile,
       body: switch (_state) {
         AdminUserManagementViewState.loading => const _LoadingSkeleton(),
         AdminUserManagementViewState.loaded => Padding(
