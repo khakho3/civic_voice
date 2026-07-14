@@ -149,6 +149,7 @@ abstract final class AppIcons {
 
   // System Administrator module.
   static const IconData shield = LucideIcons.shield;
+  static const IconData shieldAlert = LucideIcons.shieldAlert;
   static const IconData activityPulse = LucideIcons.activity;
   static const IconData roleManagement = LucideIcons.userCog;
   static const IconData activityLog = LucideIcons.history;

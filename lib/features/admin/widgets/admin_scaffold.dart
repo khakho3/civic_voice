@@ -89,6 +89,7 @@ class AdminScaffold extends StatelessWidget {
     this.onTabSelected,
     this.onOpenSystemActivity,
     this.onOpenProfile,
+    this.headerTitle,
   });
 
   final Widget body;
@@ -103,6 +104,14 @@ class AdminScaffold extends StatelessWidget {
 
   /// Opens ADM-008 Admin Profile — the drawer is its only entry point.
   final VoidCallback? onOpenProfile;
+
+  /// Overrides [AdminTab.headerTitle] for drill-down screens that inherit
+  /// a tab's bottom-nav selection but need their own distinct header title
+  /// — e.g. ADM-003 User Details keeps [AdminTab.users] selected (it's a
+  /// drill-down from that list) but shows "User Details", not "User
+  /// Management", in the header. Null for every screen that's a tab's own
+  /// root, which is every screen so far except User Details.
+  final String? headerTitle;
 
   /// The top/bottom inset every [body] must reserve in its own scrollable
   /// content so nothing sits permanently hidden behind the glass header/nav
@@ -134,6 +143,7 @@ class AdminScaffold extends StatelessWidget {
               child: _Header(
                 tab: selectedTab,
                 onNotificationsTap: onNotificationsTap,
+                titleOverride: headerTitle,
               ),
             ),
             if (!keyboardVisible)
@@ -152,10 +162,15 @@ class AdminScaffold extends StatelessWidget {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({required this.tab, this.onNotificationsTap});
+  const _Header({
+    required this.tab,
+    this.onNotificationsTap,
+    this.titleOverride,
+  });
 
   final AdminTab tab;
   final VoidCallback? onNotificationsTap;
+  final String? titleOverride;
 
   @override
   Widget build(BuildContext context) {
@@ -193,7 +208,7 @@ class _Header extends StatelessWidget {
                           ),
                         )
                       : Text(
-                          tab.headerTitle,
+                          titleOverride ?? tab.headerTitle,
                           style: textTheme.titleMedium,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,

@@ -4,7 +4,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:civic_voice/core/theme/app_theme.dart';
 import 'package:civic_voice/features/admin/models/admin_user_management_data.dart';
 import 'package:civic_voice/features/admin/screens/admin_dashboard_screen.dart';
+import 'package:civic_voice/features/admin/screens/admin_role_management_screen.dart';
+import 'package:civic_voice/features/admin/screens/admin_user_details_screen.dart';
 import 'package:civic_voice/features/admin/screens/admin_user_management_screen.dart';
+import 'package:civic_voice/models/app_role.dart';
 
 void main() {
   // ---------------------------------------------------------------------
@@ -708,6 +711,551 @@ void main() {
       await tester.tap(find.text('Dashboard'));
       await tester.pumpAndSettle();
       expect(dashboardTapped, isTrue);
+    },
+  );
+
+  // ---------------------------------------------------------------------
+  // ADM-004 Role Management
+  // ---------------------------------------------------------------------
+
+  for (final state in AdminRoleManagementViewState.values) {
+    testWidgets('Admin Role Management renders ${state.name} without error', (
+      WidgetTester tester,
+    ) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: AdminRoleManagementScreen(initialState: state),
+        ),
+      );
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets(
+    'Admin Role Management renders without overflow on a narrow phone '
+    '(375px)',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(375, 812);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: const AdminRoleManagementScreen(),
+        ),
+      );
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'Admin Role Management shows both fixed tiers and the permissions '
+    'table in its loaded state',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: const AdminRoleManagementScreen(),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('System Access Control'), findsOneWidget);
+      // "Super Admin" appears twice — once as a card title, once as its
+      // Quick Permissions Check table column header.
+      expect(find.text('Super Admin'), findsWidgets);
+      expect(find.text('Full System Authority'), findsOneWidget);
+      expect(find.text('Admin'), findsWidgets);
+      expect(find.text('Standard Access'), findsOneWidget);
+      expect(find.text('Export Reports'), findsWidgets);
+      expect(find.text('View Audit Logs'), findsWidgets);
+      expect(find.text('Security Audit Required'), findsOneWidget);
+      expect(find.text('View Detailed Logs'), findsOneWidget);
+      expect(find.text('Quick Permissions Check'), findsOneWidget);
+      // Appears both as the table's row label and Super Admin's own tag
+      // chip (Super Admin is granted every permission).
+      expect(find.text('Delete Records'), findsWidgets);
+
+      // No management affordances — the tier set is fixed and read-only.
+      expect(find.byType(PopupMenuButton<void>), findsNothing);
+      expect(find.byType(FloatingActionButton), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'Admin Role Management is a tab-shell screen: bottom nav stays visible '
+    'and switches tabs',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      var usersTapped = false;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: AdminRoleManagementScreen(
+            onNavigateToUsers: () => usersTapped = true,
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('Dashboard'), findsOneWidget);
+      expect(find.text('Users'), findsOneWidget);
+      expect(find.text('Settings'), findsOneWidget);
+
+      await tester.tap(find.text('Users'));
+      await tester.pump();
+      expect(usersTapped, isTrue);
+    },
+  );
+
+  testWidgets(
+    'Admin Role Management Security Audit card opens System Activity',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      var activityTapped = false;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: AdminRoleManagementScreen(
+            onOpenSystemActivity: () => activityTapped = true,
+          ),
+        ),
+      );
+      await tester.pump();
+
+      await tester.tap(find.text('View Detailed Logs'));
+      await tester.pump();
+
+      expect(activityTapped, isTrue);
+    },
+  );
+
+  testWidgets('Admin Role Management Offline shows the approved copy', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: const AdminRoleManagementScreen(
+          initialState: AdminRoleManagementViewState.offline,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('You\'re offline'), findsOneWidget);
+    expect(find.text('System Access Control'), findsOneWidget);
+  });
+
+  testWidgets('Admin Role Management Error shows the approved copy', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: const AdminRoleManagementScreen(
+          initialState: AdminRoleManagementViewState.error,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Something went wrong'), findsOneWidget);
+  });
+
+  testWidgets(
+    'Admin Role Management Unauthorized shows the approved copy with no '
+    'action buttons',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: const AdminRoleManagementScreen(
+            initialState: AdminRoleManagementViewState.unauthorized,
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('Unauthorized Access'), findsOneWidget);
+      expect(find.byType(FilledButton), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'Admin Role Management Retry moves Error through loading to loaded',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: const AdminRoleManagementScreen(
+            initialState: AdminRoleManagementViewState.error,
+          ),
+        ),
+      );
+      await tester.pump();
+
+      await tester.tap(find.text('Retry'));
+      await tester.pump();
+      expect(find.text('Something went wrong'), findsNothing);
+
+      await tester.pump(const Duration(milliseconds: 600));
+      expect(find.text('Super Admin'), findsWidgets);
+    },
+  );
+
+  // ---------------------------------------------------------------------
+  // ADM-003 User Details
+  // ---------------------------------------------------------------------
+
+  AdminUserItem findMockUser(String name) =>
+      mockAdminUsers().firstWhere((u) => u.name == name);
+
+  for (final state in AdminUserDetailsViewState.values) {
+    testWidgets('Admin User Details renders ${state.name} without error', (
+      WidgetTester tester,
+    ) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: AdminUserDetailsScreen(
+            user: findMockUser('Yaw Asare'),
+            initialState: state,
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets(
+    'Admin User Details renders without overflow on a narrow phone (375px)',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(375, 812);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: AdminUserDetailsScreen(user: findMockUser('Yaw Asare')),
+        ),
+      );
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('Admin User Details shows the profile, sections, and permissions '
+      'summary in its loaded state', (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: AdminUserDetailsScreen(user: findMockUser('Yaw Asare')),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('User Details'), findsOneWidget);
+    // Each appears twice — once on the profile card, once as its own
+    // read-only "User Information" field.
+    expect(find.text('Yaw Asare'), findsWidgets);
+    expect(find.text('yaw.asare@civicvoice.gov'), findsWidgets);
+    expect(find.text('CV-USER-0104'), findsOneWidget);
+    expect(find.text('User Information'), findsOneWidget);
+    expect(find.text('Access Management'), findsOneWidget);
+    expect(find.text('Permissions Summary'), findsOneWidget);
+    expect(find.text('Account Activity'), findsOneWidget);
+    // The role pill and the "Assigned Role" dropdown's current value
+    // both read "Maintenance Team".
+    expect(find.text('Maintenance Team'), findsWidgets);
+    expect(find.text('Update reports'), findsOneWidget);
+
+    // Still shows the "Users" tab selected, not a persistent tab of its
+    // own — this screen is a drill-down from that list.
+    expect(find.text('Users'), findsOneWidget);
+
+    // No Admin Tier selector for a non-admin account.
+    expect(find.text('Admin Tier'), findsNothing);
+  });
+
+  testWidgets(
+    'Admin User Details reveals the Admin Tier selector only when Assigned '
+    'Role is System Administrator',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: AdminUserDetailsScreen(user: findMockUser('Yaw Asare')),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('Admin Tier'), findsNothing);
+
+      // No indefinitely-repeating animation exists in this screen's
+      // loaded state (unlike Dashboard's breathing dot or the loading
+      // skeleton's shimmer), so pumpAndSettle is safe here and more
+      // robust than guessing a fixed settle duration for the dropdown's
+      // own open/close route animation.
+      await tester.tap(find.byType(DropdownButton<AppRole>));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('System Administrator').last);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Admin Tier'), findsOneWidget);
+      // Defaults to the Admin tier, not Super Admin.
+      expect(find.text('Admin'), findsWidgets);
+      // Permissions Summary now previews the Admin tier's grants instead
+      // of Maintenance Team's.
+      expect(find.text('Update reports'), findsNothing);
+      expect(find.text('Export Reports'), findsWidgets);
+
+      await tester.tap(find.byType(DropdownButton<AppRole>));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Citizen').last);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Admin Tier'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'Admin User Details Save Changes shows the success banner and forwards '
+    'the edited record',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      AdminUserItem? saved;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: AdminUserDetailsScreen(
+            user: findMockUser('Yaw Asare'),
+            onSaveChanges: (user) => saved = user,
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('Changes saved'), findsNothing);
+
+      await tester.tap(find.text('Save Changes'));
+      await tester.pump();
+
+      expect(find.text('Changes saved'), findsOneWidget);
+      expect(saved?.role, AppRole.maintenanceTeam);
+      expect(saved?.status, AdminUserStatus.active);
+    },
+  );
+
+  testWidgets('Admin User Details Cancel navigates back to User Management', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    var backTapped = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: AdminUserDetailsScreen(
+          user: findMockUser('Yaw Asare'),
+          onNavigateToUsers: () => backTapped = true,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.text('Cancel'));
+    await tester.pump();
+
+    expect(backTapped, isTrue);
+  });
+
+  testWidgets(
+    'Admin User Details is a tab-shell screen: bottom nav stays visible '
+    'and switches tabs',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      var dashboardTapped = false;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: AdminUserDetailsScreen(
+            user: findMockUser('Yaw Asare'),
+            onNavigateToDashboard: () => dashboardTapped = true,
+          ),
+        ),
+      );
+      await tester.pump();
+
+      await tester.tap(find.text('Dashboard'));
+      await tester.pump();
+      expect(dashboardTapped, isTrue);
+    },
+  );
+
+  testWidgets('Admin User Details Offline shows the approved copy', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: AdminUserDetailsScreen(
+          user: findMockUser('Yaw Asare'),
+          initialState: AdminUserDetailsViewState.offline,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('You\'re offline'), findsOneWidget);
+  });
+
+  testWidgets('Admin User Details Error shows the approved copy', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: AdminUserDetailsScreen(
+          user: findMockUser('Yaw Asare'),
+          initialState: AdminUserDetailsViewState.error,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Something went wrong'), findsOneWidget);
+  });
+
+  testWidgets('Admin User Details Unauthorized shows the approved copy with no '
+      'action buttons', (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: AdminUserDetailsScreen(
+          user: findMockUser('Yaw Asare'),
+          initialState: AdminUserDetailsViewState.unauthorized,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Unauthorized Access'), findsOneWidget);
+    expect(find.byType(FilledButton), findsNothing);
+  });
+
+  testWidgets(
+    'Admin User Details Retry moves Error through loading to loaded',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: AdminUserDetailsScreen(
+            user: findMockUser('Yaw Asare'),
+            initialState: AdminUserDetailsViewState.error,
+          ),
+        ),
+      );
+      await tester.pump();
+
+      await tester.tap(find.text('Retry'));
+      await tester.pump();
+      expect(find.text('Something went wrong'), findsNothing);
+
+      await tester.pump(const Duration(milliseconds: 600));
+      expect(find.text('Yaw Asare'), findsWidgets);
     },
   );
 }
