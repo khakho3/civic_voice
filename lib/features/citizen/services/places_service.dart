@@ -23,9 +23,8 @@ class PlaceSuggestion {
 class PlacesService {
   PlacesService({
     http.Client? client,
-    String apiKey = const String.fromEnvironment('GOOGLE_MAPS_API_KEY'),
-  }) : _client = client ?? http.Client(),
-       _apiKey = apiKey;
+    this._apiKey = const String.fromEnvironment('GOOGLE_MAPS_API_KEY'),
+  }) : _client = client ?? http.Client();
 
   static const MethodChannel _configChannel = MethodChannel(
     'civic_voice/config',

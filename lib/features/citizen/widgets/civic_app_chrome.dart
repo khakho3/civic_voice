@@ -300,28 +300,19 @@ class _ChromeIconButton extends StatelessWidget {
   const _ChromeIconButton({
     required this.icon,
     required this.tooltip,
-    this.outlined = false,
     this.onPressed,
   });
 
   final IconData icon;
   final String tooltip;
-  final bool outlined;
   final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Tooltip(
       message: tooltip,
       child: DecoratedBox(
-        decoration: BoxDecoration(
-          borderRadius: AppRadius.allLg,
-          border: outlined
-              ? Border.all(color: theme.colorScheme.outline)
-              : null,
-        ),
+        decoration: BoxDecoration(borderRadius: AppRadius.allLg),
         child: IconButton(onPressed: onPressed ?? () {}, icon: Icon(icon)),
       ),
     );
