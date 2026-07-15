@@ -48,6 +48,8 @@ abstract final class AppIcons {
   static const IconData notificationsActive = LucideIcons.bellRing;
   static const IconData profile = LucideIcons.user;
   static const IconData settings = LucideIcons.settings;
+  static const IconData sun = LucideIcons.sun;
+  static const IconData moon = LucideIcons.moon;
   static const IconData logOut = LucideIcons.logOut;
 
   // Common actions.
@@ -57,6 +59,7 @@ abstract final class AppIcons {
   static const IconData camera = LucideIcons.camera;
   static const IconData upload = LucideIcons.upload;
   static const IconData download = LucideIcons.download;
+  static const IconData copy = LucideIcons.copy;
   static const IconData share = LucideIcons.share2;
   static const IconData location = LucideIcons.mapPin;
   static const IconData myLocation = LucideIcons.crosshair;

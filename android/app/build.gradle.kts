@@ -1,7 +1,36 @@
+import java.util.Base64
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+}
+
+fun googleMapsApiKeyFromDartDefines(): String? {
+    val dartDefines = project.findProperty("dart-defines") as String? ?: return null
+    for (encoded in dartDefines.split(",")) {
+        val decoded = try {
+            String(Base64.getDecoder().decode(encoded), Charsets.UTF_8)
+        } catch (_: IllegalArgumentException) {
+            null
+        } ?: continue
+
+        if (decoded.startsWith("GOOGLE_MAPS_API_KEY=")) {
+            return decoded.substringAfter("=").takeIf { it.isNotBlank() }
+        }
+    }
+    return null
+}
+
+fun googleMapsApiKeyFromLocalProperties(): String? {
+    val propertiesFile = rootProject.file("local.properties")
+    if (!propertiesFile.exists()) return null
+
+    val properties = Properties()
+    propertiesFile.inputStream().use { properties.load(it) }
+    return properties.getProperty("GOOGLE_MAPS_API_KEY")
+        ?: properties.getProperty("googleMapsApiKey")
 }
 
 android {
@@ -23,6 +52,22 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        val googleMapsApiKey =
+            (project.findProperty("GOOGLE_MAPS_API_KEY") as String?)
+                ?: googleMapsApiKeyFromDartDefines()
+                ?: googleMapsApiKeyFromLocalProperties()
+                ?: System.getenv("GOOGLE_MAPS_API_KEY")
+                ?: ""
+        manifestPlaceholders["GOOGLE_MAPS_API_KEY"] = googleMapsApiKey
+        buildConfigField(
+            "String",
+            "GOOGLE_MAPS_API_KEY",
+            "\"${googleMapsApiKey.replace("\\", "\\\\").replace("\"", "\\\"")}\"",
+        )
+    }
+
+    buildFeatures {
+        buildConfig = true
     }
 
     buildTypes {
