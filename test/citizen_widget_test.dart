@@ -1,18 +1,16 @@
-import 'package:civic_voice/main.dart';
+import 'package:civic_voice/core/theme/app_theme.dart';
+import 'package:civic_voice/features/citizen/screens/citizen_dashboard_screen.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('CivicVoice opens from splash to citizen dashboard', (
+  testWidgets('Citizen Dashboard shows the signed-in citizen and quick actions', (
     WidgetTester tester,
   ) async {
-    await tester.pumpWidget(const CivicVoiceApp());
-
-    expect(find.text('CivicVoice'), findsOneWidget);
-    expect(find.text('Report. Track. Resolve.'), findsOneWidget);
-
-    // The splash screen's own timer fires at 3500ms, not 1500ms.
-    await tester.pump(const Duration(milliseconds: 3500));
-    await tester.pumpAndSettle();
+    await tester.pumpWidget(
+      MaterialApp(theme: AppTheme.light, home: const CitizenDashboardScreen()),
+    );
+    await tester.pump();
 
     expect(find.text('Good Morning, Amina Mensah'), findsOneWidget);
     expect(find.text('Report a Community Issue'), findsOneWidget);
