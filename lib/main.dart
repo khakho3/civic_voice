@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
 
 import 'core/theme/app_theme.dart';
-import 'features/admin/models/admin_user_management_data.dart';
-import 'features/admin/screens/admin_dashboard_screen.dart';
-import 'features/admin/screens/admin_role_management_screen.dart';
-import 'features/admin/screens/admin_profile_screen.dart';
-import 'features/admin/screens/admin_system_activity_screen.dart';
-import 'features/admin/screens/admin_system_settings_screen.dart';
-import 'features/admin/screens/admin_user_details_screen.dart';
-import 'features/admin/screens/admin_user_management_screen.dart';
+import 'features/ministry/screens/ministry_analytics_screen.dart';
+import 'features/ministry/screens/ministry_dashboard_screen.dart';
+import 'features/ministry/screens/ministry_municipal_performance_screen.dart';
+import 'features/ministry/screens/ministry_profile_screen.dart';
+import 'features/ministry/screens/ministry_report_insights_screen.dart';
+import 'features/ministry/screens/ministry_reports_screen.dart';
 
 void main() {
   runApp(const CivicVoiceApp());
@@ -25,119 +23,90 @@ class CivicVoiceApp extends StatelessWidget {
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       themeMode: AppTheme.themeMode,
-      home: const _AdminRoot(),
+      home: const _MinistryRoot(),
     );
   }
 }
 
-/// Temporary root shell wiring the System Administrator screens built so
-/// far — a placeholder until a proper named-route/navigator setup is worth
-/// introducing (once more of the module's eight screens exist), matching
-/// how the Municipal Officer and Ministry Supervisor modules' own roots
-/// started.
-enum _AdminScreen {
+/// Root shell wiring all six Ministry Supervisor screens — a placeholder
+/// until a proper named-route/navigator setup is worth introducing, matching
+/// how the Municipal Officer module's own root started.
+///
+/// [_MinistryScreen.reportInsights] and [_MinistryScreen.profile] aren't
+/// bottom-nav tabs (see their own screens' doc comments) — both are
+/// drill-downs whose back arrow always returns to Dashboard, the spec's
+/// exit point for each.
+enum _MinistryScreen {
   dashboard,
-  users,
-  roles,
-  userDetails,
-  systemActivity,
-  settings,
+  analytics,
+  municipalities,
+  reports,
+  reportInsights,
   profile,
 }
 
-class _AdminRoot extends StatefulWidget {
-  const _AdminRoot();
+class _MinistryRoot extends StatefulWidget {
+  const _MinistryRoot();
 
   @override
-  State<_AdminRoot> createState() => _AdminRootState();
+  State<_MinistryRoot> createState() => _MinistryRootState();
 }
 
-class _AdminRootState extends State<_AdminRoot> {
-  _AdminScreen _current = _AdminScreen.dashboard;
-
-  /// Set by [AdminUserManagementScreen.onOpenUserDetails] right before
-  /// switching to [_AdminScreen.userDetails] — this temporary root shell
-  /// has no real navigator/route args, so the drill-down target rides
-  /// along in state instead.
-  AdminUserItem? _selectedUser;
+class _MinistryRootState extends State<_MinistryRoot> {
+  _MinistryScreen _current = _MinistryScreen.dashboard;
 
   @override
   Widget build(BuildContext context) {
     return switch (_current) {
-      _AdminScreen.dashboard => AdminDashboardScreen(
-        onNavigateToUsers: () => setState(() => _current = _AdminScreen.users),
-        onNavigateToRoles: () => setState(() => _current = _AdminScreen.roles),
-        onNavigateToSettings: () =>
-            setState(() => _current = _AdminScreen.settings),
-        onViewSystemActivity: () =>
-            setState(() => _current = _AdminScreen.systemActivity),
-        onOpenProfile: () => setState(() => _current = _AdminScreen.profile),
+      _MinistryScreen.dashboard => MinistryDashboardScreen(
+        onNavigateToAnalytics: () =>
+            setState(() => _current = _MinistryScreen.analytics),
+        onNavigateToMunicipalities: () =>
+            setState(() => _current = _MinistryScreen.municipalities),
+        onNavigateToReports: () =>
+            setState(() => _current = _MinistryScreen.reports),
+        onProfileTap: () => setState(() => _current = _MinistryScreen.profile),
       ),
-      _AdminScreen.users => AdminUserManagementScreen(
+      _MinistryScreen.analytics => MinistryAnalyticsScreen(
         onNavigateToDashboard: () =>
-            setState(() => _current = _AdminScreen.dashboard),
-        onNavigateToRoles: () => setState(() => _current = _AdminScreen.roles),
-        onOpenUserDetails: (user) => setState(() {
-          _selectedUser = user;
-          _current = _AdminScreen.userDetails;
-        }),
-        onOpenSystemActivity: () =>
-            setState(() => _current = _AdminScreen.systemActivity),
-        onNavigateToSettings: () =>
-            setState(() => _current = _AdminScreen.settings),
-        onOpenProfile: () => setState(() => _current = _AdminScreen.profile),
+            setState(() => _current = _MinistryScreen.dashboard),
+        onNavigateToMunicipalities: () =>
+            setState(() => _current = _MinistryScreen.municipalities),
+        onNavigateToReports: () =>
+            setState(() => _current = _MinistryScreen.reports),
+        onViewReportInsights: () =>
+            setState(() => _current = _MinistryScreen.reportInsights),
+        onProfileTap: () => setState(() => _current = _MinistryScreen.profile),
       ),
-      _AdminScreen.roles => AdminRoleManagementScreen(
+      _MinistryScreen.municipalities => MinistryMunicipalPerformanceScreen(
         onNavigateToDashboard: () =>
-            setState(() => _current = _AdminScreen.dashboard),
-        onNavigateToUsers: () => setState(() => _current = _AdminScreen.users),
-        onOpenSystemActivity: () =>
-            setState(() => _current = _AdminScreen.systemActivity),
-        onNavigateToSettings: () =>
-            setState(() => _current = _AdminScreen.settings),
-        onOpenProfile: () => setState(() => _current = _AdminScreen.profile),
+            setState(() => _current = _MinistryScreen.dashboard),
+        onNavigateToAnalytics: () =>
+            setState(() => _current = _MinistryScreen.analytics),
+        onNavigateToReports: () =>
+            setState(() => _current = _MinistryScreen.reports),
+        onProfileTap: () => setState(() => _current = _MinistryScreen.profile),
       ),
-      _AdminScreen.userDetails => AdminUserDetailsScreen(
-        user: _selectedUser!,
+      _MinistryScreen.reports => MinistryReportsScreen(
         onNavigateToDashboard: () =>
-            setState(() => _current = _AdminScreen.dashboard),
-        onNavigateToUsers: () => setState(() => _current = _AdminScreen.users),
-        onNavigateToRoles: () => setState(() => _current = _AdminScreen.roles),
-        onOpenSystemActivity: () =>
-            setState(() => _current = _AdminScreen.systemActivity),
-        onNavigateToSettings: () =>
-            setState(() => _current = _AdminScreen.settings),
-        onOpenProfile: () => setState(() => _current = _AdminScreen.profile),
+            setState(() => _current = _MinistryScreen.dashboard),
+        onNavigateToAnalytics: () =>
+            setState(() => _current = _MinistryScreen.analytics),
+        onNavigateToMunicipalities: () =>
+            setState(() => _current = _MinistryScreen.municipalities),
+        onViewReportInsights: () =>
+            setState(() => _current = _MinistryScreen.reportInsights),
+        onProfileTap: () => setState(() => _current = _MinistryScreen.profile),
       ),
-      _AdminScreen.systemActivity => AdminSystemActivityScreen(
-        onNavigateToDashboard: () =>
-            setState(() => _current = _AdminScreen.dashboard),
-        onNavigateToUsers: () => setState(() => _current = _AdminScreen.users),
-        onNavigateToRoles: () => setState(() => _current = _AdminScreen.roles),
-        onNavigateToSettings: () =>
-            setState(() => _current = _AdminScreen.settings),
-        onOpenProfile: () => setState(() => _current = _AdminScreen.profile),
+      _MinistryScreen.reportInsights => MinistryReportInsightsScreen(
+        onBack: () => setState(() => _current = _MinistryScreen.dashboard),
+        // onViewFocusSummary isn't built yet — no dedicated screen is
+        // specified for it.
       ),
-      _AdminScreen.settings => AdminSystemSettingsScreen(
-        onNavigateToDashboard: () =>
-            setState(() => _current = _AdminScreen.dashboard),
-        onNavigateToUsers: () => setState(() => _current = _AdminScreen.users),
-        onNavigateToRoles: () => setState(() => _current = _AdminScreen.roles),
-        onOpenSystemActivity: () =>
-            setState(() => _current = _AdminScreen.systemActivity),
-        onOpenProfile: () => setState(() => _current = _AdminScreen.profile),
-      ),
-      _AdminScreen.profile => AdminProfileScreen(
-        onNavigateToDashboard: () =>
-            setState(() => _current = _AdminScreen.dashboard),
-        onNavigateToUsers: () => setState(() => _current = _AdminScreen.users),
-        onNavigateToRoles: () => setState(() => _current = _AdminScreen.roles),
-        onNavigateToSettings: () =>
-            setState(() => _current = _AdminScreen.settings),
-        onOpenSystemActivity: () =>
-            setState(() => _current = _AdminScreen.systemActivity),
-        // onSignOut isn't wired — there's no real authentication flow to
-        // sign out of yet.
+      _MinistryScreen.profile => MinistryProfileScreen(
+        onBack: () => setState(() => _current = _MinistryScreen.dashboard),
+        // onLogOut isn't wired to a real auth/session flow yet — no such
+        // system exists in this mock-data-only app.
       ),
     };
   }
