@@ -67,7 +67,8 @@ The application is built on the **Civic Glass** design language — a custom sys
 | Registered Citizen | Full reporting, tracking, and profile management |
 | Municipal Officer | Reviews, verifies, and assigns incoming reports |
 | Maintenance Team | Receives task assignments and submits resolution evidence |
-| Ministry / Admin | System-wide oversight, analytics, and user management |
+| Ministry Supervisor | Views aggregated analytics and regional performance reports |
+| System Administrator | System-wide user management, account provisioning, and role assignment |
 
 ---
 
@@ -87,12 +88,11 @@ Dashboard, Incoming Reports, Report Review, Verify/Reject, Assign Team, Active R
 ### Issue 04 — Maintenance Team Module
 Dashboard, Assigned Tasks, Task Details, Update Progress, Upload Evidence, Task Completed, and Profile screens. Photo evidence is required before a task can be marked complete. Citizen PII is not visible to this role.
 
-### Issue 05 — Ministry & Administration Module
-**Ministry:** Analytics Overview, Regional Breakdown, Category Trends, Response Time Reports, Export Data, and Ministry Profile screens.
+### Issue 05 — Ministry Supervisor Module
+Analytics Overview, Regional Breakdown, Category Trends, Response Time Reports, Export Data, and Ministry Profile screens. This role sees aggregated data only — no citizen PII is accessible.
 
-**Administration:** Admin Dashboard, User Management, Create Account, Edit Account, Deactivate Account, Role Assignment, Audit Log, and Admin Profile screens.
-
-Ministry role sees aggregated data only — no citizen PII is accessible.
+### Issue 06 — System Administrator Module
+Admin Dashboard, User Management, Create Account, Edit Account, Deactivate Account, Role Assignment, Audit Log, and Admin Profile screens. All non-citizen accounts (Municipal Officer, Maintenance Team, Ministry Supervisor) are provisioned by this role.
 
 ---
 
