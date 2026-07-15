@@ -47,4 +47,13 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
+# Desktop plugin registration — regenerated from pubspec.yaml on every
+# `flutter pub get`/`build`/`run`, never hand-edited. Committing these just
+# creates line-ending churn between contributors' OS/git configs.
+/linux/flutter/generated_plugin_registrant.cc
+/linux/flutter/generated_plugins.cmake
+/macos/Flutter/GeneratedPluginRegistrant.swift
+/windows/flutter/generated_plugin_registrant.cc
+/windows/flutter/generated_plugins.cmake
+
 .mcp.json
