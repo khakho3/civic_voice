@@ -6,7 +6,6 @@ import 'features/authentication/screens/forgot_password_screen.dart';
 import 'features/authentication/screens/login_screen.dart';
 import 'features/authentication/screens/profile_screen.dart' as auth;
 import 'features/authentication/screens/registration_screen.dart';
-import 'features/authentication/screens/splash_screen.dart' as auth;
 import 'features/authentication/screens/welcome_screen.dart';
 import 'features/citizen/screens/citizen_alerts_screen.dart';
 import 'features/citizen/screens/citizen_dashboard_screen.dart';
@@ -31,8 +30,7 @@ Future<void> main() async {
 abstract final class AppRoutes {
   const AppRoutes._();
 
-  // Authentication — the app's real entry point (see [SplashFlowScreen]).
-  static const splash = '/';
+  // Authentication — the native splash hands off directly to onboarding.
   static const welcome = '/welcome';
   static const login = '/login';
   static const registration = '/registration';
@@ -67,17 +65,14 @@ class CivicVoiceApp extends StatelessWidget {
           themeMode: themeMode,
           themeAnimationDuration: AppMotionDuration.emphasized,
           themeAnimationCurve: AppMotionCurve.emphasized,
-          initialRoute: AppRoutes.splash,
+          initialRoute: AppRoutes.welcome,
           // Admin/Ministry/Municipal/Maintenance aren't wired in below —
           // there's no auth/RBAC yet to route a signed-in user to the
           // correct module, so reaching them for manual QA still means
           // temporarily swapping `initialRoute` for one of their own
-          // screens. Citizen's own splash screen is similarly unwired now
-          // that authentication's [SplashFlowScreen] owns `/` — the real
-          // app entry point is the onboarding/login flow, not a module
-          // dashboard.
+          // screens. The real app entry point is the onboarding/login flow,
+          // not a module dashboard.
           routes: {
-            AppRoutes.splash: (context) => const SplashFlowScreen(),
             AppRoutes.welcome: (context) => WelcomeScreen(
               state: WelcomeViewState.loading,
               onLogin: () => Navigator.of(context).pushNamed(AppRoutes.login),
@@ -136,38 +131,5 @@ class CivicVoiceApp extends StatelessWidget {
         );
       },
     );
-  }
-}
-
-/// The app's real entry point — a brief branded splash before landing on
-/// [WelcomeScreen]. Distinct from citizen's own splash screen (still
-/// available at [CitizenDashboardScreen] et al.'s package path but no
-/// longer wired to a route), which was that module's own preview-only
-/// entry point before this merge gave authentication's onboarding flow
-/// ownership of `/`.
-class SplashFlowScreen extends StatefulWidget {
-  const SplashFlowScreen({super.key});
-
-  @override
-  State<SplashFlowScreen> createState() => _SplashFlowScreenState();
-}
-
-class _SplashFlowScreenState extends State<SplashFlowScreen> {
-  @override
-  void initState() {
-    super.initState();
-
-    Future<void>.delayed(const Duration(seconds: 2), () {
-      if (!mounted) {
-        return;
-      }
-
-      Navigator.of(context).pushReplacementNamed(AppRoutes.welcome);
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return const auth.SplashScreen(state: auth.SplashViewState.loading);
   }
 }

@@ -47,6 +47,7 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_launcher_icons: ^0.14.4
+  flutter_native_splash: ^2.4.8
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
@@ -61,6 +62,22 @@ flutter_launcher_icons:
   image_path: assets/branding/icon_flat.png
   adaptive_icon_background: "#F8FAFC"
   adaptive_icon_foreground: assets/branding/icon_foreground.png
+
+flutter_native_splash:
+  android: true
+  ios: true
+  web: false
+  color: "#F8FAFC"
+  color_dark: "#0F172A"
+  image: assets/branding/icon_flat.png
+  image_dark: assets/branding/icon_flat.png
+  android_12:
+    color: "#F8FAFC"
+    color_dark: "#0F172A"
+    icon_background_color: "#FFFFFF"
+    icon_background_color_dark: "#1E293B"
+    image: assets/branding/splash_icon.png
+    image_dark: assets/branding/splash_icon.png
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -81,6 +98,7 @@ flutter:
     - assets/branding/logo.svg
     - assets/branding/logo.png
     - assets/branding/logo_app.png
+    - assets/branding/icon_flat.png
     - assets/branding/favicon.png
     - assets/branding/welcome_illustration.png
 
