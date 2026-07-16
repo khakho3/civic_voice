@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:civic_voice/core/theme/app_theme.dart';
+import 'package:civic_voice/features/authentication/widgets/auth_presentation.dart';
 
 /// Approved states for AUTH-004 Registration Screen.
 enum RegistrationViewState {
@@ -107,331 +108,289 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            return SingleChildScrollView(
-              padding: const EdgeInsets.all(AppSpacing.md),
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(
-                    maxWidth: AppBreakpoints.standardMobile,
-                  ),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        IconButton(
-                          onPressed: widget.onBack,
-                          tooltip: 'Go back',
-                          icon: const Icon(AppIcons.back),
-                        ),
+      body: AuthScreenLayout(
+        onBack: widget.onBack,
+        title: 'Create Account',
+        supportingText:
+            'Create your Citizen account to report and track civic issues.',
+        form: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const _FieldLabel(text: 'Full Name'),
 
-                        const SizedBox(height: AppSpacing.md),
+              const SizedBox(height: AppSpacing.sm),
 
-                        Text(
-                          'Create Account',
-                          style: theme.textTheme.headlineSmall?.copyWith(
-                            fontWeight: AppFontWeight.bold,
-                          ),
-                        ),
+              TextFormField(
+                controller: _fullNameController,
+                enabled: !_isDisabled,
+                textCapitalization: TextCapitalization.words,
+                textInputAction: TextInputAction.next,
+                autofillHints: const [AutofillHints.name],
+                decoration: authInputDecoration(
+                  context,
+                  hintText: 'John Doe',
+                  prefixIcon: AppIcons.profile,
+                  errorText: _showValidationErrors
+                      ? 'Full name is required.'
+                      : null,
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please enter your full name.';
+                  }
 
-                        const SizedBox(height: AppSpacing.xs),
+                  return null;
+                },
+              ),
 
-                        Text(
-                          'Create your Citizen account to report and track '
-                          'civic issues.',
-                          style: theme.textTheme.bodySmall,
-                        ),
+              const SizedBox(height: AppSpacing.md),
 
-                        const SizedBox(height: AppSpacing.lg),
+              const _FieldLabel(text: 'Email Address'),
 
-                        const _FieldLabel(text: 'Full Name'),
+              const SizedBox(height: AppSpacing.sm),
 
-                        const SizedBox(height: AppSpacing.sm),
+              TextFormField(
+                controller: _emailController,
+                enabled: !_isDisabled,
+                keyboardType: TextInputType.emailAddress,
+                textInputAction: TextInputAction.next,
+                autofillHints: const [AutofillHints.email],
+                decoration: authInputDecoration(
+                  context,
+                  hintText: 'email@example.com',
+                  prefixIcon: AppIcons.email,
+                  errorText: _emailErrorText,
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please enter your email address.';
+                  }
 
-                        TextFormField(
-                          controller: _fullNameController,
-                          enabled: !_isDisabled,
-                          textCapitalization: TextCapitalization.words,
-                          textInputAction: TextInputAction.next,
-                          autofillHints: const [AutofillHints.name],
-                          decoration: InputDecoration(
-                            hintText: 'John Doe',
-                            prefixIcon: const Icon(AppIcons.profile),
-                            errorText: _showValidationErrors
-                                ? 'Full name is required.'
-                                : null,
-                          ),
-                          validator: (value) {
-                            if (value == null || value.trim().isEmpty) {
-                              return 'Please enter your full name.';
-                            }
+                  final emailPattern = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
 
-                            return null;
+                  if (!emailPattern.hasMatch(value.trim())) {
+                    return 'Please enter a valid email address.';
+                  }
+
+                  return null;
+                },
+              ),
+
+              const SizedBox(height: AppSpacing.md),
+
+              const _FieldLabel(text: 'Phone Number'),
+
+              const SizedBox(height: AppSpacing.sm),
+
+              TextFormField(
+                controller: _phoneController,
+                enabled: !_isDisabled,
+                keyboardType: TextInputType.phone,
+                textInputAction: TextInputAction.next,
+                autofillHints: const [AutofillHints.telephoneNumber],
+                decoration: authInputDecoration(
+                  context,
+                  hintText: '+1 (555) 000-0000',
+                  prefixIcon: AppIcons.phone,
+                  errorText: _showValidationErrors
+                      ? 'Phone number is required.'
+                      : null,
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please enter your phone number.';
+                  }
+
+                  return null;
+                },
+              ),
+
+              const SizedBox(height: AppSpacing.md),
+
+              const _FieldLabel(text: 'Password'),
+
+              const SizedBox(height: AppSpacing.sm),
+
+              TextFormField(
+                controller: _passwordController,
+                enabled: !_isDisabled,
+                obscureText: _hidePassword,
+                textInputAction: TextInputAction.next,
+                autofillHints: const [AutofillHints.newPassword],
+                decoration: authInputDecoration(
+                  context,
+                  hintText: 'Enter your password',
+                  prefixIcon: AppIcons.password,
+                  errorText: _passwordErrorText,
+                  suffixIcon: IconButton(
+                    onPressed: _isDisabled
+                        ? null
+                        : () {
+                            setState(() {
+                              _hidePassword = !_hidePassword;
+                            });
                           },
-                        ),
-
-                        const SizedBox(height: AppSpacing.md),
-
-                        const _FieldLabel(text: 'Email Address'),
-
-                        const SizedBox(height: AppSpacing.sm),
-
-                        TextFormField(
-                          controller: _emailController,
-                          enabled: !_isDisabled,
-                          keyboardType: TextInputType.emailAddress,
-                          textInputAction: TextInputAction.next,
-                          autofillHints: const [AutofillHints.email],
-                          decoration: InputDecoration(
-                            hintText: 'email@example.com',
-                            prefixIcon: const Icon(AppIcons.email),
-                            errorText: _emailErrorText,
-                          ),
-                          validator: (value) {
-                            if (value == null || value.trim().isEmpty) {
-                              return 'Please enter your email address.';
-                            }
-
-                            final emailPattern = RegExp(
-                              r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
-                            );
-
-                            if (!emailPattern.hasMatch(value.trim())) {
-                              return 'Please enter a valid email address.';
-                            }
-
-                            return null;
-                          },
-                        ),
-
-                        const SizedBox(height: AppSpacing.md),
-
-                        const _FieldLabel(text: 'Phone Number'),
-
-                        const SizedBox(height: AppSpacing.sm),
-
-                        TextFormField(
-                          controller: _phoneController,
-                          enabled: !_isDisabled,
-                          keyboardType: TextInputType.phone,
-                          textInputAction: TextInputAction.next,
-                          autofillHints: const [AutofillHints.telephoneNumber],
-                          decoration: InputDecoration(
-                            hintText: '+1 (555) 000-0000',
-                            prefixIcon: const Icon(AppIcons.phone),
-                            errorText: _showValidationErrors
-                                ? 'Phone number is required.'
-                                : null,
-                          ),
-                          validator: (value) {
-                            if (value == null || value.trim().isEmpty) {
-                              return 'Please enter your phone number.';
-                            }
-
-                            return null;
-                          },
-                        ),
-
-                        const SizedBox(height: AppSpacing.md),
-
-                        const _FieldLabel(text: 'Password'),
-
-                        const SizedBox(height: AppSpacing.sm),
-
-                        TextFormField(
-                          controller: _passwordController,
-                          enabled: !_isDisabled,
-                          obscureText: _hidePassword,
-                          textInputAction: TextInputAction.next,
-                          autofillHints: const [AutofillHints.newPassword],
-                          decoration: InputDecoration(
-                            hintText: 'Enter your password',
-                            prefixIcon: const Icon(AppIcons.password),
-                            errorText: _passwordErrorText,
-                            suffixIcon: IconButton(
-                              onPressed: _isDisabled
-                                  ? null
-                                  : () {
-                                      setState(() {
-                                        _hidePassword = !_hidePassword;
-                                      });
-                                    },
-                              tooltip: _hidePassword
-                                  ? 'Show password'
-                                  : 'Hide password',
-                              icon: Icon(
-                                _hidePassword
-                                    ? AppIcons.visibilityOn
-                                    : AppIcons.visibilityOff,
-                              ),
-                            ),
-                          ),
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter a password.';
-                            }
-
-                            if (value.length < 8) {
-                              return 'Password must contain at least 8 characters.';
-                            }
-
-                            return null;
-                          },
-                        ),
-
-                        const SizedBox(height: AppSpacing.md),
-
-                        const _FieldLabel(text: 'Confirm Password'),
-
-                        const SizedBox(height: AppSpacing.sm),
-
-                        TextFormField(
-                          controller: _confirmPasswordController,
-                          enabled: !_isDisabled,
-                          obscureText: _hideConfirmPassword,
-                          textInputAction: TextInputAction.done,
-                          autofillHints: const [AutofillHints.newPassword],
-                          onFieldSubmitted: (_) => _submitForm(),
-                          decoration: InputDecoration(
-                            hintText: 'Confirm your password',
-                            prefixIcon: const Icon(AppIcons.password),
-                            errorText: _confirmPasswordErrorText,
-                            suffixIcon: IconButton(
-                              onPressed: _isDisabled
-                                  ? null
-                                  : () {
-                                      setState(() {
-                                        _hideConfirmPassword =
-                                            !_hideConfirmPassword;
-                                      });
-                                    },
-                              tooltip: _hideConfirmPassword
-                                  ? 'Show password'
-                                  : 'Hide password',
-                              icon: Icon(
-                                _hideConfirmPassword
-                                    ? AppIcons.visibilityOn
-                                    : AppIcons.visibilityOff,
-                              ),
-                            ),
-                          ),
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please confirm your password.';
-                            }
-
-                            if (value != _passwordController.text) {
-                              return 'Passwords do not match.';
-                            }
-
-                            return null;
-                          },
-                        ),
-
-                        const SizedBox(height: AppSpacing.md),
-
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(AppSpacing.sm),
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.surface,
-                            border: Border.all(
-                              color: theme.colorScheme.outline,
-                            ),
-                            borderRadius: AppComponentRadius.card,
-                          ),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Checkbox(
-                                value: _acceptedPolicy,
-                                onChanged: _isDisabled
-                                    ? null
-                                    : (value) {
-                                        setState(() {
-                                          _acceptedPolicy = value ?? false;
-                                        });
-                                      },
-                              ),
-
-                              const SizedBox(width: AppSpacing.xs),
-
-                              Expanded(
-                                child: Padding(
-                                  padding: const EdgeInsets.only(
-                                    top: AppSpacing.sm,
-                                  ),
-                                  child: Text(
-                                    'I acknowledge the Privacy Policy and '
-                                    'confirm this is a Citizen self-registration.',
-                                    style: theme.textTheme.bodySmall,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        if (!_acceptedPolicy && _showValidationErrors) ...[
-                          const SizedBox(height: AppSpacing.xs),
-                          Text(
-                            'You must accept the policy to continue.',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.error,
-                            ),
-                          ),
-                        ],
-
-                        const SizedBox(height: AppSpacing.lg),
-
-                        SizedBox(
-                          width: double.infinity,
-                          child: FilledButton(
-                            onPressed: _isDisabled ? null : _submitForm,
-                            child: _isLoading
-                                ? const SizedBox(
-                                    width: AppIconSize.md,
-                                    height: AppIconSize.md,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: AppSpacing.xs / 2,
-                                    ),
-                                  )
-                                : const Text('Create Account'),
-                          ),
-                        ),
-
-                        if (_showStatusPanel) ...[
-                          const SizedBox(height: AppSpacing.md),
-                          _RegistrationStatusPanel(state: widget.state),
-                        ],
-
-                        const SizedBox(height: AppSpacing.md),
-
-                        Center(
-                          child: Wrap(
-                            crossAxisAlignment: WrapCrossAlignment.center,
-                            children: [
-                              Text(
-                                'Already have an account?',
-                                style: theme.textTheme.bodySmall,
-                              ),
-                              TextButton(
-                                onPressed: _isDisabled ? null : widget.onLogin,
-                                child: const Text('Login'),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+                    tooltip: _hidePassword ? 'Show password' : 'Hide password',
+                    icon: Icon(
+                      _hidePassword
+                          ? AppIcons.visibilityOn
+                          : AppIcons.visibilityOff,
                     ),
                   ),
                 ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter a password.';
+                  }
+
+                  if (value.length < 8) {
+                    return 'Password must contain at least 8 characters.';
+                  }
+
+                  return null;
+                },
               ),
-            );
-          },
+
+              const SizedBox(height: AppSpacing.md),
+
+              const _FieldLabel(text: 'Confirm Password'),
+
+              const SizedBox(height: AppSpacing.sm),
+
+              TextFormField(
+                controller: _confirmPasswordController,
+                enabled: !_isDisabled,
+                obscureText: _hideConfirmPassword,
+                textInputAction: TextInputAction.done,
+                autofillHints: const [AutofillHints.newPassword],
+                onFieldSubmitted: (_) => _submitForm(),
+                decoration: authInputDecoration(
+                  context,
+                  hintText: 'Confirm your password',
+                  prefixIcon: AppIcons.password,
+                  errorText: _confirmPasswordErrorText,
+                  suffixIcon: IconButton(
+                    onPressed: _isDisabled
+                        ? null
+                        : () {
+                            setState(() {
+                              _hideConfirmPassword = !_hideConfirmPassword;
+                            });
+                          },
+                    tooltip: _hideConfirmPassword
+                        ? 'Show password'
+                        : 'Hide password',
+                    icon: Icon(
+                      _hideConfirmPassword
+                          ? AppIcons.visibilityOn
+                          : AppIcons.visibilityOff,
+                    ),
+                  ),
+                ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please confirm your password.';
+                  }
+
+                  if (value != _passwordController.text) {
+                    return 'Passwords do not match.';
+                  }
+
+                  return null;
+                },
+              ),
+
+              const SizedBox(height: AppSpacing.md),
+
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(AppSpacing.sm),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surface,
+                  border: Border.all(color: theme.colorScheme.outline),
+                  borderRadius: AppComponentRadius.card,
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Checkbox(
+                      value: _acceptedPolicy,
+                      onChanged: _isDisabled
+                          ? null
+                          : (value) {
+                              setState(() {
+                                _acceptedPolicy = value ?? false;
+                              });
+                            },
+                    ),
+
+                    const SizedBox(width: AppSpacing.xs),
+
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: AppSpacing.sm),
+                        child: Text(
+                          'I acknowledge the Privacy Policy and '
+                          'confirm this is a Citizen self-registration.',
+                          style: theme.textTheme.bodySmall,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              if (!_acceptedPolicy && _showValidationErrors) ...[
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  'You must accept the policy to continue.',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.error,
+                  ),
+                ),
+              ],
+
+              const SizedBox(height: AppSpacing.lg),
+
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: _isDisabled ? null : _submitForm,
+                  child: _isLoading
+                      ? const SizedBox(
+                          width: AppIconSize.md,
+                          height: AppIconSize.md,
+                          child: CircularProgressIndicator(
+                            strokeWidth: AppSpacing.xs / 2,
+                          ),
+                        )
+                      : const Text('Create Account'),
+                ),
+              ),
+
+              if (_showStatusPanel) ...[
+                const SizedBox(height: AppSpacing.md),
+                _RegistrationStatusPanel(state: widget.state),
+              ],
+            ],
+          ),
+        ),
+        footer: Center(
+          child: Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Text(
+                'Already have an account?',
+                style: theme.textTheme.bodySmall,
+              ),
+              TextButton(
+                onPressed: _isDisabled ? null : widget.onLogin,
+                child: const Text('Login'),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -550,45 +509,11 @@ class _RegistrationStatusPanel extends StatelessWidget {
         statusColor = semanticColors.info;
     }
 
-    return Semantics(
-      liveRegion: true,
-      label: '$title. $message',
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(AppSpacing.md),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
-          border: Border.all(color: theme.colorScheme.outline),
-          borderRadius: AppComponentRadius.card,
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, size: AppIconSize.standard, color: statusColor),
-
-            const SizedBox(width: AppSpacing.sm),
-
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      color: statusColor,
-                      fontWeight: AppFontWeight.semiBold,
-                    ),
-                  ),
-
-                  const SizedBox(height: AppSpacing.xs),
-
-                  Text(message, style: theme.textTheme.bodySmall),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
+    return AuthStatusAlert(
+      title: title,
+      message: message,
+      icon: icon,
+      statusColor: statusColor,
     );
   }
 }

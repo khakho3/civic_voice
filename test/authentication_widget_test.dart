@@ -139,4 +139,54 @@ void main() {
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('Authentication forms are scroll-safe on a narrow phone', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(375, 812);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final cases = <({Widget screen, Finder finalAction})>[
+      (
+        screen: const LoginScreen(),
+        finalAction: find.widgetWithText(FilledButton, 'Sign In'),
+      ),
+      (
+        screen: const RegistrationScreen(),
+        finalAction: find.widgetWithText(FilledButton, 'Create Account'),
+      ),
+      (
+        screen: const ForgotPasswordScreen(),
+        finalAction: find.widgetWithText(FilledButton, 'Send Reset Link'),
+      ),
+    ];
+
+    for (final testCase in cases) {
+      await tester.pumpWidget(
+        MaterialApp(theme: AppTheme.light, home: testCase.screen),
+      );
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+      expect(find.byType(SingleChildScrollView), findsOneWidget);
+      await tester.ensureVisible(testCase.finalAction);
+      await tester.pump();
+      expect(testCase.finalAction, findsOneWidget);
+      expect(tester.takeException(), isNull);
+    }
+
+    await tester.pumpWidget(
+      MaterialApp(theme: AppTheme.light, home: const RegistrationScreen()),
+    );
+    tester.view.viewInsets = const FakeViewPadding(bottom: 340);
+    addTearDown(tester.view.resetViewInsets);
+    await tester.tap(find.byType(TextFormField).last);
+    await tester.pump();
+    final createAccount = find.widgetWithText(FilledButton, 'Create Account');
+    await tester.ensureVisible(createAccount);
+    await tester.pump();
+    expect(createAccount, findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }

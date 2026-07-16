@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:civic_voice/core/theme/app_theme.dart';
+import 'package:civic_voice/features/authentication/widgets/auth_presentation.dart';
 
 /// Approved states for AUTH-003 Login Screen.
 enum LoginViewState {
@@ -72,197 +73,129 @@ class _LoginScreenState extends State<LoginScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            return SingleChildScrollView(
-              padding: const EdgeInsets.all(AppSpacing.lg),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(
-                      maxWidth: AppBreakpoints.standardMobile,
-                    ),
-                    child: IntrinsicHeight(
-                      child: Form(
-                        key: _formKey,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Align(
-                              alignment: Alignment.centerLeft,
-                              child: IconButton(
-                                onPressed: widget.onBack,
-                                tooltip: 'Go back',
-                                icon: const Icon(AppIcons.back),
-                              ),
-                            ),
+      body: AuthScreenLayout(
+        onBack: widget.onBack,
+        title: 'Welcome Back',
+        supportingText: 'Sign in to continue to CivicVoice.',
+        form: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Email', style: theme.textTheme.labelMedium),
+              const SizedBox(height: AppSpacing.sm),
+              TextFormField(
+                controller: _emailController,
+                enabled: !_isDisabled,
+                keyboardType: TextInputType.emailAddress,
+                textInputAction: TextInputAction.next,
+                autofillHints: const [AutofillHints.email],
+                decoration: authInputDecoration(
+                  context,
+                  hintText: 'Enter your email',
+                  prefixIcon: AppIcons.email,
+                  errorText: _showFieldErrors
+                      ? 'Please check this field.'
+                      : null,
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please enter your email.';
+                  }
 
-                            const SizedBox(height: AppSpacing.lg),
+                  if (!value.contains('@')) {
+                    return 'Please enter a valid email.';
+                  }
 
-                            Text(
-                              'Welcome Back',
-                              style: theme.textTheme.headlineSmall?.copyWith(
-                                fontWeight: AppFontWeight.bold,
-                              ),
-                            ),
-
-                            const SizedBox(height: AppSpacing.xs),
-
-                            Text(
-                              'Sign in to continue to CivicVoice.',
-                              style: theme.textTheme.bodySmall,
-                            ),
-
-                            const SizedBox(height: AppSpacing.xxxl),
-
-                            Text('Email', style: theme.textTheme.labelMedium),
-
-                            const SizedBox(height: AppSpacing.sm),
-
-                            TextFormField(
-                              controller: _emailController,
-                              enabled: !_isDisabled,
-                              keyboardType: TextInputType.emailAddress,
-                              textInputAction: TextInputAction.next,
-                              autofillHints: const [AutofillHints.email],
-                              decoration: InputDecoration(
-                                hintText: 'Enter your email',
-                                prefixIcon: const Icon(AppIcons.email),
-                                errorText: _showFieldErrors
-                                    ? 'Please check this field.'
-                                    : null,
-                              ),
-                              validator: (value) {
-                                if (value == null || value.trim().isEmpty) {
-                                  return 'Please enter your email.';
-                                }
-
-                                if (!value.contains('@')) {
-                                  return 'Please enter a valid email.';
-                                }
-
-                                return null;
-                              },
-                            ),
-
-                            const SizedBox(height: AppSpacing.md),
-
-                            Text(
-                              'Password',
-                              style: theme.textTheme.labelMedium,
-                            ),
-
-                            const SizedBox(height: AppSpacing.sm),
-
-                            TextFormField(
-                              controller: _passwordController,
-                              enabled: !_isDisabled,
-                              obscureText: _hidePassword,
-                              textInputAction: TextInputAction.done,
-                              autofillHints: const [AutofillHints.password],
-                              onFieldSubmitted: (_) {
-                                if (!_isDisabled) {
-                                  _submitForm();
-                                }
-                              },
-                              decoration: InputDecoration(
-                                hintText: 'Enter your password',
-                                prefixIcon: const Icon(AppIcons.password),
-                                errorText: _showFieldErrors
-                                    ? 'Please check this field.'
-                                    : null,
-                                suffixIcon: IconButton(
-                                  onPressed: _isDisabled
-                                      ? null
-                                      : () {
-                                          setState(() {
-                                            _hidePassword = !_hidePassword;
-                                          });
-                                        },
-                                  tooltip: _hidePassword
-                                      ? 'Show password'
-                                      : 'Hide password',
-                                  icon: Icon(
-                                    _hidePassword
-                                        ? AppIcons.visibilityOn
-                                        : AppIcons.visibilityOff,
-                                  ),
-                                ),
-                              ),
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return 'Please enter your password.';
-                                }
-
-                                return null;
-                              },
-                            ),
-
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: TextButton(
-                                onPressed: _isDisabled
-                                    ? null
-                                    : widget.onForgotPassword,
-                                child: const Text('Forgot Password?'),
-                              ),
-                            ),
-
-                            const SizedBox(height: AppSpacing.sm),
-
-                            SizedBox(
-                              width: double.infinity,
-                              child: FilledButton(
-                                onPressed: _isDisabled ? null : _submitForm,
-                                child: _isLoading
-                                    ? const SizedBox(
-                                        width: AppIconSize.md,
-                                        height: AppIconSize.md,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: AppSpacing.xs / 2,
-                                        ),
-                                      )
-                                    : const Text('Sign In'),
-                              ),
-                            ),
-
-                            if (_shouldShowStatusPanel) ...[
-                              const SizedBox(height: AppSpacing.md),
-                              _LoginStatusPanel(state: widget.state),
-                            ],
-
-                            const Spacer(),
-
-                            const SizedBox(height: AppSpacing.xl),
-
-                            Center(
-                              child: Wrap(
-                                crossAxisAlignment: WrapCrossAlignment.center,
-                                children: [
-                                  Text(
-                                    "Don't have an account?",
-                                    style: theme.textTheme.bodySmall,
-                                  ),
-                                  TextButton(
-                                    onPressed: _isDisabled
-                                        ? null
-                                        : widget.onRegister,
-                                    child: const Text('Register'),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                  return null;
+                },
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Text('Password', style: theme.textTheme.labelMedium),
+              const SizedBox(height: AppSpacing.sm),
+              TextFormField(
+                controller: _passwordController,
+                enabled: !_isDisabled,
+                obscureText: _hidePassword,
+                textInputAction: TextInputAction.done,
+                autofillHints: const [AutofillHints.password],
+                onFieldSubmitted: (_) {
+                  if (!_isDisabled) {
+                    _submitForm();
+                  }
+                },
+                decoration: authInputDecoration(
+                  context,
+                  hintText: 'Enter your password',
+                  prefixIcon: AppIcons.password,
+                  errorText: _showFieldErrors
+                      ? 'Please check this field.'
+                      : null,
+                  suffixIcon: IconButton(
+                    onPressed: _isDisabled
+                        ? null
+                        : () {
+                            setState(() {
+                              _hidePassword = !_hidePassword;
+                            });
+                          },
+                    tooltip: _hidePassword ? 'Show password' : 'Hide password',
+                    icon: Icon(
+                      _hidePassword
+                          ? AppIcons.visibilityOn
+                          : AppIcons.visibilityOff,
                     ),
                   ),
                 ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter your password.';
+                  }
+
+                  return null;
+                },
               ),
-            );
-          },
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: _isDisabled ? null : widget.onForgotPassword,
+                  child: const Text('Forgot Password?'),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: _isDisabled ? null : _submitForm,
+                  child: _isLoading
+                      ? const SizedBox(
+                          width: AppIconSize.md,
+                          height: AppIconSize.md,
+                          child: CircularProgressIndicator(
+                            strokeWidth: AppSpacing.xs / 2,
+                          ),
+                        )
+                      : const Text('Sign In'),
+                ),
+              ),
+              if (_shouldShowStatusPanel) ...[
+                const SizedBox(height: AppSpacing.md),
+                _LoginStatusPanel(state: widget.state),
+              ],
+            ],
+          ),
+        ),
+        footer: Center(
+          child: Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Text("Don't have an account?", style: theme.textTheme.bodySmall),
+              TextButton(
+                onPressed: _isDisabled ? null : widget.onRegister,
+                child: const Text('Register'),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -285,8 +218,6 @@ class _LoginStatusPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
     final semanticColors =
         theme.extension<AppSemanticColors>() ??
         (theme.brightness == Brightness.dark
@@ -330,45 +261,11 @@ class _LoginStatusPanel extends StatelessWidget {
         statusColor = semanticColors.info;
     }
 
-    return Semantics(
-      liveRegion: true,
-      label: '$title. $message',
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(AppSpacing.md),
-        decoration: BoxDecoration(
-          color: colorScheme.surface,
-          border: Border.all(color: colorScheme.outline),
-          borderRadius: AppComponentRadius.card,
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, color: statusColor, size: AppIconSize.standard),
-
-            const SizedBox(width: AppSpacing.sm),
-
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      color: statusColor,
-                      fontWeight: AppFontWeight.semiBold,
-                    ),
-                  ),
-
-                  const SizedBox(height: AppSpacing.xs),
-
-                  Text(message, style: theme.textTheme.bodySmall),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
+    return AuthStatusAlert(
+      title: title,
+      message: message,
+      icon: icon,
+      statusColor: statusColor,
     );
   }
 }

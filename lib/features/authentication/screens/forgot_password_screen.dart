@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:civic_voice/core/theme/app_theme.dart';
+import 'package:civic_voice/features/authentication/widgets/auth_presentation.dart';
 
 /// Approved states for AUTH-005 Forgot Password Screen.
 enum ForgotPasswordViewState {
@@ -85,147 +86,89 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            return SingleChildScrollView(
-              padding: const EdgeInsets.all(AppSpacing.lg),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minHeight: constraints.maxHeight - (AppSpacing.lg * 2),
+      body: AuthScreenLayout(
+        onBack: widget.onBack,
+        title: 'Forgot Password',
+        supportingText:
+            'Enter your email address and we will send '
+            'a secure password reset link.',
+        form: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Email Address', style: theme.textTheme.labelMedium),
+              const SizedBox(height: AppSpacing.sm),
+              TextFormField(
+                controller: _emailController,
+                enabled: !_isDisabled,
+                keyboardType: TextInputType.emailAddress,
+                textInputAction: TextInputAction.done,
+                autofillHints: const [AutofillHints.email],
+                onFieldSubmitted: (_) => _submitForm(),
+                decoration: authInputDecoration(
+                  context,
+                  hintText: 'e.g. name@example.com',
+                  prefixIcon: AppIcons.email,
+                  errorText: _emailErrorText,
                 ),
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(
-                      maxWidth: AppBreakpoints.standardMobile,
-                    ),
-                    child: IntrinsicHeight(
-                      child: Form(
-                        key: _formKey,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please enter your email address.';
+                  }
+
+                  final emailPattern = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+
+                  if (!emailPattern.hasMatch(value.trim())) {
+                    return 'Please enter a valid email address.';
+                  }
+
+                  return null;
+                },
+              ),
+              const SizedBox(height: AppSpacing.md),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: _isDisabled ? null : _submitForm,
+                  child: _isLoading
+                      ? const Row(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            IconButton(
-                              onPressed: widget.onBack,
-                              tooltip: 'Go back',
-                              icon: const Icon(AppIcons.back),
-                            ),
-
-                            const SizedBox(height: AppSpacing.lg),
-
-                            Text(
-                              'Forgot Password',
-                              style: theme.textTheme.headlineSmall?.copyWith(
-                                fontWeight: AppFontWeight.bold,
-                              ),
-                            ),
-
-                            const SizedBox(height: AppSpacing.xs),
-
-                            Text(
-                              'Enter your email address and we will send '
-                              'a secure password reset link.',
-                              style: theme.textTheme.bodySmall,
-                            ),
-
-                            const SizedBox(height: AppSpacing.xl),
-
-                            Text(
-                              'Email Address',
-                              style: theme.textTheme.labelMedium,
-                            ),
-
-                            const SizedBox(height: AppSpacing.sm),
-
-                            TextFormField(
-                              controller: _emailController,
-                              enabled: !_isDisabled,
-                              keyboardType: TextInputType.emailAddress,
-                              textInputAction: TextInputAction.done,
-                              autofillHints: const [AutofillHints.email],
-                              onFieldSubmitted: (_) => _submitForm(),
-                              decoration: InputDecoration(
-                                hintText: 'e.g. name@example.com',
-                                prefixIcon: const Icon(AppIcons.email),
-                                errorText: _emailErrorText,
-                              ),
-                              validator: (value) {
-                                if (value == null || value.trim().isEmpty) {
-                                  return 'Please enter your email address.';
-                                }
-
-                                final emailPattern = RegExp(
-                                  r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
-                                );
-
-                                if (!emailPattern.hasMatch(value.trim())) {
-                                  return 'Please enter a valid email address.';
-                                }
-
-                                return null;
-                              },
-                            ),
-
-                            const SizedBox(height: AppSpacing.md),
-
                             SizedBox(
-                              width: double.infinity,
-                              child: FilledButton(
-                                onPressed: _isDisabled ? null : _submitForm,
-                                child: _isLoading
-                                    ? const Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          SizedBox(
-                                            width: AppIconSize.md,
-                                            height: AppIconSize.md,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: AppSpacing.xs / 2,
-                                            ),
-                                          ),
-                                          SizedBox(width: AppSpacing.sm),
-                                          Text('Sending...'),
-                                        ],
-                                      )
-                                    : const Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Text('Send Reset Link'),
-                                          SizedBox(width: AppSpacing.sm),
-                                          Icon(
-                                            AppIcons.chevronRight,
-                                            size: AppIconSize.md,
-                                          ),
-                                        ],
-                                      ),
+                              width: AppIconSize.md,
+                              height: AppIconSize.md,
+                              child: CircularProgressIndicator(
+                                strokeWidth: AppSpacing.xs / 2,
                               ),
                             ),
-
-                            if (_showStatusPanel) ...[
-                              const SizedBox(height: AppSpacing.md),
-                              _ForgotPasswordStatusPanel(state: widget.state),
-                            ],
-
-                            const Spacer(),
-
-                            const SizedBox(height: AppSpacing.xl),
-
-                            Align(
-                              alignment: Alignment.center,
-                              child: TextButton(
-                                onPressed: widget.onBackToLogin,
-                                child: const Text('Back to Login'),
-                              ),
-                            ),
+                            SizedBox(width: AppSpacing.sm),
+                            Text('Sending...'),
+                          ],
+                        )
+                      : const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text('Send Reset Link'),
+                            SizedBox(width: AppSpacing.sm),
+                            Icon(AppIcons.chevronRight, size: AppIconSize.md),
                           ],
                         ),
-                      ),
-                    ),
-                  ),
                 ),
               ),
-            );
-          },
+              if (_showStatusPanel) ...[
+                const SizedBox(height: AppSpacing.md),
+                _ForgotPasswordStatusPanel(state: widget.state),
+              ],
+            ],
+          ),
+        ),
+        footer: Align(
+          alignment: Alignment.center,
+          child: TextButton(
+            onPressed: widget.onBackToLogin,
+            child: const Text('Back to Login'),
+          ),
         ),
       ),
     );
@@ -307,45 +250,11 @@ class _ForgotPasswordStatusPanel extends StatelessWidget {
       statusColor = semanticColors.info;
     }
 
-    return Semantics(
-      liveRegion: true,
-      label: '$title. $message',
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(AppSpacing.md),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
-          border: Border.all(color: theme.colorScheme.outline),
-          borderRadius: AppComponentRadius.card,
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, size: AppIconSize.standard, color: statusColor),
-
-            const SizedBox(width: AppSpacing.sm),
-
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      color: statusColor,
-                      fontWeight: AppFontWeight.semiBold,
-                    ),
-                  ),
-
-                  const SizedBox(height: AppSpacing.xs),
-
-                  Text(message, style: theme.textTheme.bodySmall),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
+    return AuthStatusAlert(
+      title: title,
+      message: message,
+      icon: icon,
+      statusColor: statusColor,
     );
   }
 }
