@@ -100,7 +100,9 @@ flutter:
     - assets/branding/logo_app.png
     - assets/branding/icon_flat.png
     - assets/branding/favicon.png
-    - assets/branding/welcome_illustration.png
+    - assets/branding/onboarding_report.jpg
+    - assets/branding/onboarding_track.jpg
+    - assets/branding/onboarding_resolve.jpg
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

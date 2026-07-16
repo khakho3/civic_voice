@@ -74,10 +74,11 @@ class CivicVoiceApp extends StatelessWidget {
           // not a module dashboard.
           routes: {
             AppRoutes.welcome: (context) => WelcomeScreen(
-              state: WelcomeViewState.loading,
-              onLogin: () => Navigator.of(context).pushNamed(AppRoutes.login),
-              onRegister: () =>
+              onGetStarted: () =>
                   Navigator.of(context).pushNamed(AppRoutes.registration),
+              onContinueAsGuest: () =>
+                  Navigator.of(context).pushNamed(AppRoutes.citizenDashboard),
+              onLogin: () => Navigator.of(context).pushNamed(AppRoutes.login),
             ),
             AppRoutes.login: (context) => LoginScreen(
               state: LoginViewState.ready,

@@ -24,7 +24,14 @@ abstract final class AppAssets {
   /// App favicon, rendered from [logoSvg].
   static const String favicon = 'assets/branding/favicon.png';
 
-  /// Illustration used on the Authentication Welcome screen.
-  static const String welcomeIllustration =
-      'assets/branding/welcome_illustration.png';
+  /// Onboarding illustration for reporting a community issue.
+  static const String onboardingReport =
+      'assets/branding/onboarding_report.jpg';
+
+  /// Onboarding illustration for tracking a submitted report.
+  static const String onboardingTrack = 'assets/branding/onboarding_track.jpg';
+
+  /// Onboarding illustration for resolving issues as a community.
+  static const String onboardingResolve =
+      'assets/branding/onboarding_resolve.jpg';
 }
