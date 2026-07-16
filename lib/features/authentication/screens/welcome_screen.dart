@@ -61,13 +61,15 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final maxContentWidth = context.isTabletLayout
+        ? AppDimensions.maxContentWidth
+        : AppBreakpoints.largeMobile;
+
     return Scaffold(
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(
-              maxWidth: AppBreakpoints.standardMobile,
-            ),
+            constraints: BoxConstraints(maxWidth: maxContentWidth),
             child: Column(
               children: [
                 _OnboardingSkip(
@@ -103,70 +105,88 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
 class _OnboardingSlide extends StatelessWidget {
   const _OnboardingSlide({required this.content});
 
+  static const double _maxPhoneIllustrationHeight = 320;
+  static const double _maxTabletIllustrationHeight = AppBreakpoints.largeMobile;
+  static const double _minIllustrationHeight = 112;
+
   final _OnboardingContent content;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final maxIllustrationHeight = context.isTabletLayout
+        ? _maxTabletIllustrationHeight
+        : _maxPhoneIllustrationHeight;
 
     return LayoutBuilder(
-      builder: (context, constraints) => SingleChildScrollView(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(minHeight: constraints.maxHeight),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-            child: Column(
-              children: [
-                const SizedBox(height: AppSpacing.xxxxl),
-                SizedBox(
-                  height: 320,
-                  width: double.infinity,
-                  child: Semantics(
-                    image: true,
-                    label: content.semanticsLabel,
-                    child: Image.asset(
-                      content.asset,
-                      width: double.infinity,
-                      height: 320,
-                      fit: BoxFit.contain,
-                      alignment: Alignment.center,
-                      excludeFromSemantics: true,
+      builder: (context, constraints) {
+        final availableHeight = constraints.maxHeight;
+        final isCompact = availableHeight < 430;
+        final topGap = isCompact ? AppSpacing.sm : AppSpacing.xxxxl;
+        final contentGap = isCompact ? AppSpacing.xs : AppSpacing.sm;
+        final bottomGap = isCompact ? AppSpacing.sm : AppSpacing.md;
+        final illustrationHeight = (availableHeight * (isCompact ? 0.42 : 0.56))
+            .clamp(_minIllustrationHeight, maxIllustrationHeight)
+            .toDouble();
+
+        return SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: availableHeight),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+              child: Column(
+                children: [
+                  SizedBox(height: topGap),
+                  SizedBox(
+                    height: illustrationHeight,
+                    width: double.infinity,
+                    child: Semantics(
+                      image: true,
+                      label: content.semanticsLabel,
+                      child: Image.asset(
+                        content.asset,
+                        width: double.infinity,
+                        height: illustrationHeight,
+                        fit: BoxFit.contain,
+                        alignment: Alignment.center,
+                        excludeFromSemantics: true,
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  'CivicVoice',
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    color: colorScheme.primary,
-                    fontWeight: AppFontWeight.semiBold,
+                  SizedBox(height: contentGap),
+                  Text(
+                    'CivicVoice',
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      color: colorScheme.primary,
+                      fontWeight: AppFontWeight.semiBold,
+                    ),
                   ),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  content.headline,
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.headlineLarge?.copyWith(
-                    fontWeight: AppFontWeight.bold,
-                    color: colorScheme.onSurface,
+                  SizedBox(height: contentGap),
+                  Text(
+                    content.headline,
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.headlineLarge?.copyWith(
+                      fontWeight: AppFontWeight.bold,
+                      color: colorScheme.onSurface,
+                    ),
                   ),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  content.description,
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.bodyLarge?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
+                  SizedBox(height: contentGap),
+                  Text(
+                    content.description,
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
                   ),
-                ),
-                const SizedBox(height: AppSpacing.md),
-              ],
+                  SizedBox(height: bottomGap),
+                ],
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
@@ -235,67 +255,68 @@ class _OnboardingActions extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return SizedBox(
-      height: 208,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-        child: Column(
-          children: [
-            _PageIndicator(currentPage: currentPage),
-            const SizedBox(height: AppSpacing.lg),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: _isFinalPage ? onGetStarted : onNext,
-                child: Text(_isFinalPage ? 'Get Started' : 'Next'),
-              ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        0,
+        AppSpacing.lg,
+        AppSpacing.lg,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _PageIndicator(currentPage: currentPage),
+          const SizedBox(height: AppSpacing.lg),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: _isFinalPage ? onGetStarted : onNext,
+              child: Text(_isFinalPage ? 'Get Started' : 'Next'),
             ),
+          ),
+          if (_isFinalPage) ...[
             const SizedBox(height: AppSpacing.sm),
             SizedBox(
-              height: AppSpacing.xxxl,
               width: double.infinity,
-              child: _isFinalPage
-                  ? TextButton(
-                      onPressed: onContinueAsGuest,
-                      style: TextButton.styleFrom(
-                        foregroundColor: colorScheme.onSurface,
-                        textStyle: const TextStyle(
+              child: TextButton(
+                onPressed: onContinueAsGuest,
+                style: TextButton.styleFrom(
+                  foregroundColor: colorScheme.onSurface,
+                  textStyle: const TextStyle(
+                    fontWeight: AppFontWeight.semiBold,
+                  ),
+                ),
+                child: const Text('Continue as Guest'),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            SizedBox(
+              width: double.infinity,
+              child: TextButton(
+                onPressed: onLogin,
+                style: TextButton.styleFrom(
+                  foregroundColor: colorScheme.onSurfaceVariant,
+                  textStyle: theme.textTheme.bodySmall,
+                ),
+                child: Text.rich(
+                  TextSpan(
+                    text: 'Already have an account? ',
+                    children: [
+                      TextSpan(
+                        text: 'Log in',
+                        style: TextStyle(
+                          color: colorScheme.primary,
                           fontWeight: AppFontWeight.semiBold,
                         ),
                       ),
-                      child: const Text('Continue as Guest'),
-                    )
-                  : null,
-            ),
-            const Spacer(),
-            SizedBox(
-              height: AppSpacing.xxxl,
-              child: _isFinalPage
-                  ? TextButton(
-                      onPressed: onLogin,
-                      style: TextButton.styleFrom(
-                        foregroundColor: colorScheme.onSurfaceVariant,
-                        textStyle: theme.textTheme.bodySmall,
-                      ),
-                      child: Text.rich(
-                        TextSpan(
-                          text: 'Already have an account? ',
-                          children: [
-                            TextSpan(
-                              text: 'Log in',
-                              style: TextStyle(
-                                color: colorScheme.primary,
-                                fontWeight: AppFontWeight.semiBold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    )
-                  : null,
+                    ],
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
             ),
           ],
-        ),
+        ],
       ),
     );
   }
