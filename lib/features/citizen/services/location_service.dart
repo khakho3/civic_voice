@@ -29,6 +29,31 @@ class LocationAccessResult {
 class LocationService {
   const LocationService();
 
+  /// Checks GPS/permission state without fetching a position — for callers
+  /// that only need to know whether location access is usable (e.g. a
+  /// dashboard nag banner), not an actual GPS fix. [requestCurrentPosition]
+  /// does the same permission dance internally before fetching a position;
+  /// this is the lighter-weight half of that logic for status-only checks.
+  Future<LocationAccessStatus> checkAccessStatus({
+    required bool requestPermission,
+  }) async {
+    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) return LocationAccessStatus.gpsDisabled;
+
+    var permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied && requestPermission) {
+      permission = await Geolocator.requestPermission();
+    }
+
+    if (permission == LocationPermission.denied) {
+      return LocationAccessStatus.permissionDenied;
+    }
+    if (permission == LocationPermission.deniedForever) {
+      return LocationAccessStatus.permissionDeniedForever;
+    }
+    return LocationAccessStatus.ready;
+  }
+
   Future<LocationAccessResult> requestCurrentPosition() async {
     try {
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();

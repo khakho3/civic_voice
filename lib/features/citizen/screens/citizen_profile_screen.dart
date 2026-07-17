@@ -5,20 +5,25 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/theme_controller.dart';
+import '../../../widgets/confirm_dialog.dart';
 import '../widgets/civic_glass_card.dart';
-import '../models/civic_report.dart';
 import '../models/citizen_profile.dart';
 import '../services/profile_crud_service.dart';
-import '../services/report_crud_service.dart';
 import '../widgets/civic_app_chrome.dart';
 import 'citizen_alerts_screen.dart';
 import 'citizen_reports_screen.dart';
 import 'create_report_screen.dart';
 
+enum _PhotoSheetAction { camera, gallery, remove }
+
 class CitizenProfileScreen extends StatefulWidget {
-  const CitizenProfileScreen({super.key});
+  const CitizenProfileScreen({super.key, this.onLogOut});
 
   static const String routeName = '/citizen/profile';
+
+  /// Fired after the sign-out confirmation dialog is accepted. Nullable:
+  /// there's no real auth session to end yet.
+  final VoidCallback? onLogOut;
 
   @override
   State<CitizenProfileScreen> createState() => _CitizenProfileScreenState();
@@ -31,9 +36,10 @@ class _CitizenProfileScreenState extends State<CitizenProfileScreen> {
   final TextEditingController _locationController = TextEditingController();
   final ImagePicker _imagePicker = ImagePicker();
   final ProfileCrudService _profileCrudService = ProfileCrudService.instance;
-  final ReportCrudService _reportCrudService = ReportCrudService.instance;
 
   bool _isEditing = false;
+  bool _photoUpdating = false;
+  bool _showSaveSuccess = false;
 
   @override
   void initState() {
@@ -77,6 +83,11 @@ class _CitizenProfileScreenState extends State<CitizenProfileScreen> {
     setState(() => _isEditing = true);
   }
 
+  void _cancelEditing() {
+    _syncControllers(_profileCrudService.profile.value);
+    setState(() => _isEditing = false);
+  }
+
   Future<void> _saveProfile() async {
     FocusManager.instance.primaryFocus?.unfocus();
     await _profileCrudService.updateProfile(
@@ -87,11 +98,29 @@ class _CitizenProfileScreenState extends State<CitizenProfileScreen> {
         primaryLocation: _locationController.text.trim(),
       ),
     );
-    setState(() => _isEditing = false);
+    if (!mounted) return;
+    setState(() {
+      _isEditing = false;
+      _showSaveSuccess = true;
+    });
+    Future.delayed(const Duration(seconds: 3), () {
+      if (mounted) setState(() => _showSaveSuccess = false);
+    });
+  }
+
+  Future<void> _confirmLogOut() async {
+    final confirmed = await showConfirmDialog(
+      context,
+      title: 'Log out?',
+      message: "You'll need to continue as a guest or sign back in.",
+      confirmLabel: 'Log Out',
+      destructive: true,
+    );
+    if (confirmed) widget.onLogOut?.call();
   }
 
   Future<void> _chooseProfilePhoto() async {
-    final source = await showModalBottomSheet<ImageSource>(
+    final action = await showModalBottomSheet<_PhotoSheetAction>(
       context: context,
       showDragHandle: true,
       builder: (context) {
@@ -115,26 +144,28 @@ class _CitizenProfileScreenState extends State<CitizenProfileScreen> {
                 ),
                 const SizedBox(height: AppSpacing.md),
                 FilledButton.icon(
-                  onPressed: () => Navigator.of(context).pop(ImageSource.camera),
+                  onPressed: () =>
+                      Navigator.of(context).pop(_PhotoSheetAction.camera),
                   icon: const Icon(AppIcons.camera),
                   label: const Text('Take Photo'),
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 OutlinedButton.icon(
                   onPressed: () =>
-                      Navigator.of(context).pop(ImageSource.gallery),
-                  icon: const Icon(AppIcons.imageUnavailable),
+                      Navigator.of(context).pop(_PhotoSheetAction.gallery),
+                  icon: const Icon(AppIcons.upload),
                   label: const Text('Choose from Gallery'),
                 ),
                 if (_profileCrudService.profile.value.photoPath != null) ...[
                   const SizedBox(height: AppSpacing.sm),
                   TextButton.icon(
-                    onPressed: () {
-                      Navigator.of(context).pop();
-                      _profileCrudService.updateProfilePhoto(null);
-                    },
-                    icon: const Icon(AppIcons.close),
-                    label: const Text('Use Initials Instead'),
+                    onPressed: () =>
+                        Navigator.of(context).pop(_PhotoSheetAction.remove),
+                    icon: const Icon(AppIcons.close, color: AppColors.error),
+                    label: const Text(
+                      'Remove Photo',
+                      style: TextStyle(color: AppColors.error),
+                    ),
                   ),
                 ],
               ],
@@ -144,11 +175,27 @@ class _CitizenProfileScreenState extends State<CitizenProfileScreen> {
       },
     );
 
-    if (source == null) return;
+    if (!mounted || action == null) return;
 
+    if (action == _PhotoSheetAction.remove) {
+      final confirmed = await showConfirmDialog(
+        context,
+        title: 'Remove profile photo?',
+        message: 'Your profile will show your initials instead.',
+        confirmLabel: 'Remove',
+        destructive: true,
+      );
+      if (!confirmed || !mounted) return;
+      await _profileCrudService.updateProfilePhoto(null);
+      return;
+    }
+
+    setState(() => _photoUpdating = true);
     try {
       final pickedPhoto = await _imagePicker.pickImage(
-        source: source,
+        source: action == _PhotoSheetAction.camera
+            ? ImageSource.camera
+            : ImageSource.gallery,
         imageQuality: 85,
         maxWidth: 900,
       );
@@ -159,6 +206,8 @@ class _CitizenProfileScreenState extends State<CitizenProfileScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Could not add profile picture.')),
       );
+    } finally {
+      if (mounted) setState(() => _photoUpdating = false);
     }
   }
 
@@ -214,133 +263,152 @@ class _CitizenProfileScreenState extends State<CitizenProfileScreen> {
     final compact = MediaQuery.sizeOf(context).width < 360;
     final horizontalPadding = compact ? AppSpacing.sm : AppSpacing.md;
 
+    final chromeInset = civicContentPadding(context);
+
     return Scaffold(
-      extendBody: true,
-      appBar: _ProfileTopBar(
-        isEditing: _isEditing,
-        onBack: () => _openDashboard(context),
-        onEdit: _startEditing,
-        onSave: _saveProfile,
-      ),
-      body: SafeArea(
-        top: false,
-        child: ListView(
-          padding: EdgeInsets.fromLTRB(
-            horizontalPadding,
-            AppSpacing.xl,
-            horizontalPadding,
-            132,
-          ),
-          children: [
-            ValueListenableBuilder<CitizenProfile>(
-              valueListenable: _profileCrudService.profile,
-              builder: (context, profile, _) {
-                return Column(
-                  children: [
-                    _ProfileIdentity(
-                      displayName: _displayName,
-                      subtitle: _wardLabel,
-                      initials: _initials,
-                      photoPath: profile.photoPath,
-                      isEditing: _isEditing,
-                      onChoosePhoto: _chooseProfilePhoto,
-                      onEditProfile: _startEditing,
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: Column(
+              children: [
+                Expanded(
+                  child: ListView(
+                    padding: EdgeInsets.fromLTRB(
+                      horizontalPadding,
+                      chromeInset.top + AppSpacing.xl,
+                      horizontalPadding,
+                      _isEditing
+                          ? MediaQuery.paddingOf(context).bottom + AppSpacing.xl
+                          : chromeInset.bottom + AppSpacing.xl,
                     ),
-                    const SizedBox(height: AppSpacing.xl),
-                    ValueListenableBuilder<List<CivicReport>>(
-                      valueListenable: _reportCrudService.reports,
-                      builder: (context, reports, _) {
-                        return _ProfileStatsGrid(reports: reports);
-                      },
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
-                    _PersonalInformationCard(
-                      isEditing: _isEditing,
-                      nameController: _nameController,
-                      emailController: _emailController,
-                      phoneController: _phoneController,
-                      locationController: _locationController,
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
-                    _SecurityCard(
-                      twoStepEnabled: profile.twoStepEnabled,
-                      onTwoStepChanged: (enabled) {
-                        _profileCrudService.updateTwoStep(enabled);
-                      },
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
-                    const _AppearanceCard(),
-                  ],
-                );
-              },
+                    children: [
+                      if (_showSaveSuccess) ...[
+                        const _SaveSuccessBanner(),
+                        const SizedBox(height: AppSpacing.md),
+                      ],
+                      ValueListenableBuilder<CitizenProfile>(
+                        valueListenable: _profileCrudService.profile,
+                        builder: (context, profile, _) {
+                          return Column(
+                            children: [
+                              _ProfileIdentity(
+                                displayName: _displayName,
+                                subtitle: _wardLabel,
+                                initials: _initials,
+                                photoPath: profile.photoPath,
+                                isEditing: _isEditing,
+                                photoUpdating: _photoUpdating,
+                                onChoosePhoto: _chooseProfilePhoto,
+                                onEditProfile: _startEditing,
+                              ),
+                              const SizedBox(height: AppSpacing.xl),
+                              _PersonalInformationCard(
+                                isEditing: _isEditing,
+                                nameController: _nameController,
+                                emailController: _emailController,
+                                phoneController: _phoneController,
+                                locationController: _locationController,
+                              ),
+                              const SizedBox(height: AppSpacing.lg),
+                              _SecurityCard(
+                                twoStepEnabled: profile.twoStepEnabled,
+                                onTwoStepChanged: (enabled) {
+                                  _profileCrudService.updateTwoStep(enabled);
+                                },
+                              ),
+                              const SizedBox(height: AppSpacing.lg),
+                              const _AppearanceCard(),
+                              if (!_isEditing) ...[
+                                const SizedBox(height: AppSpacing.lg),
+                                _LogOutCard(onLogOut: _confirmLogOut),
+                              ],
+                            ],
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                if (_isEditing)
+                  _ProfileEditActionBar(
+                    onSave: _saveProfile,
+                    onCancel: _cancelEditing,
+                  ),
+              ],
             ),
-          ],
-        ),
-      ),
-      bottomNavigationBar: CivicBottomNav(
-        selectedIndex: 4,
-        onDestinationSelected: (index) {
-          if (index == 0) {
-            _openDashboard(context);
-          } else if (index == 1) {
-            _openReports(context);
-          } else if (index == 2) {
-            _openCreateReport(context);
-          } else if (index == 3) {
-            _openAlerts(context);
-          }
-        },
+          ),
+          Align(
+            alignment: Alignment.topCenter,
+            child: CivicTopBar(
+              title: _isEditing ? 'Edit Profile' : 'Profile',
+              showNotifications: false,
+              onBack: () => _openDashboard(context),
+            ),
+          ),
+          if (!_isEditing)
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: CivicBottomNav(
+                selectedIndex: 4,
+                onDestinationSelected: (index) {
+                  if (index == 0) {
+                    _openDashboard(context);
+                  } else if (index == 1) {
+                    _openReports(context);
+                  } else if (index == 2) {
+                    _openCreateReport(context);
+                  } else if (index == 3) {
+                    _openAlerts(context);
+                  }
+                },
+              ),
+            ),
+        ],
       ),
     );
   }
 }
 
-class _ProfileTopBar extends StatelessWidget implements PreferredSizeWidget {
-  const _ProfileTopBar({
-    required this.isEditing,
-    required this.onBack,
-    required this.onEdit,
-    required this.onSave,
-  });
+class _ProfileEditActionBar extends StatelessWidget {
+  const _ProfileEditActionBar({required this.onSave, required this.onCancel});
 
-  final bool isEditing;
-  final VoidCallback onBack;
-  final VoidCallback onEdit;
   final VoidCallback onSave;
-
-  @override
-  Size get preferredSize => const Size.fromHeight(64);
+  final VoidCallback onCancel;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final semantic = Theme.of(context).extension<AppSemanticColors>()!;
 
-    return AppBar(
-      toolbarHeight: 64,
-      backgroundColor: theme.extension<AppSemanticColors>()!.glassSurface,
-      elevation: AppElevation.level1,
-      surfaceTintColor: Colors.transparent,
-      leading: IconButton(
-        tooltip: 'Back',
-        onPressed: onBack,
-        icon: const Icon(AppIcons.back),
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: semantic.glassSurface,
+        border: Border(top: BorderSide(color: semantic.glassBorder)),
       ),
-      centerTitle: true,
-      title: Text(
-        'Profile',
-        style: theme.textTheme.titleLarge?.copyWith(
-          color: AppColors.primary,
-          fontWeight: AppFontWeight.bold,
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Column(
+            children: [
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: onSave,
+                  child: const Text('Save Changes'),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: onCancel,
+                  child: const Text('Cancel'),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
-      actions: [
-        IconButton(
-          tooltip: isEditing ? 'Save profile' : 'Edit profile',
-          onPressed: isEditing ? onSave : onEdit,
-          icon: Icon(isEditing ? AppIcons.success : AppIcons.edit),
-        ),
-        const SizedBox(width: AppSpacing.xs),
-      ],
     );
   }
 }
@@ -352,6 +420,7 @@ class _ProfileIdentity extends StatelessWidget {
     required this.initials,
     required this.photoPath,
     required this.isEditing,
+    required this.photoUpdating,
     required this.onChoosePhoto,
     required this.onEditProfile,
   });
@@ -361,6 +430,7 @@ class _ProfileIdentity extends StatelessWidget {
   final String initials;
   final String? photoPath;
   final bool isEditing;
+  final bool photoUpdating;
   final VoidCallback onChoosePhoto;
   final VoidCallback onEditProfile;
 
@@ -376,16 +446,9 @@ class _ProfileIdentity extends StatelessWidget {
             Container(
               width: 88,
               height: 88,
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 color: AppColors.primary,
                 shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.primary.withValues(alpha: 0.26),
-                    blurRadius: 20,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
               ),
               alignment: Alignment.center,
               clipBehavior: Clip.antiAlias,
@@ -404,17 +467,34 @@ class _ProfileIdentity extends StatelessWidget {
                       fit: BoxFit.cover,
                     ),
             ),
+            if (photoUpdating)
+              Container(
+                width: 88,
+                height: 88,
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.4),
+                  shape: BoxShape.circle,
+                ),
+                alignment: Alignment.center,
+                child: const SizedBox.square(
+                  dimension: 28,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.5,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                ),
+              ),
             Positioned(
               right: 0,
               bottom: 2,
               child: Tooltip(
-                message: 'Add profile picture',
+                message: 'Change profile picture',
                 child: InkWell(
                   customBorder: const CircleBorder(),
-                  onTap: onChoosePhoto,
+                  onTap: photoUpdating ? null : onChoosePhoto,
                   child: Container(
-                    width: 28,
-                    height: 28,
+                    width: 32,
+                    height: 32,
                     decoration: BoxDecoration(
                       color: AppColors.primary,
                       shape: BoxShape.circle,
@@ -424,7 +504,7 @@ class _ProfileIdentity extends StatelessWidget {
                       ),
                     ),
                     child: const Icon(
-                      AppIcons.add,
+                      AppIcons.camera,
                       color: Colors.white,
                       size: AppIconSize.sm,
                     ),
@@ -448,134 +528,26 @@ class _ProfileIdentity extends StatelessWidget {
             color: theme.colorScheme.secondary,
           ),
         ),
-        const SizedBox(height: AppSpacing.md),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final compact = constraints.maxWidth < 320;
+        if (!isEditing) ...[
+          const SizedBox(height: AppSpacing.md),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final compact = constraints.maxWidth < 320;
 
-            return FilledButton(
-              onPressed: onEditProfile,
-              style: FilledButton.styleFrom(
-                minimumSize: Size(compact ? 104 : 116, 42),
-                padding: EdgeInsets.symmetric(
-                  horizontal: compact ? AppSpacing.md : AppSpacing.lg,
+              return FilledButton(
+                onPressed: onEditProfile,
+                style: FilledButton.styleFrom(
+                  minimumSize: Size(compact ? 104 : 116, 42),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: compact ? AppSpacing.md : AppSpacing.lg,
+                  ),
                 ),
-              ),
-              child: Text(isEditing ? 'Editing' : 'Edit Profile'),
-            );
-          },
-        ),
-      ],
-    );
-  }
-}
-
-class _ProfileStatsGrid extends StatelessWidget {
-  const _ProfileStatsGrid({required this.reports});
-
-  final List<CivicReport> reports;
-
-  @override
-  Widget build(BuildContext context) {
-    final resolvedCount = reports
-        .where((report) => report.status == ReportStatus.resolved)
-        .length;
-    final activeCount = reports
-        .where((report) => report.status != ReportStatus.resolved)
-        .length;
-    final civicScore = reports.isEmpty
-        ? '0.0'
-        : (4 + (resolvedCount / reports.length)).clamp(0, 5).toStringAsFixed(1);
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final compact = constraints.maxWidth < 340;
-        final spacing = compact ? AppSpacing.sm : AppSpacing.md;
-
-        return GridView.count(
-          crossAxisCount: 2,
-          mainAxisSpacing: spacing,
-          crossAxisSpacing: spacing,
-          childAspectRatio: compact ? 1.42 : 1.62,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          children: [
-            _ProfileStatCard(
-              label: 'REPORTS',
-              value: reports.length.toString(),
-              subtitle: 'Submitted',
-            ),
-            _ProfileStatCard(
-              label: 'RESOLVED',
-              value: resolvedCount.toString(),
-              subtitle: 'Closed',
-            ),
-            _ProfileStatCard(
-              label: 'ACTIVE',
-              value: activeCount.toString(),
-              subtitle: 'In progress',
-            ),
-            _ProfileStatCard(
-              label: 'RATING',
-              value: civicScore,
-              subtitle: 'Civic score',
-            ),
-          ],
-        );
-      },
-    );
-  }
-}
-
-class _ProfileStatCard extends StatelessWidget {
-  const _ProfileStatCard({
-    required this.label,
-    required this.value,
-    required this.subtitle,
-  });
-
-  final String label;
-  final String value;
-  final String subtitle;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return CivicGlassCard(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      borderRadius: AppRadius.allLg,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: theme.colorScheme.secondary,
-              fontWeight: AppFontWeight.bold,
-            ),
-          ),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(
-              value,
-              style: theme.textTheme.headlineSmall?.copyWith(
-                fontWeight: AppFontWeight.bold,
-              ),
-            ),
-          ),
-          Text(
-            subtitle,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.labelSmall,
+                child: const Text('Edit Profile'),
+              );
+            },
           ),
         ],
-      ),
+      ],
     );
   }
 }
@@ -718,7 +690,7 @@ class _ProfileInfoField extends StatelessWidget {
                           fontWeight: AppFontWeight.semiBold,
                         ),
                       ),
-                  ),
+              ),
             ],
           ),
         ),
@@ -756,10 +728,7 @@ class _SecurityCard extends StatelessWidget {
             icon: AppIcons.password,
             title: 'Password',
             subtitle: 'Last changed 28 days ago',
-            trailing: TextButton(
-              onPressed: () {},
-              child: const Text('Manage'),
-            ),
+            trailing: TextButton(onPressed: () {}, child: const Text('Manage')),
           ),
           const SizedBox(height: AppSpacing.md),
           _SecurityRow(
@@ -838,31 +807,25 @@ class _SecurityRow extends StatelessWidget {
         );
 
         return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerLow,
-        borderRadius: AppRadius.allLg,
-        border: Border.all(color: theme.colorScheme.outlineVariant),
-      ),
+          padding: const EdgeInsets.all(AppSpacing.md),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surfaceContainerLow,
+            borderRadius: AppRadius.allLg,
+            border: Border.all(color: theme.colorScheme.outlineVariant),
+          ),
           child: stacked
               ? Column(
                   children: [
                     leadingContent,
                     const SizedBox(height: AppSpacing.sm),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: trailing,
-                    ),
+                    Align(alignment: Alignment.centerRight, child: trailing),
                   ],
                 )
               : Row(
-              children: [
+                  children: [
                     Expanded(child: leadingContent),
                     const SizedBox(width: AppSpacing.sm),
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: trailing,
-                    ),
+                    FittedBox(fit: BoxFit.scaleDown, child: trailing),
                   ],
                 ),
         );
@@ -989,6 +952,81 @@ class _AppearanceCard extends StatelessWidget {
             },
           );
         },
+      ),
+    );
+  }
+}
+
+class _SaveSuccessBanner extends StatelessWidget {
+  const _SaveSuccessBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.success.withValues(alpha: 0.12),
+        borderRadius: AppRadius.allLg,
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            AppIcons.success,
+            size: AppIconSize.sm,
+            color: AppColors.success,
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              'Profile saved successfully',
+              style: Theme.of(
+                context,
+              ).textTheme.labelMedium?.copyWith(color: AppColors.success),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LogOutCard extends StatelessWidget {
+  const _LogOutCard({required this.onLogOut});
+
+  final VoidCallback onLogOut;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return CivicGlassCard(
+      borderRadius: AppRadius.allXl,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Session',
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: AppFontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              onPressed: onLogOut,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.error,
+                side: BorderSide(color: AppColors.error.withValues(alpha: 0.4)),
+              ),
+              child: const Text('Log Out'),
+            ),
+          ),
+        ],
       ),
     );
   }

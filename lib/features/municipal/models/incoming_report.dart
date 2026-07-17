@@ -1,17 +1,8 @@
+import '../../../models/report_category.dart';
 import '../../../models/report_severity.dart';
 import '../../../models/report_status.dart';
 
-/// Category taxonomy used by both the filter chips and each report's tag —
-/// exactly the values shown in the approved MUN-002 frames.
-enum ReportCategory {
-  infrastructure('Infrastructure'),
-  safety('Safety'),
-  sanitation('Sanitation');
-
-  const ReportCategory(this.label);
-
-  final String label;
-}
+export '../../../models/report_category.dart';
 
 /// A single row in MUN-002 Incoming Reports.
 class IncomingReportItem {

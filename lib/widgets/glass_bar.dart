@@ -21,15 +21,27 @@ import '../core/theme/app_theme.dart';
 /// module needed the identical chrome treatment — every module shares one
 /// Civic Glass system, not a per-module reimplementation of it.
 class GlassBar extends StatelessWidget {
-  const GlassBar({super.key, required this.child, this.border});
+  const GlassBar({
+    super.key,
+    required this.child,
+    this.border,
+    this.borderRadius,
+  });
 
   final Widget child;
   final Border? border;
 
+  /// Rounds the bar's corners — null (the default) keeps the flat,
+  /// edge-to-edge bar every module but Citizen uses. Citizen's bottom nav
+  /// is a floating rounded pill rather than a flat bar, so it's the one
+  /// caller that needs this.
+  final BorderRadius? borderRadius;
+
   @override
   Widget build(BuildContext context) {
     final semantic = Theme.of(context).extension<AppSemanticColors>()!;
-    return ClipRect(
+    return ClipRRect(
+      borderRadius: borderRadius ?? BorderRadius.zero,
       child: BackdropFilter(
         filter: ImageFilter.blur(
           sigmaX: AppGlassBlur.medium,
@@ -39,6 +51,7 @@ class GlassBar extends StatelessWidget {
           decoration: BoxDecoration(
             color: semantic.glassNavSurface,
             border: border,
+            borderRadius: borderRadius,
           ),
           child: child,
         ),

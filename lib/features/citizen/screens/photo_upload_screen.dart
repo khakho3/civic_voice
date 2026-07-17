@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../models/region.dart';
 import '../widgets/civic_glass_card.dart';
 import '../models/photo_upload_view_state.dart';
 import '../widgets/civic_app_chrome.dart';
@@ -25,6 +26,7 @@ class PhotoUploadScreen extends StatefulWidget {
     this.reportCommunity,
     this.reportLatitude,
     this.reportLongitude,
+    this.reportRegion,
   });
 
   static const String routeName = '/citizen/photo-upload';
@@ -38,6 +40,7 @@ class PhotoUploadScreen extends StatefulWidget {
   final String? reportCommunity;
   final double? reportLatitude;
   final double? reportLongitude;
+  final Region? reportRegion;
 
   @override
   State<PhotoUploadScreen> createState() => _PhotoUploadScreenState();
@@ -45,12 +48,13 @@ class PhotoUploadScreen extends StatefulWidget {
 
 class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
   static const int _maxPhotos = 5;
+  static const int _minPhotos = 2;
 
   final ImagePicker _picker = ImagePicker();
   late PhotoUploadViewState _state;
   late final List<XFile> _photos;
 
-  bool get _hasPhotos => _photos.isNotEmpty;
+  bool get _hasMinimumPhotos => _photos.length >= _minPhotos;
   bool get _isBlocked => _state == PhotoUploadViewState.offline;
 
   @override
@@ -122,7 +126,6 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
 
   Future<void> _pickFromGallery() async {
     if (_photos.length >= _maxPhotos) return;
-    setState(() => _state = PhotoUploadViewState.galleryPermission);
 
     try {
       final remaining = _maxPhotos - _photos.length;
@@ -162,7 +165,7 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
     });
   }
 
-  void _openReview({required bool skippedPhotos}) {
+  void _openReview() {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => ReviewReportScreen(
@@ -173,7 +176,8 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
           reportCommunity: widget.reportCommunity,
           reportLatitude: widget.reportLatitude,
           reportLongitude: widget.reportLongitude,
-          photos: skippedPhotos ? const [] : List<XFile>.of(_photos),
+          reportRegion: widget.reportRegion,
+          photos: List<XFile>.of(_photos),
         ),
       ),
     );
@@ -182,93 +186,104 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      extendBody: true,
-      appBar: CivicTopBar(
-        title: 'Upload Photos',
-        showNotifications: false,
-        onBack: () => Navigator.of(context).maybePop(),
-      ),
-      body: SafeArea(
-        top: false,
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final compact = constraints.maxWidth < 360;
-            final horizontalPadding = compact ? AppSpacing.sm : AppSpacing.md;
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final compact = constraints.maxWidth < 360;
+                final horizontalPadding = compact
+                    ? AppSpacing.sm
+                    : AppSpacing.md;
+                final chromeInset = civicContentPadding(context);
 
-            return ListView(
-              padding: EdgeInsets.fromLTRB(
-                horizontalPadding,
-                AppSpacing.lg,
-                horizontalPadding,
-                132,
-              ),
-              children: [
-                const _StepProgress(),
-                const SizedBox(height: AppSpacing.xl),
-                Text(
-                  'Add Photos',
-                  style: Theme.of(context).textTheme.headlineSmall,
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  'Attach clear photos so the municipal team can understand the issue before assigning it.',
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                _PhotoUploadBanner(
-                  state: _state,
-                  onRetryCamera: _takePhoto,
-                  onRetryGallery: _pickFromGallery,
-                ),
-                _UploadActions(
-                  disabled: _isBlocked,
-                  uploading: _state == PhotoUploadViewState.uploading,
-                  maxReached: _photos.length >= _maxPhotos,
-                  onCamera: _takePhoto,
-                  onGallery: _pickFromGallery,
-                ),
-                const SizedBox(height: AppSpacing.xl),
-                _UploadedPhotosSection(
-                  photos: _photos,
-                  maxPhotos: _maxPhotos,
-                  onRemovePhoto: _removePhoto,
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                const _PhotoTipsCard(),
-                const SizedBox(height: AppSpacing.lg),
-                _PhotoActionsCard(
-                  enabled: !_isBlocked,
-                  hasPhotos: _hasPhotos,
-                  onContinue: () => _openReview(skippedPhotos: false),
-                  onSkip: () => _openReview(skippedPhotos: true),
-                ),
-              ],
-            );
-          },
-        ),
-      ),
-      bottomNavigationBar: CivicBottomNav(
-        selectedIndex: 2,
-        onDestinationSelected: (index) {
-          if (index == 0) {
-            Navigator.of(context).maybePop();
-          } else if (index == 1) {
-            Navigator.of(context).pushNamedAndRemoveUntil(
-              CitizenReportsScreen.routeName,
-              (route) => route.isFirst,
-            );
-          } else if (index == 3) {
-            Navigator.of(context).pushNamedAndRemoveUntil(
-              CitizenAlertsScreen.routeName,
-              (route) => route.isFirst,
-            );
-          } else if (index == 4) {
-            Navigator.of(context).pushNamedAndRemoveUntil(
-              CitizenProfileScreen.routeName,
-              (route) => route.isFirst,
-            );
-          }
-        },
+                return ListView(
+                  padding: EdgeInsets.fromLTRB(
+                    horizontalPadding,
+                    chromeInset.top + AppSpacing.lg,
+                    horizontalPadding,
+                    chromeInset.bottom + AppSpacing.lg,
+                  ),
+                  children: [
+                    const _StepProgress(),
+                    const SizedBox(height: AppSpacing.xl),
+                    Text(
+                      'Add Photos',
+                      style: Theme.of(context).textTheme.headlineSmall,
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      'Attach clear photos so the municipal team can understand the issue before assigning it.',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    _PhotoUploadBanner(
+                      state: _state,
+                      onRetryCamera: _takePhoto,
+                      onRetryGallery: _pickFromGallery,
+                    ),
+                    _UploadActions(
+                      disabled: _isBlocked,
+                      uploading: _state == PhotoUploadViewState.uploading,
+                      maxReached: _photos.length >= _maxPhotos,
+                      onCamera: _takePhoto,
+                      onGallery: _pickFromGallery,
+                    ),
+                    const SizedBox(height: AppSpacing.xl),
+                    _UploadedPhotosSection(
+                      photos: _photos,
+                      maxPhotos: _maxPhotos,
+                      onRemovePhoto: _removePhoto,
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    const _PhotoTipsCard(),
+                    const SizedBox(height: AppSpacing.lg),
+                    _PhotoActionsCard(
+                      enabled: !_isBlocked && _hasMinimumPhotos,
+                      photoCount: _photos.length,
+                      minPhotos: _minPhotos,
+                      onContinue: _openReview,
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+          Align(
+            alignment: Alignment.topCenter,
+            child: CivicTopBar(
+              title: 'Upload Photos',
+              showNotifications: false,
+              onBack: () => Navigator.of(context).maybePop(),
+            ),
+          ),
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: CivicBottomNav(
+              selectedIndex: 2,
+              onDestinationSelected: (index) {
+                if (index == 0) {
+                  Navigator.of(context).maybePop();
+                } else if (index == 1) {
+                  Navigator.of(context).pushNamedAndRemoveUntil(
+                    CitizenReportsScreen.routeName,
+                    (route) => route.isFirst,
+                  );
+                } else if (index == 3) {
+                  Navigator.of(context).pushNamedAndRemoveUntil(
+                    CitizenAlertsScreen.routeName,
+                    (route) => route.isFirst,
+                  );
+                } else if (index == 4) {
+                  Navigator.of(context).pushNamedAndRemoveUntil(
+                    CitizenProfileScreen.routeName,
+                    (route) => route.isFirst,
+                  );
+                }
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -420,118 +435,26 @@ class _UploadActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final blocked = disabled || uploading || maxReached;
 
-    return CivicGlassCard(
-      borderRadius: AppRadius.allXl,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final singleColumn = constraints.maxWidth < 340;
-          final itemWidth = singleColumn
-              ? constraints.maxWidth
-              : (constraints.maxWidth - AppSpacing.md) / 2;
-
-          return Wrap(
-            spacing: AppSpacing.md,
-            runSpacing: AppSpacing.md,
-            children: [
-              SizedBox(
-                width: itemWidth,
-                child: _UploadChoice(
-                  icon: AppIcons.camera,
-                  title: 'Take Photo',
-                  subtitle: maxReached ? 'Maximum reached' : 'Use camera',
-                  color: AppColors.primary,
-                  disabled: disabled || uploading || maxReached,
-                  onTap: onCamera,
-                ),
-              ),
-              SizedBox(
-                width: itemWidth,
-                child: _UploadChoice(
-                  icon: AppIcons.upload,
-                  title: 'Gallery',
-                  subtitle: maxReached ? 'Maximum reached' : 'Choose files',
-                  color: theme.colorScheme.secondary,
-                  disabled: disabled || uploading || maxReached,
-                  onTap: onGallery,
-                ),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-}
-
-class _UploadChoice extends StatelessWidget {
-  const _UploadChoice({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.color,
-    required this.disabled,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final Color color;
-  final bool disabled;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final effectiveColor = disabled ? theme.disabledColor : color;
-
-    return Semantics(
-      button: true,
-      label: title,
-      child: InkWell(
-        borderRadius: AppRadius.allLg,
-        onTap: disabled ? null : onTap,
-        child: _DashedBorderBox(
-          color: effectiveColor.withValues(alpha: disabled ? 0.28 : 0.55),
-          child: Container(
-            constraints: const BoxConstraints(minHeight: 132),
-            padding: const EdgeInsets.all(AppSpacing.md),
-            alignment: Alignment.center,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: AppIconSize.xl,
-                  height: AppIconSize.xl,
-                  decoration: BoxDecoration(
-                    color: effectiveColor.withValues(alpha: 0.12),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(icon, color: effectiveColor),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    color: effectiveColor,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  subtitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.labelSmall,
-                ),
-              ],
-            ),
+    return Row(
+      children: [
+        Expanded(
+          child: FilledButton.icon(
+            onPressed: blocked ? null : onCamera,
+            icon: const Icon(AppIcons.camera),
+            label: Text(maxReached ? 'Max reached' : 'Take Photo'),
           ),
         ),
-      ),
+        const SizedBox(width: AppSpacing.md),
+        Expanded(
+          child: OutlinedButton.icon(
+            onPressed: blocked ? null : onGallery,
+            icon: const Icon(AppIcons.upload),
+            label: Text(maxReached ? 'Max reached' : 'Gallery'),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -719,42 +642,48 @@ class _PhotoTipsCard extends StatelessWidget {
 class _PhotoActionsCard extends StatelessWidget {
   const _PhotoActionsCard({
     required this.enabled,
-    required this.hasPhotos,
+    required this.photoCount,
+    required this.minPhotos,
     required this.onContinue,
-    required this.onSkip,
   });
 
   final bool enabled;
-  final bool hasPhotos;
+  final int photoCount;
+  final int minPhotos;
   final VoidCallback onContinue;
-  final VoidCallback onSkip;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final remaining = minPhotos - photoCount;
+    final meetsMinimum = remaining <= 0;
 
     return CivicGlassCard(
       borderRadius: AppRadius.allXl,
       child: Column(
         children: [
-          FilledButton.icon(
-            onPressed: enabled ? onContinue : null,
-            icon: const Icon(AppIcons.chevronRight),
-            label: Text(hasPhotos ? 'Continue' : 'Continue Without Photos'),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: enabled ? onContinue : null,
+              icon: const Icon(AppIcons.chevronRight),
+              label: const Text('Continue'),
+            ),
           ),
           const SizedBox(height: AppSpacing.sm),
-          OutlinedButton(
-            onPressed: enabled ? onSkip : null,
-            child: const Text('Skip for Now'),
-          ),
-          if (hasPhotos) ...[
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              'Review your title, category, and GPS location before submitting.',
-              style: theme.textTheme.labelSmall,
-              textAlign: TextAlign.center,
+          Text(
+            meetsMinimum
+                ? 'Review your title, category, and GPS location before submitting.'
+                : 'At least $minPhotos photos required as evidence — '
+                      '$remaining more needed.',
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: meetsMinimum
+                  ? theme.colorScheme.onSurfaceVariant
+                  : AppColors.warning,
+              fontWeight: meetsMinimum ? null : AppFontWeight.semiBold,
             ),
-          ],
+            textAlign: TextAlign.center,
+          ),
         ],
       ),
     );
@@ -818,56 +747,5 @@ class _InlineState extends StatelessWidget {
         ],
       ),
     );
-  }
-}
-
-class _DashedBorderBox extends StatelessWidget {
-  const _DashedBorderBox({required this.child, required this.color});
-
-  final Widget child;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return CustomPaint(
-      painter: _DashedBorderPainter(color: color, radius: AppRadius.lg),
-      child: child,
-    );
-  }
-}
-
-class _DashedBorderPainter extends CustomPainter {
-  const _DashedBorderPainter({required this.color, required this.radius});
-
-  final Color color;
-  final double radius;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.6;
-    final rect = Offset.zero & size;
-    final path = Path()
-      ..addRRect(
-        RRect.fromRectAndRadius(rect.deflate(1), Radius.circular(radius)),
-      );
-    final metric = path.computeMetrics().first;
-    const dash = 8.0;
-    const gap = 6.0;
-    var distance = 0.0;
-
-    while (distance < metric.length) {
-      final next = distance + dash;
-      final end = next > metric.length ? metric.length : next;
-      canvas.drawPath(metric.extractPath(distance, end), paint);
-      distance = next + gap;
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _DashedBorderPainter oldDelegate) {
-    return color != oldDelegate.color || radius != oldDelegate.radius;
   }
 }

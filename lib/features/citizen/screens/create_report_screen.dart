@@ -1,14 +1,16 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:geocoding/geocoding.dart' as geocoding;
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../models/region.dart';
+import '../../../models/report_category.dart';
 import '../widgets/civic_glass_card.dart';
 import '../models/create_report_view_state.dart';
 import '../models/location.dart';
+import '../services/location_service.dart';
+import '../services/report_category_classifier.dart';
 import '../widgets/civic_app_chrome.dart';
 import 'citizen_alerts_screen.dart';
 import 'citizen_profile_screen.dart';
@@ -32,17 +34,8 @@ class CreateReportScreen extends StatefulWidget {
 
 class _CreateReportScreenState extends State<CreateReportScreen>
     with WidgetsBindingObserver {
-  static const List<String> _categories = [
-    'Roads',
-    'Lighting',
-    'Sanitation',
-    'Water',
-    'Security',
-    'Other',
-  ];
-
+  final LocationService _locationService = const LocationService();
   late CreateReportViewState _state;
-  String _selectedCategory = 'Lighting';
   late final TextEditingController _titleController;
   late final TextEditingController _descriptionController;
   Position? _capturedPosition;
@@ -52,11 +45,16 @@ class _CreateReportScreenState extends State<CreateReportScreen>
   String _locationLabel = 'Tap to choose current GPS location.';
   String? _locationAddress;
   String? _locationCommunity;
+  Region? _locationRegion;
   String? _locationError;
   int _locationLookupId = 0;
 
-  bool get _hasRequiredFields =>
-      _titleController.text.trim().isNotEmpty && _selectedCategory.isNotEmpty;
+  ReportCategory get _classifiedCategory => ReportCategoryClassifier.classify(
+    title: _titleController.text,
+    description: _descriptionController.text,
+  );
+
+  bool get _hasRequiredFields => _titleController.text.trim().isNotEmpty;
   bool get _isReady =>
       _state == CreateReportViewState.ready &&
       _hasRequiredFields &&
@@ -108,6 +106,9 @@ class _CreateReportScreenState extends State<CreateReportScreen>
       _locationCommunity = location.locality.isNotEmpty
           ? location.locality
           : location.administrativeArea;
+      _locationRegion = Region.fromAdministrativeArea(
+        location.administrativeArea,
+      );
       _locationLabel = location.formattedAddress;
       _locationError = null;
       _locationLoading = false;
@@ -123,110 +124,46 @@ class _CreateReportScreenState extends State<CreateReportScreen>
       _locationError = null;
     });
 
-    try {
-      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        if (!mounted) return;
+    final result = await _locationService.requestCurrentPosition();
+    if (!mounted) return;
+
+    switch (result.status) {
+      case LocationAccessStatus.gpsDisabled:
         setState(() {
           _state = CreateReportViewState.gpsDisabled;
           _locationLabel = 'Turn on GPS to capture your current location.';
-          _locationError = 'Phone location services are off.';
+          _locationError = result.message;
           _locationLoading = false;
         });
-        return;
-      }
-
-      var permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-      }
-
-      if (permission == LocationPermission.denied) {
-        if (!mounted) return;
+      case LocationAccessStatus.permissionDenied:
         setState(() {
           _state = CreateReportViewState.permissionRequired;
           _locationLabel = 'Allow location permission to capture GPS.';
-          _locationError = 'Location permission was not granted.';
+          _locationError = result.message;
           _locationLoading = false;
         });
-        return;
-      }
-
-      if (permission == LocationPermission.deniedForever) {
-        if (!mounted) return;
+      case LocationAccessStatus.permissionDeniedForever:
         setState(() {
           _state = CreateReportViewState.permissionDenied;
           _locationLabel =
               'Location permission is blocked. Enable it in phone settings.';
-          _locationError = 'Location permission is permanently denied.';
+          _locationError = result.message;
           _locationLoading = false;
         });
-        return;
-      }
-
-      final lastKnown = await Geolocator.getLastKnownPosition();
-      if (lastKnown != null) {
-        _setCapturedPosition(
-          lastKnown,
-          labelPrefix: 'Using recent GPS',
-          keepLoading: true,
-        );
-      } else {
-        setState(() => _locationLabel = 'Getting a fresh GPS fix...');
-      }
-
-      final position = await _getFreshPosition();
-      _setCapturedPosition(position, labelPrefix: 'GPS captured');
-    } on TimeoutException {
-      if (!mounted) return;
-      setState(() {
-        _state = _capturedPosition == null
-            ? CreateReportViewState.gpsDisabled
-            : CreateReportViewState.ready;
-        _locationLabel = _capturedPosition == null
-            ? 'GPS is taking too long. Move near a window and try again.'
-            : _locationLabel;
-        _locationError = 'Location request timed out.';
-        _locationLoading = false;
-      });
-    } on LocationServiceDisabledException {
-      if (!mounted) return;
-      setState(() {
-        _state = CreateReportViewState.gpsDisabled;
-        _locationLabel = 'Turn on GPS to capture your current location.';
-        _locationError = 'Phone location services are off.';
-        _locationLoading = false;
-      });
-    } on PermissionDeniedException {
-      if (!mounted) return;
-      setState(() {
-        _state = CreateReportViewState.permissionDenied;
-        _locationLabel = 'Location permission denied. Enable it in settings.';
-        _locationError = 'Location permission denied by the phone.';
-        _locationLoading = false;
-      });
-    } catch (error) {
-      if (!mounted) return;
-      setState(() {
-        _state = _capturedPosition == null
-            ? CreateReportViewState.gpsDisabled
-            : CreateReportViewState.ready;
-        _locationLabel = _capturedPosition == null
-            ? 'Unable to capture GPS. Check location services and try again.'
-            : _locationLabel;
-        _locationError = error.toString();
-        _locationLoading = false;
-      });
+      case LocationAccessStatus.unavailable:
+        setState(() {
+          _state = _capturedPosition == null
+              ? CreateReportViewState.gpsDisabled
+              : CreateReportViewState.ready;
+          _locationLabel = _capturedPosition == null
+              ? 'Unable to capture GPS. Check location services and try again.'
+              : _locationLabel;
+          _locationError = result.message;
+          _locationLoading = false;
+        });
+      case LocationAccessStatus.ready:
+        _setCapturedPosition(result.position!, labelPrefix: 'GPS captured');
     }
-  }
-
-  Future<Position> _getFreshPosition() {
-    return Geolocator.getCurrentPosition(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.best,
-        timeLimit: Duration(seconds: 15),
-      ),
-    );
   }
 
   void _setCapturedPosition(
@@ -242,6 +179,7 @@ class _CreateReportScreenState extends State<CreateReportScreen>
       _locationLabel = '$labelPrefix. Finding address...';
       _locationAddress = null;
       _locationCommunity = null;
+      _locationRegion = null;
       _locationError = null;
       _locationLoading = keepLoading;
     });
@@ -266,6 +204,9 @@ class _CreateReportScreenState extends State<CreateReportScreen>
       setState(() {
         _locationAddress = address;
         _locationCommunity = community;
+        _locationRegion = Region.fromAdministrativeArea(
+          place.administrativeArea,
+        );
         _locationLabel = '$labelPrefix: $address';
       });
     } catch (error) {
@@ -344,7 +285,7 @@ class _CreateReportScreenState extends State<CreateReportScreen>
         builder: (_) => PhotoUploadScreen(
           reportTitle: _titleController.text.trim(),
           reportDescription: _descriptionController.text.trim(),
-          reportCategory: _selectedCategory,
+          reportCategory: _classifiedCategory.label,
           reportLocationLabel:
               selected?.formattedAddress ?? _locationAddress ?? _locationLabel,
           reportCommunity:
@@ -353,6 +294,7 @@ class _CreateReportScreenState extends State<CreateReportScreen>
               _locationCommunity,
           reportLatitude: selected?.latitude ?? _capturedPosition!.latitude,
           reportLongitude: selected?.longitude ?? _capturedPosition!.longitude,
+          reportRegion: _locationRegion,
         ),
       ),
     );
@@ -370,128 +312,136 @@ class _CreateReportScreenState extends State<CreateReportScreen>
   }
 
   Future<void> _openLocationSettings() async {
-    await Geolocator.openLocationSettings();
+    await _locationService.openLocationSettings();
   }
 
   Future<void> _openAppSettings() async {
-    await Geolocator.openAppSettings();
+    await _locationService.openAppSettings();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      extendBody: true,
-      appBar: CivicTopBar(
-        title: 'Create Report',
-        showNotifications: false,
-        onBack: () => Navigator.of(context).maybePop(),
-      ),
-      body: SafeArea(
-        top: false,
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final compact = constraints.maxWidth < 360;
-            final horizontalPadding = compact ? AppSpacing.sm : AppSpacing.md;
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final compact = constraints.maxWidth < 360;
+                final horizontalPadding = compact
+                    ? AppSpacing.sm
+                    : AppSpacing.md;
+                final chromeInset = civicContentPadding(context);
 
-            return ListView(
-              padding: EdgeInsets.fromLTRB(
-                horizontalPadding,
-                AppSpacing.lg,
-                horizontalPadding,
-                120,
-              ),
-              children: [
-                _CreateReportBanner(state: _state),
-                _ReportTextField(
-                  label: 'Issue Title',
-                  requiredField: true,
-                  controller: _titleController,
-                  hint: 'e.g. Broken streetlight on Main Road',
-                  hasError: _state == CreateReportViewState.validationError,
-                  onChanged: (_) => _handleFormChanged(),
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                _ReportTextField(
-                  label: 'Description',
-                  controller: _descriptionController,
-                  hint: 'Describe the issue in as much detail as possible...',
-                  minHeight: 128,
-                  minLines: 4,
-                  onChanged: (_) => _handleFormChanged(),
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                _CategorySection(
-                  categories: _categories,
-                  selectedCategory: _selectedCategory,
-                  onSelected: _isDisabled
-                      ? null
-                      : (category) =>
-                            setState(() => _selectedCategory = category),
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                _LocationCard(
-                  state: _state,
-                  locationLabel: _locationLabel,
-                  loading: _locationLoading,
-                  onCaptureLocation: _openLocationPicker,
-                  onOpenLocationSettings: _openLocationSettings,
-                  onOpenAppSettings: _openAppSettings,
-                  onShowLocationError: _showLocationError,
-                  position: _capturedPosition,
-                  selectedLocation: _selectedLocation,
-                  error: _locationError,
-                  address: _locationAddress,
-                  community: _locationCommunity,
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                if (_isReady)
-                  const _InlineFeedback(
-                    icon: AppIcons.success,
-                    color: AppColors.success,
-                    message: 'Details are ready. Next, add photos.',
+                return ListView(
+                  padding: EdgeInsets.fromLTRB(
+                    horizontalPadding,
+                    chromeInset.top + AppSpacing.lg,
+                    horizontalPadding,
+                    chromeInset.bottom + AppSpacing.lg,
                   ),
-                if (_state == CreateReportViewState.validationError)
-                  const _InlineFeedback(
-                    icon: AppIcons.error,
-                    color: AppColors.error,
-                    message: 'Check required fields and try again.',
-                  ),
-                const SizedBox(height: AppSpacing.lg),
-                CivicGlassCard(
-                  borderRadius: AppRadius.allXl,
-                  child: FilledButton.icon(
-                    onPressed: _isDisabled ? null : _continueToPhotos,
-                    icon: const Icon(AppIcons.chevronRight),
-                    label: const Text('Continue to Photos'),
-                  ),
-                ),
-              ],
-            );
-          },
-        ),
-      ),
-      bottomNavigationBar: CivicBottomNav(
-        selectedIndex: 2,
-        onDestinationSelected: (index) {
-          if (index == 0) {
-            Navigator.of(context).maybePop();
-          } else if (index == 1) {
-            Navigator.of(context).pushNamedAndRemoveUntil(
-              CitizenReportsScreen.routeName,
-              (route) => route.isFirst,
-            );
-          } else if (index == 3) {
-            Navigator.of(context).pushNamedAndRemoveUntil(
-              CitizenAlertsScreen.routeName,
-              (route) => route.isFirst,
-            );
-          } else if (index == 4) {
-            Navigator.of(context).pushNamedAndRemoveUntil(
-              CitizenProfileScreen.routeName,
-              (route) => route.isFirst,
-            );
-          }
-        },
+                  children: [
+                    _CreateReportBanner(state: _state),
+                    _ReportTextField(
+                      label: 'Issue Title',
+                      requiredField: true,
+                      controller: _titleController,
+                      hint: 'e.g. Broken streetlight on Main Road',
+                      hasError: _state == CreateReportViewState.validationError,
+                      onChanged: (_) => _handleFormChanged(),
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    _ReportTextField(
+                      label: 'Description',
+                      controller: _descriptionController,
+                      hint:
+                          'Describe the issue in as much detail as possible...',
+                      minHeight: 128,
+                      minLines: 4,
+                      onChanged: (_) => _handleFormChanged(),
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    _CategoryPreview(category: _classifiedCategory),
+                    const SizedBox(height: AppSpacing.lg),
+                    _LocationCard(
+                      state: _state,
+                      locationLabel: _locationLabel,
+                      loading: _locationLoading,
+                      onCaptureLocation: _openLocationPicker,
+                      onOpenLocationSettings: _openLocationSettings,
+                      onOpenAppSettings: _openAppSettings,
+                      onShowLocationError: _showLocationError,
+                      position: _capturedPosition,
+                      selectedLocation: _selectedLocation,
+                      error: _locationError,
+                      address: _locationAddress,
+                      community: _locationCommunity,
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    if (_isReady)
+                      const _InlineFeedback(
+                        icon: AppIcons.success,
+                        color: AppColors.success,
+                        message: 'Details are ready. Next, add photos.',
+                      ),
+                    if (_state == CreateReportViewState.validationError)
+                      const _InlineFeedback(
+                        icon: AppIcons.error,
+                        color: AppColors.error,
+                        message: 'Check required fields and try again.',
+                      ),
+                    const SizedBox(height: AppSpacing.lg),
+                    CivicGlassCard(
+                      borderRadius: AppRadius.allXl,
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          onPressed: _isDisabled ? null : _continueToPhotos,
+                          icon: const Icon(AppIcons.chevronRight),
+                          label: const Text('Continue to Photos'),
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+          Align(
+            alignment: Alignment.topCenter,
+            child: CivicTopBar(
+              title: 'Create Report',
+              showNotifications: false,
+              onBack: () => Navigator.of(context).maybePop(),
+            ),
+          ),
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: CivicBottomNav(
+              selectedIndex: 2,
+              onDestinationSelected: (index) {
+                if (index == 0) {
+                  Navigator.of(context).maybePop();
+                } else if (index == 1) {
+                  Navigator.of(context).pushNamedAndRemoveUntil(
+                    CitizenReportsScreen.routeName,
+                    (route) => route.isFirst,
+                  );
+                } else if (index == 3) {
+                  Navigator.of(context).pushNamedAndRemoveUntil(
+                    CitizenAlertsScreen.routeName,
+                    (route) => route.isFirst,
+                  );
+                } else if (index == 4) {
+                  Navigator.of(context).pushNamedAndRemoveUntil(
+                    CitizenProfileScreen.routeName,
+                    (route) => route.isFirst,
+                  );
+                }
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -645,105 +595,49 @@ class _ReportTextField extends StatelessWidget {
   }
 }
 
-class _CategorySection extends StatelessWidget {
-  const _CategorySection({
-    required this.categories,
-    required this.selectedCategory,
-    required this.onSelected,
-  });
+class _CategoryPreview extends StatelessWidget {
+  const _CategoryPreview({required this.category});
 
-  final List<String> categories;
-  final String selectedCategory;
-  final ValueChanged<String>? onSelected;
+  final ReportCategory category;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        RichText(
-          text: TextSpan(
-            style: theme.textTheme.titleSmall,
-            children: const [
-              TextSpan(text: 'Category'),
-              TextSpan(
-                text: ' *',
-                style: TextStyle(color: AppColors.error),
-              ),
-            ],
+        Text('Category', style: theme.textTheme.titleSmall),
+        const SizedBox(width: AppSpacing.sm),
+        Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.sm,
+            vertical: AppSpacing.xs,
+          ),
+          decoration: BoxDecoration(
+            color: AppColors.primary.withValues(alpha: 0.1),
+            borderRadius: AppRadius.allXl,
+          ),
+          child: Text(
+            category.label,
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: AppColors.primary,
+              fontWeight: AppFontWeight.bold,
+            ),
           ),
         ),
-        const SizedBox(height: AppSpacing.md),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final columns = constraints.maxWidth >= 560 ? 3 : 2;
-
-            return GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: categories.length,
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: columns,
-                crossAxisSpacing: AppSpacing.sm,
-                mainAxisSpacing: AppSpacing.sm,
-                mainAxisExtent: 48,
-              ),
-              itemBuilder: (context, index) {
-                final category = categories[index];
-                final selectCategory = onSelected;
-                return _CategoryButton(
-                  label: category,
-                  selected: category == selectedCategory,
-                  onTap: selectCategory == null
-                      ? null
-                      : () => selectCategory(category),
-                );
-              },
-            );
-          },
+        const SizedBox(width: AppSpacing.xs),
+        Expanded(
+          child: Text(
+            'Detected from your title and description.',
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: theme.colorScheme.secondary,
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
       ],
-    );
-  }
-}
-
-class _CategoryButton extends StatelessWidget {
-  const _CategoryButton({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return OutlinedButton(
-      onPressed: onTap,
-      style: OutlinedButton.styleFrom(
-        minimumSize: const Size.fromHeight(48),
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-        backgroundColor: selected
-            ? AppColors.primary.withValues(alpha: 0.1)
-            : null,
-        side: BorderSide(
-          color: selected ? AppColors.primary : theme.colorScheme.outline,
-        ),
-      ),
-      child: Text(
-        label,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          color: selected ? AppColors.primary : theme.colorScheme.secondary,
-        ),
-      ),
     );
   }
 }
@@ -785,16 +679,11 @@ class _LocationCard extends StatelessWidget {
     final hasLocation = selected != null || captured != null;
     final readableAddress = selected?.formattedAddress ?? address;
     final readableCommunity =
-        selected?.locality ??
-        selected?.administrativeArea ??
-        community;
+        selected?.locality ?? selected?.administrativeArea ?? community;
     final locationColor = hasLocation ? AppColors.success : AppColors.warning;
     final LatLng? previewTarget;
     if (selected != null) {
-      previewTarget = LatLng(
-        selected.latitude,
-        selected.longitude,
-      );
+      previewTarget = LatLng(selected.latitude, selected.longitude);
     } else if (captured != null) {
       previewTarget = LatLng(captured.latitude, captured.longitude);
     } else {
@@ -810,128 +699,128 @@ class _LocationCard extends StatelessWidget {
         child: CivicGlassCard(
           child: Column(
             children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: AppIconSize.xl,
-                height: AppIconSize.xl,
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerLow,
-                  borderRadius: AppRadius.allLg,
-                ),
-                child: loading
-                    ? const Padding(
-                        padding: EdgeInsets.all(12),
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : Icon(AppIcons.myLocation, color: locationColor),
-              ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Current GPS Location',
-                      style: theme.textTheme.titleLarge,
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: AppIconSize.xl,
+                    height: AppIconSize.xl,
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surfaceContainerLow,
+                      borderRadius: AppRadius.allLg,
                     ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      readableAddress ?? locationLabel,
-                      style: theme.textTheme.bodySmall,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Container(
-            height: 168,
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerLow,
-              borderRadius: AppRadius.allMd,
-              border: Border.all(color: theme.colorScheme.outline),
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: previewTarget == null
-                ? Center(
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
+                    child: loading
+                        ? const Padding(
+                            padding: EdgeInsets.all(12),
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Icon(AppIcons.myLocation, color: locationColor),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(AppIcons.location),
-                        const SizedBox(width: AppSpacing.sm),
-                        Flexible(
-                          child: Text(
-                            'Map preview appears after GPS capture',
-                            style: theme.textTheme.bodySmall,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                        Text(
+                          'Current GPS Location',
+                          style: theme.textTheme.titleLarge,
+                        ),
+                        const SizedBox(height: AppSpacing.xs),
+                        Text(
+                          readableAddress ?? locationLabel,
+                          style: theme.textTheme.bodySmall,
                         ),
                       ],
                     ),
-                  )
-                : _LocationMapPreview(
-                    target: previewTarget,
-                    label: readableAddress ?? 'Selected report location',
                   ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Wrap(
-            spacing: AppSpacing.sm,
-            runSpacing: AppSpacing.sm,
-            alignment: WrapAlignment.center,
-            children: [
-              if (state == CreateReportViewState.gpsDisabled)
-                OutlinedButton.icon(
-                  onPressed: loading ? null : onOpenLocationSettings,
-                  icon: const Icon(AppIcons.settings),
-                  label: const Text('Open Location Settings'),
-                )
-              else if (state == CreateReportViewState.permissionDenied)
-                OutlinedButton.icon(
-                  onPressed: loading ? null : onOpenAppSettings,
-                  icon: const Icon(AppIcons.settings),
-                  label: const Text('Open App Settings'),
-                )
-              else
-                OutlinedButton.icon(
-                  onPressed: loading ? null : onCaptureLocation,
-                  icon: const Icon(AppIcons.location),
-                  label: Text(
-                    hasLocation ? 'Refresh Location' : 'Capture Location',
-                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Container(
+                height: 168,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainerLow,
+                  borderRadius: AppRadius.allMd,
+                  border: Border.all(color: theme.colorScheme.outline),
                 ),
-              if (error != null)
-                TextButton.icon(
-                  onPressed: onShowLocationError,
-                  icon: const Icon(AppIcons.info),
-                  label: const Text('Details'),
-                ),
-            ],
-          ),
-          if (hasLocation) ...[
-            const SizedBox(height: AppSpacing.sm),
-            Wrap(
-              spacing: AppSpacing.sm,
-              runSpacing: AppSpacing.xs,
-              alignment: WrapAlignment.center,
-              children: [
-                if (readableCommunity != null && readableCommunity.isNotEmpty)
-                  _LocationMetaChip(
-                    icon: AppIcons.pinned,
-                    label: readableCommunity,
+                clipBehavior: Clip.antiAlias,
+                child: previewTarget == null
+                    ? Center(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(AppIcons.location),
+                            const SizedBox(width: AppSpacing.sm),
+                            Flexible(
+                              child: Text(
+                                'Map preview appears after GPS capture',
+                                style: theme.textTheme.bodySmall,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : _LocationMapPreview(
+                        target: previewTarget,
+                        label: readableAddress ?? 'Selected report location',
+                      ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              SizedBox(
+                width: double.infinity,
+                child: state == CreateReportViewState.gpsDisabled
+                    ? OutlinedButton.icon(
+                        onPressed: loading ? null : onOpenLocationSettings,
+                        icon: const Icon(AppIcons.settings),
+                        label: const Text('Open Location Settings'),
+                      )
+                    : state == CreateReportViewState.permissionDenied
+                    ? OutlinedButton.icon(
+                        onPressed: loading ? null : onOpenAppSettings,
+                        icon: const Icon(AppIcons.settings),
+                        label: const Text('Open App Settings'),
+                      )
+                    : OutlinedButton.icon(
+                        onPressed: loading ? null : onCaptureLocation,
+                        icon: const Icon(AppIcons.location),
+                        label: Text(
+                          hasLocation ? 'Refresh Location' : 'Capture Location',
+                        ),
+                      ),
+              ),
+              if (error != null) ...[
+                const SizedBox(height: AppSpacing.xs),
+                Center(
+                  child: TextButton.icon(
+                    onPressed: onShowLocationError,
+                    icon: const Icon(AppIcons.info),
+                    label: const Text('Details'),
                   ),
-                _LocationMetaChip(
-                  icon: AppIcons.myLocation,
-                  label: captured == null
-                      ? 'Google Maps selected'
-                      : 'Accuracy: ${captured.accuracy.toStringAsFixed(0)} m',
                 ),
               ],
-            ),
-          ],
+              if (hasLocation) ...[
+                const SizedBox(height: AppSpacing.sm),
+                Wrap(
+                  spacing: AppSpacing.sm,
+                  runSpacing: AppSpacing.xs,
+                  alignment: WrapAlignment.center,
+                  children: [
+                    if (readableCommunity != null &&
+                        readableCommunity.isNotEmpty)
+                      _LocationMetaChip(
+                        icon: AppIcons.pinned,
+                        label: readableCommunity,
+                      ),
+                    _LocationMetaChip(
+                      icon: AppIcons.myLocation,
+                      label: captured == null
+                          ? 'Google Maps selected'
+                          : 'Accuracy: ${captured.accuracy.toStringAsFixed(0)} m',
+                    ),
+                  ],
+                ),
+              ],
             ],
           ),
         ),

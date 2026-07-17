@@ -1,3 +1,5 @@
+import '../../../models/region.dart';
+
 class ReportDraft {
   const ReportDraft({
     required this.title,
@@ -7,7 +9,8 @@ class ReportDraft {
     required this.community,
     this.latitude,
     this.longitude,
-    this.photoCount = 0,
+    this.region,
+    this.photoPaths = const <String>[],
   });
 
   final String title;
@@ -17,7 +20,10 @@ class ReportDraft {
   final String community;
   final double? latitude;
   final double? longitude;
-  final int photoCount;
+  final Region? region;
+  final List<String> photoPaths;
+
+  int get photoCount => photoPaths.length;
 
   Map<String, Object?> toMap() {
     return <String, Object?>{
@@ -28,6 +34,8 @@ class ReportDraft {
       'community': community,
       'latitude': latitude,
       'longitude': longitude,
+      'region': region?.name,
+      'photoPaths': photoPaths,
       'photoCount': photoCount,
     };
   }

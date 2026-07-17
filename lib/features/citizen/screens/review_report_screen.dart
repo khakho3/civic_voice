@@ -5,6 +5,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../models/region.dart';
 import '../widgets/civic_glass_card.dart';
 import '../services/report_crud_service.dart';
 import '../widgets/civic_app_chrome.dart';
@@ -23,6 +24,7 @@ class ReviewReportScreen extends StatelessWidget {
     this.reportCommunity,
     this.reportLatitude,
     this.reportLongitude,
+    this.reportRegion,
     this.photos = const [],
   });
 
@@ -35,6 +37,7 @@ class ReviewReportScreen extends StatelessWidget {
   final String? reportCommunity;
   final double? reportLatitude;
   final double? reportLongitude;
+  final Region? reportRegion;
   final List<XFile> photos;
 
   Future<void> _submit(BuildContext context) async {
@@ -47,7 +50,8 @@ class ReviewReportScreen extends StatelessWidget {
         community: reportCommunity ?? '',
         latitude: reportLatitude,
         longitude: reportLongitude,
-        photoCount: photos.length,
+        region: reportRegion,
+        photoPaths: [for (final photo in photos) photo.path],
       ),
     );
 
@@ -75,78 +79,80 @@ class ReviewReportScreen extends StatelessWidget {
     final compact = MediaQuery.sizeOf(context).width < 360;
     final horizontalPadding = compact ? AppSpacing.sm : AppSpacing.md;
 
+    final chromeInset = civicContentPadding(context);
+
     return Scaffold(
-      extendBody: true,
-      appBar: CivicTopBar(
-        title: 'Review Report',
-        showNotifications: false,
-        onBack: () => Navigator.of(context).maybePop(),
-      ),
-      body: SafeArea(
-        top: false,
-        child: ListView(
-          padding: EdgeInsets.fromLTRB(
-            horizontalPadding,
-            AppSpacing.xl,
-            horizontalPadding,
-            132,
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: ListView(
+              padding: EdgeInsets.fromLTRB(
+                horizontalPadding,
+                chromeInset.top + AppSpacing.xl,
+                horizontalPadding,
+                chromeInset.bottom + AppSpacing.xl,
+              ),
+              children: [
+                const _ReviewProgress(),
+                const SizedBox(height: AppSpacing.xl),
+                _ReportDetailsCard(
+                  title: reportTitle,
+                  description: reportDescription,
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                _CategoryCard(category: reportCategory),
+                const SizedBox(height: AppSpacing.lg),
+                _LocationCard(
+                  locationLabel: reportLocationLabel,
+                  community: reportCommunity,
+                  latitude: reportLatitude,
+                  longitude: reportLongitude,
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                _PhotosCard(photos: photos),
+                const SizedBox(height: AppSpacing.lg),
+                _SubmitCard(
+                  onSubmit: () => _submit(context),
+                  onBack: () => _editPreviousStep(context),
+                ),
+              ],
+            ),
           ),
-          children: [
-            const _ReviewProgress(),
-            const SizedBox(height: AppSpacing.xl),
-            _ReportDetailsCard(
-              title: reportTitle,
-              description: reportDescription,
-              onEdit: () => _editPreviousStep(context),
+          Align(
+            alignment: Alignment.topCenter,
+            child: CivicTopBar(
+              title: 'Review Report',
+              showNotifications: false,
+              onBack: () => Navigator.of(context).maybePop(),
             ),
-            const SizedBox(height: AppSpacing.lg),
-            _CategoryCard(
-              category: reportCategory,
-              onEdit: () => _editPreviousStep(context),
+          ),
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: CivicBottomNav(
+              selectedIndex: 2,
+              onDestinationSelected: (index) {
+                if (index == 0) {
+                  Navigator.of(context).popUntil((route) => route.isFirst);
+                } else if (index == 1) {
+                  Navigator.of(context).pushNamedAndRemoveUntil(
+                    CitizenReportsScreen.routeName,
+                    (route) => route.isFirst,
+                  );
+                } else if (index == 3) {
+                  Navigator.of(context).pushNamedAndRemoveUntil(
+                    CitizenAlertsScreen.routeName,
+                    (route) => route.isFirst,
+                  );
+                } else if (index == 4) {
+                  Navigator.of(context).pushNamedAndRemoveUntil(
+                    CitizenProfileScreen.routeName,
+                    (route) => route.isFirst,
+                  );
+                }
+              },
             ),
-            const SizedBox(height: AppSpacing.lg),
-            _LocationCard(
-              locationLabel: reportLocationLabel,
-              community: reportCommunity,
-              latitude: reportLatitude,
-              longitude: reportLongitude,
-              onEdit: () => _editPreviousStep(context),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            _PhotosCard(
-              photos: photos,
-              onEdit: () => _editPreviousStep(context),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            _SubmitCard(
-              onSubmit: () => _submit(context),
-              onBack: () => _editPreviousStep(context),
-            ),
-          ],
-        ),
-      ),
-      bottomNavigationBar: CivicBottomNav(
-        selectedIndex: 2,
-        onDestinationSelected: (index) {
-          if (index == 0) {
-            Navigator.of(context).popUntil((route) => route.isFirst);
-          } else if (index == 1) {
-            Navigator.of(context).pushNamedAndRemoveUntil(
-              CitizenReportsScreen.routeName,
-              (route) => route.isFirst,
-            );
-          } else if (index == 3) {
-            Navigator.of(context).pushNamedAndRemoveUntil(
-              CitizenAlertsScreen.routeName,
-              (route) => route.isFirst,
-            );
-          } else if (index == 4) {
-            Navigator.of(context).pushNamedAndRemoveUntil(
-              CitizenProfileScreen.routeName,
-              (route) => route.isFirst,
-            );
-          }
-        },
+          ),
+        ],
       ),
     );
   }
@@ -196,15 +202,10 @@ class _ReviewProgress extends StatelessWidget {
 }
 
 class _ReportDetailsCard extends StatelessWidget {
-  const _ReportDetailsCard({
-    required this.title,
-    required this.description,
-    required this.onEdit,
-  });
+  const _ReportDetailsCard({required this.title, required this.description});
 
   final String? title;
   final String? description;
-  final VoidCallback onEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -215,7 +216,6 @@ class _ReportDetailsCard extends StatelessWidget {
     return _ReviewCard(
       icon: AppIcons.reportVerified,
       title: 'Report Details',
-      onEdit: onEdit,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -236,10 +236,9 @@ class _ReportDetailsCard extends StatelessWidget {
 }
 
 class _CategoryCard extends StatelessWidget {
-  const _CategoryCard({required this.category, required this.onEdit});
+  const _CategoryCard({required this.category});
 
   final String? category;
-  final VoidCallback onEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -248,8 +247,7 @@ class _CategoryCard extends StatelessWidget {
 
     return _ReviewCard(
       icon: AppIcons.report,
-      title: 'Category',
-      onEdit: onEdit,
+      title: 'Category (Auto-detected)',
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(
@@ -262,7 +260,7 @@ class _CategoryCard extends StatelessWidget {
           border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
         ),
         child: Text(
-          cleanCategory.isEmpty ? 'Not selected' : cleanCategory,
+          cleanCategory.isEmpty ? 'Not detected' : cleanCategory,
           style: theme.textTheme.labelLarge?.copyWith(
             color: AppColors.primary,
             fontWeight: AppFontWeight.bold,
@@ -279,14 +277,12 @@ class _LocationCard extends StatelessWidget {
     required this.community,
     required this.latitude,
     required this.longitude,
-    required this.onEdit,
   });
 
   final String? locationLabel;
   final String? community;
   final double? latitude;
   final double? longitude;
-  final VoidCallback onEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -299,7 +295,6 @@ class _LocationCard extends StatelessWidget {
     return _ReviewCard(
       icon: AppIcons.location,
       title: 'Location',
-      onEdit: onEdit,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -374,10 +369,9 @@ class _LocationCard extends StatelessWidget {
 }
 
 class _PhotosCard extends StatelessWidget {
-  const _PhotosCard({required this.photos, required this.onEdit});
+  const _PhotosCard({required this.photos});
 
   final List<XFile> photos;
-  final VoidCallback onEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -386,7 +380,6 @@ class _PhotosCard extends StatelessWidget {
     return _ReviewCard(
       icon: AppIcons.camera,
       title: 'Photos',
-      onEdit: onEdit,
       trailingText: '${photos.length}',
       child: photos.isEmpty
           ? const _InfoLine(
@@ -415,9 +408,8 @@ class _PhotosCard extends StatelessWidget {
                               fit: BoxFit.cover,
                               errorBuilder: (context, error, stackTrace) =>
                                   ColoredBox(
-                                    color: theme
-                                        .colorScheme
-                                        .surfaceContainerLow,
+                                    color:
+                                        theme.colorScheme.surfaceContainerLow,
                                     child: const Center(
                                       child: Icon(AppIcons.imageUnavailable),
                                     ),
@@ -484,14 +476,12 @@ class _ReviewCard extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.child,
-    required this.onEdit,
     this.trailingText,
   });
 
   final IconData icon;
   final String title;
   final Widget child;
-  final VoidCallback onEdit;
   final String? trailingText;
 
   @override
@@ -517,15 +507,7 @@ class _ReviewCard extends StatelessWidget {
                   ),
                 ),
               ),
-              if (trailingText != null) ...[
-                _CountBadge(label: trailingText!),
-                const SizedBox(width: AppSpacing.xs),
-              ],
-              TextButton.icon(
-                onPressed: onEdit,
-                icon: const Icon(AppIcons.edit, size: AppIconSize.sm),
-                label: const Text('Edit'),
-              ),
+              if (trailingText != null) _CountBadge(label: trailingText!),
             ],
           ),
           const SizedBox(height: AppSpacing.lg),

@@ -53,9 +53,12 @@ class CivicStatusPanel extends StatelessWidget {
           ),
           if (actionLabel != null) ...[
             const SizedBox(height: AppSpacing.lg),
-            FilledButton(
-              onPressed: onAction,
-              child: Text(actionLabel!),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: onAction,
+                child: Text(actionLabel!),
+              ),
             ),
           ],
         ],

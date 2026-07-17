@@ -57,3 +57,5 @@ app.*.map.json
 /windows/flutter/generated_plugins.cmake
 
 .mcp.json
+SCREEN_AUDIT_CHECKLIST.md
+ROUTING_AND_SCREEN_CONNECTIVITY_PLAN.md

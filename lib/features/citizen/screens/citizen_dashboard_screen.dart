@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:geolocator/geolocator.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../widgets/civic_glass_card.dart';
@@ -8,6 +7,8 @@ import '../models/citizen_profile.dart';
 import '../models/civic_report.dart';
 import '../models/dashboard_view_state.dart';
 import '../services/dashboard_state_service.dart';
+import '../services/location_service.dart';
+import '../services/notification_permission_service.dart';
 import '../services/profile_crud_service.dart';
 import '../services/report_crud_service.dart';
 import '../widgets/civic_app_chrome.dart';
@@ -39,14 +40,19 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen>
       DashboardStateService.instance;
   final ReportCrudService _reportCrudService = ReportCrudService.instance;
   final ProfileCrudService _profileCrudService = ProfileCrudService.instance;
+  final LocationService _locationService = const LocationService();
+  final NotificationPermissionService _notificationPermissionService =
+      const NotificationPermissionService();
 
   @override
   void initState() {
     super.initState();
     _dashboardStateService.setState(widget.initialState);
     WidgetsBinding.instance.addObserver(this);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _checkLocationAccess(requestPermission: true);
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _checkLocationAccess(requestPermission: true);
+      if (!mounted) return;
+      await _checkNotificationAccess();
     });
   }
 
@@ -65,57 +71,54 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen>
 
   Future<void> _checkLocationAccess({required bool requestPermission}) async {
     try {
-      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      var permission = await Geolocator.checkPermission();
-
-      if (permission == LocationPermission.denied && requestPermission) {
-        permission = await Geolocator.requestPermission();
-      }
-
+      final status = await _locationService.checkAccessStatus(
+        requestPermission: requestPermission,
+      );
       if (!mounted) return;
 
-      if (!serviceEnabled) {
-        _showLocationDialog(
-          title: 'Turn on Location',
-          message:
-              'CivicVoice needs your phone location to show nearby reports and capture accurate report GPS.',
-          actionLabel: 'Turn On Location',
-          onAction: Geolocator.openLocationSettings,
-        );
-        return;
-      }
-
-      if (permission == LocationPermission.denied) {
-        _dashboardStateService.setState(DashboardViewState.permissionRequired);
-        _showLocationDialog(
-          title: 'Allow Location',
-          message:
-              'Please allow location permission so CivicVoice can attach GPS to your civic reports.',
-          actionLabel: 'Allow Location',
-          onAction: () => _checkLocationAccess(requestPermission: true),
-        );
-        return;
-      }
-
-      if (permission == LocationPermission.deniedForever) {
-        _dashboardStateService.setState(DashboardViewState.permissionRequired);
-        _showLocationDialog(
-          title: 'Location Blocked',
-          message:
-              'Location permission is blocked. Open app settings and allow location access.',
-          actionLabel: 'Open Settings',
-          onAction: Geolocator.openAppSettings,
-        );
-        return;
-      }
-
-      if (_dashboardStateService.state.value ==
-          DashboardViewState.permissionRequired) {
-        final restoredState =
-            widget.initialState == DashboardViewState.permissionRequired
-            ? DashboardViewState.empty
-            : widget.initialState;
-        _dashboardStateService.setState(restoredState);
+      switch (status) {
+        case LocationAccessStatus.gpsDisabled:
+          _showLocationDialog(
+            title: 'Turn on Location',
+            message:
+                'CivicVoice needs your phone location to show nearby reports and capture accurate report GPS.',
+            actionLabel: 'Turn On Location',
+            onAction: _locationService.openLocationSettings,
+          );
+        case LocationAccessStatus.permissionDenied:
+          _dashboardStateService.setState(
+            DashboardViewState.permissionRequired,
+          );
+          _showLocationDialog(
+            title: 'Allow Location',
+            message:
+                'Please allow location permission so CivicVoice can attach GPS to your civic reports.',
+            actionLabel: 'Allow Location',
+            onAction: () => _checkLocationAccess(requestPermission: true),
+          );
+        case LocationAccessStatus.permissionDeniedForever:
+          _dashboardStateService.setState(
+            DashboardViewState.permissionRequired,
+          );
+          _showLocationDialog(
+            title: 'Location Blocked',
+            message:
+                'Location permission is blocked. Open app settings and allow location access.',
+            actionLabel: 'Open Settings',
+            onAction: _locationService.openAppSettings,
+          );
+        case LocationAccessStatus.ready:
+          if (_dashboardStateService.state.value ==
+              DashboardViewState.permissionRequired) {
+            final restoredState =
+                widget.initialState == DashboardViewState.permissionRequired
+                ? DashboardViewState.empty
+                : widget.initialState;
+            _dashboardStateService.setState(restoredState);
+          }
+        case LocationAccessStatus.unavailable:
+        // Transient — leave dashboard state as-is; the next resume or
+        // manual retry will re-check.
       }
     } catch (_) {
       // In tests or unsupported platforms the plugin can be unavailable; keep
@@ -160,63 +163,126 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen>
     _locationDialogVisible = false;
   }
 
+  Future<void> _checkNotificationAccess() async {
+    try {
+      if (await _notificationPermissionService.hasAskedBefore()) return;
+    } catch (_) {
+      // In tests or unsupported platforms the plugin can be unavailable;
+      // skip the prompt instead of blocking the app.
+      return;
+    }
+    if (!mounted) return;
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) {
+        return AlertDialog(
+          icon: const Icon(AppIcons.notifications, color: AppColors.primary),
+          title: const Text('Stay Updated'),
+          content: const Text(
+            'Allow notifications so CivicVoice can let you know when your '
+            'report status changes.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                await _notificationPermissionService.markAsked();
+              },
+              child: const Text('Not Now'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                try {
+                  await _notificationPermissionService.requestOnce();
+                } catch (_) {
+                  // Plugin unavailable on this platform/build — nothing
+                  // further to do; the "asked" flag write inside
+                  // requestOnce() may not have landed, but we won't nag
+                  // again this session either way.
+                }
+              },
+              child: const Text('Allow'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      extendBody: true,
-      appBar: const CivicTopBar(showNotifications: false),
-      body: SafeArea(
-        top: false,
-        child: ValueListenableBuilder<DashboardViewState>(
-          valueListenable: _dashboardStateService.state,
-          builder: (context, dashboardState, _) {
-            return ValueListenableBuilder<CitizenProfile>(
-              valueListenable: _profileCrudService.profile,
-              builder: (context, profile, _) {
-                return ValueListenableBuilder<List<CivicReport>>(
-                  valueListenable: _reportCrudService.reports,
-                  builder: (context, reports, _) {
-                    return _DashboardBody(
-                      state: dashboardState,
-                      reports: reports,
-                      displayName: profile.fullName,
-                      onReset: _dashboardStateService.reset,
-                      onOpenSettings: Geolocator.openAppSettings,
-                      onCreateReport: () => Navigator.of(
-                        context,
-                      ).pushNamed(CreateReportScreen.routeName),
-                      onViewReports: () => Navigator.of(
-                        context,
-                      ).pushNamed(CitizenReportsScreen.routeName),
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: ValueListenableBuilder<DashboardViewState>(
+              valueListenable: _dashboardStateService.state,
+              builder: (context, dashboardState, _) {
+                return ValueListenableBuilder<CitizenProfile>(
+                  valueListenable: _profileCrudService.profile,
+                  builder: (context, profile, _) {
+                    return ValueListenableBuilder<List<CivicReport>>(
+                      valueListenable: _reportCrudService.reports,
+                      builder: (context, reports, _) {
+                        return _DashboardBody(
+                          state: dashboardState,
+                          reports: reports,
+                          displayName: profile.fullName,
+                          onReset: _dashboardStateService.reset,
+                          onOpenSettings: _locationService.openAppSettings,
+                          onCreateReport: () => Navigator.of(
+                            context,
+                          ).pushNamed(CreateReportScreen.routeName),
+                          onViewReports: () => Navigator.of(
+                            context,
+                          ).pushNamed(CitizenReportsScreen.routeName),
+                        );
+                      },
                     );
                   },
                 );
               },
-            );
-          },
-        ),
-      ),
-      bottomNavigationBar: CivicBottomNav(
-        selectedIndex: _selectedIndex,
-        onDestinationSelected: (index) {
-          if (index == 1) {
-            Navigator.of(context).pushNamed(CitizenReportsScreen.routeName);
-            return;
-          }
-          if (index == 2) {
-            Navigator.of(context).pushNamed(CreateReportScreen.routeName);
-            return;
-          }
-          if (index == 3) {
-            Navigator.of(context).pushNamed(CitizenAlertsScreen.routeName);
-            return;
-          }
-          if (index == 4) {
-            Navigator.of(context).pushNamed(CitizenProfileScreen.routeName);
-            return;
-          }
-          setState(() => _selectedIndex = index);
-        },
+            ),
+          ),
+          const Align(
+            alignment: Alignment.topCenter,
+            child: CivicTopBar(showNotifications: false, isHomeTab: true),
+          ),
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: CivicBottomNav(
+              selectedIndex: _selectedIndex,
+              onDestinationSelected: (index) {
+                if (index == 1) {
+                  Navigator.of(
+                    context,
+                  ).pushNamed(CitizenReportsScreen.routeName);
+                  return;
+                }
+                if (index == 2) {
+                  Navigator.of(context).pushNamed(CreateReportScreen.routeName);
+                  return;
+                }
+                if (index == 3) {
+                  Navigator.of(
+                    context,
+                  ).pushNamed(CitizenAlertsScreen.routeName);
+                  return;
+                }
+                if (index == 4) {
+                  Navigator.of(
+                    context,
+                  ).pushNamed(CitizenProfileScreen.routeName);
+                  return;
+                }
+                setState(() => _selectedIndex = index);
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -327,9 +393,9 @@ class _DashboardContent extends StatelessWidget {
         return ListView(
           padding: EdgeInsets.fromLTRB(
             horizontalPadding,
-            AppSpacing.lg,
+            civicContentPadding(context).top + AppSpacing.lg,
             horizontalPadding,
-            120,
+            civicContentPadding(context).bottom + AppSpacing.lg,
           ),
           children: [
             Text(
@@ -370,8 +436,6 @@ class _DashboardContent extends StatelessWidget {
               reports: reports,
               onViewReports: onViewReports,
             ),
-            const SizedBox(height: AppSpacing.xl),
-            const _CommunityUpdatesSection(),
           ],
         );
       },
@@ -401,9 +465,9 @@ class _DashboardEmptyContent extends StatelessWidget {
           key: const ValueKey('dashboard-empty-content'),
           padding: EdgeInsets.fromLTRB(
             horizontalPadding,
-            AppSpacing.lg,
+            civicContentPadding(context).top + AppSpacing.lg,
             horizontalPadding,
-            120,
+            civicContentPadding(context).bottom + AppSpacing.lg,
           ),
           children: [
             Text(
@@ -431,8 +495,6 @@ class _DashboardEmptyContent extends StatelessWidget {
             const _EmptyAnalyticsRow(),
             const SizedBox(height: AppSpacing.xl),
             _EmptyRecentReportsCard(onCreateReport: onCreateReport),
-            const SizedBox(height: AppSpacing.xl),
-            const _CommunityUpdatesSection(),
           ],
         );
       },
@@ -474,14 +536,20 @@ class _ReportHeroCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.lg),
-          FilledButton(
-            onPressed: actionsDisabled ? null : onReportNow,
-            child: const Text('Report Now'),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: actionsDisabled ? null : onReportNow,
+              child: const Text('Report Now'),
+            ),
           ),
           const SizedBox(height: AppSpacing.md),
-          OutlinedButton(
-            onPressed: actionsDisabled ? null : onViewReports,
-            child: const Text('View My Reports'),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              onPressed: actionsDisabled ? null : onViewReports,
+              child: const Text('View My Reports'),
+            ),
           ),
         ],
       ),
@@ -496,7 +564,7 @@ class _QuickActionGrid extends StatelessWidget {
     (AppIcons.add, 'Report Issue', 'Submit a new report'),
     (AppIcons.report, 'My Reports', 'View report history'),
     (AppIcons.pinned, 'Nearby Issues', 'See local activity'),
-    (AppIcons.notificationsActive, 'Community', 'Read updates'),
+    (AppIcons.notificationsActive, 'Alerts', 'View notifications'),
   ];
 
   void _handleAction(BuildContext context, int index) {
@@ -508,7 +576,7 @@ class _QuickActionGrid extends StatelessWidget {
       case 2:
         _showNearbyIssues(context);
       case 3:
-        _showCommunityUpdates(context);
+        Navigator.of(context).pushNamed(CitizenAlertsScreen.routeName);
     }
   }
 
@@ -588,74 +656,23 @@ class _QuickActionGrid extends StatelessWidget {
                         ),
                       ),
                     const SizedBox(height: AppSpacing.md),
-                    FilledButton.icon(
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                        Navigator.of(
-                          context,
-                        ).pushNamed(CitizenReportsScreen.routeName);
-                      },
-                      icon: const Icon(AppIcons.report),
-                      label: const Text('View All Reports'),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          Navigator.of(
+                            context,
+                          ).pushNamed(CitizenReportsScreen.routeName);
+                        },
+                        icon: const Icon(AppIcons.report),
+                        label: const Text('View All Reports'),
+                      ),
                     ),
                   ],
                 ),
               );
             },
-          ),
-        );
-      },
-    );
-  }
-
-  void _showCommunityUpdates(BuildContext context) {
-    showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      builder: (context) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.md,
-              AppSpacing.sm,
-              AppSpacing.md,
-              AppSpacing.lg,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Community',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: AppFontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                const _UpdateCard(
-                  title: 'Water works scheduled',
-                  message:
-                      'Maintenance begins Friday at 9:00 AM across Ward 4.',
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                const _UpdateCard(
-                  title: 'Sanitation response improved',
-                  message:
-                      'Average closure time dropped to 3.2 days this month.',
-                ),
-                const SizedBox(height: AppSpacing.md),
-                OutlinedButton.icon(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                    Navigator.of(
-                      context,
-                    ).pushNamed(CitizenAlertsScreen.routeName);
-                  },
-                  icon: const Icon(AppIcons.notificationsActive),
-                  label: const Text('Open Alerts'),
-                ),
-              ],
-            ),
           ),
         );
       },
@@ -758,6 +775,7 @@ class _AnalyticsRow extends StatelessWidget {
         .where(
           (report) =>
               report.status == ReportStatus.underReview ||
+              report.status == ReportStatus.assigned ||
               report.status == ReportStatus.inProgress,
         )
         .length;
@@ -1062,7 +1080,7 @@ class _StatusChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = status.color(context);
+    final color = status.color;
 
     return Container(
       padding: const EdgeInsets.symmetric(
@@ -1084,65 +1102,6 @@ class _StatusChip extends StatelessWidget {
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
               color: color,
               fontWeight: AppFontWeight.semiBold,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _CommunityUpdatesSection extends StatelessWidget {
-  const _CommunityUpdatesSection();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Community Updates', style: theme.textTheme.titleLarge),
-        const SizedBox(height: AppSpacing.md),
-        const _UpdateCard(
-          title: 'Water works scheduled',
-          message: 'Maintenance begins Friday at 9:00 AM across Ward 4.',
-        ),
-        const SizedBox(height: AppSpacing.md),
-        const _UpdateCard(
-          title: 'Sanitation response improved',
-          message: 'Average closure time dropped to 3.2 days this month.',
-        ),
-      ],
-    );
-  }
-}
-
-class _UpdateCard extends StatelessWidget {
-  const _UpdateCard({required this.title, required this.message});
-
-  final String title;
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return CivicGlassCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: AppFontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            message,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.secondary,
             ),
           ),
         ],
@@ -1208,7 +1167,12 @@ class _DashboardStatePanel extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView(
       key: ValueKey(title),
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        civicContentPadding(context).top + AppSpacing.md,
+        AppSpacing.md,
+        civicContentPadding(context).bottom + AppSpacing.md,
+      ),
       children: [
         const SizedBox(height: AppSpacing.xxl),
         CivicStatusPanel(
@@ -1230,7 +1194,12 @@ class _DashboardLoading extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView(
       key: const ValueKey('dashboard-loading'),
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        civicContentPadding(context).top + AppSpacing.md,
+        AppSpacing.md,
+        civicContentPadding(context).bottom + AppSpacing.md,
+      ),
       children: const [
         _SkeletonBlock(widthFactor: 0.86, height: 72),
         SizedBox(height: AppSpacing.md),

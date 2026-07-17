@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../widgets/civic_glass_card.dart';
@@ -33,19 +32,6 @@ class ReportSubmittedScreen extends StatefulWidget {
 }
 
 class _ReportSubmittedScreenState extends State<ReportSubmittedScreen> {
-  String? _rating;
-
-  void _copyReference(String referenceNumber) {
-    Clipboard.setData(ClipboardData(text: referenceNumber));
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Reference number copied.')));
-  }
-
-  void _selectRating(String rating) {
-    setState(() => _rating = rating);
-  }
-
   @override
   Widget build(BuildContext context) {
     final compact = MediaQuery.sizeOf(context).width < 360;
@@ -54,80 +40,85 @@ class _ReportSubmittedScreenState extends State<ReportSubmittedScreen> {
         ? widget.referenceNumber!.trim()
         : 'CV-2026-004582';
 
+    final chromeInset = civicContentPadding(context);
+
     return Scaffold(
-      extendBody: true,
-      appBar: const CivicTopBar(title: 'Submitted', showNotifications: true),
-      body: SafeArea(
-        top: false,
-        child: ListView(
-          padding: EdgeInsets.fromLTRB(
-            horizontalPadding,
-            AppSpacing.xl,
-            horizontalPadding,
-            132,
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: ListView(
+              padding: EdgeInsets.fromLTRB(
+                horizontalPadding,
+                chromeInset.top + AppSpacing.xl,
+                horizontalPadding,
+                chromeInset.bottom + AppSpacing.xl,
+              ),
+              children: [
+                const _SuccessIntro(),
+                const SizedBox(height: AppSpacing.xl),
+                _ReferenceCard(referenceNumber: referenceNumber),
+                const SizedBox(height: AppSpacing.xl),
+                const _TimelineSection(),
+                const SizedBox(height: AppSpacing.xl),
+                const _NextInfoCard(),
+                const SizedBox(height: AppSpacing.lg),
+                _ActionCard(
+                  onTrack: () {
+                    Navigator.of(context).pushReplacement(
+                      MaterialPageRoute<void>(
+                        builder: (_) =>
+                            ReportTrackingScreen(reportId: referenceNumber),
+                      ),
+                    );
+                  },
+                  onDashboard: () =>
+                      Navigator.of(context).popUntil((route) => route.isFirst),
+                  onAnother: () {
+                    Navigator.of(context).pushNamedAndRemoveUntil(
+                      CreateReportScreen.routeName,
+                      (route) => route.isFirst,
+                    );
+                  },
+                ),
+              ],
+            ),
           ),
-          children: [
-            const _SuccessIntro(),
-            const SizedBox(height: AppSpacing.xl),
-            _ReferenceCard(
-              referenceNumber: referenceNumber,
-              onCopy: () => _copyReference(referenceNumber),
-            ),
-            const SizedBox(height: AppSpacing.xl),
-            const _TimelineSection(),
-            const SizedBox(height: AppSpacing.xl),
-            const _NextInfoCard(),
-            const SizedBox(height: AppSpacing.lg),
-            _FeedbackCard(selected: _rating, onSelected: _selectRating),
-            const SizedBox(height: AppSpacing.lg),
-            _ActionCard(
-              onTrack: () {
-                Navigator.of(context).pushReplacement(
-                  MaterialPageRoute<void>(
-                    builder: (_) =>
-                        ReportTrackingScreen(reportId: referenceNumber),
-                  ),
-                );
+          const Align(
+            alignment: Alignment.topCenter,
+            child: CivicTopBar(title: 'Submitted', showNotifications: true),
+          ),
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: CivicBottomNav(
+              selectedIndex: 1,
+              onDestinationSelected: (index) {
+                if (index == 0) {
+                  Navigator.of(context).popUntil((route) => route.isFirst);
+                } else if (index == 1) {
+                  Navigator.of(context).pushNamedAndRemoveUntil(
+                    CitizenReportsScreen.routeName,
+                    (route) => route.isFirst,
+                  );
+                } else if (index == 2) {
+                  Navigator.of(context).pushNamedAndRemoveUntil(
+                    CreateReportScreen.routeName,
+                    (route) => route.isFirst,
+                  );
+                } else if (index == 3) {
+                  Navigator.of(context).pushNamedAndRemoveUntil(
+                    CitizenAlertsScreen.routeName,
+                    (route) => route.isFirst,
+                  );
+                } else if (index == 4) {
+                  Navigator.of(context).pushNamedAndRemoveUntil(
+                    CitizenProfileScreen.routeName,
+                    (route) => route.isFirst,
+                  );
+                }
               },
-              onDashboard: () =>
-                  Navigator.of(context).popUntil((route) => route.isFirst),
-              onAnother: () {
-                Navigator.of(context).pushNamedAndRemoveUntil(
-                  CreateReportScreen.routeName,
-                  (route) => route.isFirst,
-                );
-              },
             ),
-          ],
-        ),
-      ),
-      bottomNavigationBar: CivicBottomNav(
-        selectedIndex: 1,
-        onDestinationSelected: (index) {
-          if (index == 0) {
-            Navigator.of(context).popUntil((route) => route.isFirst);
-          } else if (index == 1) {
-            Navigator.of(context).pushNamedAndRemoveUntil(
-              CitizenReportsScreen.routeName,
-              (route) => route.isFirst,
-            );
-          } else if (index == 2) {
-            Navigator.of(context).pushNamedAndRemoveUntil(
-              CreateReportScreen.routeName,
-              (route) => route.isFirst,
-            );
-          } else if (index == 3) {
-            Navigator.of(context).pushNamedAndRemoveUntil(
-              CitizenAlertsScreen.routeName,
-              (route) => route.isFirst,
-            );
-          } else if (index == 4) {
-            Navigator.of(context).pushNamedAndRemoveUntil(
-              CitizenProfileScreen.routeName,
-              (route) => route.isFirst,
-            );
-          }
-        },
+          ),
+        ],
       ),
     );
   }
@@ -176,10 +167,9 @@ class _SuccessIntro extends StatelessWidget {
 }
 
 class _ReferenceCard extends StatelessWidget {
-  const _ReferenceCard({required this.referenceNumber, required this.onCopy});
+  const _ReferenceCard({required this.referenceNumber});
 
   final String referenceNumber;
-  final VoidCallback onCopy;
 
   @override
   Widget build(BuildContext context) {
@@ -210,12 +200,6 @@ class _ReferenceCard extends StatelessWidget {
           Text('Submitted just now', style: theme.textTheme.bodySmall),
           const SizedBox(height: AppSpacing.lg),
           const _EstimateBox(),
-          const SizedBox(height: AppSpacing.md),
-          OutlinedButton.icon(
-            onPressed: onCopy,
-            icon: const Icon(AppIcons.copy),
-            label: const Text('Copy Reference Number'),
-          ),
         ],
       ),
     );
@@ -461,7 +445,7 @@ class _NextInfoCard extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.sm),
           const _BulletText(
-            'You will receive a push notification and email once your report is assigned.',
+            "You'll be notified here in the app as your report progresses.",
           ),
           const SizedBox(height: AppSpacing.sm),
           const _BulletText(
@@ -495,104 +479,6 @@ class _BulletText extends StatelessWidget {
           child: Text(text, style: Theme.of(context).textTheme.bodyMedium),
         ),
       ],
-    );
-  }
-}
-
-class _FeedbackCard extends StatelessWidget {
-  const _FeedbackCard({required this.selected, required this.onSelected});
-
-  final String? selected;
-  final ValueChanged<String> onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final options = [
-      (AppIcons.error, 'Poor'),
-      (AppIcons.warning, 'Average'),
-      (AppIcons.success, 'Good'),
-      (AppIcons.badgeVerified, 'Excellent'),
-    ];
-
-    return CivicGlassCard(
-      borderRadius: AppRadius.allXl,
-      child: Column(
-        children: [
-          Text(
-            'How was your reporting experience?',
-            textAlign: TextAlign.center,
-            style: theme.textTheme.titleSmall?.copyWith(
-              fontWeight: AppFontWeight.semiBold,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              for (final option in options)
-                _FeedbackOption(
-                  icon: option.$1,
-                  label: option.$2,
-                  selected: selected == option.$2,
-                  onTap: () => onSelected(option.$2),
-                ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _FeedbackOption extends StatelessWidget {
-  const _FeedbackOption({
-    required this.icon,
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return InkWell(
-      borderRadius: AppRadius.allMd,
-      onTap: onTap,
-      child: Container(
-        width: 72,
-        padding: const EdgeInsets.all(AppSpacing.sm),
-        decoration: BoxDecoration(
-          color: selected
-              ? AppColors.primary.withValues(alpha: 0.1)
-              : Colors.transparent,
-          borderRadius: AppRadius.allMd,
-          border: selected
-              ? Border.all(color: AppColors.primary.withValues(alpha: 0.2))
-              : null,
-        ),
-        child: Column(
-          children: [
-            Icon(
-              icon,
-              color: selected ? AppColors.primary : theme.colorScheme.secondary,
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.labelSmall,
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

@@ -67,7 +67,10 @@ void main() {
       await pumpRoute(app.AppRoutes.citizenPhotoUpload);
 
       expect(find.text('Upload Photos'), findsOneWidget);
-      expect(find.text('Continue Without Photos'), findsOneWidget);
+      expect(
+        find.text('At least 2 photos required as evidence — 2 more needed.'),
+        findsOneWidget,
+      );
 
       await pumpRoute(app.AppRoutes.citizenReviewReport);
 

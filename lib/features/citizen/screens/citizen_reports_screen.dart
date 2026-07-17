@@ -55,6 +55,7 @@ class _CitizenReportsScreenState extends State<CitizenReportsScreen> {
         _ReportFilter.underReview => report.status == ReportStatus.underReview,
         _ReportFilter.inProgress =>
           report.status == ReportStatus.inProgress ||
+              report.status == ReportStatus.assigned ||
               report.status == ReportStatus.submitted,
         _ReportFilter.resolved => report.status == ReportStatus.resolved,
       };
@@ -100,62 +101,70 @@ class _CitizenReportsScreenState extends State<CitizenReportsScreen> {
     final horizontalPadding = compact ? AppSpacing.sm : AppSpacing.md;
 
     return Scaffold(
-      extendBody: true,
-      appBar: const CivicTopBar(
-        title: 'My Reports',
-        showNotifications: false,
-      ),
-      body: SafeArea(
-        top: false,
-        child: ValueListenableBuilder<List<CivicReport>>(
-          valueListenable: ReportCrudService.instance.reports,
-          builder: (context, reports, _) {
-            final visibleReports = _applyFilters(reports);
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: ValueListenableBuilder<List<CivicReport>>(
+              valueListenable: ReportCrudService.instance.reports,
+              builder: (context, reports, _) {
+                final visibleReports = _applyFilters(reports);
+                final chromeInset = civicContentPadding(context);
 
-            return ListView(
-              padding: EdgeInsets.fromLTRB(
-                horizontalPadding,
-                AppSpacing.xl,
-                horizontalPadding,
-                132,
-              ),
-              children: [
-                const _ReportsIntro(),
-                const SizedBox(height: AppSpacing.lg),
-                _ReportsSearchField(controller: _searchController),
-                const SizedBox(height: AppSpacing.md),
-                _ReportFilterBar(
-                  selected: _filter,
-                  onSelected: (filter) => setState(() => _filter = filter),
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                if (reports.isEmpty)
-                  _ReportsEmptyState(onCreateReport: _openCreateReport)
-                else if (visibleReports.isEmpty)
-                  const _NoFilteredReports()
-                else
-                  for (final report in visibleReports) ...[
-                    _ReportHistoryCard(report: report),
+                return ListView(
+                  padding: EdgeInsets.fromLTRB(
+                    horizontalPadding,
+                    chromeInset.top + AppSpacing.xl,
+                    horizontalPadding,
+                    chromeInset.bottom + AppSpacing.xl,
+                  ),
+                  children: [
+                    const _ReportsIntro(),
+                    const SizedBox(height: AppSpacing.lg),
+                    _ReportsStatsRow(reports: reports),
+                    const SizedBox(height: AppSpacing.lg),
+                    _ReportsSearchField(controller: _searchController),
                     const SizedBox(height: AppSpacing.md),
+                    _ReportFilterBar(
+                      selected: _filter,
+                      onSelected: (filter) => setState(() => _filter = filter),
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    if (reports.isEmpty)
+                      _ReportsEmptyState(onCreateReport: _openCreateReport)
+                    else if (visibleReports.isEmpty)
+                      const _NoFilteredReports()
+                    else
+                      for (final report in visibleReports) ...[
+                        _ReportHistoryCard(report: report),
+                        const SizedBox(height: AppSpacing.md),
+                      ],
                   ],
-              ],
-            );
-          },
-        ),
-      ),
-      bottomNavigationBar: CivicBottomNav(
-        selectedIndex: 1,
-        onDestinationSelected: (index) {
-          if (index == 0) {
-            _openDashboard();
-          } else if (index == 2) {
-            _openCreateReport();
-          } else if (index == 3) {
-            _openAlerts();
-          } else if (index == 4) {
-            _openProfile();
-          }
-        },
+                );
+              },
+            ),
+          ),
+          const Align(
+            alignment: Alignment.topCenter,
+            child: CivicTopBar(title: 'My Reports', showNotifications: false),
+          ),
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: CivicBottomNav(
+              selectedIndex: 1,
+              onDestinationSelected: (index) {
+                if (index == 0) {
+                  _openDashboard();
+                } else if (index == 2) {
+                  _openCreateReport();
+                } else if (index == 3) {
+                  _openAlerts();
+                } else if (index == 4) {
+                  _openProfile();
+                }
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -191,10 +200,7 @@ class _ReportsSearchField extends StatelessWidget {
 }
 
 class _ReportFilterBar extends StatelessWidget {
-  const _ReportFilterBar({
-    required this.selected,
-    required this.onSelected,
-  });
+  const _ReportFilterBar({required this.selected, required this.onSelected});
 
   final _ReportFilter selected;
   final ValueChanged<_ReportFilter> onSelected;
@@ -243,7 +249,7 @@ class _ReportHistoryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final statusColor = report.status.color(context);
+    final statusColor = report.status.color;
 
     return CivicGlassCard(
       borderRadius: AppRadius.allLg,
@@ -275,10 +281,7 @@ class _ReportHistoryCard extends StatelessWidget {
                   ],
                 ),
               ),
-              _StatusPill(
-                label: report.status.label,
-                color: statusColor,
-              ),
+              _StatusPill(label: report.status.label, color: statusColor),
             ],
           ),
           const SizedBox(height: AppSpacing.md),
@@ -349,11 +352,110 @@ class _ReportsIntro extends StatelessWidget {
   }
 }
 
-class _StatusPill extends StatelessWidget {
-  const _StatusPill({
+class _ReportsStatsRow extends StatelessWidget {
+  const _ReportsStatsRow({required this.reports});
+
+  final List<CivicReport> reports;
+
+  @override
+  Widget build(BuildContext context) {
+    final resolvedCount = reports
+        .where((report) => report.status == ReportStatus.resolved)
+        .length;
+    final activeCount = reports
+        .where(
+          (report) =>
+              report.status != ReportStatus.resolved &&
+              report.status != ReportStatus.rejected,
+        )
+        .length;
+
+    return Row(
+      children: [
+        Expanded(
+          child: _ReportsStatCard(
+            label: 'REPORTS',
+            value: reports.length.toString(),
+            subtitle: 'Submitted',
+          ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: _ReportsStatCard(
+            label: 'RESOLVED',
+            value: resolvedCount.toString(),
+            subtitle: 'Closed',
+          ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: _ReportsStatCard(
+            label: 'ACTIVE',
+            value: activeCount.toString(),
+            subtitle: 'In progress',
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ReportsStatCard extends StatelessWidget {
+  const _ReportsStatCard({
     required this.label,
-    required this.color,
+    required this.value,
+    required this.subtitle,
   });
+
+  final String label;
+  final String value;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return CivicGlassCard(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      borderRadius: AppRadius.allLg,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: theme.colorScheme.secondary,
+              fontWeight: AppFontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: AppFontWeight.bold,
+              ),
+            ),
+          ),
+          Text(
+            subtitle,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.labelSmall,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatusPill extends StatelessWidget {
+  const _StatusPill({required this.label, required this.color});
 
   final String label;
   final Color color;
@@ -388,10 +490,12 @@ class _ReportProgress extends StatelessWidget {
 
   double get _progress {
     return switch (status) {
-      ReportStatus.submitted => 0.25,
-      ReportStatus.underReview => 0.5,
+      ReportStatus.submitted => 0.2,
+      ReportStatus.underReview => 0.4,
+      ReportStatus.assigned => 0.6,
       ReportStatus.inProgress => 0.72,
       ReportStatus.resolved => 1,
+      ReportStatus.rejected => 1,
     };
   }
 
@@ -402,10 +506,9 @@ class _ReportProgress extends StatelessWidget {
       child: LinearProgressIndicator(
         value: _progress,
         minHeight: 5,
-        backgroundColor: Theme.of(context)
-            .colorScheme
-            .outlineVariant
-            .withValues(alpha: 0.32),
+        backgroundColor: Theme.of(
+          context,
+        ).colorScheme.outlineVariant.withValues(alpha: 0.32),
         valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
       ),
     );
@@ -413,10 +516,7 @@ class _ReportProgress extends StatelessWidget {
 }
 
 class _ReportInfoLine extends StatelessWidget {
-  const _ReportInfoLine({
-    required this.icon,
-    required this.label,
-  });
+  const _ReportInfoLine({required this.icon, required this.label});
 
   final IconData icon;
   final String label;
@@ -477,9 +577,12 @@ class _ReportsEmptyState extends StatelessWidget {
             style: theme.textTheme.bodyMedium,
           ),
           const SizedBox(height: AppSpacing.lg),
-          FilledButton(
-            onPressed: onCreateReport,
-            child: const Text('Create Report'),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: onCreateReport,
+              child: const Text('Create Report'),
+            ),
           ),
         ],
       ),

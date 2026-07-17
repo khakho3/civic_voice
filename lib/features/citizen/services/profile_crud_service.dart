@@ -22,8 +22,9 @@ class ProfileCrudService implements ProfileRepository {
       StreamController<CitizenProfile>.broadcast();
 
   @override
-  final ValueNotifier<CitizenProfile> profile =
-      ValueNotifier<CitizenProfile>(_defaultProfile);
+  final ValueNotifier<CitizenProfile> profile = ValueNotifier<CitizenProfile>(
+    _defaultProfile,
+  );
 
   @override
   Stream<CitizenProfile> watchProfile() async* {

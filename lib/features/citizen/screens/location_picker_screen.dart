@@ -286,12 +286,15 @@ class _SelectedLocationCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
-          FilledButton.icon(
-            onPressed: location == null || picker.resolvingAddress
-                ? null
-                : onConfirm,
-            icon: const Icon(AppIcons.chevronRight),
-            label: const Text('Confirm Location'),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: location == null || picker.resolvingAddress
+                  ? null
+                  : onConfirm,
+              icon: const Icon(AppIcons.chevronRight),
+              label: const Text('Confirm Location'),
+            ),
           ),
         ],
       ),

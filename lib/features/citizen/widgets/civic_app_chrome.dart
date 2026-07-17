@@ -1,73 +1,110 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../widgets/glass_bar.dart';
 
-class CivicTopBar extends StatelessWidget implements PreferredSizeWidget {
+/// Header chrome for citizen screens — a [GlassBar] floating in a [Stack]
+/// above scrollable content, matching Admin/Municipal/Ministry's own
+/// header exactly (never [Scaffold.appBar]/`flexibleSpace`, since
+/// [GlassBar] is built to sit over content that scrolls underneath its
+/// blur, not inside an AppBar's own opaque layout slot).
+///
+/// Only [isHomeTab] shows the logo — inline next to the "CivicVoice"
+/// wordmark, left-aligned, the same lockup Municipal's dashboard tab uses.
+/// Citizen has no drawer, so there's no leading hamburger to visually
+/// balance a centered logo against the way Admin's does — every other
+/// screen (tab root or back-button drill-down alike) shows a plain
+/// [TextTheme.titleMedium] title, not [AppColors.primary]-tinted.
+class CivicTopBar extends StatelessWidget {
   const CivicTopBar({
     super.key,
     this.title = 'CivicVoice',
     this.showNotifications = true,
     this.onBack,
+    this.isHomeTab = false,
   });
 
   final String title;
   final bool showNotifications;
   final VoidCallback? onBack;
-
-  @override
-  Size get preferredSize => const Size.fromHeight(64);
+  final bool isHomeTab;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final semantic = Theme.of(context).extension<AppSemanticColors>()!;
+    final textTheme = Theme.of(context).textTheme;
 
-    return AppBar(
-      toolbarHeight: 64,
-      backgroundColor: theme.extension<AppSemanticColors>()!.glassSurface
-          .withValues(alpha: theme.brightness == Brightness.dark ? 0.75 : 0.8),
-      elevation: AppElevation.level1,
-      shadowColor: theme.colorScheme.shadow.withValues(alpha: 0.04),
-      surfaceTintColor: Colors.transparent,
-      centerTitle: true,
-      shape: Border(
-        bottom: BorderSide(
-          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.36),
-          width: 0.667,
+    return GlassBar(
+      border: Border(bottom: BorderSide(color: semantic.glassBorder)),
+      child: SafeArea(
+        bottom: false,
+        child: SizedBox(
+          height: AppDimensions.headerHeight,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+            child: Row(
+              children: [
+                if (onBack != null) ...[
+                  _ChromeIconButton(
+                    icon: AppIcons.back,
+                    tooltip: 'Back',
+                    onPressed: onBack,
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                ],
+                Expanded(
+                  child: isHomeTab
+                      ? Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Image.asset(
+                              AppAssets.logoApp,
+                              width: AppIconSize.xl,
+                              height: AppIconSize.xl,
+                            ),
+                            const SizedBox(width: AppSpacing.sm),
+                            Text(
+                              'CivicVoice',
+                              style: textTheme.titleLarge?.copyWith(
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ],
+                        )
+                      : Text(
+                          title,
+                          style: textTheme.titleMedium,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                ),
+                if (showNotifications)
+                  _ChromeIconButton(
+                    icon: AppIcons.notifications,
+                    tooltip: 'Notifications',
+                  ),
+              ],
+            ),
+          ),
         ),
       ),
-      titleSpacing: AppSpacing.md,
-      leadingWidth: 84,
-      leading: Padding(
-        padding: const EdgeInsets.only(left: AppSpacing.md, top: 2, bottom: 2),
-        child: onBack == null
-            ? _BrandMark(tooltip: title)
-            : _ChromeIconButton(
-                icon: AppIcons.back,
-                tooltip: 'Back',
-                onPressed: onBack,
-              ),
-      ),
-      title: Text(
-        title,
-        style: theme.textTheme.titleLarge?.copyWith(
-          color: AppColors.primary,
-          fontWeight: AppFontWeight.bold,
-        ),
-      ),
-      actions: [
-        if (showNotifications)
-          const _ChromeIconButton(
-            icon: AppIcons.notifications,
-            tooltip: 'Notifications',
-          )
-        else
-          const SizedBox(width: 52),
-        const SizedBox(width: AppSpacing.md),
-      ],
     );
   }
+}
+
+/// The top/bottom inset every citizen screen's scrollable content must
+/// reserve in its own padding so nothing renders permanently hidden behind
+/// the glass header/nav — mirrors `MunicipalScaffold.contentPadding`
+/// exactly. Screens add this to their own [ListView]/[SingleChildScrollView]
+/// padding rather than wrapping `body` in an outer [Padding], since an
+/// outer wrapper would shrink the scrollable's box instead of letting its
+/// content actually scroll underneath the chrome.
+EdgeInsets civicContentPadding(BuildContext context) {
+  final viewPadding = MediaQuery.paddingOf(context);
+  return EdgeInsets.only(
+    top: viewPadding.top + AppDimensions.headerHeight,
+    bottom: viewPadding.bottom + AppDimensions.bottomNavHeight,
+  );
 }
 
 class CivicBottomNav extends StatelessWidget {
@@ -82,22 +119,18 @@ class CivicBottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final glass = theme.extension<AppSemanticColors>()!.glassSurface;
-    final glassFill = glass.withValues(
-      alpha: theme.brightness == Brightness.dark ? 0.75 : 0.8,
-    );
+    final bottomInset = MediaQuery.paddingOf(context).bottom;
 
-    return SafeArea(
-      top: false,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final compact = constraints.maxWidth < 360;
-          final horizontalPadding = compact ? AppSpacing.sm : AppSpacing.md;
-          final fabSize = compact ? 56.0 : 64.0;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 360;
+        final fabSize = compact ? 56.0 : 64.0;
+        final barHeight = (compact ? 74.0 : 80.0) + bottomInset;
 
-          return SizedBox(
-            height: compact ? 82 : 88,
+        return SizedBox(
+          width: double.infinity,
+          child: SizedBox(
+            height: barHeight + 8,
             child: Stack(
               clipBehavior: Clip.none,
               alignment: Alignment.topCenter,
@@ -106,80 +139,61 @@ class CivicBottomNav extends StatelessWidget {
                   left: 0,
                   right: 0,
                   bottom: 0,
-                  child: ClipRRect(
+                  child: GlassBar(
                     borderRadius: AppComponentRadius.bottomSheet,
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(
-                        sigmaX: AppGlassBlur.medium,
-                        sigmaY: AppGlassBlur.medium,
+                    border: Border.all(
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.outlineVariant.withValues(alpha: 0.36),
+                    ),
+                    child: Container(
+                      height: barHeight,
+                      padding: EdgeInsets.fromLTRB(
+                        AppSpacing.sm,
+                        AppSpacing.sm,
+                        AppSpacing.sm,
+                        AppSpacing.sm + bottomInset,
                       ),
-                      child: Container(
-                        height: compact ? 74 : 80,
-                        padding: EdgeInsets.fromLTRB(
-                          horizontalPadding,
-                          AppSpacing.sm,
-                          horizontalPadding,
-                          AppSpacing.sm,
-                        ),
-                        decoration: BoxDecoration(
-                          color: glassFill,
-                          borderRadius: AppComponentRadius.bottomSheet,
-                          border: Border.all(
-                            color: theme.colorScheme.outlineVariant.withValues(
-                              alpha: 0.36,
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: _BottomNavItem(
+                              icon: AppIcons.home,
+                              label: 'Home',
+                              selected: selectedIndex == 0,
+                              compact: compact,
+                              onTap: () => onDestinationSelected(0),
                             ),
                           ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: theme.colorScheme.shadow.withValues(
-                                alpha: 0.06,
-                              ),
-                              blurRadius: 18,
-                              offset: const Offset(0, -4),
+                          Expanded(
+                            child: _BottomNavItem(
+                              icon: AppIcons.report,
+                              label: 'Reports',
+                              selected: selectedIndex == 1,
+                              compact: compact,
+                              onTap: () => onDestinationSelected(1),
                             ),
-                          ],
-                        ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: _BottomNavItem(
-                                icon: AppIcons.home,
-                                label: 'Home',
-                                selected: selectedIndex == 0,
-                                compact: compact,
-                                onTap: () => onDestinationSelected(0),
-                              ),
+                          ),
+                          const Expanded(child: SizedBox.shrink()),
+                          Expanded(
+                            child: _BottomNavItem(
+                              icon: AppIcons.notifications,
+                              label: 'Alerts',
+                              selected: selectedIndex == 3,
+                              compact: compact,
+                              onTap: () => onDestinationSelected(3),
                             ),
-                            Expanded(
-                              child: _BottomNavItem(
-                                icon: AppIcons.report,
-                                label: 'Reports',
-                                selected: selectedIndex == 1,
-                                compact: compact,
-                                onTap: () => onDestinationSelected(1),
-                              ),
+                          ),
+                          Expanded(
+                            child: _BottomNavItem(
+                              icon: AppIcons.profile,
+                              label: 'Profile',
+                              selected: selectedIndex == 4,
+                              compact: compact,
+                              onTap: () => onDestinationSelected(4),
                             ),
-                            const Expanded(child: SizedBox.shrink()),
-                            Expanded(
-                              child: _BottomNavItem(
-                                icon: AppIcons.notifications,
-                                label: 'Alerts',
-                                selected: selectedIndex == 3,
-                                compact: compact,
-                                onTap: () => onDestinationSelected(3),
-                              ),
-                            ),
-                            Expanded(
-                              child: _BottomNavItem(
-                                icon: AppIcons.profile,
-                                label: 'Profile',
-                                selected: selectedIndex == 4,
-                                compact: compact,
-                                onTap: () => onDestinationSelected(4),
-                              ),
-                            ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -212,30 +226,9 @@ class CivicBottomNav extends StatelessWidget {
                 ),
               ],
             ),
-          );
-        },
-      ),
-    );
-  }
-}
-
-class _BrandMark extends StatelessWidget {
-  const _BrandMark({required this.tooltip});
-
-  final String tooltip;
-
-  @override
-  Widget build(BuildContext context) {
-    return Tooltip(
-      message: tooltip,
-      child: SizedBox(
-        width: 60,
-        height: 60,
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.xs),
-          child: Image.asset(AppAssets.logoApp, fit: BoxFit.contain),
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }
@@ -309,11 +302,24 @@ class _ChromeIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Tooltip(
-      message: tooltip,
-      child: DecoratedBox(
-        decoration: BoxDecoration(borderRadius: AppRadius.allLg),
-        child: IconButton(onPressed: onPressed ?? () {}, icon: Icon(icon)),
+    return SizedBox(
+      width: AppDimensions.controlHeightStandard,
+      height: AppDimensions.controlHeightStandard,
+      child: Material(
+        color: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: AppRadius.allLg),
+        child: InkWell(
+          borderRadius: AppRadius.allLg,
+          onTap: onPressed,
+          child: Tooltip(
+            message: tooltip,
+            child: Icon(
+              icon,
+              size: AppIconSize.md,
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
+          ),
+        ),
       ),
     );
   }

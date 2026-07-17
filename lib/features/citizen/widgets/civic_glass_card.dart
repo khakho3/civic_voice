@@ -26,7 +26,8 @@ class CivicGlassCard extends StatelessWidget {
       margin: margin,
       padding: padding,
       decoration: BoxDecoration(
-        color: backgroundColor ??
+        color:
+            backgroundColor ??
             theme.extension<AppSemanticColors>()!.glassSurface,
         borderRadius: borderRadius,
         border: Border.all(color: theme.colorScheme.outlineVariant),

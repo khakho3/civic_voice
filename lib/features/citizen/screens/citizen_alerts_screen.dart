@@ -64,30 +64,38 @@ class _CitizenAlertsScreenState extends State<CitizenAlertsScreen> {
           reportId: report.id,
           title: switch (report.status) {
             ReportStatus.submitted => 'Report submitted',
-            ReportStatus.underReview => 'Report assigned',
+            ReportStatus.underReview => 'Report under review',
+            ReportStatus.assigned => 'Report assigned',
             ReportStatus.inProgress => 'Report moved to In Progress',
             ReportStatus.resolved => 'Report resolved',
+            ReportStatus.rejected => 'Report rejected',
           },
           message: switch (report.status) {
             ReportStatus.submitted =>
               'Your report has been submitted and is waiting for review.',
             ReportStatus.underReview =>
+              'Your report is being reviewed by the civic team.',
+            ReportStatus.assigned =>
               'Your report was assigned to the responsible maintenance team.',
             ReportStatus.inProgress =>
               'Public Works has started repair work for this report.',
             ReportStatus.resolved =>
               'The responsible team has marked this report as resolved.',
+            ReportStatus.rejected =>
+              'Your report was reviewed and could not be accepted.',
           },
           reference: report.id.isEmpty ? 'Reference pending' : report.id,
           timeLabel: report.timeLabel,
           category: switch (report.status) {
             ReportStatus.submitted => 'Report',
             ReportStatus.underReview => 'Report',
+            ReportStatus.assigned => 'Status',
             ReportStatus.inProgress => 'Status',
             ReportStatus.resolved => 'Resolved',
+            ReportStatus.rejected => 'Rejected',
           },
           icon: report.status.icon,
-          color: report.status.color(context),
+          color: report.status.color,
         ),
     ];
   }
@@ -98,75 +106,91 @@ class _CitizenAlertsScreenState extends State<CitizenAlertsScreen> {
     final horizontalPadding = compact ? AppSpacing.sm : AppSpacing.md;
 
     return Scaffold(
-      extendBody: true,
-      appBar: _NotificationsTopBar(onBack: _openDashboard),
-      body: SafeArea(
-        top: false,
-        child: ValueListenableBuilder<List<CivicReport>>(
-          valueListenable: ReportCrudService.instance.reports,
-          builder: (context, reports, _) {
-            final notifications = _notificationsFor(context, reports);
-            final unreadCount = notifications
-                .where((item) => !_readNotificationIds.contains(item.id))
-                .length;
-            final readCount = notifications.length - unreadCount;
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: ValueListenableBuilder<List<CivicReport>>(
+              valueListenable: ReportCrudService.instance.reports,
+              builder: (context, reports, _) {
+                final notifications = _notificationsFor(context, reports);
+                final unreadCount = notifications
+                    .where((item) => !_readNotificationIds.contains(item.id))
+                    .length;
+                final readCount = notifications.length - unreadCount;
+                final chromeInset = civicContentPadding(context);
 
-            return ListView(
-              padding: EdgeInsets.fromLTRB(
-                horizontalPadding,
-                AppSpacing.lg,
-                horizontalPadding,
-                132,
-              ),
-              children: [
-                _NotificationSummary(
-                  allCount: notifications.length,
-                  unreadCount: unreadCount,
-                  readCount: readCount,
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                Text('Today', style: Theme.of(context).textTheme.labelLarge),
-                const SizedBox(height: AppSpacing.md),
-                if (notifications.isEmpty)
-                  const _NotificationEmptyState()
-                else
-                  for (final notification in notifications) ...[
-                    _NotificationCard(
-                      notification: notification,
-                      isUnread: !_readNotificationIds.contains(
-                        notification.id,
-                      ),
-                      onMarkRead: () => _markAsRead(notification.id),
-                      onViewReport: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => ReportTrackingScreen(
-                              reportId: notification.reportId,
-                            ),
-                          ),
-                        );
-                      },
+                return ListView(
+                  padding: EdgeInsets.fromLTRB(
+                    horizontalPadding,
+                    chromeInset.top + AppSpacing.lg,
+                    horizontalPadding,
+                    chromeInset.bottom + AppSpacing.lg,
+                  ),
+                  children: [
+                    _NotificationSummary(
+                      allCount: notifications.length,
+                      unreadCount: unreadCount,
+                      readCount: readCount,
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    Text(
+                      'Today',
+                      style: Theme.of(context).textTheme.labelLarge,
                     ),
                     const SizedBox(height: AppSpacing.md),
+                    if (notifications.isEmpty)
+                      const _NotificationEmptyState()
+                    else
+                      for (final notification in notifications) ...[
+                        _NotificationCard(
+                          notification: notification,
+                          isUnread: !_readNotificationIds.contains(
+                            notification.id,
+                          ),
+                          onMarkRead: () => _markAsRead(notification.id),
+                          onViewReport: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => ReportTrackingScreen(
+                                  reportId: notification.reportId,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                      ],
                   ],
-              ],
-            );
-          },
-        ),
-      ),
-      bottomNavigationBar: CivicBottomNav(
-        selectedIndex: 3,
-        onDestinationSelected: (index) {
-          if (index == 0) {
-            _openDashboard();
-          } else if (index == 1) {
-            _openReports();
-          } else if (index == 2) {
-            _openCreateReport();
-          } else if (index == 4) {
-            _openProfile();
-          }
-        },
+                );
+              },
+            ),
+          ),
+          Align(
+            alignment: Alignment.topCenter,
+            child: CivicTopBar(
+              title: 'Notifications',
+              showNotifications: false,
+              onBack: _openDashboard,
+            ),
+          ),
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: CivicBottomNav(
+              selectedIndex: 3,
+              onDestinationSelected: (index) {
+                if (index == 0) {
+                  _openDashboard();
+                } else if (index == 1) {
+                  _openReports();
+                } else if (index == 2) {
+                  _openCreateReport();
+                } else if (index == 4) {
+                  _openProfile();
+                }
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -194,42 +218,6 @@ class _NotificationItem {
   final String category;
   final IconData icon;
   final Color color;
-}
-
-class _NotificationsTopBar extends StatelessWidget
-    implements PreferredSizeWidget {
-  const _NotificationsTopBar({required this.onBack});
-
-  final VoidCallback onBack;
-
-  @override
-  Size get preferredSize => const Size.fromHeight(64);
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return AppBar(
-      toolbarHeight: 64,
-      backgroundColor: theme.extension<AppSemanticColors>()!.glassSurface,
-      elevation: AppElevation.level1,
-      surfaceTintColor: Colors.transparent,
-      leading: IconButton(
-        tooltip: 'Back',
-        onPressed: onBack,
-        icon: const Icon(AppIcons.back),
-      ),
-      centerTitle: true,
-      title: Text(
-        'Notifications',
-        style: theme.textTheme.titleLarge?.copyWith(
-          color: AppColors.primary,
-          fontWeight: AppFontWeight.bold,
-        ),
-      ),
-      actions: const [SizedBox(width: 48)],
-    );
-  }
 }
 
 class _NotificationSummary extends StatelessWidget {
@@ -277,17 +265,11 @@ class _NotificationSummary extends StatelessWidget {
               ),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
-                child: _SummaryTile(
-                  label: 'Unread',
-                  count: unreadCount,
-                ),
+                child: _SummaryTile(label: 'Unread', count: unreadCount),
               ),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
-                child: _SummaryTile(
-                  label: 'Read',
-                  count: readCount,
-                ),
+                child: _SummaryTile(label: 'Read', count: readCount),
               ),
             ],
           ),
@@ -346,7 +328,9 @@ class _SummaryTile extends StatelessWidget {
         color: selected ? AppColors.primary : theme.colorScheme.surface,
         borderRadius: AppRadius.allMd,
         border: Border.all(
-          color: selected ? AppColors.primary : theme.colorScheme.outlineVariant,
+          color: selected
+              ? AppColors.primary
+              : theme.colorScheme.outlineVariant,
         ),
       ),
       child: Column(

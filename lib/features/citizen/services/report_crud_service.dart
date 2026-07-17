@@ -51,7 +51,9 @@ class ReportCrudService implements ReportsRepository {
     final now = DateTime.now();
     final report = CivicReport(
       id: _createReference(now),
-      title: draft.title.trim().isEmpty ? 'Untitled report' : draft.title.trim(),
+      title: draft.title.trim().isEmpty
+          ? 'Untitled report'
+          : draft.title.trim(),
       description: draft.description.trim(),
       category: draft.category.trim().isEmpty
           ? 'General'
@@ -62,7 +64,9 @@ class ReportCrudService implements ReportsRepository {
       community: draft.community.trim(),
       latitude: draft.latitude,
       longitude: draft.longitude,
+      region: draft.region,
       photoCount: draft.photoCount,
+      photoPaths: draft.photoPaths,
       submittedAt: now,
       timeLabel: 'Just now',
       status: ReportStatus.submitted,
@@ -73,7 +77,10 @@ class ReportCrudService implements ReportsRepository {
   }
 
   @override
-  Future<CivicReport?> updateReport(String id, CivicReport updatedReport) async {
+  Future<CivicReport?> updateReport(
+    String id,
+    CivicReport updatedReport,
+  ) async {
     var changed = false;
     final updated = <CivicReport>[
       for (final report in reports.value)
@@ -92,7 +99,10 @@ class ReportCrudService implements ReportsRepository {
   }
 
   @override
-  Future<CivicReport?> updateReportStatus(String id, ReportStatus status) async {
+  Future<CivicReport?> updateReportStatus(
+    String id,
+    ReportStatus status,
+  ) async {
     final existing = await getReport(id);
     if (existing == null) return null;
 

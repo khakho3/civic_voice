@@ -226,7 +226,11 @@ class CivicVoiceApp extends StatelessWidget {
             AppRoutes.citizenDashboard: (context) =>
                 _withSwitchRoleButton(context, const CitizenDashboardScreen()),
             AppRoutes.citizenAlerts: (_) => const CitizenAlertsScreen(),
-            AppRoutes.citizenProfile: (_) => const CitizenProfileScreen(),
+            AppRoutes.citizenProfile: (context) => CitizenProfileScreen(
+              onLogOut: () => Navigator.of(
+                context,
+              ).pushNamedAndRemoveUntil(AppRoutes.welcome, (_) => false),
+            ),
             AppRoutes.citizenReports: (_) => const CitizenReportsScreen(),
             AppRoutes.citizenCreateReport: (_) => const CreateReportScreen(),
             AppRoutes.citizenLocationPicker: (_) =>
