@@ -4,6 +4,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../models/report_status.dart';
 import '../models/report_progress_data.dart';
 import '../../../widgets/glass_card.dart';
+import '../../../widgets/kebab_menu_button.dart';
 import '../widgets/municipal_detail_header.dart';
 import '../../../widgets/status_badge.dart';
 
@@ -167,8 +168,7 @@ class _MunicipalReportProgressScreenState
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   ReportStatusBadge(status: effectiveStatus),
-                  PopupMenuButton<void>(
-                    icon: const Icon(AppIcons.more, size: AppIconSize.md),
+                  KebabMenuButton<void>(
                     itemBuilder: (context) => [
                       PopupMenuItem(
                         onTap: widget.onShareSummary,

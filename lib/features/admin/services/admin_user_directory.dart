@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../../../models/app_role.dart';
+import '../../../models/assembly.dart';
 import '../../../models/region.dart';
 import '../models/admin_role_management_data.dart';
 import '../models/admin_user_management_data.dart';
@@ -27,23 +28,34 @@ class AdminUserDirectory {
   AdminUserItem createUser({
     required String name,
     required String email,
+    required String phone,
     required AppRole role,
     AdminTier? adminTier,
     Region? region,
+    Assembly? assembly,
   }) {
     final now = DateTime.now();
+    final effectiveTier = role == AppRole.systemAdministrator
+        ? (adminTier ?? AdminTier.admin)
+        : null;
+    final needsAssembly = AdminUserItem.roleRequiresAssembly(
+      role,
+      effectiveTier,
+    );
     final newUser = AdminUserItem(
       name: name,
       email: email,
+      phone: phone,
       role: role,
       status: AdminUserStatus.active,
       userId: 'CV-USER-${(_nextUserNumber++).toString().padLeft(4, '0')}',
       lastSignIn: now,
       accountCreated: now,
-      adminTier: role == AppRole.systemAdministrator
-          ? (adminTier ?? AdminTier.admin)
+      adminTier: effectiveTier,
+      region: (AdminUserItem.roleRequiresRegion(role) || needsAssembly)
+          ? region
           : null,
-      region: AdminUserItem.roleRequiresRegion(role) ? region : null,
+      assembly: needsAssembly ? assembly : null,
     );
     users.value = [newUser, ...users.value];
     return newUser;

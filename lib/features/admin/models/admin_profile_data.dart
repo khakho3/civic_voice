@@ -6,15 +6,19 @@
 /// preview-only via `AdminProfileScreen.initialSaveState`.
 enum AdminProfileSaveState { idle, saving, saved, failed, validationError }
 
-/// The account details shown on ADM-008 Admin Profile. Only [fullName],
-/// [email], and [department] are ever editable (matching the approved
-/// frame's Edit state, which leaves [adminId] — and everything outside
-/// "Administrator Information" — untouched); the rest exists so the whole
-/// record can be tracked and dirty-checked as one value.
+/// The account details shown on ADM-008 Admin Profile. Only [fullName] and
+/// [department] are ever editable — [email] and [phone] are admin-set
+/// credentials (changing either means a real identity change: a different
+/// sign-in email, a different verified number), so they render read-only
+/// and go through an administrator instead; [adminId] and everything
+/// outside "Administrator Information" stay untouched too. The rest
+/// exists so the whole record can be tracked and dirty-checked as one
+/// value.
 class AdminProfileData {
   const AdminProfileData({
     required this.fullName,
     required this.email,
+    required this.phone,
     required this.department,
     required this.adminId,
     required this.twoFactorEnabled,
@@ -26,6 +30,7 @@ class AdminProfileData {
 
   final String fullName;
   final String email;
+  final String phone;
   final String department;
   final String adminId;
   final bool twoFactorEnabled;
@@ -41,14 +46,11 @@ class AdminProfileData {
   final List<String> administrativeScope;
   final String governanceLevel;
 
-  AdminProfileData copyWith({
-    String? fullName,
-    String? email,
-    String? department,
-  }) {
+  AdminProfileData copyWith({String? fullName, String? department}) {
     return AdminProfileData(
       fullName: fullName ?? this.fullName,
-      email: email ?? this.email,
+      email: email,
+      phone: phone,
       department: department ?? this.department,
       adminId: adminId,
       twoFactorEnabled: twoFactorEnabled,
@@ -64,11 +66,13 @@ class AdminProfileData {
       other is AdminProfileData &&
       other.fullName == fullName &&
       other.email == email &&
+      other.phone == phone &&
       other.department == department &&
       other.adminId == adminId;
 
   @override
-  int get hashCode => Object.hash(fullName, email, department, adminId);
+  int get hashCode =>
+      Object.hash(fullName, email, phone, department, adminId);
 }
 
 /// Placeholder content matching the approved ADM-008 design, used until a
@@ -77,6 +81,7 @@ AdminProfileData mockAdminProfile() {
   return AdminProfileData(
     fullName: 'System Administrator',
     email: 'admin@civicvoice.gov',
+    phone: '+233 24 111 2222',
     department: 'Platform Administration',
     adminId: 'ADM-001',
     twoFactorEnabled: true,

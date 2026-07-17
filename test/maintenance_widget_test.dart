@@ -196,7 +196,9 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('My Profile'), findsOneWidget);
-      expect(find.text('Marcus Johnson'), findsOneWidget);
+      // Matches both the header's name display and the now-editable Full
+      // Name field's current value.
+      expect(find.text('Marcus Johnson'), findsNWidgets(2));
     },
   );
 }

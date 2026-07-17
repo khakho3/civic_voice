@@ -15,11 +15,6 @@ const List<String> kAuditLogRetentionOptions = [
   '24 months',
 ];
 const List<String> kBackupScheduleOptions = ['Daily', 'Weekly', 'Monthly'];
-const List<String> kRegionOptions = [
-  'Default region',
-  'EU region',
-  'US region',
-];
 
 /// The outcome of a "Save Changes" attempt — separate from
 /// [AdminSystemSettingsViewState] (the screen's own load state) the same
@@ -50,7 +45,6 @@ class SystemSettingsData {
     required this.auditLogRetention,
     required this.backupSchedule,
     required this.publicStatusPage,
-    required this.regionalDataRouting,
   });
 
   final String platformName;
@@ -62,7 +56,6 @@ class SystemSettingsData {
   final String auditLogRetention;
   final String backupSchedule;
   final bool publicStatusPage;
-  final String regionalDataRouting;
 
   SystemSettingsData copyWith({
     String? platformName,
@@ -74,7 +67,6 @@ class SystemSettingsData {
     String? auditLogRetention,
     String? backupSchedule,
     bool? publicStatusPage,
-    String? regionalDataRouting,
   }) {
     return SystemSettingsData(
       platformName: platformName ?? this.platformName,
@@ -86,7 +78,6 @@ class SystemSettingsData {
       auditLogRetention: auditLogRetention ?? this.auditLogRetention,
       backupSchedule: backupSchedule ?? this.backupSchedule,
       publicStatusPage: publicStatusPage ?? this.publicStatusPage,
-      regionalDataRouting: regionalDataRouting ?? this.regionalDataRouting,
     );
   }
 
@@ -101,8 +92,7 @@ class SystemSettingsData {
       other.auditLogging == auditLogging &&
       other.auditLogRetention == auditLogRetention &&
       other.backupSchedule == backupSchedule &&
-      other.publicStatusPage == publicStatusPage &&
-      other.regionalDataRouting == regionalDataRouting;
+      other.publicStatusPage == publicStatusPage;
 
   @override
   int get hashCode => Object.hash(
@@ -115,7 +105,6 @@ class SystemSettingsData {
     auditLogRetention,
     backupSchedule,
     publicStatusPage,
-    regionalDataRouting,
   );
 }
 
@@ -132,6 +121,5 @@ SystemSettingsData mockSystemSettings() {
     auditLogRetention: '12 months',
     backupSchedule: 'Daily',
     publicStatusPage: true,
-    regionalDataRouting: 'Default region',
   );
 }

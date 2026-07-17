@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../models/app_role.dart';
+import '../../../models/assembly.dart';
+import '../../../models/ghana_assemblies_data.dart';
 import '../../../models/region.dart';
 import 'admin_role_management_data.dart';
 
@@ -57,6 +59,7 @@ class AdminUserItem {
   const AdminUserItem({
     required this.name,
     required this.email,
+    required this.phone,
     required this.role,
     required this.status,
     required this.userId,
@@ -64,10 +67,12 @@ class AdminUserItem {
     required this.accountCreated,
     this.adminTier,
     this.region,
+    this.assembly,
   });
 
   final String name;
   final String email;
+  final String phone;
   final AppRole role;
   final AdminUserStatus status;
   final String userId;
@@ -81,11 +86,18 @@ class AdminUserItem {
 
   /// The jurisdiction this account is scoped to — required for
   /// [AppRole.municipalOfficer] and [AppRole.maintenanceTeam] accounts
-  /// (they act on reports filed within one region), null for
-  /// [AppRole.systemAdministrator] and [AppRole.ministrySupervisor] (both
-  /// national-scope roles) and for [AppRole.citizen] (citizens aren't
-  /// region-provisioned; their reports carry their own region instead).
+  /// (they act on reports filed within one region), and for a
+  /// [AppRole.systemAdministrator] account holding [AdminTier.admin] (one
+  /// per assembly — see [roleRequiresAssembly]). Null for
+  /// [AppRole.ministrySupervisor] (national-scope) and for
+  /// [AppRole.citizen] (citizens aren't region-provisioned; their reports
+  /// carry their own region instead).
   final Region? region;
+
+  /// The specific Metropolitan/Municipal/District Assembly this account is
+  /// scoped to, one level more specific than [region] — see
+  /// [roleRequiresAssembly].
+  final Assembly? assembly;
 
   /// Whether [role] is one of the two region-scoped staff roles — the
   /// single source of truth [AdminUserItem.copyWith], the details form, and
@@ -93,6 +105,15 @@ class AdminUserItem {
   /// only has to be decided in one place.
   static bool roleRequiresRegion(AppRole role) =>
       role == AppRole.municipalOfficer || role == AppRole.maintenanceTeam;
+
+  /// Whether an account of [role] (and, for System Administrator, [tier])
+  /// needs an [assembly] — true for the two region-scoped staff roles, and
+  /// for a System Administrator holding [AdminTier.admin] (one per
+  /// assembly; [AdminTier.superAdmin] is national and needs neither region
+  /// nor assembly).
+  static bool roleRequiresAssembly(AppRole role, [AdminTier? tier]) =>
+      roleRequiresRegion(role) ||
+      (role == AppRole.systemAdministrator && tier == AdminTier.admin);
 
   String get initials {
     final parts = name.trim().split(RegExp(r'\s+'));
@@ -141,22 +162,29 @@ class AdminUserItem {
     AdminUserStatus? status,
     AdminTier? adminTier,
     Region? region,
+    Assembly? assembly,
   }) {
     final effectiveRole = role ?? this.role;
+    final effectiveTier = effectiveRole == AppRole.systemAdministrator
+        ? (adminTier ?? this.adminTier ?? AdminTier.admin)
+        : null;
+    final needsAssembly = roleRequiresAssembly(effectiveRole, effectiveTier);
     return AdminUserItem(
       name: name,
       email: email,
+      phone: phone,
       role: effectiveRole,
       status: status ?? this.status,
       userId: userId,
       lastSignIn: lastSignIn,
       accountCreated: accountCreated,
-      adminTier: effectiveRole == AppRole.systemAdministrator
-          ? (adminTier ?? this.adminTier ?? AdminTier.admin)
-          : (role == null ? this.adminTier : null),
-      region: roleRequiresRegion(effectiveRole)
+      adminTier: effectiveTier,
+      region: (roleRequiresRegion(effectiveRole) || needsAssembly)
           ? (region ?? this.region)
           : (role == null ? this.region : null),
+      assembly: needsAssembly
+          ? (assembly ?? this.assembly)
+          : (role == null ? this.assembly : null),
     );
   }
 }
@@ -178,6 +206,7 @@ List<AdminUserItem> mockAdminUsers() {
     AdminUserItem(
       name: 'Ama Boateng',
       email: 'admin@civicvoice.gov',
+      phone: '+233 24 111 2222',
       role: AppRole.systemAdministrator,
       status: AdminUserStatus.inactive,
       userId: 'CV-USER-0101',
@@ -188,16 +217,19 @@ List<AdminUserItem> mockAdminUsers() {
     AdminUserItem(
       name: 'Kojo Mensah',
       email: 'kojo.mensah@civicvoice.gov',
+      phone: '+233 24 333 4444',
       role: AppRole.municipalOfficer,
       status: AdminUserStatus.active,
       userId: 'CV-USER-0102',
       lastSignIn: now.subtract(const Duration(hours: 3)),
       accountCreated: DateTime(2025, 2, 3),
       region: Region.greaterAccra,
+      assembly: ghanaAssemblies[Region.greaterAccra]!.first,
     ),
     AdminUserItem(
       name: 'Esi Owusu',
       email: 'esi.owusu@civicvoice.gov',
+      phone: '+233 20 555 6666',
       role: AppRole.ministrySupervisor,
       status: AdminUserStatus.review,
       userId: 'CV-USER-0103',
@@ -207,16 +239,19 @@ List<AdminUserItem> mockAdminUsers() {
     AdminUserItem(
       name: 'Yaw Asare',
       email: 'yaw.asare@civicvoice.gov',
+      phone: '+233 27 777 8888',
       role: AppRole.maintenanceTeam,
       status: AdminUserStatus.active,
       userId: 'CV-USER-0104',
       lastSignIn: now.subtract(const Duration(hours: 8, minutes: 40)),
       accountCreated: DateTime(2025, 1, 12),
       region: Region.ashanti,
+      assembly: ghanaAssemblies[Region.ashanti]!.first,
     ),
     AdminUserItem(
       name: 'Kwame Nyarko',
       email: 'kwame.nyarko@gmail.com',
+      phone: '+233 54 999 0000',
       role: AppRole.citizen,
       status: AdminUserStatus.review,
       userId: 'CV-USER-0105',
@@ -226,11 +261,25 @@ List<AdminUserItem> mockAdminUsers() {
     AdminUserItem(
       name: 'Genevieve Amadapah',
       email: 'genevieve.amadapah@civicvoice.gov',
+      phone: '+233 26 222 3333',
       role: AppRole.citizen,
       status: AdminUserStatus.active,
       userId: 'CV-USER-0106',
       lastSignIn: now.subtract(const Duration(days: 1, hours: 2)),
       accountCreated: DateTime(2025, 7, 22),
+    ),
+    AdminUserItem(
+      name: 'Efua Darko',
+      email: 'efua.darko@civicvoice.gov',
+      phone: '+233 24 444 5555',
+      role: AppRole.systemAdministrator,
+      status: AdminUserStatus.active,
+      userId: 'CV-USER-0107',
+      lastSignIn: now.subtract(const Duration(hours: 5)),
+      accountCreated: DateTime(2025, 4, 14),
+      adminTier: AdminTier.admin,
+      region: Region.ashanti,
+      assembly: ghanaAssemblies[Region.ashanti]!.first,
     ),
   ];
 }

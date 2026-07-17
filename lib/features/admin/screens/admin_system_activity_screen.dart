@@ -58,14 +58,13 @@ String _formatActivityTimestamp(DateTime date) {
 /// only) as Unauthorized's two theme variants — the same kind of
 /// split-across-two-folders slip already seen throughout this app.
 ///
-/// This screen has no persistent tab slot of its own (see
-/// [AdminScaffold]'s doc comment) and no single exclusive parent either —
-/// it's reachable from both Dashboard's "Activity Monitoring" card and
-/// every screen's drawer, unlike ADM-003 User Details' one-and-only path
-/// through User Management. [AdminScaffold.selectedTab] is null here, so
-/// the bottom nav shows no tab as active rather than falsely implying
-/// this is Dashboard, while [AdminScaffold.headerTitle] still overrides
-/// the header to read "System Activity".
+/// Promoted to its own bottom-nav tab ([AdminTab.activity]) in place of
+/// ADM-004 Role Management — see [AdminTab]'s own doc comment for why —
+/// so [AdminScaffold.selectedTab] is [AdminTab.activity] here, same as any
+/// other tab's own root screen. It's still also reachable via Dashboard's
+/// "Activity Monitoring" card, the same "more than one entry point, still
+/// a real tab root" shape [AdminTab.users] already has via Dashboard's own
+/// Management row.
 ///
 /// Error/Offline/Unauthorized render as a floating card over dimmed stat
 /// cards in the export, which this implementation keeps (unlike other
@@ -107,11 +106,12 @@ class AdminSystemActivityScreen extends StatefulWidget {
   /// Wired by the app shell so the bottom nav can switch tabs.
   final VoidCallback? onNavigateToDashboard;
   final VoidCallback? onNavigateToUsers;
+
+  /// Opens ADM-004 Role Management via [AdminScaffold]'s drawer.
   final VoidCallback? onNavigateToRoles;
   final VoidCallback? onNavigateToSettings;
 
-  /// Forwarded to [AdminScaffold]'s drawer. Nullable: ADM-008 isn't built
-  /// yet.
+  /// Forwarded to [AdminScaffold]'s drawer.
   final VoidCallback? onOpenProfile;
 
   final VoidCallback? onNotificationsTap;
@@ -152,15 +152,14 @@ class _AdminSystemActivityScreenState extends State<AdminSystemActivityScreen> {
         _state == AdminSystemActivityViewState.noResults;
 
     return AdminScaffold(
-      selectedTab: null,
-      headerTitle: 'System Activity',
+      selectedTab: AdminTab.activity,
       onNotificationsTap: widget.onNotificationsTap,
       onTabSelected: (tab) {
         if (tab == AdminTab.dashboard) widget.onNavigateToDashboard?.call();
         if (tab == AdminTab.users) widget.onNavigateToUsers?.call();
-        if (tab == AdminTab.roles) widget.onNavigateToRoles?.call();
         if (tab == AdminTab.settings) widget.onNavigateToSettings?.call();
       },
+      onOpenRoleManagement: widget.onNavigateToRoles,
       onOpenProfile: widget.onOpenProfile,
       body: switch (_state) {
         AdminSystemActivityViewState.loading => const _LoadingSkeleton(),

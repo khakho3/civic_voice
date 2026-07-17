@@ -19,35 +19,35 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   AppScreenState _state = AppScreenState.success;
 
-  final TextEditingController _emailController = TextEditingController(
-    text: 'marcus.johnson@civicvoice.gov',
+  final TextEditingController _nameController = TextEditingController(
+    text: 'Marcus Johnson',
   );
-  final TextEditingController _phoneController = TextEditingController(
-    text: '+1 (555) 018-2940',
-  );
-  String? _emailError;
-  bool _changesSaved = false;
 
-  static final RegExp _emailPattern = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+  // Admin-set contact credentials — read-only here (see [_ProfileForm]'s
+  // own doc comment), so these are plain values, not editable controllers.
+  static const _email = 'marcus.johnson@civicvoice.gov';
+  static const _phone = '+1 (555) 018-2940';
+
+  String? _nameError;
+  bool _changesSaved = false;
 
   @override
   void dispose() {
-    _emailController.dispose();
-    _phoneController.dispose();
+    _nameController.dispose();
     super.dispose();
   }
 
   void _handleSave() {
-    final email = _emailController.text.trim();
-    if (!_emailPattern.hasMatch(email)) {
+    final name = _nameController.text.trim();
+    if (name.isEmpty) {
       setState(() {
-        _emailError = 'Enter a valid work email address.';
+        _nameError = 'Full name is required.';
         _changesSaved = false;
       });
       return;
     }
     setState(() {
-      _emailError = null;
+      _nameError = null;
       _changesSaved = true;
     });
   }
@@ -108,17 +108,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildForm(BuildContext context, {bool disabled = false}) {
     return _ProfileForm(
       disabled: disabled,
-      emailController: _emailController,
-      phoneController: _phoneController,
-      emailError: _emailError,
+      nameController: _nameController,
+      email: _email,
+      phone: _phone,
+      nameError: _nameError,
       changesSaved: _changesSaved,
       onFieldChanged: disabled
           ? null
           : (_) {
-              if (_changesSaved || _emailError != null) {
+              if (_changesSaved || _nameError != null) {
                 setState(() {
                   _changesSaved = false;
-                  _emailError = null;
+                  _nameError = null;
                 });
               }
             },
@@ -127,21 +128,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 }
 
+/// Email and Phone render as locked [_InfoTile]s, the same read-only
+/// treatment Department/District/Employee ID already get — an
+/// admin-provisioned account's contact credentials are set by whoever
+/// provisioned it, not self-editable (changing either means a real
+/// identity change: a different sign-in email, a different verified
+/// number). Full Name is the only field a maintenance technician can
+/// change here.
 class _ProfileForm extends StatelessWidget {
   const _ProfileForm({
     required this.disabled,
-    required this.emailController,
-    required this.phoneController,
-    required this.emailError,
+    required this.nameController,
+    required this.email,
+    required this.phone,
+    required this.nameError,
     required this.changesSaved,
     required this.onFieldChanged,
     required this.onSave,
   });
 
   final bool disabled;
-  final TextEditingController emailController;
-  final TextEditingController phoneController;
-  final String? emailError;
+  final TextEditingController nameController;
+  final String email;
+  final String phone;
+  final String? nameError;
   final bool changesSaved;
   final ValueChanged<String>? onFieldChanged;
   final VoidCallback? onSave;
@@ -185,7 +195,7 @@ class _ProfileForm extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: AppSpacing.sm),
-                  Text('Marcus Johnson', style: textTheme.titleLarge),
+                  Text(nameController.text, style: textTheme.titleLarge),
                   const SizedBox(height: AppSpacing.xs),
                   Chip(label: const Text('Senior Technician')),
                 ],
@@ -218,43 +228,40 @@ class _ProfileForm extends StatelessWidget {
               value: 'CV-2940-MJ',
             ),
             const SizedBox(height: AppSpacing.lg),
+            Text('Personal Information', style: textTheme.titleSmall),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              'Full Name',
+              style: textTheme.bodySmall?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            TextField(
+              controller: nameController,
+              onChanged: onFieldChanged,
+              enabled: !disabled,
+              decoration: InputDecoration(
+                hintText: 'Full Name',
+                prefixIcon: const Icon(AppIcons.profile),
+                errorText: nameError,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.lg),
             Text('Contact Information', style: textTheme.titleSmall),
             const SizedBox(height: AppSpacing.sm),
-            Text(
-              'Email',
-              style: textTheme.bodySmall?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            TextField(
-              controller: emailController,
-              onChanged: onFieldChanged,
-              enabled: !disabled,
-              keyboardType: TextInputType.emailAddress,
-              decoration: InputDecoration(
-                hintText: 'Email',
-                prefixIcon: const Icon(AppIcons.email),
-                errorText: emailError,
-              ),
+            _InfoTile(
+              icon: AppIcons.email,
+              label: 'Email',
+              value: email,
+              caption: 'Contact your administrator to change this',
             ),
             const SizedBox(height: AppSpacing.sm),
-            Text(
-              'Phone',
-              style: textTheme.bodySmall?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            TextField(
-              controller: phoneController,
-              onChanged: onFieldChanged,
-              enabled: !disabled,
-              keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(
-                hintText: 'Phone',
-                prefixIcon: Icon(AppIcons.phone),
-              ),
+            _InfoTile(
+              icon: AppIcons.phone,
+              label: 'Phone',
+              value: phone,
+              caption: 'Contact your administrator to change this',
             ),
             const SizedBox(height: AppSpacing.xl),
             SizedBox(
@@ -319,10 +326,15 @@ class _InfoTile extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.value,
+    this.caption,
   });
   final IconData icon;
   final String label;
   final String value;
+
+  /// Shown under [value] to explain why this field is read-only, e.g.
+  /// "Contact your administrator to change this."
+  final String? caption;
 
   @override
   Widget build(BuildContext context) {
@@ -346,6 +358,13 @@ class _InfoTile extends StatelessWidget {
                     ),
                   ),
                   Text(value, style: textTheme.titleSmall),
+                  if (caption != null)
+                    Text(
+                      caption!,
+                      style: textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
                 ],
               ),
             ),

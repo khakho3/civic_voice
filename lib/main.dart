@@ -450,11 +450,11 @@ Widget _adminDashboard(BuildContext context) {
       onNavigateToUsers: () =>
           _replaceWith(context, AppRoutes.adminUserManagement),
       onNavigateToRoles: () =>
-          _replaceWith(context, AppRoutes.adminRoleManagement),
+          Navigator.of(context).pushNamed(AppRoutes.adminRoleManagement),
       onNavigateToSettings: () =>
           _replaceWith(context, AppRoutes.adminSystemSettings),
-      onViewSystemActivity: () =>
-          Navigator.of(context).pushNamed(AppRoutes.adminSystemActivity),
+      onNavigateToActivity: () =>
+          _replaceWith(context, AppRoutes.adminSystemActivity),
       onOpenProfile: () =>
           Navigator.of(context).pushNamed(AppRoutes.adminProfile),
     ),
@@ -466,12 +466,12 @@ Widget _adminUserManagement(BuildContext context) {
     onNavigateToDashboard: () =>
         _replaceWith(context, AppRoutes.adminDashboard),
     onNavigateToRoles: () =>
-        _replaceWith(context, AppRoutes.adminRoleManagement),
+        Navigator.of(context).pushNamed(AppRoutes.adminRoleManagement),
     onNavigateToSettings: () =>
         _replaceWith(context, AppRoutes.adminSystemSettings),
     onOpenUserDetails: (user) => _pushAdminUserDetails(context, user),
-    onOpenSystemActivity: () =>
-        Navigator.of(context).pushNamed(AppRoutes.adminSystemActivity),
+    onNavigateToActivity: () =>
+        _replaceWith(context, AppRoutes.adminSystemActivity),
     onOpenProfile: () =>
         Navigator.of(context).pushNamed(AppRoutes.adminProfile),
     onCreateUser: () =>
@@ -486,11 +486,11 @@ Widget _adminCreateUser(BuildContext context) {
     onNavigateToUsers: () =>
         _replaceWith(context, AppRoutes.adminUserManagement),
     onNavigateToRoles: () =>
-        _replaceWith(context, AppRoutes.adminRoleManagement),
+        Navigator.of(context).pushNamed(AppRoutes.adminRoleManagement),
     onNavigateToSettings: () =>
         _replaceWith(context, AppRoutes.adminSystemSettings),
-    onOpenSystemActivity: () =>
-        Navigator.of(context).pushNamed(AppRoutes.adminSystemActivity),
+    onNavigateToActivity: () =>
+        _replaceWith(context, AppRoutes.adminSystemActivity),
     onOpenProfile: () =>
         Navigator.of(context).pushNamed(AppRoutes.adminProfile),
   );
@@ -504,11 +504,11 @@ Widget _adminUserDetails(BuildContext context, AdminUserItem user) {
     onNavigateToUsers: () =>
         _replaceWith(context, AppRoutes.adminUserManagement),
     onNavigateToRoles: () =>
-        _replaceWith(context, AppRoutes.adminRoleManagement),
+        Navigator.of(context).pushNamed(AppRoutes.adminRoleManagement),
     onNavigateToSettings: () =>
         _replaceWith(context, AppRoutes.adminSystemSettings),
-    onOpenSystemActivity: () =>
-        Navigator.of(context).pushNamed(AppRoutes.adminSystemActivity),
+    onNavigateToActivity: () =>
+        _replaceWith(context, AppRoutes.adminSystemActivity),
     onOpenProfile: () =>
         Navigator.of(context).pushNamed(AppRoutes.adminProfile),
   );
@@ -522,8 +522,8 @@ Widget _adminRoleManagement(BuildContext context) {
         _replaceWith(context, AppRoutes.adminUserManagement),
     onNavigateToSettings: () =>
         _replaceWith(context, AppRoutes.adminSystemSettings),
-    onOpenSystemActivity: () =>
-        Navigator.of(context).pushNamed(AppRoutes.adminSystemActivity),
+    onNavigateToActivity: () =>
+        _replaceWith(context, AppRoutes.adminSystemActivity),
     onOpenProfile: () =>
         Navigator.of(context).pushNamed(AppRoutes.adminProfile),
   );
@@ -536,7 +536,7 @@ Widget _adminSystemActivity(BuildContext context) {
     onNavigateToUsers: () =>
         _replaceWith(context, AppRoutes.adminUserManagement),
     onNavigateToRoles: () =>
-        _replaceWith(context, AppRoutes.adminRoleManagement),
+        Navigator.of(context).pushNamed(AppRoutes.adminRoleManagement),
     onNavigateToSettings: () =>
         _replaceWith(context, AppRoutes.adminSystemSettings),
     onOpenProfile: () =>
@@ -551,9 +551,9 @@ Widget _adminSystemSettings(BuildContext context) {
     onNavigateToUsers: () =>
         _replaceWith(context, AppRoutes.adminUserManagement),
     onNavigateToRoles: () =>
-        _replaceWith(context, AppRoutes.adminRoleManagement),
-    onOpenSystemActivity: () =>
-        Navigator.of(context).pushNamed(AppRoutes.adminSystemActivity),
+        Navigator.of(context).pushNamed(AppRoutes.adminRoleManagement),
+    onNavigateToActivity: () =>
+        _replaceWith(context, AppRoutes.adminSystemActivity),
     onOpenProfile: () =>
         Navigator.of(context).pushNamed(AppRoutes.adminProfile),
   );
@@ -566,11 +566,11 @@ Widget _adminProfile(BuildContext context) {
     onNavigateToUsers: () =>
         _replaceWith(context, AppRoutes.adminUserManagement),
     onNavigateToRoles: () =>
-        _replaceWith(context, AppRoutes.adminRoleManagement),
+        Navigator.of(context).pushNamed(AppRoutes.adminRoleManagement),
     onNavigateToSettings: () =>
         _replaceWith(context, AppRoutes.adminSystemSettings),
-    onOpenSystemActivity: () =>
-        Navigator.of(context).pushNamed(AppRoutes.adminSystemActivity),
+    onNavigateToActivity: () =>
+        _replaceWith(context, AppRoutes.adminSystemActivity),
     onSignOut: () => Navigator.of(
       context,
     ).pushNamedAndRemoveUntil(AppRoutes.welcome, (_) => false),

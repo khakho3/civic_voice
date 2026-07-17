@@ -19,11 +19,11 @@ import '../widgets/admin_scaffold.dart';
 /// screen): this dashboard has no filter/search chrome to exclude data
 /// with, matching the spec's own "Validation Rules: None".
 ///
-/// Unlike Ministry Dashboard, the bottom nav here needed no correction —
-/// Dashboard/Users/Roles/Settings maps directly onto four of the eight
-/// approved ADM-00x screens with nothing invented or mislabeled. The
-/// header's leading glyph is the CivicVoice logo mark, not a hamburger
-/// drawer trigger — see [AdminScaffold]'s own doc comment.
+/// The bottom nav is Dashboard/Users/Activity/Settings — see [AdminTab]'s
+/// own doc comment for why Role Management moved to the drawer in favor of
+/// System Activity's tab slot. The header's leading glyph is the CivicVoice
+/// logo mark, not a hamburger drawer trigger — see [AdminScaffold]'s own
+/// doc comment.
 ///
 /// Offline/Error/Unauthorized keep the "Platform Overview" title and API
 /// status badge visible but visually de-emphasized (confirmed against the
@@ -49,7 +49,7 @@ class AdminDashboardScreen extends StatefulWidget {
     this.onNavigateToUsers,
     this.onNavigateToRoles,
     this.onNavigateToSettings,
-    this.onViewSystemActivity,
+    this.onNavigateToActivity,
     this.onOpenProfile,
     this.onNotificationsTap,
   });
@@ -59,16 +59,20 @@ class AdminDashboardScreen extends StatefulWidget {
   /// Wired by the app shell so the bottom nav can switch tabs; also the
   /// destination for the matching "Management" row.
   final VoidCallback? onNavigateToUsers;
+
+  /// Opens ADM-004 Role Management via [AdminScaffold]'s drawer — also the
+  /// destination for the matching "Management" row, so the row and the
+  /// drawer item both land on the same screen rather than two competing
+  /// paths.
   final VoidCallback? onNavigateToRoles;
 
   /// Also the destination for the matching "Management" row.
   final VoidCallback? onNavigateToSettings;
 
   /// Opens ADM-006 System Activity — the spec'd destination for "View
-  /// System Activity", wired to both the Activity Monitoring card and
-  /// [AdminScaffold]'s drawer (same destination, not two competing ones).
-  /// Nullable: ADM-006 isn't built yet.
-  final VoidCallback? onViewSystemActivity;
+  /// System Activity", wired to both the Activity Monitoring card and the
+  /// bottom nav's Activity tab (same destination, not two competing ones).
+  final VoidCallback? onNavigateToActivity;
 
   /// Opens ADM-008 Admin Profile via [AdminScaffold]'s drawer. Nullable:
   /// ADM-008 isn't built yet.
@@ -98,10 +102,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       onNotificationsTap: widget.onNotificationsTap,
       onTabSelected: (tab) {
         if (tab == AdminTab.users) widget.onNavigateToUsers?.call();
-        if (tab == AdminTab.roles) widget.onNavigateToRoles?.call();
+        if (tab == AdminTab.activity) widget.onNavigateToActivity?.call();
         if (tab == AdminTab.settings) widget.onNavigateToSettings?.call();
       },
-      onOpenSystemActivity: widget.onViewSystemActivity,
+      onOpenRoleManagement: widget.onNavigateToRoles,
       onOpenProfile: widget.onOpenProfile,
       body: switch (_state) {
         AdminDashboardViewState.loading => const _LoadingSkeleton(),
@@ -112,7 +116,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           onNavigateToUsers: widget.onNavigateToUsers,
           onNavigateToRoles: widget.onNavigateToRoles,
           onNavigateToSettings: widget.onNavigateToSettings,
-          onViewSystemActivity: widget.onViewSystemActivity,
+          onNavigateToActivity: widget.onNavigateToActivity,
         ),
       },
     );
@@ -131,7 +135,7 @@ class _DashboardBody extends StatelessWidget {
     this.onNavigateToUsers,
     this.onNavigateToRoles,
     this.onNavigateToSettings,
-    this.onViewSystemActivity,
+    this.onNavigateToActivity,
   });
 
   final AdminDashboardViewState state;
@@ -140,7 +144,7 @@ class _DashboardBody extends StatelessWidget {
   final VoidCallback? onNavigateToUsers;
   final VoidCallback? onNavigateToRoles;
   final VoidCallback? onNavigateToSettings;
-  final VoidCallback? onViewSystemActivity;
+  final VoidCallback? onNavigateToActivity;
 
   @override
   Widget build(BuildContext context) {
@@ -179,7 +183,7 @@ class _DashboardBody extends StatelessWidget {
             onNavigateToUsers: onNavigateToUsers,
             onNavigateToRoles: onNavigateToRoles,
             onNavigateToSettings: onNavigateToSettings,
-            onViewSystemActivity: onViewSystemActivity,
+            onNavigateToActivity: onNavigateToActivity,
           ),
           AdminDashboardViewState.offline => AppStateMessage(
             icon: AppIcons.offline,
@@ -332,14 +336,14 @@ class _LoadedContent extends StatelessWidget {
     this.onNavigateToUsers,
     this.onNavigateToRoles,
     this.onNavigateToSettings,
-    this.onViewSystemActivity,
+    this.onNavigateToActivity,
   });
 
   final AdminDashboardData data;
   final VoidCallback? onNavigateToUsers;
   final VoidCallback? onNavigateToRoles;
   final VoidCallback? onNavigateToSettings;
-  final VoidCallback? onViewSystemActivity;
+  final VoidCallback? onNavigateToActivity;
 
   @override
   Widget build(BuildContext context) {
@@ -431,7 +435,7 @@ class _LoadedContent extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.lg),
         GlassCard(
-          onTap: onViewSystemActivity,
+          onTap: onNavigateToActivity,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

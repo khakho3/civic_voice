@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../features/admin/models/admin_role_management_data.dart';
+import '../../../features/admin/widgets/region_assembly_picker.dart';
 import '../../../models/app_role.dart';
+import '../../../models/assembly.dart';
+import '../../../models/region.dart';
 import '../../../services/mock_auth_service.dart';
 
 class TestRoleSelectorScreen extends StatefulWidget {
@@ -21,7 +25,11 @@ class TestRoleSelectorScreen extends StatefulWidget {
 class _TestRoleSelectorScreenState extends State<TestRoleSelectorScreen> {
   late AppRole _selectedRole =
       MockAuthService().getCurrentRole() ?? AppRole.citizen;
+  late AdminTier _tier = MockAuthService().getCurrentAdminTier() ?? AdminTier.superAdmin;
+  Region? _region = MockAuthService().getCurrentRegion();
+  Assembly? _assembly = MockAuthService().getCurrentAssembly();
   bool _saving = false;
+  String? _assemblyError;
 
   static const _roles = <AppRole>[
     AppRole.systemAdministrator,
@@ -33,8 +41,19 @@ class _TestRoleSelectorScreenState extends State<TestRoleSelectorScreen> {
 
   Future<void> _continue() async {
     if (_saving) return;
+    final needsAssembly =
+        _selectedRole == AppRole.systemAdministrator && _tier == AdminTier.admin;
+    if (needsAssembly && _assembly == null) {
+      setState(() => _assemblyError = 'Select the assembly this account manages');
+      return;
+    }
     setState(() => _saving = true);
-    await MockAuthService().selectRole(_selectedRole);
+    await MockAuthService().selectRole(
+      _selectedRole,
+      adminTier: _selectedRole == AppRole.systemAdministrator ? _tier : null,
+      region: needsAssembly ? _region : null,
+      assembly: needsAssembly ? _assembly : null,
+    );
     if (!mounted) return;
     widget.onRoleSelected(_selectedRole);
   }
@@ -109,6 +128,61 @@ class _TestRoleSelectorScreenState extends State<TestRoleSelectorScreen> {
                       ),
                     ),
                   ),
+                  if (_selectedRole == AppRole.systemAdministrator) ...[
+                    const SizedBox(height: AppSpacing.md),
+                    Text('Admin Tier', style: theme.textTheme.labelLarge),
+                    const SizedBox(height: AppSpacing.xs),
+                    RadioGroup<AdminTier>(
+                      groupValue: _tier,
+                      onChanged: (tier) {
+                        if (_saving || tier == null) return;
+                        setState(() {
+                          _tier = tier;
+                          _assemblyError = null;
+                        });
+                      },
+                      child: Row(
+                        children: [
+                          for (final tier in AdminTier.values)
+                            Expanded(
+                              child: RadioListTile<AdminTier>(
+                                value: tier,
+                                dense: true,
+                                contentPadding: EdgeInsets.zero,
+                                title: Text(
+                                  tier.label,
+                                  style: theme.textTheme.bodyMedium,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    if (_tier == AdminTier.admin) ...[
+                      const SizedBox(height: AppSpacing.sm),
+                      Text(
+                        'This account manages one assembly\'s day-to-day '
+                        'users — select which one.',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      RegionAssemblyPicker(
+                        region: _region,
+                        assembly: _assembly,
+                        assemblyErrorText: _assemblyError,
+                        onRegionChanged: (region) => setState(() {
+                          _region = region;
+                          _assemblyError = null;
+                        }),
+                        onAssemblyChanged: (assembly) => setState(() {
+                          _assembly = assembly;
+                          _assemblyError = null;
+                        }),
+                      ),
+                    ],
+                  ],
                   const SizedBox(height: AppSpacing.lg),
                   FilledButton(
                     onPressed: _saving ? null : _continue,

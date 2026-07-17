@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../models/app_role.dart';
+import '../../../models/assembly.dart';
 import '../../../models/region.dart';
 import '../../../widgets/app_state_message.dart';
 import '../../../widgets/confirm_dialog.dart';
 import '../models/admin_role_management_data.dart';
 import '../models/admin_user_management_data.dart';
+import '../services/admin_session.dart';
 import '../widgets/admin_scaffold.dart';
+import '../widgets/region_assembly_picker.dart';
 
 const _kMonthNames = [
   'Jan',
@@ -82,7 +85,7 @@ class AdminUserDetailsScreen extends StatefulWidget {
     this.onNavigateToUsers,
     this.onNavigateToRoles,
     this.onNavigateToSettings,
-    this.onOpenSystemActivity,
+    this.onNavigateToActivity,
     this.onOpenProfile,
     this.onNotificationsTap,
     this.onSaveChanges,
@@ -97,10 +100,12 @@ class AdminUserDetailsScreen extends StatefulWidget {
   /// user list, so both the bottom-nav "Users" tab and "Cancel" mean the
   /// same thing: go back without necessarily having saved.
   final VoidCallback? onNavigateToUsers;
+
+  /// Opens ADM-004 Role Management via [AdminScaffold]'s drawer.
   final VoidCallback? onNavigateToRoles;
   final VoidCallback? onNavigateToSettings;
 
-  final VoidCallback? onOpenSystemActivity;
+  final VoidCallback? onNavigateToActivity;
   final VoidCallback? onOpenProfile;
   final VoidCallback? onNotificationsTap;
 
@@ -118,6 +123,7 @@ class _AdminUserDetailsScreenState extends State<AdminUserDetailsScreen> {
   late AdminUserStatus _status = widget.user.status;
   late AdminTier? _tier = widget.user.adminTier;
   late Region? _region = widget.user.region;
+  late Assembly? _assembly = widget.user.assembly;
   bool _showSuccess = false;
 
   void _retry() {
@@ -130,13 +136,23 @@ class _AdminUserDetailsScreenState extends State<AdminUserDetailsScreen> {
   }
 
   Future<void> _save() async {
-    final roleChanged = _role != widget.user.role;
+    final session = AdminSession.instance;
+    // A session that can't edit roles/deactivate accounts never changed
+    // _role/_status in the first place (their dropdowns render read-only —
+    // see _DetailsForm), so these effectively no-op for that session but
+    // stay here as a second guarantee against a stale/replayed save.
+    final effectiveRole = session.canEditUserRoles ? _role : widget.user.role;
+    final effectiveStatus = session.canDeactivateUsers
+        ? _status
+        : widget.user.status;
+    final roleChanged = effectiveRole != widget.user.role;
     final confirmed = await showConfirmDialog(
       context,
       title: 'Save access changes?',
       message: roleChanged
-          ? '${widget.user.name}\'s role will change to ${_role.label} '
-                'and their account status will be updated.'
+          ? '${widget.user.name}\'s role will change to '
+                '${effectiveRole.label} and their account status will be '
+                'updated.'
           : '${widget.user.name}\'s account status will be updated.',
       confirmLabel: 'Save Changes',
       destructive: roleChanged,
@@ -144,12 +160,17 @@ class _AdminUserDetailsScreenState extends State<AdminUserDetailsScreen> {
     if (!confirmed || !mounted) return;
 
     final updated = widget.user.copyWith(
-      role: _role,
-      status: _status,
-      adminTier: _role == AppRole.systemAdministrator
+      role: effectiveRole,
+      status: effectiveStatus,
+      adminTier: effectiveRole == AppRole.systemAdministrator
           ? (_tier ?? AdminTier.admin)
           : null,
-      region: AdminUserItem.roleRequiresRegion(_role) ? _region : null,
+      region: AdminUserItem.roleRequiresAssembly(effectiveRole, _tier)
+          ? _region
+          : null,
+      assembly: AdminUserItem.roleRequiresAssembly(effectiveRole, _tier)
+          ? _assembly
+          : null,
     );
     widget.onSaveChanges?.call(updated);
     setState(() => _showSuccess = true);
@@ -164,10 +185,10 @@ class _AdminUserDetailsScreenState extends State<AdminUserDetailsScreen> {
       onTabSelected: (tab) {
         if (tab == AdminTab.dashboard) widget.onNavigateToDashboard?.call();
         if (tab == AdminTab.users) widget.onNavigateToUsers?.call();
-        if (tab == AdminTab.roles) widget.onNavigateToRoles?.call();
+        if (tab == AdminTab.activity) widget.onNavigateToActivity?.call();
         if (tab == AdminTab.settings) widget.onNavigateToSettings?.call();
       },
-      onOpenSystemActivity: widget.onOpenSystemActivity,
+      onOpenRoleManagement: widget.onNavigateToRoles,
       onOpenProfile: widget.onOpenProfile,
       body: switch (_state) {
         AdminUserDetailsViewState.loading => const _LoadingSkeleton(),
@@ -177,7 +198,10 @@ class _AdminUserDetailsScreenState extends State<AdminUserDetailsScreen> {
           status: _status,
           tier: _tier,
           region: _region,
+          assembly: _assembly,
           showSuccess: _showSuccess,
+          canEditRole: AdminSession.instance.canEditUserRoles,
+          canEditStatus: AdminSession.instance.canDeactivateUsers,
           onRoleChanged: (role) => setState(() {
             _role = role;
             _showSuccess = false;
@@ -186,8 +210,9 @@ class _AdminUserDetailsScreenState extends State<AdminUserDetailsScreen> {
             } else {
               _tier = null;
             }
-            if (!AdminUserItem.roleRequiresRegion(role)) {
+            if (!AdminUserItem.roleRequiresAssembly(role, _tier)) {
               _region = null;
+              _assembly = null;
             }
           }),
           onStatusChanged: (status) => setState(() {
@@ -197,9 +222,17 @@ class _AdminUserDetailsScreenState extends State<AdminUserDetailsScreen> {
           onTierChanged: (tier) => setState(() {
             _tier = tier;
             _showSuccess = false;
+            if (!AdminUserItem.roleRequiresAssembly(_role, tier)) {
+              _region = null;
+              _assembly = null;
+            }
           }),
           onRegionChanged: (region) => setState(() {
             _region = region;
+            _showSuccess = false;
+          }),
+          onAssemblyChanged: (assembly) => setState(() {
+            _assembly = assembly;
             _showSuccess = false;
           }),
           onCancel: widget.onNavigateToUsers,
@@ -262,11 +295,15 @@ class _DetailsForm extends StatelessWidget {
     required this.status,
     required this.tier,
     required this.region,
+    required this.assembly,
     required this.showSuccess,
+    required this.canEditRole,
+    required this.canEditStatus,
     required this.onRoleChanged,
     required this.onStatusChanged,
     required this.onTierChanged,
     required this.onRegionChanged,
+    required this.onAssemblyChanged,
     required this.onSave,
     this.onCancel,
   });
@@ -276,11 +313,21 @@ class _DetailsForm extends StatelessWidget {
   final AdminUserStatus status;
   final AdminTier? tier;
   final Region? region;
+  final Assembly? assembly;
   final bool showSuccess;
+
+  /// [AdminSession.canEditUserRoles] — an assembly Admin sees Assigned Role
+  /// and Admin Tier as read-only text instead of dropdowns.
+  final bool canEditRole;
+
+  /// [AdminSession.canDeactivateUsers] — an assembly Admin sees Account
+  /// Status as read-only text instead of a dropdown.
+  final bool canEditStatus;
   final ValueChanged<AppRole> onRoleChanged;
   final ValueChanged<AdminUserStatus> onStatusChanged;
   final ValueChanged<AdminTier> onTierChanged;
   final ValueChanged<Region?> onRegionChanged;
+  final ValueChanged<Assembly?> onAssemblyChanged;
   final VoidCallback? onCancel;
   final VoidCallback onSave;
 
@@ -288,12 +335,13 @@ class _DetailsForm extends StatelessWidget {
   Widget build(BuildContext context) {
     final chromeInset = AdminScaffold.contentPadding(context);
     final isAdmin = role == AppRole.systemAdministrator;
-    final needsRegion = AdminUserItem.roleRequiresRegion(role);
+    final needsAssembly = AdminUserItem.roleRequiresAssembly(role, tier);
     final preview = user.copyWith(
       role: role,
       status: status,
       adminTier: isAdmin ? (tier ?? AdminTier.admin) : null,
-      region: needsRegion ? region : null,
+      region: needsAssembly ? region : null,
+      assembly: needsAssembly ? assembly : null,
     );
 
     return ListView(
@@ -319,6 +367,8 @@ class _DetailsForm extends StatelessWidget {
               const SizedBox(height: AppSpacing.sm),
               _ReadOnlyField(label: 'Email', value: user.email),
               const SizedBox(height: AppSpacing.sm),
+              _ReadOnlyField(label: 'Phone Number', value: user.phone),
+              const SizedBox(height: AppSpacing.sm),
               _ReadOnlyField(label: 'User ID', value: user.userId),
             ],
           ),
@@ -329,35 +379,52 @@ class _DetailsForm extends StatelessWidget {
           title: 'Access Management',
           child: Column(
             children: [
-              _LabeledDropdown<AppRole>(
-                label: 'Assigned Role',
-                value: role,
-                items: AppRole.values,
-                itemLabel: (r) => r.label,
-                onChanged: onRoleChanged,
-              ),
+              if (canEditRole)
+                _LabeledDropdown<AppRole>(
+                  label: 'Assigned Role',
+                  value: role,
+                  items: AppRole.values,
+                  itemLabel: (r) => r.label,
+                  onChanged: onRoleChanged,
+                )
+              else
+                _ReadOnlyField(label: 'Assigned Role', value: role.label),
               if (isAdmin) ...[
                 const SizedBox(height: AppSpacing.sm),
-                _LabeledDropdown<AdminTier>(
-                  label: 'Admin Tier',
-                  value: tier ?? AdminTier.admin,
-                  items: AdminTier.values,
-                  itemLabel: (t) => t.label,
-                  onChanged: onTierChanged,
+                if (canEditRole)
+                  _LabeledDropdown<AdminTier>(
+                    label: 'Admin Tier',
+                    value: tier ?? AdminTier.admin,
+                    items: AdminTier.values,
+                    itemLabel: (t) => t.label,
+                    onChanged: onTierChanged,
+                  )
+                else
+                  _ReadOnlyField(
+                    label: 'Admin Tier',
+                    value: (tier ?? AdminTier.admin).label,
+                  ),
+              ],
+              if (needsAssembly) ...[
+                const SizedBox(height: AppSpacing.sm),
+                RegionAssemblyPicker(
+                  region: region,
+                  assembly: assembly,
+                  onRegionChanged: onRegionChanged,
+                  onAssemblyChanged: onAssemblyChanged,
                 ),
               ],
-              if (needsRegion) ...[
-                const SizedBox(height: AppSpacing.sm),
-                _RegionDropdown(value: region, onChanged: onRegionChanged),
-              ],
               const SizedBox(height: AppSpacing.sm),
-              _LabeledDropdown<AdminUserStatus>(
-                label: 'Account Status',
-                value: status,
-                items: AdminUserStatus.values,
-                itemLabel: (s) => s.label,
-                onChanged: onStatusChanged,
-              ),
+              if (canEditStatus)
+                _LabeledDropdown<AdminUserStatus>(
+                  label: 'Account Status',
+                  value: status,
+                  items: AdminUserStatus.values,
+                  itemLabel: (s) => s.label,
+                  onChanged: onStatusChanged,
+                )
+              else
+                _ReadOnlyField(label: 'Account Status', value: status.label),
             ],
           ),
         ),
@@ -665,62 +732,6 @@ class _LabeledDropdown<T> extends StatelessWidget {
                 onChanged: (selected) {
                   if (selected != null) onChanged(selected);
                 },
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-/// Same visual shape as [_LabeledDropdown], but nullable-aware — a region
-/// has no natural default the way [AdminTier] does, so this shows a
-/// "Select region" hint instead of silently picking one for the admin.
-class _RegionDropdown extends StatelessWidget {
-  const _RegionDropdown({required this.value, required this.onChanged});
-
-  final Region? value;
-  final ValueChanged<Region?> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final colorScheme = Theme.of(context).colorScheme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Region', style: textTheme.bodySmall),
-        const SizedBox(height: AppSpacing.xs),
-        Material(
-          color: colorScheme.surfaceContainer,
-          borderRadius: AppComponentRadius.inputField,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<Region>(
-                value: value,
-                isExpanded: true,
-                borderRadius: AppComponentRadius.inputField,
-                hint: Text(
-                  'Select region',
-                  style: textTheme.bodyLarge?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                icon: Icon(
-                  AppIcons.chevronDown,
-                  size: AppIconSize.sm,
-                  color: colorScheme.onSurfaceVariant,
-                ),
-                style: textTheme.bodyLarge?.copyWith(
-                  color: colorScheme.onSurface,
-                ),
-                items: [
-                  for (final region in Region.values)
-                    DropdownMenuItem(value: region, child: Text(region.label)),
-                ],
-                onChanged: onChanged,
               ),
             ),
           ),

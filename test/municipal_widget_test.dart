@@ -1681,8 +1681,8 @@ void main() {
   });
 
   testWidgets(
-    'Municipal Profile Error state previews the exact approved failure '
-    'scenario',
+    'Municipal Profile Error state previews a blank Full Name validation '
+    'failure',
     (WidgetTester tester) async {
       tester.view.physicalSize = const Size(428, 2600);
       tester.view.devicePixelRatio = 1.0;
@@ -1699,9 +1699,11 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      // Email/Phone are locked (admin-set, not self-editable — see
+      // [_ProfileEditForm]'s own doc comment), so Full Name is the only
+      // field left that can fail validation.
       expect(find.text('Edit Profile'), findsOneWidget);
-      expect(find.text('Please enter a valid municipal email'), findsOneWidget);
-      expect(find.text('Phone number is required'), findsOneWidget);
+      expect(find.text('Full name is required'), findsOneWidget);
     },
   );
 
@@ -1774,8 +1776,8 @@ void main() {
   );
 
   testWidgets(
-    'Municipal Profile Save fails validation on an invalid email and empty '
-    'phone, without leaving the edit form',
+    'Municipal Profile Save fails validation on an empty Full Name, '
+    'without leaving the edit form',
     (WidgetTester tester) async {
       tester.view.physicalSize = const Size(428, 2600);
       tester.view.devicePixelRatio = 1.0;
@@ -1792,16 +1794,13 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final fields = find.byType(TextField);
-      await tester.enterText(fields.at(1), 'alex.johnston@example.com');
-      await tester.enterText(fields.at(2), '');
+      await tester.enterText(find.byType(TextField).first, '');
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Save Changes'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Please enter a valid municipal email'), findsOneWidget);
-      expect(find.text('Phone number is required'), findsOneWidget);
+      expect(find.text('Full name is required'), findsOneWidget);
       // Still editing — a failed save must not silently drop the user back
       // to the read-only view.
       expect(find.text('Personal Information'), findsOneWidget);

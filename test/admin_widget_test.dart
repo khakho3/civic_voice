@@ -123,14 +123,14 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
 
       var usersTapped = false;
-      var rolesTapped = false;
+      var activityTapped = false;
       var settingsTapped = false;
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.light,
           home: AdminDashboardScreen(
             onNavigateToUsers: () => usersTapped = true,
-            onNavigateToRoles: () => rolesTapped = true,
+            onNavigateToActivity: () => activityTapped = true,
             onNavigateToSettings: () => settingsTapped = true,
           ),
         ),
@@ -139,7 +139,7 @@ void main() {
 
       expect(find.text('Dashboard'), findsOneWidget);
       expect(find.text('Users'), findsOneWidget);
-      expect(find.text('Roles'), findsOneWidget);
+      expect(find.text('Activity'), findsOneWidget);
       // The bottom-nav tab's own label is "Settings" — shorter than the
       // Management row's "System Settings".
       expect(find.text('Settings'), findsOneWidget);
@@ -148,9 +148,9 @@ void main() {
       await tester.pump();
       expect(usersTapped, isTrue);
 
-      await tester.tap(find.text('Roles'));
+      await tester.tap(find.text('Activity'));
       await tester.pump();
-      expect(rolesTapped, isTrue);
+      expect(activityTapped, isTrue);
 
       await tester.tap(find.text('Settings'));
       await tester.pump();
@@ -195,7 +195,7 @@ void main() {
         MaterialApp(
           theme: AppTheme.light,
           home: AdminDashboardScreen(
-            onViewSystemActivity: () => activityTapped = true,
+            onNavigateToActivity: () => activityTapped = true,
           ),
         ),
       );
@@ -237,7 +237,15 @@ void main() {
       expect(find.text('User Details'), findsOneWidget);
       expect(find.text('CV-USER-0102'), findsOneWidget);
 
-      await tester.tap(find.text('Roles').last);
+      // User Management's own route is still mounted underneath (kept
+      // alive by the pushed route), so it has its own hamburger icon too
+      // — `.last` targets the topmost, currently-visible User Details
+      // screen's.
+      await tester.tap(find.byIcon(AppIcons.menu).last);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      await tester.tap(find.text('Role Management').last);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
@@ -345,7 +353,16 @@ void main() {
 
     expect(find.byType(Drawer), findsOneWidget);
     expect(find.text('CivicVoice'), findsOneWidget);
-    expect(find.text('System Activity'), findsOneWidget);
+    // "Role Management" also appears as Dashboard's own Management row
+    // title — scoped to the drawer so this only checks the drawer's own
+    // item, not that unrelated duplicate.
+    expect(
+      find.descendant(
+        of: find.byType(Drawer),
+        matching: find.text('Role Management'),
+      ),
+      findsOneWidget,
+    );
     expect(find.text('Admin Profile'), findsOneWidget);
   });
 
@@ -366,7 +383,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
-      // Dashboard/Users/Roles/Settings are already one tap away on the
+      // Dashboard/Users/Activity/Settings are already one tap away on the
       // bottom nav, so the drawer's own ListView shouldn't repeat them —
       // only the two destinations with no tab slot.
       final drawerTiles = tester.widgetList<ListTile>(
@@ -378,24 +395,22 @@ void main() {
       final drawerLabels = drawerTiles
           .map((tile) => (tile.title! as Text).data)
           .toList();
-      expect(drawerLabels, ['System Activity', 'Admin Profile']);
+      expect(drawerLabels, ['Role Management', 'Admin Profile']);
     },
   );
 
-  testWidgets('Admin drawer System Activity and Admin Profile items fire their '
+  testWidgets('Admin drawer Role Management and Admin Profile items fire their '
       'callbacks and close the drawer', (WidgetTester tester) async {
     tester.view.physicalSize = const Size(428, 2600);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    var activityTapped = false;
+    var rolesTapped = false;
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.light,
-        home: AdminDashboardScreen(
-          onViewSystemActivity: () => activityTapped = true,
-        ),
+        home: AdminDashboardScreen(onNavigateToRoles: () => rolesTapped = true),
       ),
     );
     await tester.pump();
@@ -404,11 +419,18 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    await tester.tap(find.text('System Activity'));
+    // "Role Management" also appears as Dashboard's own Management row
+    // title underneath the drawer — scope the tap to the drawer's item.
+    await tester.tap(
+      find.descendant(
+        of: find.byType(Drawer),
+        matching: find.text('Role Management'),
+      ),
+    );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(activityTapped, isTrue);
+    expect(rolesTapped, isTrue);
     expect(find.byType(Drawer), findsNothing);
   });
 
@@ -513,10 +535,12 @@ void main() {
 
       expect(find.text('Ama Boateng'), findsOneWidget);
       expect(find.text('admin@civicvoice.gov'), findsOneWidget);
-      expect(find.text('System Administrator'), findsOneWidget);
-      // "Active" labels three of the six mock users' status pills (Kojo
-      // Mensah, Yaw Asare, Genevieve Amadapah).
-      expect(find.text('Active'), findsNWidgets(3));
+      // "System Administrator" labels both Ama Boateng's (Super Admin) and
+      // Efua Darko's (Admin) role pills.
+      expect(find.text('System Administrator'), findsNWidgets(2));
+      // "Active" labels four of the seven mock users' status pills (Kojo
+      // Mensah, Yaw Asare, Genevieve Amadapah, Efua Darko).
+      expect(find.text('Active'), findsNWidgets(4));
       expect(find.text('Kojo Mensah'), findsOneWidget);
       expect(find.text('Municipal Officer'), findsOneWidget);
       expect(find.text('Esi Owusu'), findsOneWidget);
@@ -527,6 +551,7 @@ void main() {
       expect(find.text('Maintenance Team'), findsOneWidget);
       expect(find.text('Kwame Nyarko'), findsOneWidget);
       expect(find.text('Genevieve Amadapah'), findsOneWidget);
+      expect(find.text('Efua Darko'), findsOneWidget);
       // "Citizen" labels both Kwame Nyarko's and Genevieve Amadapah's role
       // pills.
       expect(find.text('Citizen'), findsNWidgets(2));
@@ -610,10 +635,11 @@ void main() {
       await tester.pumpAndSettle();
 
       // Ama Boateng and Kojo Mensah are now both "Inactive" (joining the
-      // filter chip of the same name) — Yaw Asare and Genevieve Amadapah
-      // are still "Active" (Esi Owusu and Kwame Nyarko remain "Review").
+      // filter chip of the same name) — Yaw Asare, Genevieve Amadapah, and
+      // Efua Darko are still "Active" (Esi Owusu and Kwame Nyarko remain
+      // "Review").
       expect(find.text('Inactive'), findsNWidgets(3));
-      expect(find.text('Active'), findsNWidgets(2));
+      expect(find.text('Active'), findsNWidgets(3));
 
       await tester.tap(find.text('Inactive').first);
       await tester.pumpAndSettle();
@@ -750,7 +776,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Dashboard'), findsOneWidget);
-      expect(find.text('Roles'), findsOneWidget);
+      expect(find.text('Activity'), findsOneWidget);
       expect(find.text('Settings'), findsOneWidget);
 
       await tester.tap(find.text('Dashboard'));
@@ -885,7 +911,7 @@ void main() {
         MaterialApp(
           theme: AppTheme.light,
           home: AdminRoleManagementScreen(
-            onOpenSystemActivity: () => activityTapped = true,
+            onNavigateToActivity: () => activityTapped = true,
           ),
         ),
       );
@@ -1399,13 +1425,16 @@ void main() {
       // separately by the time-range dropdown test below.
       expect(find.text('Administrative Credential Issued'), findsNothing);
 
-      // Still shows Dashboard as the selected tab — this screen has no
-      // persistent tab slot of its own.
-      final dashboardTab = find.ancestor(
-        of: find.text('Dashboard'),
-        matching: find.byType(InkWell),
+      // System Activity is now its own bottom-nav tab (see [AdminTab]'s
+      // own doc comment), so its "Activity" nav item renders selected —
+      // confirmed via the selected-tab fill color every other selected
+      // [AdminTab] nav item uses.
+      final activityTabMaterial = tester.widget<Material>(
+        find
+            .ancestor(of: find.text('Activity'), matching: find.byType(Material))
+            .first,
       );
-      expect(dashboardTab, findsOneWidget);
+      expect(activityTabMaterial.color, AppColors.primary);
     },
   );
 
@@ -1714,7 +1743,6 @@ void main() {
       expect(find.text('Backup schedule'), findsOneWidget);
       expect(find.text('Service Preferences'), findsOneWidget);
       expect(find.text('Public status page'), findsOneWidget);
-      expect(find.text('Regional data routing'), findsOneWidget);
 
       expect(find.text('Save Changes'), findsNothing);
       expect(find.text('Reset Changes'), findsNothing);
@@ -2066,7 +2094,9 @@ void main() {
       await tester.tap(find.byTooltip('Edit'));
       await tester.pump();
 
-      expect(find.byType(TextFormField), findsNWidgets(3));
+      // Full Name and Department only — Email/Phone are locked
+      // (admin-set, not self-editable) and Admin ID always was.
+      expect(find.byType(TextFormField), findsNWidgets(2));
       expect(find.text('Save Changes'), findsOneWidget);
       expect(find.text('Cancel'), findsOneWidget);
       // The bottom nav hides while editing — it would otherwise sit

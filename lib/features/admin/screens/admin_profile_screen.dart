@@ -54,7 +54,7 @@ String _formatActivity(DateTime date) {
 /// comment) — there's no tab slot and no other screen links to it, so
 /// [AdminScaffold.selectedTab] is null: the bottom nav shows no tab as
 /// active rather than falsely implying this is any one of the four,
-/// matching ADM-006 System Activity's own treatment.
+/// matching ADM-004 Role Management's own treatment.
 ///
 /// The export's Retry/Retry connection buttons render primary-blue rather
 /// than the error-red every other screen's Offline/Error state uses, and
@@ -86,7 +86,7 @@ class AdminProfileScreen extends StatefulWidget {
     this.onNavigateToUsers,
     this.onNavigateToRoles,
     this.onNavigateToSettings,
-    this.onOpenSystemActivity,
+    this.onNavigateToActivity,
     this.onSignOut,
     this.onNotificationsTap,
   });
@@ -100,10 +100,12 @@ class AdminProfileScreen extends StatefulWidget {
   /// Wired by the app shell so the bottom nav can switch tabs.
   final VoidCallback? onNavigateToDashboard;
   final VoidCallback? onNavigateToUsers;
+
+  /// Opens ADM-004 Role Management via [AdminScaffold]'s drawer.
   final VoidCallback? onNavigateToRoles;
   final VoidCallback? onNavigateToSettings;
 
-  final VoidCallback? onOpenSystemActivity;
+  final VoidCallback? onNavigateToActivity;
 
   /// Fired by the "Sign Out" button. Nullable: there's no real
   /// authentication flow to sign out of yet.
@@ -177,10 +179,10 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
       onTabSelected: (tab) {
         if (tab == AdminTab.dashboard) widget.onNavigateToDashboard?.call();
         if (tab == AdminTab.users) widget.onNavigateToUsers?.call();
-        if (tab == AdminTab.roles) widget.onNavigateToRoles?.call();
+        if (tab == AdminTab.activity) widget.onNavigateToActivity?.call();
         if (tab == AdminTab.settings) widget.onNavigateToSettings?.call();
       },
-      onOpenSystemActivity: widget.onOpenSystemActivity,
+      onOpenRoleManagement: widget.onNavigateToRoles,
       body: switch (_state) {
         AdminProfileViewState.loading => const _LoadingSkeleton(),
         AdminProfileViewState.loaded => _ProfileBody(
@@ -347,8 +349,19 @@ class _ProfileBody extends StatelessWidget {
             _ProfileField(
               label: 'Email',
               value: draft.email,
-              editable: editing,
-              onChanged: (v) => onUpdate((d) => d.copyWith(email: v)),
+              editable: false,
+              caption: editing
+                  ? 'Contact your administrator to change this'
+                  : null,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            _ProfileField(
+              label: 'Phone Number',
+              value: draft.phone,
+              editable: false,
+              caption: editing
+                  ? 'Contact your administrator to change this'
+                  : null,
             ),
             const SizedBox(height: AppSpacing.sm),
             _ProfileField(
@@ -733,6 +746,7 @@ class _ProfileField extends StatelessWidget {
     required this.editable,
     this.errorText,
     this.onChanged,
+    this.caption,
   });
 
   final String label;
@@ -740,6 +754,11 @@ class _ProfileField extends StatelessWidget {
   final bool editable;
   final String? errorText;
   final ValueChanged<String>? onChanged;
+
+  /// Shown under a locked (`editable: false`) field to explain why it's
+  /// disabled, e.g. "Contact your administrator to change this." Ignored
+  /// when [errorText] is set.
+  final String? caption;
 
   @override
   Widget build(BuildContext context) {
@@ -790,6 +809,14 @@ class _ProfileField extends StatelessWidget {
           Text(
             errorText!,
             style: textTheme.bodySmall?.copyWith(color: AppColors.error),
+          ),
+        ] else if (caption != null) ...[
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            caption!,
+            style: textTheme.bodySmall?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+            ),
           ),
         ],
       ],

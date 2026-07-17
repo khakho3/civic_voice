@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../models/officer_profile.dart';
 import '../../../widgets/glass_card.dart';
+import '../../../widgets/kebab_menu_button.dart';
 import '../widgets/municipal_detail_header.dart';
 
 /// MUN-009 — Municipal Profile.
@@ -11,16 +12,20 @@ import '../widgets/municipal_detail_header.dart';
 /// Loading, Success, Error, Offline.
 ///
 /// "Error" in the approved frame is specifically the *edit form* rejecting
-/// invalid input on Save (an invalid email, a blank phone number) — not a
-/// failure to load the profile in the first place, so unlike every other
-/// screen's "Error" state it isn't a full-page replacement with a "Try
-/// again" action. It's kept as its own enum value (matching the approved
-/// frame, and this module's existing precedent of giving every named Figma
-/// state its own case, e.g. Report Progress's `missingEvidence`) purely as
-/// an entry point for previewing that exact scenario — real interactive
-/// validation failures stay on [editing] and surface through
-/// [_fieldErrors] instead of switching enum values, so the field the user
-/// is actively correcting doesn't get swapped out from under them.
+/// invalid input on Save — not a failure to load the profile in the first
+/// place, so unlike every other screen's "Error" state it isn't a
+/// full-page replacement with a "Try again" action. It's kept as its own
+/// enum value (matching the approved frame, and this module's existing
+/// precedent of giving every named Figma state its own case, e.g. Report
+/// Progress's `missingEvidence`) purely as an entry point for previewing
+/// that scenario — real interactive validation failures stay on [editing]
+/// and surface through [_fieldErrors] instead of switching enum values, so
+/// the field the user is actively correcting doesn't get swapped out from
+/// under them. Email/Phone are no longer editable here (an
+/// admin-provisioned account's contact credentials are admin-only — see
+/// [_ProfileEditForm]'s own doc comment), so Full Name is the only field
+/// that can still fail validation; the preview reproduces a blank-name
+/// error rather than the export's original invalid-email scenario.
 enum MunicipalProfileViewState {
   loading,
   loaded,
@@ -72,17 +77,12 @@ class _MunicipalProfileScreenState extends State<MunicipalProfileScreen> {
   @override
   void initState() {
     super.initState();
-    // The approved Error frame shows a specific pre-filled failure
-    // scenario (an invalid email, a cleared phone number) rather than a
-    // blank form — reproduce it so `initialState: .error` previews the
-    // actual frame instead of an empty one.
+    // The approved Error frame shows a pre-filled failure scenario rather
+    // than a blank form — reproduce it (via the one field still editable)
+    // so `initialState: .error` previews something instead of nothing.
     if (widget.initialState == MunicipalProfileViewState.error) {
-      _emailController.text = '${_profile.email}.err';
-      _phoneController.text = '';
-      _fieldErrors = {
-        'email': 'Please enter a valid municipal email',
-        'phone': 'Phone number is required',
-      };
+      _nameController.text = '';
+      _fieldErrors = {'name': 'Full name is required'};
     }
   }
 
@@ -113,17 +113,9 @@ class _MunicipalProfileScreenState extends State<MunicipalProfileScreen> {
 
   void _save() {
     final name = _nameController.text.trim();
-    final email = _emailController.text.trim();
-    final phone = _phoneController.text.trim();
 
     final errors = <String, String>{};
     if (name.isEmpty) errors['name'] = 'Full name is required';
-    if (email.isEmpty) {
-      errors['email'] = 'Email address is required';
-    } else if (!email.contains('@') || !email.toLowerCase().endsWith('.gov')) {
-      errors['email'] = 'Please enter a valid municipal email';
-    }
-    if (phone.isEmpty) errors['phone'] = 'Phone number is required';
 
     setState(() {
       _fieldErrors = errors;
@@ -135,7 +127,7 @@ class _MunicipalProfileScreenState extends State<MunicipalProfileScreen> {
     Future.delayed(const Duration(milliseconds: 500), () {
       if (!mounted) return;
       setState(() {
-        _profile = _profile.copyWith(name: name, email: email, phone: phone);
+        _profile = _profile.copyWith(name: name);
         _state = MunicipalProfileViewState.success;
       });
       Future.delayed(const Duration(seconds: 3), () {
@@ -204,8 +196,7 @@ class _MunicipalProfileScreenState extends State<MunicipalProfileScreen> {
               onBack: isEditing ? _cancel : widget.onBack,
               trailing: isEditing
                   ? TextButton(onPressed: _save, child: const Text('Save'))
-                  : PopupMenuButton<void>(
-                      icon: const Icon(AppIcons.more, size: AppIconSize.md),
+                  : KebabMenuButton<void>(
                       itemBuilder: (context) => [
                         PopupMenuItem(
                           onTap: _startEditing,
@@ -625,6 +616,13 @@ class _ActionRow extends StatelessWidget {
 // Editing mode — Editing / Error share this
 // ---------------------------------------------------------------------------
 
+/// Email and Phone render locked (`enabled: false`, same treatment
+/// Department already gets) — an admin-provisioned account's contact
+/// credentials are set by whoever provisioned it, not self-editable.
+/// Changing either means a real identity change (a different sign-in
+/// email, a different verified number), so it goes through an
+/// administrator instead of a self-service field. Full Name is the only
+/// field a Municipal Officer can change here.
 class _ProfileEditForm extends StatelessWidget {
   const _ProfileEditForm({
     required this.profile,
@@ -670,20 +668,22 @@ class _ProfileEditForm extends StatelessWidget {
               const SizedBox(height: AppSpacing.md),
               _FormField(
                 label: 'Email Address',
-                required: true,
+                required: false,
                 icon: AppIcons.email,
                 controller: emailController,
                 keyboardType: TextInputType.emailAddress,
-                errorText: fieldErrors['email'],
+                enabled: false,
+                caption: 'Contact your administrator to change this',
               ),
               const SizedBox(height: AppSpacing.md),
               _FormField(
                 label: 'Phone Number',
-                required: true,
+                required: false,
                 icon: AppIcons.phone,
                 controller: phoneController,
                 keyboardType: TextInputType.phone,
-                errorText: fieldErrors['phone'],
+                enabled: false,
+                caption: 'Contact your administrator to change this',
               ),
               const SizedBox(height: AppSpacing.md),
               _FormField(

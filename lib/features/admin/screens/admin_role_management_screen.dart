@@ -31,8 +31,14 @@ import '../widgets/admin_scaffold.dart';
 /// doesn't create or edit tiers (there's nothing to add — the set is
 /// closed) and it doesn't assign a tier to a specific account either.
 /// Promoting/demoting an admin between tiers belongs on ADM-003 User
-/// Details (not built yet), the same way User Management's own
-/// activate/deactivate action lives on the account, not here.
+/// Details, the same way User Management's own activate/deactivate action
+/// lives on the account, not here.
+///
+/// Reviewed rarely compared to Users/Activity/Settings (it's a fixed
+/// catalog, not something that changes session to session), so it's
+/// reached only via [AdminScaffold]'s drawer rather than a bottom-nav tab —
+/// see [AdminTab]'s own doc comment. [AdminScaffold.selectedTab] is null
+/// here, matching ADM-008 Admin Profile's own drawer-only treatment.
 ///
 /// Approved states kept from the export: Loading, Offline, Error
 /// ("Something went wrong"), Unauthorized. No Empty state — [AdminTier] is
@@ -64,7 +70,7 @@ class AdminRoleManagementScreen extends StatefulWidget {
     this.onNavigateToDashboard,
     this.onNavigateToUsers,
     this.onNavigateToSettings,
-    this.onOpenSystemActivity,
+    this.onNavigateToActivity,
     this.onOpenProfile,
     this.onNotificationsTap,
   });
@@ -78,11 +84,10 @@ class AdminRoleManagementScreen extends StatefulWidget {
 
   /// Opens ADM-006 System Activity — also this screen's own "View Detailed
   /// Logs" destination, same shared-destination pattern as Dashboard's
-  /// Activity Monitoring card. Nullable: ADM-006 isn't built yet.
-  final VoidCallback? onOpenSystemActivity;
+  /// Activity Monitoring card.
+  final VoidCallback? onNavigateToActivity;
 
-  /// Forwarded to [AdminScaffold]'s drawer. Nullable: ADM-008 isn't built
-  /// yet.
+  /// Forwarded to [AdminScaffold]'s drawer.
   final VoidCallback? onOpenProfile;
 
   final VoidCallback? onNotificationsTap;
@@ -107,21 +112,22 @@ class _AdminRoleManagementScreenState extends State<AdminRoleManagementScreen> {
   @override
   Widget build(BuildContext context) {
     return AdminScaffold(
-      selectedTab: AdminTab.roles,
+      selectedTab: null,
+      headerTitle: 'Role Management',
       onNotificationsTap: widget.onNotificationsTap,
       onTabSelected: (tab) {
         if (tab == AdminTab.dashboard) widget.onNavigateToDashboard?.call();
         if (tab == AdminTab.users) widget.onNavigateToUsers?.call();
+        if (tab == AdminTab.activity) widget.onNavigateToActivity?.call();
         if (tab == AdminTab.settings) widget.onNavigateToSettings?.call();
       },
-      onOpenSystemActivity: widget.onOpenSystemActivity,
       onOpenProfile: widget.onOpenProfile,
       body: switch (_state) {
         AdminRoleManagementViewState.loading => const _LoadingSkeleton(),
         _ => _RoleManagementBody(
           state: _state,
           onRetry: _retry,
-          onOpenSystemActivity: widget.onOpenSystemActivity,
+          onNavigateToActivity: widget.onNavigateToActivity,
         ),
       },
     );
@@ -136,12 +142,12 @@ class _RoleManagementBody extends StatelessWidget {
   const _RoleManagementBody({
     required this.state,
     required this.onRetry,
-    this.onOpenSystemActivity,
+    this.onNavigateToActivity,
   });
 
   final AdminRoleManagementViewState state;
   final VoidCallback onRetry;
-  final VoidCallback? onOpenSystemActivity;
+  final VoidCallback? onNavigateToActivity;
 
   @override
   Widget build(BuildContext context) {
@@ -178,7 +184,7 @@ class _RoleManagementBody extends StatelessWidget {
         switch (state) {
           AdminRoleManagementViewState.loading ||
           AdminRoleManagementViewState.loaded => _LoadedContent(
-            onOpenSystemActivity: onOpenSystemActivity,
+            onNavigateToActivity: onNavigateToActivity,
           ),
           AdminRoleManagementViewState.offline => AppStateMessage(
             icon: AppIcons.offline,
@@ -218,9 +224,9 @@ class _RoleManagementBody extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _LoadedContent extends StatelessWidget {
-  const _LoadedContent({this.onOpenSystemActivity});
+  const _LoadedContent({this.onNavigateToActivity});
 
-  final VoidCallback? onOpenSystemActivity;
+  final VoidCallback? onNavigateToActivity;
 
   @override
   Widget build(BuildContext context) {
@@ -284,7 +290,7 @@ class _LoadedContent extends StatelessWidget {
                   style: FilledButton.styleFrom(
                     backgroundColor: AppColors.primary,
                   ),
-                  onPressed: onOpenSystemActivity,
+                  onPressed: onNavigateToActivity,
                   child: const Text('View Detailed Logs'),
                 ),
               ),

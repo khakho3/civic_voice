@@ -141,17 +141,9 @@ class _MinistryProfileScreenState extends State<MinistryProfileScreen> {
 
   void _save() {
     final name = _nameController.text.trim();
-    final email = _emailController.text.trim();
-    final phone = _phoneController.text.trim();
 
     final errors = <String, String>{};
     if (name.isEmpty) errors['name'] = 'Full name is required.';
-    if (email.isEmpty) {
-      errors['email'] = 'Email is required.';
-    } else if (!email.contains('@') || !email.contains('.')) {
-      errors['email'] = 'Enter a valid email address.';
-    }
-    if (phone.isEmpty) errors['phone'] = 'Phone number is required.';
 
     setState(() {
       _fieldErrors = errors;
@@ -163,7 +155,7 @@ class _MinistryProfileScreenState extends State<MinistryProfileScreen> {
     Future.delayed(const Duration(milliseconds: 500), () {
       if (!mounted) return;
       setState(() {
-        _profile = _profile.copyWith(name: name, email: email, phone: phone);
+        _profile = _profile.copyWith(name: name);
         _state = MinistryProfileViewState.success;
       });
       Future.delayed(const Duration(seconds: 3), () {
@@ -736,6 +728,9 @@ class _ReadOnlyField extends StatelessWidget {
   }
 }
 
+/// Email and Phone render locked — an admin-provisioned account's contact
+/// credentials are set by whoever provisioned it, not self-editable.
+/// Full Name is the only field a Ministry Supervisor can change here.
 class _PersonalInfoForm extends StatelessWidget {
   const _PersonalInfoForm({
     required this.nameController,
@@ -771,15 +766,17 @@ class _PersonalInfoForm extends StatelessWidget {
           _EditableField(
             label: 'Email',
             controller: emailController,
-            errorText: fieldErrors['email'],
             keyboardType: TextInputType.emailAddress,
+            enabled: false,
+            caption: 'Contact your administrator to change this',
           ),
           const SizedBox(height: AppSpacing.md),
           _EditableField(
             label: 'Phone',
             controller: phoneController,
-            errorText: fieldErrors['phone'],
             keyboardType: TextInputType.phone,
+            enabled: false,
+            caption: 'Contact your administrator to change this',
           ),
         ],
       ),
@@ -793,12 +790,24 @@ class _EditableField extends StatelessWidget {
     required this.controller,
     this.errorText,
     this.keyboardType,
+    this.enabled = true,
+    this.caption,
   });
 
   final String label;
   final TextEditingController controller;
   final String? errorText;
   final TextInputType? keyboardType;
+
+  /// False locks the field read-only, matching the treatment Municipal
+  /// Officer's own profile form (`_FormField`) already gives Department —
+  /// used here for Email/Phone, which are admin-set rather than
+  /// self-editable (see [_PersonalInfoForm]'s own doc comment).
+  final bool enabled;
+
+  /// Shown under a locked field to explain why it's disabled, e.g.
+  /// "Contact your administrator to change this."
+  final String? caption;
 
   @override
   Widget build(BuildContext context) {
@@ -816,6 +825,7 @@ class _EditableField extends StatelessWidget {
           child: TextField(
             controller: controller,
             keyboardType: keyboardType,
+            enabled: enabled,
             style: textTheme.bodyLarge,
             decoration: InputDecoration(
               border: hasError
@@ -842,6 +852,14 @@ class _EditableField extends StatelessWidget {
           Text(
             errorText!,
             style: textTheme.labelSmall?.copyWith(color: AppColors.error),
+          ),
+        ] else if (caption != null) ...[
+          const SizedBox(height: 4),
+          Text(
+            caption!,
+            style: textTheme.labelSmall?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+            ),
           ),
         ],
       ],

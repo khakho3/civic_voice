@@ -54,7 +54,7 @@ class AdminSystemSettingsScreen extends StatefulWidget {
     this.onNavigateToDashboard,
     this.onNavigateToUsers,
     this.onNavigateToRoles,
-    this.onOpenSystemActivity,
+    this.onNavigateToActivity,
     this.onOpenProfile,
     this.onNotificationsTap,
   });
@@ -68,12 +68,13 @@ class AdminSystemSettingsScreen extends StatefulWidget {
   /// Wired by the app shell so the bottom nav can switch tabs.
   final VoidCallback? onNavigateToDashboard;
   final VoidCallback? onNavigateToUsers;
+
+  /// Opens ADM-004 Role Management via [AdminScaffold]'s drawer.
   final VoidCallback? onNavigateToRoles;
 
-  final VoidCallback? onOpenSystemActivity;
+  final VoidCallback? onNavigateToActivity;
 
-  /// Forwarded to [AdminScaffold]'s drawer. Nullable: ADM-008 isn't built
-  /// yet.
+  /// Forwarded to [AdminScaffold]'s drawer.
   final VoidCallback? onOpenProfile;
 
   final VoidCallback? onNotificationsTap;
@@ -147,9 +148,9 @@ class _AdminSystemSettingsScreenState extends State<AdminSystemSettingsScreen> {
       onTabSelected: (tab) {
         if (tab == AdminTab.dashboard) widget.onNavigateToDashboard?.call();
         if (tab == AdminTab.users) widget.onNavigateToUsers?.call();
-        if (tab == AdminTab.roles) widget.onNavigateToRoles?.call();
+        if (tab == AdminTab.activity) widget.onNavigateToActivity?.call();
       },
-      onOpenSystemActivity: widget.onOpenSystemActivity,
+      onOpenRoleManagement: widget.onNavigateToRoles,
       onOpenProfile: widget.onOpenProfile,
       body: switch (_state) {
         AdminSystemSettingsViewState.loading => const _LoadingSkeleton(),
@@ -384,15 +385,6 @@ class _SettingsForm extends StatelessWidget {
                 value: draft.publicStatusPage,
                 onChanged: (v) =>
                     onUpdate((d) => d.copyWith(publicStatusPage: v)),
-              ),
-            ),
-            _SettingsRow(
-              label: 'Regional data routing',
-              trailing: _InlineDropdown(
-                value: draft.regionalDataRouting,
-                options: kRegionOptions,
-                onChanged: (v) =>
-                    onUpdate((d) => d.copyWith(regionalDataRouting: v)),
               ),
             ),
           ],

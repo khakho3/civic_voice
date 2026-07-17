@@ -4,30 +4,26 @@ import '../../../core/theme/app_theme.dart';
 import '../../../widgets/glass_bar.dart';
 
 /// Primary bottom-navigation destinations for the System Administrator
-/// module. The approved Figma export's nav bar ("Dashboard / Users / Roles
-/// / Settings") maps directly onto four of the eight approved ADM-00x
-/// screens (see "18 CivicVoice - System Administrator Screen
-/// Specifications"): ADM-001 Admin Dashboard, ADM-002 User Management,
-/// ADM-004 Role Management, ADM-007 System Settings — confirmed as the
-/// real nav against every other exported screen too (Role Management,
-/// System Settings, and User Details all show this same four-tab bar;
-/// only Admin Profile and System Activity's own frames show a different,
-/// smaller "Dashboard / Activity / Settings / Profile" bar, which reads as
-/// the same copy/paste drift already seen throughout this app rather than
-/// a deliberate second nav — none of ADM-004/005/006/007/008 are spec'd
-/// with an entry point other than "Admin Dashboard", so tab-bar residency
-/// is our own call either way, and the 4-of-6 majority plus [MunicipalScaffold]'s
-/// own precedent (Profile is never a persistent tab) both point the same
-/// direction).
+/// module — revised from the originally-approved Figma nav ("Dashboard /
+/// Users / Roles / Settings") per Francis's own usage-frequency call: Role
+/// Management is reviewed rarely (it's a fixed, read-only tier catalog —
+/// see [AdminRoleManagementScreen]'s own doc comment) and moved to the
+/// drawer, while ADM-006 System Activity — an audit log an admin plausibly
+/// checks every session — takes the freed tab slot instead. ADM-001 Admin
+/// Dashboard, ADM-002 User Management, ADM-006 System Activity, ADM-007
+/// System Settings are the four tabs now; ADM-004 Role Management and
+/// ADM-008 Admin Profile both live in the drawer.
 ///
-/// ADM-003 User Details, ADM-005 Category Management, and ADM-006 System
-/// Activity are drill-downs (not tabs) per their own spec'd entry points.
-/// ADM-008 Admin Profile is reached via [AdminScaffold]'s drawer (see its
-/// own doc comment), not a tab.
+/// ADM-003 User Details and ADM-005 Category Management remain drill-downs
+/// (not tabs), same as before.
 enum AdminTab {
   dashboard(label: 'Dashboard', icon: AppIcons.home, headerTitle: 'CivicVoice'),
   users(label: 'Users', icon: AppIcons.team, headerTitle: 'User Management'),
-  roles(label: 'Roles', icon: AppIcons.shield, headerTitle: 'Role Management'),
+  activity(
+    label: 'Activity',
+    icon: AppIcons.activityPulse,
+    headerTitle: 'System Activity',
+  ),
   settings(
     label: 'Settings',
     icon: AppIcons.settings,
@@ -67,7 +63,7 @@ enum AdminTab {
 /// the dashboard, all of which draw the same glyph in the same position
 /// regardless of which screen it is (a plain per-screen logo wouldn't make
 /// sense on, say, User Details). The drawer itself only lists destinations
-/// with no tab slot — ADM-008 Admin Profile and ADM-006 System Activity,
+/// with no tab slot — ADM-004 Role Management and ADM-008 Admin Profile,
 /// and later ADM-005 Category Management once it exists — since the four
 /// [AdminTab]s are already one tap away on the always-visible bottom nav;
 /// repeating them in the drawer would just be a second, slower path to the
@@ -87,7 +83,7 @@ class AdminScaffold extends StatelessWidget {
     required this.selectedTab,
     this.onNotificationsTap,
     this.onTabSelected,
-    this.onOpenSystemActivity,
+    this.onOpenRoleManagement,
     this.onOpenProfile,
     this.headerTitle,
     this.hideBottomNav = false,
@@ -99,11 +95,14 @@ class AdminScaffold extends StatelessWidget {
   /// a screen that's a tab's own root, or an exclusive drill-down from
   /// exactly one tab's own list (ADM-003 User Details, only ever reached
   /// by tapping a row in ADM-002 User Management), passes a real value.
-  /// A screen reachable from more than one place, or from the drawer only
-  /// — ADM-006 System Activity (Dashboard's card *and* every screen's
-  /// drawer) and ADM-008 Admin Profile (drawer only) — passes null:
+  /// A screen reachable from the drawer only, with no tab slot of its own
+  /// — ADM-004 Role Management and ADM-008 Admin Profile — passes null:
   /// highlighting a tab it doesn't actually belong to would just tell the
-  /// user they're somewhere they're not.
+  /// user they're somewhere they're not. ADM-006 System Activity now has
+  /// its own tab ([AdminTab.activity]) despite Dashboard's "Activity
+  /// Monitoring" card being a second, shortcut path to the same place —
+  /// same precedent as [AdminTab.users], also reachable from both its tab
+  /// and Dashboard's own Management row.
   final AdminTab? selectedTab;
 
   /// Left unwired by every caller — there's no Notifications screen
@@ -120,10 +119,10 @@ class AdminScaffold extends StatelessWidget {
   /// otherwise sit directly on top of that screen's own sticky Save bar.
   final bool hideBottomNav;
 
-  /// Opens ADM-006 System Activity — reachable from the drawer on every
-  /// screen (Dashboard's own "Activity Monitoring" card is a second,
-  /// shortcut path to the same destination, not a competing one).
-  final VoidCallback? onOpenSystemActivity;
+  /// Opens ADM-004 Role Management — the drawer is its only entry point
+  /// now that it's no longer a bottom-nav tab (see [AdminTab]'s own doc
+  /// comment for why).
+  final VoidCallback? onOpenRoleManagement;
 
   /// Opens ADM-008 Admin Profile — the drawer is its only entry point.
   final VoidCallback? onOpenProfile;
@@ -152,7 +151,7 @@ class AdminScaffold extends StatelessWidget {
     final keyboardVisible = MediaQuery.viewInsetsOf(context).bottom > 0;
     return Scaffold(
       drawer: _AdminDrawer(
-        onOpenSystemActivity: onOpenSystemActivity,
+        onOpenRoleManagement: onOpenRoleManagement,
         onOpenProfile: onOpenProfile,
       ),
       body: GestureDetector(
@@ -293,9 +292,9 @@ class _IconButton extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _AdminDrawer extends StatelessWidget {
-  const _AdminDrawer({this.onOpenSystemActivity, this.onOpenProfile});
+  const _AdminDrawer({this.onOpenRoleManagement, this.onOpenProfile});
 
-  final VoidCallback? onOpenSystemActivity;
+  final VoidCallback? onOpenRoleManagement;
   final VoidCallback? onOpenProfile;
 
   @override
@@ -327,13 +326,13 @@ class _AdminDrawer extends StatelessWidget {
             ),
             const Divider(height: 1),
             _DrawerItem(
-              icon: AppIcons.activityPulse,
-              label: 'System Activity',
-              onTap: onOpenSystemActivity == null
+              icon: AppIcons.roleManagement,
+              label: 'Role Management',
+              onTap: onOpenRoleManagement == null
                   ? null
                   : () {
                       Navigator.of(context).pop();
-                      onOpenSystemActivity!();
+                      onOpenRoleManagement!();
                     },
             ),
             _DrawerItem(

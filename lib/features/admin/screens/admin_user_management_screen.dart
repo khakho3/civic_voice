@@ -5,7 +5,9 @@ import '../../../widgets/app_state_message.dart';
 import '../../../widgets/collapsible_list_header.dart';
 import '../../../widgets/confirm_dialog.dart';
 import '../../../widgets/glass_card.dart';
+import '../../../widgets/kebab_menu_button.dart';
 import '../models/admin_user_management_data.dart';
+import '../services/admin_session.dart';
 import '../services/admin_user_directory.dart';
 import '../widgets/admin_scaffold.dart';
 
@@ -67,7 +69,7 @@ class AdminUserManagementScreen extends StatefulWidget {
     this.onNavigateToRoles,
     this.onNavigateToSettings,
     this.onOpenUserDetails,
-    this.onOpenSystemActivity,
+    this.onNavigateToActivity,
     this.onOpenProfile,
     this.onNotificationsTap,
     this.onCreateUser,
@@ -77,6 +79,8 @@ class AdminUserManagementScreen extends StatefulWidget {
 
   /// Wired by the app shell so the bottom nav can switch tabs.
   final VoidCallback? onNavigateToDashboard;
+
+  /// Opens ADM-004 Role Management via [AdminScaffold]'s drawer.
   final VoidCallback? onNavigateToRoles;
   final VoidCallback? onNavigateToSettings;
 
@@ -84,9 +88,9 @@ class AdminUserManagementScreen extends StatefulWidget {
   /// point. Nullable: ADM-003 isn't built yet.
   final ValueChanged<AdminUserItem>? onOpenUserDetails;
 
-  /// Forwarded to [AdminScaffold]'s drawer. Nullable: neither ADM-006 nor
-  /// ADM-008 is built yet.
-  final VoidCallback? onOpenSystemActivity;
+  final VoidCallback? onNavigateToActivity;
+
+  /// Forwarded to [AdminScaffold]'s drawer.
   final VoidCallback? onOpenProfile;
 
   final VoidCallback? onNotificationsTap;
@@ -128,6 +132,7 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
   }
 
   Future<void> _toggleActive(AdminUserItem user) async {
+    if (!AdminSession.instance.canDeactivateUsers) return;
     final deactivating = user.status != AdminUserStatus.inactive;
     if (deactivating) {
       final confirmed = await showConfirmDialog(
@@ -171,10 +176,10 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
       onNotificationsTap: widget.onNotificationsTap,
       onTabSelected: (tab) {
         if (tab == AdminTab.dashboard) widget.onNavigateToDashboard?.call();
-        if (tab == AdminTab.roles) widget.onNavigateToRoles?.call();
+        if (tab == AdminTab.activity) widget.onNavigateToActivity?.call();
         if (tab == AdminTab.settings) widget.onNavigateToSettings?.call();
       },
-      onOpenSystemActivity: widget.onOpenSystemActivity,
+      onOpenRoleManagement: widget.onNavigateToRoles,
       onOpenProfile: widget.onOpenProfile,
       body: Stack(
         children: [
@@ -216,11 +221,12 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
             valueListenable: AdminUserDirectory.instance.users,
             builder: (context, users, _) {
               return _UserList(
-                users: users,
+                users: AdminSession.instance.visibleUsers(users),
                 query: _query,
                 filter: _filter,
                 onClearFilters: _clearFilters,
                 onToggleActive: _toggleActive,
+                canDeactivate: AdminSession.instance.canDeactivateUsers,
                 onOpenUserDetails: widget.onOpenUserDetails,
               );
             },
@@ -456,6 +462,7 @@ class _UserList extends StatelessWidget {
     required this.filter,
     required this.onClearFilters,
     required this.onToggleActive,
+    required this.canDeactivate,
     this.onOpenUserDetails,
   });
 
@@ -464,6 +471,7 @@ class _UserList extends StatelessWidget {
   final AdminUserFilter filter;
   final VoidCallback onClearFilters;
   final ValueChanged<AdminUserItem> onToggleActive;
+  final bool canDeactivate;
   final ValueChanged<AdminUserItem>? onOpenUserDetails;
 
   @override
@@ -495,6 +503,7 @@ class _UserList extends StatelessWidget {
               child: _UserCard(
                 user: user,
                 onToggleActive: () => onToggleActive(user),
+                canDeactivate: canDeactivate,
                 onOpenDetails: onOpenUserDetails == null
                     ? null
                     : () => onOpenUserDetails!(user),
@@ -541,11 +550,18 @@ class _UserCard extends StatelessWidget {
   const _UserCard({
     required this.user,
     required this.onToggleActive,
+    required this.canDeactivate,
     this.onOpenDetails,
   });
 
   final AdminUserItem user;
   final VoidCallback onToggleActive;
+
+  /// Whether the current session can deactivate/reactivate accounts at all
+  /// — an assembly Admin can't ([AdminSession.canDeactivateUsers]), so the
+  /// kebab menu is omitted entirely rather than shown with nothing to
+  /// select, matching "every widget should serve a purpose."
+  final bool canDeactivate;
   final VoidCallback? onOpenDetails;
 
   @override
@@ -598,21 +614,20 @@ class _UserCard extends StatelessWidget {
                   ],
                 ),
               ),
-              PopupMenuButton<void>(
-                icon: Icon(
-                  AppIcons.more,
-                  size: AppIconSize.md,
-                  color: colorScheme.onSurfaceVariant,
-                ),
-                itemBuilder: (context) => [
-                  PopupMenuItem(
-                    onTap: onToggleActive,
-                    child: Text(
-                      deactivated ? 'Reactivate account' : 'Deactivate account',
+              if (canDeactivate)
+                KebabMenuButton<void>(
+                  iconColor: colorScheme.onSurfaceVariant,
+                  itemBuilder: (context) => [
+                    PopupMenuItem(
+                      onTap: onToggleActive,
+                      child: Text(
+                        deactivated
+                            ? 'Reactivate account'
+                            : 'Deactivate account',
+                      ),
                     ),
-                  ),
-                ],
-              ),
+                  ],
+                ),
             ],
           ),
           const SizedBox(height: AppSpacing.sm),
