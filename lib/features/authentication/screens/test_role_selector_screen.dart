@@ -25,9 +25,12 @@ class TestRoleSelectorScreen extends StatefulWidget {
 class _TestRoleSelectorScreenState extends State<TestRoleSelectorScreen> {
   late AppRole _selectedRole =
       MockAuthService().getCurrentRole() ?? AppRole.citizen;
-  late AdminTier _tier = MockAuthService().getCurrentAdminTier() ?? AdminTier.superAdmin;
+  late AdminTier _tier =
+      MockAuthService().getCurrentAdminTier() ?? AdminTier.superAdmin;
   Region? _region = MockAuthService().getCurrentRegion();
   Assembly? _assembly = MockAuthService().getCurrentAssembly();
+  late bool _mustChangePassword = MockAuthService()
+      .mustChangePasswordOnFirstLogin();
   bool _saving = false;
   String? _assemblyError;
 
@@ -42,9 +45,12 @@ class _TestRoleSelectorScreenState extends State<TestRoleSelectorScreen> {
   Future<void> _continue() async {
     if (_saving) return;
     final needsAssembly =
-        _selectedRole == AppRole.systemAdministrator && _tier == AdminTier.admin;
+        _selectedRole == AppRole.systemAdministrator &&
+        _tier == AdminTier.admin;
     if (needsAssembly && _assembly == null) {
-      setState(() => _assemblyError = 'Select the assembly this account manages');
+      setState(
+        () => _assemblyError = 'Select the assembly this account manages',
+      );
       return;
     }
     setState(() => _saving = true);
@@ -53,6 +59,9 @@ class _TestRoleSelectorScreenState extends State<TestRoleSelectorScreen> {
       adminTier: _selectedRole == AppRole.systemAdministrator ? _tier : null,
       region: needsAssembly ? _region : null,
       assembly: needsAssembly ? _assembly : null,
+      mustChangePasswordOnFirstLogin: _selectedRole == AppRole.citizen
+          ? false
+          : _mustChangePassword,
     );
     if (!mounted) return;
     widget.onRoleSelected(_selectedRole);
@@ -182,6 +191,30 @@ class _TestRoleSelectorScreenState extends State<TestRoleSelectorScreen> {
                         }),
                       ),
                     ],
+                  ],
+                  if (_selectedRole != AppRole.citizen) ...[
+                    const SizedBox(height: AppSpacing.md),
+                    CheckboxListTile(
+                      value: _mustChangePassword,
+                      onChanged: _saving
+                          ? null
+                          : (value) => setState(
+                              () => _mustChangePassword = value ?? false,
+                            ),
+                      contentPadding: EdgeInsets.zero,
+                      controlAffinity: ListTileControlAffinity.leading,
+                      title: Text(
+                        'Simulate first login with temp password',
+                        style: theme.textTheme.bodyMedium,
+                      ),
+                      subtitle: Text(
+                        'Routes this account to the forced password reset '
+                        'screen after sign-in.',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
                   ],
                   const SizedBox(height: AppSpacing.lg),
                   FilledButton(

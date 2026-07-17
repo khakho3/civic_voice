@@ -12,10 +12,13 @@ import 'features/admin/screens/admin_system_settings_screen.dart';
 import 'features/admin/screens/admin_user_details_screen.dart';
 import 'features/admin/screens/admin_user_management_screen.dart';
 import 'features/admin/services/admin_session.dart';
+import 'features/authentication/screens/change_password_screen.dart';
 import 'features/authentication/screens/forgot_password_screen.dart';
 import 'features/authentication/screens/login_screen.dart';
+import 'features/authentication/screens/otp_verification_screen.dart';
 import 'features/authentication/screens/profile_screen.dart' as auth;
 import 'features/authentication/screens/registration_screen.dart';
+import 'features/authentication/screens/set_new_password_screen.dart';
 import 'features/authentication/screens/test_role_selector_screen.dart';
 import 'features/authentication/screens/welcome_screen.dart';
 import 'features/citizen/screens/citizen_alerts_screen.dart';
@@ -83,6 +86,8 @@ abstract final class AppRoutes {
   static const login = '/login';
   static const registration = '/registration';
   static const forgotPassword = '/forgot-password';
+  static const changePassword = '/change-password';
+  static const forcePasswordReset = '/force-password-reset';
   static const profile = '/profile';
   static const testRoleSelector = '/test-role-selector';
 
@@ -190,11 +195,7 @@ class CivicVoiceApp extends StatelessWidget {
             AppRoutes.login: (context) => LoginScreen(
               state: LoginViewState.ready,
               onBack: () => Navigator.of(context).maybePop(),
-              onSignIn: () => Navigator.of(context).pushNamedAndRemoveUntil(
-                _routeForRole(MockAuthService().getCurrentRole()) ??
-                    AppRoutes.testRoleSelector,
-                (_) => false,
-              ),
+              onSignIn: () => _completeSignIn(context),
               onForgotPassword: () =>
                   Navigator.of(context).pushNamed(AppRoutes.forgotPassword),
               onRegister: () => Navigator.of(
@@ -204,23 +205,24 @@ class CivicVoiceApp extends StatelessWidget {
             AppRoutes.registration: (context) => RegistrationScreen(
               state: RegistrationViewState.ready,
               onBack: () => Navigator.of(context).maybePop(),
-              onCreateAccount: () =>
-                  Navigator.of(context).pushNamedAndRemoveUntil(
-                    AppRoutes.citizenDashboard,
-                    (_) => false,
-                  ),
+              onCreateAccount: (phoneNumber) =>
+                  _startRegistrationOtp(context, phoneNumber),
               onLogin: () =>
                   Navigator.of(context).pushReplacementNamed(AppRoutes.login),
             ),
             AppRoutes.forgotPassword: (context) => ForgotPasswordScreen(
               state: ForgotPasswordViewState.ready,
               onBack: () => Navigator.of(context).maybePop(),
-              onSendResetLink: (emailAddress) {
-                // TODO(auth): Firebase password reset will be connected
-                // later.
-              },
+              onSendCode: (phoneNumber) =>
+                  _startForgotPasswordOtp(context, phoneNumber),
               onBackToLogin: () => Navigator.of(context).maybePop(),
             ),
+            AppRoutes.changePassword: (context) => ChangePasswordScreen(
+              phoneNumber: _currentSessionPhoneNumber(),
+              onBack: () => Navigator.of(context).maybePop(),
+              onSaved: () => _finishChangePassword(context),
+            ),
+            AppRoutes.forcePasswordReset: _forcedPasswordReset,
             AppRoutes.profile: (context) => auth.ProfileScreen(
               onLogout: () => Navigator.of(
                 context,
@@ -379,6 +381,103 @@ String? _routeForRole(AppRole? role) {
     AppRole.citizen => AppRoutes.citizenDashboard,
     AppRole.maintenanceTeam => AppRoutes.maintenanceDashboard,
     null => null,
+  };
+}
+
+void _completeSignIn(BuildContext context) {
+  final auth = MockAuthService();
+  final routeName = _routeForRole(auth.getCurrentRole());
+  if (routeName == null) {
+    Navigator.of(
+      context,
+    ).pushNamedAndRemoveUntil(AppRoutes.testRoleSelector, (_) => false);
+    return;
+  }
+  if (auth.mustChangePasswordOnFirstLogin()) {
+    Navigator.of(
+      context,
+    ).pushNamedAndRemoveUntil(AppRoutes.forcePasswordReset, (_) => false);
+    return;
+  }
+  Navigator.of(context).pushNamedAndRemoveUntil(routeName, (_) => false);
+}
+
+void _startRegistrationOtp(BuildContext context, String phoneNumber) {
+  // TODO(auth): send registration OTP via WittiFlow once the backend exists.
+  Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      builder: (context) => OtpVerificationScreen(
+        phoneNumber: phoneNumber,
+        purpose: OtpPurpose.registration,
+        onBack: () => Navigator.of(context).maybePop(),
+        onVerify: () async {
+          await MockAuthService().selectRole(AppRole.citizen);
+          if (!context.mounted) return;
+          Navigator.of(
+            context,
+          ).pushNamedAndRemoveUntil(AppRoutes.citizenDashboard, (_) => false);
+        },
+      ),
+    ),
+  );
+}
+
+void _startForgotPasswordOtp(BuildContext context, String phoneNumber) {
+  // TODO(auth): send forgot-password OTP via WittiFlow once the backend exists.
+  Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      builder: (context) => OtpVerificationScreen(
+        phoneNumber: phoneNumber,
+        purpose: OtpPurpose.forgotPassword,
+        onBack: () => Navigator.of(context).maybePop(),
+        onVerify: () {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute<void>(
+              builder: (context) => SetNewPasswordScreen(
+                purpose: SetNewPasswordPurpose.forgotPassword,
+                onBack: () => Navigator.of(context).maybePop(),
+                onSaved: () => Navigator.of(
+                  context,
+                ).pushNamedAndRemoveUntil(AppRoutes.login, (_) => false),
+              ),
+            ),
+          );
+        },
+      ),
+    ),
+  );
+}
+
+Widget _forcedPasswordReset(BuildContext context) {
+  return SetNewPasswordScreen(
+    purpose: SetNewPasswordPurpose.firstLogin,
+    onSaved: () async {
+      final auth = MockAuthService();
+      await auth.clearMustChangePasswordOnFirstLogin();
+      if (!context.mounted) return;
+      Navigator.of(context).pushNamedAndRemoveUntil(
+        _routeForRole(auth.getCurrentRole()) ?? AppRoutes.testRoleSelector,
+        (_) => false,
+      );
+    },
+  );
+}
+
+void _finishChangePassword(BuildContext context) {
+  Navigator.of(context).maybePop();
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(content: Text('Password changed successfully.')),
+  );
+}
+
+String _currentSessionPhoneNumber() {
+  return switch (MockAuthService().getCurrentRole()) {
+    AppRole.systemAdministrator => '+233 24 111 2222',
+    AppRole.ministrySupervisor => '+233 20 000 0000',
+    AppRole.municipalOfficer => '+233 24 128 4092',
+    AppRole.maintenanceTeam => '+233 24 018 2940',
+    AppRole.citizen => '+233 24 555 0198',
+    null => '+233 24 000 0000',
   };
 }
 
@@ -585,6 +684,8 @@ Widget _adminProfile(BuildContext context) {
         _replaceWith(context, AppRoutes.adminSystemSettings),
     onNavigateToActivity: () =>
         _replaceWith(context, AppRoutes.adminSystemActivity),
+    onChangePassword: () =>
+        Navigator.of(context).pushNamed(AppRoutes.changePassword),
     onSignOut: () => Navigator.of(
       context,
     ).pushNamedAndRemoveUntil(AppRoutes.welcome, (_) => false),
@@ -657,6 +758,8 @@ Widget _ministryReportInsights(BuildContext context) {
 Widget _ministryProfile(BuildContext context) {
   return ministry.MinistryProfileScreen(
     onBack: () => _popOrReplaceWith(context, AppRoutes.ministryDashboard),
+    onChangePassword: () =>
+        Navigator.of(context).pushNamed(AppRoutes.changePassword),
     onLogOut: () => Navigator.of(
       context,
     ).pushNamedAndRemoveUntil(AppRoutes.welcome, (_) => false),
@@ -863,6 +966,8 @@ Widget _municipalResolutionDetails(
 Widget _municipalProfile(BuildContext context) {
   return municipal.MunicipalProfileScreen(
     onBack: () => _popOrReplaceWith(context, AppRoutes.municipalDashboard),
+    onChangePassword: () =>
+        Navigator.of(context).pushNamed(AppRoutes.changePassword),
     onLogOut: () => Navigator.of(
       context,
     ).pushNamedAndRemoveUntil(AppRoutes.welcome, (_) => false),

@@ -65,6 +65,7 @@ class MinistryProfileScreen extends StatefulWidget {
     this.initialState = MinistryProfileViewState.view,
     this.onBack,
     this.onNotificationsTap,
+    this.onChangePassword,
     this.onLogOut,
   });
 
@@ -77,6 +78,7 @@ class MinistryProfileScreen extends StatefulWidget {
   final VoidCallback? onBack;
 
   final VoidCallback? onNotificationsTap;
+  final VoidCallback? onChangePassword;
 
   /// No account/session workflow is specified yet — placeholder pending
   /// spec, matching this module's other unwired forward-references. Wired
@@ -405,9 +407,7 @@ class _ProfileBody extends StatelessWidget {
               _ActionRow(
                 icon: AppIcons.security,
                 label: 'Change Password',
-                // No password-change workflow is specified yet —
-                // placeholder pending spec.
-                onTap: () {},
+                onTap: widget.onChangePassword,
               ),
               const Divider(height: AppSpacing.lg),
               _ActionRow(

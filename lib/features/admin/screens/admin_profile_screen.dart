@@ -87,6 +87,7 @@ class AdminProfileScreen extends StatefulWidget {
     this.onNavigateToRoles,
     this.onNavigateToSettings,
     this.onNavigateToActivity,
+    this.onChangePassword,
     this.onSignOut,
     this.onNotificationsTap,
   });
@@ -106,6 +107,7 @@ class AdminProfileScreen extends StatefulWidget {
   final VoidCallback? onNavigateToSettings;
 
   final VoidCallback? onNavigateToActivity;
+  final VoidCallback? onChangePassword;
 
   /// Fired by the "Sign Out" button. Nullable: there's no real
   /// authentication flow to sign out of yet.
@@ -204,6 +206,7 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
           onUpdate: _updateDraft,
           onCancel: _cancelEdit,
           onSave: _saveChanges,
+          onChangePassword: widget.onChangePassword,
           onSignOut: widget.onSignOut,
         ),
         _ => Center(
@@ -268,6 +271,7 @@ class _ProfileBody extends StatelessWidget {
     required this.onUpdate,
     required this.onCancel,
     required this.onSave,
+    this.onChangePassword,
     this.onSignOut,
   });
 
@@ -279,6 +283,7 @@ class _ProfileBody extends StatelessWidget {
   final void Function(AdminProfileData Function(AdminProfileData)) onUpdate;
   final VoidCallback onCancel;
   final VoidCallback onSave;
+  final VoidCallback? onChangePassword;
   final VoidCallback? onSignOut;
 
   @override
@@ -393,7 +398,11 @@ class _ProfileBody extends StatelessWidget {
           icon: AppIcons.shield,
           title: 'Security Settings',
           children: [
-            const _NavRow(icon: AppIcons.password, label: 'Change Password'),
+            _NavRow(
+              icon: AppIcons.password,
+              label: 'Change Password',
+              onTap: onChangePassword,
+            ),
             const Divider(height: AppSpacing.lg),
             _NavRow(
               icon: AppIcons.security,
@@ -835,43 +844,56 @@ class _ProfileField extends StatelessWidget {
 }
 
 class _NavRow extends StatelessWidget {
-  const _NavRow({required this.icon, required this.label, this.trailingLabel});
+  const _NavRow({
+    required this.icon,
+    required this.label,
+    this.trailingLabel,
+    this.onTap,
+  });
 
   final IconData icon;
   final String label;
   final String? trailingLabel;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final colorScheme = Theme.of(context).colorScheme;
-    return Row(
-      children: [
-        Icon(icon, size: AppIconSize.sm, color: AppColors.primary),
-        const SizedBox(width: AppSpacing.sm),
-        Expanded(
-          child: Text(
-            label,
-            style: textTheme.bodyLarge,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
-        if (trailingLabel != null) ...[
-          Text(
-            trailingLabel!,
-            style: textTheme.bodyMedium?.copyWith(
+    return InkWell(
+      onTap: onTap,
+      borderRadius: AppRadius.allMd,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+        child: Row(
+          children: [
+            Icon(icon, size: AppIconSize.sm, color: AppColors.primary),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Text(
+                label,
+                style: textTheme.bodyLarge,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (trailingLabel != null) ...[
+              Text(
+                trailingLabel!,
+                style: textTheme.bodyMedium?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.xs),
+            ],
+            Icon(
+              AppIcons.chevronRight,
+              size: AppIconSize.sm,
               color: colorScheme.onSurfaceVariant,
             ),
-          ),
-          const SizedBox(width: AppSpacing.xs),
-        ],
-        Icon(
-          AppIcons.chevronRight,
-          size: AppIconSize.sm,
-          color: colorScheme.onSurfaceVariant,
+          ],
         ),
-      ],
+      ),
     );
   }
 }

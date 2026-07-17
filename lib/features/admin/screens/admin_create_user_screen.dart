@@ -105,9 +105,7 @@ class _AdminCreateUserScreenState extends State<AdminCreateUserScreen> {
 
     final errors = <String, String>{};
     if (name.isEmpty) errors['name'] = 'Full name is required';
-    if (email.isEmpty) {
-      errors['email'] = 'Email address is required';
-    } else if (!email.contains('@') || !email.contains('.')) {
+    if (email.isNotEmpty && (!email.contains('@') || !email.contains('.'))) {
       errors['email'] = 'Enter a valid email address';
     }
     if (phone.isEmpty) errors['phone'] = 'Phone number is required';
@@ -134,12 +132,25 @@ class _AdminCreateUserScreenState extends State<AdminCreateUserScreen> {
       phone: phone,
       role: _role,
       adminTier: _role == AppRole.systemAdministrator ? _tier : null,
-      region: needsAssembly ? (session.isSuperAdmin ? _region : session.region) : null,
+      region: needsAssembly
+          ? (session.isSuperAdmin ? _region : session.region)
+          : null,
       assembly: needsAssembly
           ? (session.isSuperAdmin ? _assembly : session.assembly)
           : null,
     );
     widget.onUserCreated?.call(created);
+    // TODO(auth): send temp password via WittiFlow once the backend exists.
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Account created. A temporary password has been sent to '
+            '$phone via SMS.',
+          ),
+        ),
+      );
+    }
     widget.onNavigateToUsers?.call();
   }
 
