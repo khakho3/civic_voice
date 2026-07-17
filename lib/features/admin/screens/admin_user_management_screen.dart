@@ -6,6 +6,7 @@ import '../../../widgets/collapsible_list_header.dart';
 import '../../../widgets/confirm_dialog.dart';
 import '../../../widgets/glass_card.dart';
 import '../models/admin_user_management_data.dart';
+import '../services/admin_user_directory.dart';
 import '../widgets/admin_scaffold.dart';
 
 /// ADM-002 — User Management.
@@ -69,6 +70,7 @@ class AdminUserManagementScreen extends StatefulWidget {
     this.onOpenSystemActivity,
     this.onOpenProfile,
     this.onNotificationsTap,
+    this.onCreateUser,
   });
 
   final AdminUserManagementViewState initialState;
@@ -89,6 +91,9 @@ class AdminUserManagementScreen extends StatefulWidget {
 
   final VoidCallback? onNotificationsTap;
 
+  /// Opens the Create User screen — the list's only creation entry point.
+  final VoidCallback? onCreateUser;
+
   @override
   State<AdminUserManagementScreen> createState() =>
       _AdminUserManagementScreenState();
@@ -96,7 +101,6 @@ class AdminUserManagementScreen extends StatefulWidget {
 
 class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
   late AdminUserManagementViewState _state = widget.initialState;
-  List<AdminUserItem> _users = mockAdminUsers();
   final TextEditingController _searchController = TextEditingController();
   AdminUserFilter _filter = AdminUserFilter.all;
   String _query = '';
@@ -137,19 +141,7 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
       );
       if (!confirmed || !mounted) return;
     }
-    setState(() {
-      _users = [
-        for (final u in _users)
-          if (u == user)
-            u.copyWith(
-              status: u.status == AdminUserStatus.inactive
-                  ? AdminUserStatus.active
-                  : AdminUserStatus.inactive,
-            )
-          else
-            u,
-      ];
-    });
+    AdminUserDirectory.instance.toggleActive(user);
   }
 
   @override
@@ -184,117 +176,142 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
       },
       onOpenSystemActivity: widget.onOpenSystemActivity,
       onOpenProfile: widget.onOpenProfile,
-      body: switch (_state) {
-        AdminUserManagementViewState.loading => const _LoadingSkeleton(),
-        AdminUserManagementViewState.loaded => Padding(
-          padding: EdgeInsets.only(
-            top: AdminScaffold.contentPadding(context).top,
-          ),
-          child: CollapsibleListHeader(
-            header: _FilterChrome(
-              subtitle: subtitle,
-              controller: _searchController,
-              filter: _filter,
-              enabled: true,
-              onQueryChanged: (q) => setState(() => _query = q),
-              onFilterSelected: (f) => setState(() => _filter = f),
+      body: Stack(
+        children: [
+          Positioned.fill(child: _buildBody(context, chromeEnabled, subtitle)),
+          if (widget.onCreateUser != null)
+            Positioned(
+              right: AppSpacing.md,
+              bottom:
+                  AdminScaffold.contentPadding(context).bottom + AppSpacing.md,
+              child: FloatingActionButton(
+                heroTag: 'admin-create-user',
+                tooltip: 'Add user',
+                onPressed: widget.onCreateUser,
+                child: const Icon(AppIcons.add),
+              ),
             ),
-            child: _UserList(
-              users: _users,
-              query: _query,
-              filter: _filter,
-              onClearFilters: _clearFilters,
-              onToggleActive: _toggleActive,
-              onOpenUserDetails: widget.onOpenUserDetails,
-            ),
-          ),
-        ),
-        _ => Column(
-          children: [
-            SizedBox(height: AdminScaffold.contentPadding(context).top),
-            _FilterChrome(
-              subtitle: subtitle,
-              controller: _searchController,
-              filter: _filter,
-              enabled: chromeEnabled,
-              onQueryChanged: chromeEnabled
-                  ? (q) => setState(() => _query = q)
-                  : null,
-              onFilterSelected: chromeEnabled
-                  ? (f) => setState(() => _filter = f)
-                  : null,
-            ),
-            Expanded(
-              child: switch (_state) {
-                AdminUserManagementViewState.loading ||
-                AdminUserManagementViewState.loaded => const SizedBox.shrink(),
-                AdminUserManagementViewState.empty => Padding(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  child: AppStateMessage(
-                    icon: AppIcons.team,
-                    badgeColor: AppColors.primary,
-                    title: 'No Users',
-                    message:
-                        'Platform users will appear here once accounts '
-                        'are available.',
-                    primaryActionLabel: 'Refresh',
-                    onPrimaryAction: _retry,
-                  ),
-                ),
-                AdminUserManagementViewState.noResults => Padding(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  child: AppStateMessage(
-                    icon: AppIcons.noFilterMatch,
-                    badgeColor: AppColors.primary,
-                    title: 'No Results',
-                    message: 'No users match the current search or filters.',
-                    primaryActionLabel: 'Clear Filters',
-                    onPrimaryAction: _clearFilters,
-                  ),
-                ),
-                AdminUserManagementViewState.offline => Padding(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  child: AppStateMessage(
-                    icon: AppIcons.offline,
-                    badgeColor: AppColors.error,
-                    title: 'You\'re offline',
-                    message: 'Check your connection and retry loading users.',
-                    primaryActionLabel: 'Retry connection',
-                    onPrimaryAction: _retry,
-                    primaryActionColor: AppColors.error,
-                  ),
-                ),
-                AdminUserManagementViewState.error => Padding(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  child: AppStateMessage(
-                    icon: AppIcons.warning,
-                    badgeColor: AppColors.error,
-                    title: 'Unable to Load Users',
-                    message:
-                        'The user management service could not return '
-                        'account data right now.',
-                    primaryActionLabel: 'Retry',
-                    onPrimaryAction: _retry,
-                    primaryActionColor: AppColors.error,
-                  ),
-                ),
-                AdminUserManagementViewState.unauthorized => Padding(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  child: const AppStateMessage(
-                    icon: AppIcons.permissionDenied,
-                    badgeColor: AppColors.error,
-                    title: 'Unauthorized Access',
-                    message:
-                        'Administrative privileges are required to manage '
-                        'users.',
-                  ),
-                ),
-              },
-            ),
-          ],
-        ),
-      },
+        ],
+      ),
     );
+  }
+
+  Widget _buildBody(BuildContext context, bool chromeEnabled, String subtitle) {
+    return switch (_state) {
+      AdminUserManagementViewState.loading => const _LoadingSkeleton(),
+      AdminUserManagementViewState.loaded => Padding(
+        padding: EdgeInsets.only(
+          top: AdminScaffold.contentPadding(context).top,
+        ),
+        child: CollapsibleListHeader(
+          header: _FilterChrome(
+            subtitle: subtitle,
+            controller: _searchController,
+            filter: _filter,
+            enabled: true,
+            onQueryChanged: (q) => setState(() => _query = q),
+            onFilterSelected: (f) => setState(() => _filter = f),
+          ),
+          child: ValueListenableBuilder<List<AdminUserItem>>(
+            valueListenable: AdminUserDirectory.instance.users,
+            builder: (context, users, _) {
+              return _UserList(
+                users: users,
+                query: _query,
+                filter: _filter,
+                onClearFilters: _clearFilters,
+                onToggleActive: _toggleActive,
+                onOpenUserDetails: widget.onOpenUserDetails,
+              );
+            },
+          ),
+        ),
+      ),
+      _ => Column(
+        children: [
+          SizedBox(height: AdminScaffold.contentPadding(context).top),
+          _FilterChrome(
+            subtitle: subtitle,
+            controller: _searchController,
+            filter: _filter,
+            enabled: chromeEnabled,
+            onQueryChanged: chromeEnabled
+                ? (q) => setState(() => _query = q)
+                : null,
+            onFilterSelected: chromeEnabled
+                ? (f) => setState(() => _filter = f)
+                : null,
+          ),
+          Expanded(
+            child: switch (_state) {
+              AdminUserManagementViewState.loading ||
+              AdminUserManagementViewState.loaded => const SizedBox.shrink(),
+              AdminUserManagementViewState.empty => Padding(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                child: AppStateMessage(
+                  icon: AppIcons.team,
+                  badgeColor: AppColors.primary,
+                  title: 'No Users',
+                  message:
+                      'Platform users will appear here once accounts '
+                      'are available.',
+                  primaryActionLabel: 'Refresh',
+                  onPrimaryAction: _retry,
+                ),
+              ),
+              AdminUserManagementViewState.noResults => Padding(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                child: AppStateMessage(
+                  icon: AppIcons.noFilterMatch,
+                  badgeColor: AppColors.primary,
+                  title: 'No Results',
+                  message: 'No users match the current search or filters.',
+                  primaryActionLabel: 'Clear Filters',
+                  onPrimaryAction: _clearFilters,
+                ),
+              ),
+              AdminUserManagementViewState.offline => Padding(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                child: AppStateMessage(
+                  icon: AppIcons.offline,
+                  badgeColor: AppColors.error,
+                  title: 'You\'re offline',
+                  message: 'Check your connection and retry loading users.',
+                  primaryActionLabel: 'Retry connection',
+                  onPrimaryAction: _retry,
+                  primaryActionColor: AppColors.error,
+                ),
+              ),
+              AdminUserManagementViewState.error => Padding(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                child: AppStateMessage(
+                  icon: AppIcons.warning,
+                  badgeColor: AppColors.error,
+                  title: 'Unable to Load Users',
+                  message:
+                      'The user management service could not return '
+                      'account data right now.',
+                  primaryActionLabel: 'Retry',
+                  onPrimaryAction: _retry,
+                  primaryActionColor: AppColors.error,
+                ),
+              ),
+              AdminUserManagementViewState.unauthorized => Padding(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                child: const AppStateMessage(
+                  icon: AppIcons.permissionDenied,
+                  badgeColor: AppColors.error,
+                  title: 'Unauthorized Access',
+                  message:
+                      'Administrative privileges are required to manage '
+                      'users.',
+                ),
+              ),
+            },
+          ),
+        ],
+      ),
+    };
   }
 }
 

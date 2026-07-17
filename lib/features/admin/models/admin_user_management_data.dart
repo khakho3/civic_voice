@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../models/app_role.dart';
+import '../../../models/region.dart';
 import 'admin_role_management_data.dart';
 
 /// Quick-filter chips — [all]'s the default; [admins]/[staff] split by
@@ -62,6 +63,7 @@ class AdminUserItem {
     required this.lastSignIn,
     required this.accountCreated,
     this.adminTier,
+    this.region,
   });
 
   final String name;
@@ -76,6 +78,21 @@ class AdminUserItem {
   /// other role has no admin-team privilege tier to hold. See
   /// [AdminTier]'s own doc comment for why this exists.
   final AdminTier? adminTier;
+
+  /// The jurisdiction this account is scoped to — required for
+  /// [AppRole.municipalOfficer] and [AppRole.maintenanceTeam] accounts
+  /// (they act on reports filed within one region), null for
+  /// [AppRole.systemAdministrator] and [AppRole.ministrySupervisor] (both
+  /// national-scope roles) and for [AppRole.citizen] (citizens aren't
+  /// region-provisioned; their reports carry their own region instead).
+  final Region? region;
+
+  /// Whether [role] is one of the two region-scoped staff roles — the
+  /// single source of truth [AdminUserItem.copyWith], the details form, and
+  /// the create-user form all key off, so "which roles need a region"
+  /// only has to be decided in one place.
+  static bool roleRequiresRegion(AppRole role) =>
+      role == AppRole.municipalOfficer || role == AppRole.maintenanceTeam;
 
   String get initials {
     final parts = name.trim().split(RegExp(r'\s+'));
@@ -123,18 +140,23 @@ class AdminUserItem {
     AppRole? role,
     AdminUserStatus? status,
     AdminTier? adminTier,
+    Region? region,
   }) {
+    final effectiveRole = role ?? this.role;
     return AdminUserItem(
       name: name,
       email: email,
-      role: role ?? this.role,
+      role: effectiveRole,
       status: status ?? this.status,
       userId: userId,
       lastSignIn: lastSignIn,
       accountCreated: accountCreated,
-      adminTier: role == AppRole.systemAdministrator
+      adminTier: effectiveRole == AppRole.systemAdministrator
           ? (adminTier ?? this.adminTier ?? AdminTier.admin)
           : (role == null ? this.adminTier : null),
+      region: roleRequiresRegion(effectiveRole)
+          ? (region ?? this.region)
+          : (role == null ? this.region : null),
     );
   }
 }
@@ -171,6 +193,7 @@ List<AdminUserItem> mockAdminUsers() {
       userId: 'CV-USER-0102',
       lastSignIn: now.subtract(const Duration(hours: 3)),
       accountCreated: DateTime(2025, 2, 3),
+      region: Region.greaterAccra,
     ),
     AdminUserItem(
       name: 'Esi Owusu',
@@ -189,6 +212,7 @@ List<AdminUserItem> mockAdminUsers() {
       userId: 'CV-USER-0104',
       lastSignIn: now.subtract(const Duration(hours: 8, minutes: 40)),
       accountCreated: DateTime(2025, 1, 12),
+      region: Region.ashanti,
     ),
     AdminUserItem(
       name: 'Kwame Nyarko',

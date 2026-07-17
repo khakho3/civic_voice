@@ -486,7 +486,9 @@ class _SaveBar extends StatelessWidget {
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: FilledButton(
-              onPressed: saveState == AdminProfileSaveState.saving ? null : onSave,
+              onPressed: saveState == AdminProfileSaveState.saving
+                  ? null
+                  : onSave,
               child: saveState == AdminProfileSaveState.saving
                   ? const SizedBox(
                       width: AppIconSize.sm,

@@ -60,7 +60,18 @@ class PlacesService {
     final uri = Uri.https(
       'maps.googleapis.com',
       '/maps/api/place/autocomplete/json',
-      {'input': query, 'key': _apiKey, 'types': 'geocode'},
+      {
+        'input': query,
+        'key': _apiKey,
+        // No `types` restriction: `geocode` alone excludes establishments
+        // (schools, universities, businesses, landmarks) — a citizen
+        // reporting an issue "near GCTU" needs that named-place search to
+        // work, not just street addresses. `components: country:gh` biases
+        // results to Ghana, both for relevance and so a short local
+        // institution name like "GCTU" doesn't get crowded out by
+        // unrelated global matches.
+        'components': 'country:gh',
+      },
     );
 
     final response = await _client.get(uri).timeout(const Duration(seconds: 8));

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_controller.dart';
 import 'features/admin/models/admin_user_management_data.dart';
+import 'features/admin/screens/admin_create_user_screen.dart';
 import 'features/admin/screens/admin_dashboard_screen.dart';
 import 'features/admin/screens/admin_profile_screen.dart' as admin;
 import 'features/admin/screens/admin_role_management_screen.dart';
@@ -100,6 +101,7 @@ abstract final class AppRoutes {
   static const adminDashboard = '/admin/dashboard';
   static const adminUserManagement = '/admin/user-management';
   static const adminUserDetails = '/admin/user-details';
+  static const adminCreateUser = '/admin/create-user';
   static const adminRoleManagement = '/admin/role-management';
   static const adminSystemActivity = '/admin/system-activity';
   static const adminSystemSettings = '/admin/system-settings';
@@ -251,6 +253,7 @@ class CivicVoiceApp extends StatelessWidget {
               context,
               _adminUserFromSettings(ModalRoute.of(context)?.settings),
             ),
+            AppRoutes.adminCreateUser: _adminCreateUser,
             AppRoutes.ministryDashboard: _ministryDashboard,
             AppRoutes.ministryReports: _ministryReports,
             AppRoutes.ministryReportInsights: _ministryReportInsights,
@@ -467,6 +470,25 @@ Widget _adminUserManagement(BuildContext context) {
     onNavigateToSettings: () =>
         _replaceWith(context, AppRoutes.adminSystemSettings),
     onOpenUserDetails: (user) => _pushAdminUserDetails(context, user),
+    onOpenSystemActivity: () =>
+        Navigator.of(context).pushNamed(AppRoutes.adminSystemActivity),
+    onOpenProfile: () =>
+        Navigator.of(context).pushNamed(AppRoutes.adminProfile),
+    onCreateUser: () =>
+        Navigator.of(context).pushNamed(AppRoutes.adminCreateUser),
+  );
+}
+
+Widget _adminCreateUser(BuildContext context) {
+  return AdminCreateUserScreen(
+    onNavigateToDashboard: () =>
+        _replaceWith(context, AppRoutes.adminDashboard),
+    onNavigateToUsers: () =>
+        _replaceWith(context, AppRoutes.adminUserManagement),
+    onNavigateToRoles: () =>
+        _replaceWith(context, AppRoutes.adminRoleManagement),
+    onNavigateToSettings: () =>
+        _replaceWith(context, AppRoutes.adminSystemSettings),
     onOpenSystemActivity: () =>
         Navigator.of(context).pushNamed(AppRoutes.adminSystemActivity),
     onOpenProfile: () =>

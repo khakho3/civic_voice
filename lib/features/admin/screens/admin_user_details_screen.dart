@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../models/app_role.dart';
+import '../../../models/region.dart';
 import '../../../widgets/app_state_message.dart';
 import '../../../widgets/confirm_dialog.dart';
 import '../models/admin_role_management_data.dart';
@@ -116,6 +117,7 @@ class _AdminUserDetailsScreenState extends State<AdminUserDetailsScreen> {
   late AppRole _role = widget.user.role;
   late AdminUserStatus _status = widget.user.status;
   late AdminTier? _tier = widget.user.adminTier;
+  late Region? _region = widget.user.region;
   bool _showSuccess = false;
 
   void _retry() {
@@ -147,6 +149,7 @@ class _AdminUserDetailsScreenState extends State<AdminUserDetailsScreen> {
       adminTier: _role == AppRole.systemAdministrator
           ? (_tier ?? AdminTier.admin)
           : null,
+      region: AdminUserItem.roleRequiresRegion(_role) ? _region : null,
     );
     widget.onSaveChanges?.call(updated);
     setState(() => _showSuccess = true);
@@ -173,6 +176,7 @@ class _AdminUserDetailsScreenState extends State<AdminUserDetailsScreen> {
           role: _role,
           status: _status,
           tier: _tier,
+          region: _region,
           showSuccess: _showSuccess,
           onRoleChanged: (role) => setState(() {
             _role = role;
@@ -182,6 +186,9 @@ class _AdminUserDetailsScreenState extends State<AdminUserDetailsScreen> {
             } else {
               _tier = null;
             }
+            if (!AdminUserItem.roleRequiresRegion(role)) {
+              _region = null;
+            }
           }),
           onStatusChanged: (status) => setState(() {
             _status = status;
@@ -189,6 +196,10 @@ class _AdminUserDetailsScreenState extends State<AdminUserDetailsScreen> {
           }),
           onTierChanged: (tier) => setState(() {
             _tier = tier;
+            _showSuccess = false;
+          }),
+          onRegionChanged: (region) => setState(() {
+            _region = region;
             _showSuccess = false;
           }),
           onCancel: widget.onNavigateToUsers,
@@ -250,10 +261,12 @@ class _DetailsForm extends StatelessWidget {
     required this.role,
     required this.status,
     required this.tier,
+    required this.region,
     required this.showSuccess,
     required this.onRoleChanged,
     required this.onStatusChanged,
     required this.onTierChanged,
+    required this.onRegionChanged,
     required this.onSave,
     this.onCancel,
   });
@@ -262,10 +275,12 @@ class _DetailsForm extends StatelessWidget {
   final AppRole role;
   final AdminUserStatus status;
   final AdminTier? tier;
+  final Region? region;
   final bool showSuccess;
   final ValueChanged<AppRole> onRoleChanged;
   final ValueChanged<AdminUserStatus> onStatusChanged;
   final ValueChanged<AdminTier> onTierChanged;
+  final ValueChanged<Region?> onRegionChanged;
   final VoidCallback? onCancel;
   final VoidCallback onSave;
 
@@ -273,10 +288,12 @@ class _DetailsForm extends StatelessWidget {
   Widget build(BuildContext context) {
     final chromeInset = AdminScaffold.contentPadding(context);
     final isAdmin = role == AppRole.systemAdministrator;
+    final needsRegion = AdminUserItem.roleRequiresRegion(role);
     final preview = user.copyWith(
       role: role,
       status: status,
       adminTier: isAdmin ? (tier ?? AdminTier.admin) : null,
+      region: needsRegion ? region : null,
     );
 
     return ListView(
@@ -329,6 +346,10 @@ class _DetailsForm extends StatelessWidget {
                   onChanged: onTierChanged,
                 ),
               ],
+              if (needsRegion) ...[
+                const SizedBox(height: AppSpacing.sm),
+                _RegionDropdown(value: region, onChanged: onRegionChanged),
+              ],
               const SizedBox(height: AppSpacing.sm),
               _LabeledDropdown<AdminUserStatus>(
                 label: 'Account Status',
@@ -342,7 +363,7 @@ class _DetailsForm extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.lg),
         _Section(
-          icon: AppIcons.password,
+          icon: AppIcons.shield,
           title: 'Permissions Summary',
           child: preview.permissionSummary.isEmpty
               ? Text(
@@ -644,6 +665,62 @@ class _LabeledDropdown<T> extends StatelessWidget {
                 onChanged: (selected) {
                   if (selected != null) onChanged(selected);
                 },
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Same visual shape as [_LabeledDropdown], but nullable-aware — a region
+/// has no natural default the way [AdminTier] does, so this shows a
+/// "Select region" hint instead of silently picking one for the admin.
+class _RegionDropdown extends StatelessWidget {
+  const _RegionDropdown({required this.value, required this.onChanged});
+
+  final Region? value;
+  final ValueChanged<Region?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final colorScheme = Theme.of(context).colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Region', style: textTheme.bodySmall),
+        const SizedBox(height: AppSpacing.xs),
+        Material(
+          color: colorScheme.surfaceContainer,
+          borderRadius: AppComponentRadius.inputField,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<Region>(
+                value: value,
+                isExpanded: true,
+                borderRadius: AppComponentRadius.inputField,
+                hint: Text(
+                  'Select region',
+                  style: textTheme.bodyLarge?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                icon: Icon(
+                  AppIcons.chevronDown,
+                  size: AppIconSize.sm,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+                style: textTheme.bodyLarge?.copyWith(
+                  color: colorScheme.onSurface,
+                ),
+                items: [
+                  for (final region in Region.values)
+                    DropdownMenuItem(value: region, child: Text(region.label)),
+                ],
+                onChanged: onChanged,
               ),
             ),
           ),
