@@ -38,7 +38,7 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  final _emailController = TextEditingController();
+  final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
 
   bool _hidePassword = true;
@@ -55,7 +55,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   void dispose() {
-    _emailController.dispose();
+    _phoneController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
@@ -82,29 +82,25 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Email', style: theme.textTheme.labelMedium),
+              Text('Phone Number', style: theme.textTheme.labelMedium),
               const SizedBox(height: AppSpacing.sm),
               TextFormField(
-                controller: _emailController,
+                controller: _phoneController,
                 enabled: !_isDisabled,
-                keyboardType: TextInputType.emailAddress,
+                keyboardType: TextInputType.phone,
                 textInputAction: TextInputAction.next,
-                autofillHints: const [AutofillHints.email],
+                autofillHints: const [AutofillHints.telephoneNumber],
                 decoration: authInputDecoration(
                   context,
-                  hintText: 'Enter your email',
-                  prefixIcon: AppIcons.email,
+                  hintText: 'Enter your phone number',
+                  prefixIcon: AppIcons.phone,
                   errorText: _showFieldErrors
                       ? 'Please check this field.'
                       : null,
                 ),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
-                    return 'Please enter your email.';
-                  }
-
-                  if (!value.contains('@')) {
-                    return 'Please enter a valid email.';
+                    return 'Please enter your phone number.';
                   }
 
                   return null;
@@ -244,7 +240,7 @@ class _LoginStatusPanel extends StatelessWidget {
 
       case LoginViewState.invalidCredentials:
         title = 'Authentication Error';
-        message = 'Invalid email or password.';
+        message = 'Invalid phone number or password.';
         icon = AppIcons.error;
         statusColor = semanticColors.error;
 

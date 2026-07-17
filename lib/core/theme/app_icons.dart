@@ -92,7 +92,8 @@ abstract final class AppIcons {
 
   // Forms & auth.
   static const IconData email = LucideIcons.mail;
-  static const IconData password = LucideIcons.key;
+  static const IconData sms = LucideIcons.messageSquareText;
+  static const IconData password = LucideIcons.keyRound;
   static const IconData phone = LucideIcons.phone;
   static const IconData visibilityOn = LucideIcons.eye;
   static const IconData visibilityOff = LucideIcons.eyeOff;

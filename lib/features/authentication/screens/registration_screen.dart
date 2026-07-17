@@ -7,7 +7,7 @@ import 'package:civic_voice/features/authentication/widgets/auth_presentation.da
 enum RegistrationViewState {
   ready,
   disabled,
-  emailAlreadyRegistered,
+  phoneAlreadyRegistered,
   passwordMismatch,
   offline,
   loading,
@@ -29,7 +29,7 @@ class RegistrationScreen extends StatefulWidget {
 
   final RegistrationViewState state;
   final VoidCallback? onBack;
-  final VoidCallback? onCreateAccount;
+  final ValueChanged<String>? onCreateAccount;
   final VoidCallback? onLogin;
 
   @override
@@ -40,7 +40,6 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   final _formKey = GlobalKey<FormState>();
 
   final _fullNameController = TextEditingController();
-  final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
@@ -59,8 +58,8 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   bool get _showValidationErrors =>
       widget.state == RegistrationViewState.validationError;
 
-  bool get _showEmailError =>
-      widget.state == RegistrationViewState.emailAlreadyRegistered;
+  bool get _showPhoneError =>
+      widget.state == RegistrationViewState.phoneAlreadyRegistered;
 
   bool get _showPasswordMismatch =>
       widget.state == RegistrationViewState.passwordMismatch;
@@ -69,7 +68,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       widget.state == RegistrationViewState.weakPassword;
 
   bool get _showStatusPanel =>
-      widget.state == RegistrationViewState.emailAlreadyRegistered ||
+      widget.state == RegistrationViewState.phoneAlreadyRegistered ||
       widget.state == RegistrationViewState.passwordMismatch ||
       widget.state == RegistrationViewState.offline ||
       widget.state == RegistrationViewState.weakPassword ||
@@ -79,7 +78,6 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   @override
   void dispose() {
     _fullNameController.dispose();
-    _emailController.dispose();
     _phoneController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
@@ -99,7 +97,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     }
 
     if (formIsValid) {
-      widget.onCreateAccount?.call();
+      widget.onCreateAccount?.call(_phoneController.text.trim());
     }
   }
 
@@ -147,39 +145,6 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
               const SizedBox(height: AppSpacing.md),
 
-              const _FieldLabel(text: 'Email Address'),
-
-              const SizedBox(height: AppSpacing.sm),
-
-              TextFormField(
-                controller: _emailController,
-                enabled: !_isDisabled,
-                keyboardType: TextInputType.emailAddress,
-                textInputAction: TextInputAction.next,
-                autofillHints: const [AutofillHints.email],
-                decoration: authInputDecoration(
-                  context,
-                  hintText: 'email@example.com',
-                  prefixIcon: AppIcons.email,
-                  errorText: _emailErrorText,
-                ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Please enter your email address.';
-                  }
-
-                  final emailPattern = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
-
-                  if (!emailPattern.hasMatch(value.trim())) {
-                    return 'Please enter a valid email address.';
-                  }
-
-                  return null;
-                },
-              ),
-
-              const SizedBox(height: AppSpacing.md),
-
               const _FieldLabel(text: 'Phone Number'),
 
               const SizedBox(height: AppSpacing.sm),
@@ -192,11 +157,9 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                 autofillHints: const [AutofillHints.telephoneNumber],
                 decoration: authInputDecoration(
                   context,
-                  hintText: '+1 (555) 000-0000',
+                  hintText: '024 000 0000',
                   prefixIcon: AppIcons.phone,
-                  errorText: _showValidationErrors
-                      ? 'Phone number is required.'
-                      : null,
+                  errorText: _phoneErrorText,
                 ),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
@@ -396,13 +359,13 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     );
   }
 
-  String? get _emailErrorText {
-    if (_showEmailError) {
-      return 'This email is already registered.';
+  String? get _phoneErrorText {
+    if (_showPhoneError) {
+      return 'This phone number is already registered.';
     }
 
     if (_showValidationErrors) {
-      return 'Enter a valid email address.';
+      return 'Phone number is required.';
     }
 
     return null;
@@ -466,9 +429,10 @@ class _RegistrationStatusPanel extends StatelessWidget {
     late final Color statusColor;
 
     switch (state) {
-      case RegistrationViewState.emailAlreadyRegistered:
-        title = 'Email Already Registered';
-        message = 'Use another email or sign in to your existing account.';
+      case RegistrationViewState.phoneAlreadyRegistered:
+        title = 'Phone Already Registered';
+        message =
+            'Use another phone number or sign in to your existing account.';
         icon = AppIcons.error;
         statusColor = semanticColors.error;
 
@@ -492,7 +456,7 @@ class _RegistrationStatusPanel extends StatelessWidget {
 
       case RegistrationViewState.success:
         title = 'Account Created';
-        message = 'Your Citizen account was created successfully.';
+        message = 'Your Citizen account was created. Verify your phone next.';
         icon = AppIcons.success;
         statusColor = semanticColors.success;
 

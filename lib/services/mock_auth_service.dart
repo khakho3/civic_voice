@@ -24,11 +24,13 @@ class MockAuthService {
   static const _tierKey = 'test_admin_tier';
   static const _regionKey = 'test_admin_region';
   static const _assemblyKey = 'test_admin_assembly';
+  static const _mustChangePasswordKey = 'test_must_change_password';
 
   AppRole? _currentRole;
   AdminTier? _currentAdminTier;
   Region? _currentRegion;
   Assembly? _currentAssembly;
+  bool _mustChangePasswordOnFirstLogin = false;
   SharedPreferences? _prefs;
 
   Future<void> initialize() async {
@@ -36,6 +38,8 @@ class MockAuthService {
     _prefs = prefs;
 
     final savedRole = prefs.getString(_roleKey);
+    _mustChangePasswordOnFirstLogin =
+        prefs.getBool(_mustChangePasswordKey) ?? false;
     if (savedRole == null) return;
     _currentRole = AppRole.values.firstWhere(
       (role) => role.name == savedRole,
@@ -75,11 +79,14 @@ class MockAuthService {
 
   Assembly? getCurrentAssembly() => _currentAssembly;
 
+  bool mustChangePasswordOnFirstLogin() => _mustChangePasswordOnFirstLogin;
+
   Future<void> selectRole(
     AppRole role, {
     AdminTier? adminTier,
     Region? region,
     Assembly? assembly,
+    bool mustChangePasswordOnFirstLogin = false,
   }) async {
     final prefs = _prefs ?? await SharedPreferences.getInstance();
     _prefs = prefs;
@@ -93,6 +100,8 @@ class MockAuthService {
     _currentAdminTier = effectiveTier;
     _currentRegion = scoped ? region : null;
     _currentAssembly = scoped ? assembly : null;
+    _mustChangePasswordOnFirstLogin = mustChangePasswordOnFirstLogin;
+    await prefs.setBool(_mustChangePasswordKey, mustChangePasswordOnFirstLogin);
 
     if (effectiveTier == null) {
       await prefs.remove(_tierKey);
@@ -111,6 +120,13 @@ class MockAuthService {
     }
   }
 
+  Future<void> clearMustChangePasswordOnFirstLogin() async {
+    final prefs = _prefs ?? await SharedPreferences.getInstance();
+    _prefs = prefs;
+    _mustChangePasswordOnFirstLogin = false;
+    await prefs.setBool(_mustChangePasswordKey, false);
+  }
+
   Future<void> clearUser() async {
     final prefs = _prefs ?? await SharedPreferences.getInstance();
     _prefs = prefs;
@@ -118,10 +134,12 @@ class MockAuthService {
     _currentAdminTier = null;
     _currentRegion = null;
     _currentAssembly = null;
+    _mustChangePasswordOnFirstLogin = false;
     await prefs.remove(_roleKey);
     await prefs.remove(_tierKey);
     await prefs.remove(_regionKey);
     await prefs.remove(_assemblyKey);
+    await prefs.remove(_mustChangePasswordKey);
   }
 
   bool isInitialized() => _prefs != null;

@@ -230,7 +230,7 @@ InputDecoration authInputDecoration(
 }) {
   final colors = Theme.of(context).colorScheme;
   final border = OutlineInputBorder(
-    borderRadius: AppRadius.allXl,
+    borderRadius: AppComponentRadius.inputField,
     borderSide: BorderSide(color: colors.outlineVariant),
   );
 
@@ -245,15 +245,15 @@ InputDecoration authInputDecoration(
     enabledBorder: border,
     disabledBorder: border,
     focusedBorder: OutlineInputBorder(
-      borderRadius: AppRadius.allXl,
+      borderRadius: AppComponentRadius.inputField,
       borderSide: BorderSide(color: colors.primary, width: 2),
     ),
     errorBorder: OutlineInputBorder(
-      borderRadius: AppRadius.allXl,
+      borderRadius: AppComponentRadius.inputField,
       borderSide: BorderSide(color: colors.error),
     ),
     focusedErrorBorder: OutlineInputBorder(
-      borderRadius: AppRadius.allXl,
+      borderRadius: AppComponentRadius.inputField,
       borderSide: BorderSide(color: colors.error, width: 2),
     ),
   );

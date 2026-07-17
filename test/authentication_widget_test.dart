@@ -3,10 +3,11 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:civic_voice/core/theme/app_theme.dart';
 import 'package:civic_voice/features/admin/screens/admin_dashboard_screen.dart';
-import 'package:civic_voice/features/authentication/screens/change_password_screen.dart';
 import 'package:civic_voice/features/authentication/screens/forgot_password_screen.dart';
 import 'package:civic_voice/features/authentication/screens/login_screen.dart';
+import 'package:civic_voice/features/authentication/screens/otp_verification_screen.dart';
 import 'package:civic_voice/features/authentication/screens/registration_screen.dart';
+import 'package:civic_voice/features/authentication/screens/set_new_password_screen.dart';
 import 'package:civic_voice/features/authentication/screens/test_role_selector_screen.dart';
 import 'package:civic_voice/features/authentication/screens/welcome_screen.dart';
 import 'package:civic_voice/features/citizen/screens/citizen_dashboard_screen.dart';
@@ -127,7 +128,7 @@ void main() {
     await tester.pump();
 
     final fields = find.byType(TextFormField);
-    await tester.enterText(fields.at(0), 'amina@example.com');
+    await tester.enterText(fields.at(0), '0245550198');
     await tester.enterText(fields.at(1), 'password');
 
     final signIn = find.widgetWithText(FilledButton, 'Sign In');
@@ -138,33 +139,55 @@ void main() {
     expect(find.byType(CitizenDashboardScreen), findsOneWidget);
   });
 
-  testWidgets('Registration Create Account flow opens Citizen Dashboard', (
-    WidgetTester tester,
-  ) async {
-    await tester.pumpWidget(
-      const CivicVoiceApp(initialRoute: AppRoutes.registration),
-    );
-    await tester.pump();
+  testWidgets(
+    'Registration Create Account flow verifies OTP then opens Citizen Dashboard',
+    (WidgetTester tester) async {
+      await tester.pumpWidget(
+        const CivicVoiceApp(initialRoute: AppRoutes.registration),
+      );
+      await tester.pump();
 
-    final fields = find.byType(TextFormField);
-    await tester.enterText(fields.at(0), 'Amina Mensah');
-    await tester.enterText(fields.at(1), 'amina@example.com');
-    await tester.enterText(fields.at(2), '+1 555 0100');
-    await tester.enterText(fields.at(3), 'password123');
-    await tester.enterText(fields.at(4), 'password123');
+      final fields = find.byType(TextFormField);
+      await tester.enterText(fields.at(0), 'Amina Mensah');
+      await tester.enterText(fields.at(1), '0245550100');
+      await tester.enterText(fields.at(2), 'password123');
+      await tester.enterText(fields.at(3), 'password123');
 
-    final policy = find.byType(Checkbox);
-    await tester.ensureVisible(policy);
-    await tester.tap(policy);
-    await tester.pump();
+      final policy = find.byType(Checkbox);
+      await tester.ensureVisible(policy);
+      await tester.tap(policy);
+      await tester.pump();
 
-    final createAccount = find.widgetWithText(FilledButton, 'Create Account');
-    await tester.ensureVisible(createAccount);
-    await tester.tap(createAccount);
-    await tester.pumpAndSettle();
+      // Two pumps for each Navigator transition below: the first lets the
+      // tap's synchronous onPressed (which calls Navigator.push/
+      // pushNamedAndRemoveUntil) actually run, the second advances the
+      // route's transition animation to completion.
+      final createAccount = find.widgetWithText(FilledButton, 'Create Account');
+      await tester.ensureVisible(createAccount);
+      await tester.tap(createAccount);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.byType(CitizenDashboardScreen), findsOneWidget);
-  });
+      expect(find.byType(OtpVerificationScreen), findsOneWidget);
+
+      // The Registration route stays mounted underneath the pushed OTP
+      // route (Navigator.push doesn't pop it), so a bare find.byType(TextField)
+      // would also match its own fields — scope to the OTP screen's subtree.
+      await tester.enterText(
+        find.descendant(
+          of: find.byType(OtpVerificationScreen),
+          matching: find.byType(TextField),
+        ),
+        '123456',
+      );
+      await tester.pump();
+      await tester.tap(find.widgetWithText(FilledButton, 'Verify Code'));
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pump();
+
+      expect(find.byType(CitizenDashboardScreen), findsOneWidget);
+    },
+  );
 
   testWidgets('Onboarding pages do not overflow on a narrow phone', (
     WidgetTester tester,
@@ -244,11 +267,7 @@ void main() {
       ),
       (
         screen: const ForgotPasswordScreen(),
-        finalAction: find.widgetWithText(FilledButton, 'Send Reset Link'),
-      ),
-      (
-        screen: const ChangePasswordScreen(),
-        finalAction: find.widgetWithText(FilledButton, 'Update Password'),
+        finalAction: find.widgetWithText(FilledButton, 'Send Code'),
       ),
     ];
 
@@ -279,86 +298,88 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets(
-    'Change Password validates required fields, a short new password, and '
-    'a mismatched confirmation',
-    (WidgetTester tester) async {
-      tester.view.physicalSize = const Size(428, 2600);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
+  testWidgets('OTP code expiry disables verify action', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: OtpVerificationScreen(
+          phoneNumber: '+233 24 555 0100',
+          purpose: OtpPurpose.registration,
+          codeExpiryDuration: const Duration(seconds: 1),
+          resendCooldownDuration: const Duration(seconds: 3),
+          onVerify: () {},
+        ),
+      ),
+    );
 
-      await tester.pumpWidget(
-        MaterialApp(theme: AppTheme.light, home: const ChangePasswordScreen()),
-      );
-      await tester.pump();
+    await tester.enterText(find.byType(TextField), '123456');
+    await tester.pump();
+    expect(find.widgetWithText(FilledButton, 'Verify Code'), findsOneWidget);
 
-      await tapVisible(
-        tester,
-        find.widgetWithText(FilledButton, 'Update Password'),
-      );
-      await tester.pump();
+    await tester.pump(const Duration(seconds: 2));
+    expect(find.text('Code Expired'), findsOneWidget);
+    final button = tester.widget<FilledButton>(
+      find.widgetWithText(FilledButton, 'Verify Code'),
+    );
+    expect(button.onPressed, isNull);
+  });
 
-      expect(find.text('Please enter your current password.'), findsOneWidget);
-      expect(find.text('Please enter a new password.'), findsOneWidget);
-      expect(find.text('Please confirm your new password.'), findsOneWidget);
+  testWidgets('OTP resend cooldown elapses independently', (
+    WidgetTester tester,
+  ) async {
+    var resendCount = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: OtpVerificationScreen(
+          phoneNumber: '+233 24 555 0100',
+          purpose: OtpPurpose.forgotPassword,
+          codeExpiryDuration: const Duration(seconds: 10),
+          resendCooldownDuration: const Duration(seconds: 1),
+          onVerify: () {},
+          onResend: () => resendCount++,
+        ),
+      ),
+    );
 
-      final fields = find.byType(TextFormField);
-      await tester.enterText(fields.at(0), 'currentPass1');
-      await tester.enterText(fields.at(1), 'short');
-      await tester.enterText(fields.at(2), 'short');
-      await tapVisible(
-        tester,
-        find.widgetWithText(FilledButton, 'Update Password'),
-      );
-      await tester.pump();
+    expect(find.textContaining('Resend code in'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 2));
+    await tester.tap(find.widgetWithText(TextButton, 'Resend Code'));
+    await tester.pump();
+    expect(resendCount, 1);
+    expect(find.text('Code Resent'), findsOneWidget);
+  });
 
-      expect(
-        find.text('Password must contain at least 8 characters.'),
-        findsOneWidget,
-      );
+  testWidgets('Set new password validates both fields', (
+    WidgetTester tester,
+  ) async {
+    var saved = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: SetNewPasswordScreen(
+          purpose: SetNewPasswordPurpose.forgotPassword,
+          onSaved: () => saved = true,
+        ),
+      ),
+    );
 
-      await tester.enterText(fields.at(1), 'newPassword1');
-      await tester.enterText(fields.at(2), 'differentPassword');
-      await tapVisible(
-        tester,
-        find.widgetWithText(FilledButton, 'Update Password'),
-      );
-      await tester.pump();
+    await tester.tap(find.widgetWithText(FilledButton, 'Save New Password'));
+    await tester.pump();
+    expect(find.text('Please enter a new password.'), findsOneWidget);
 
-      expect(find.text('Passwords do not match.'), findsOneWidget);
-    },
-  );
+    final fields = find.byType(TextFormField);
+    await tester.enterText(fields.at(0), 'password123');
+    await tester.enterText(fields.at(1), 'password456');
+    await tester.tap(find.widgetWithText(FilledButton, 'Save New Password'));
+    await tester.pump();
+    expect(find.text('Passwords do not match.'), findsOneWidget);
 
-  testWidgets(
-    'Change Password with matching valid fields shows the success banner '
-    'and clears the form',
-    (WidgetTester tester) async {
-      tester.view.physicalSize = const Size(428, 2600);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-
-      await tester.pumpWidget(
-        MaterialApp(theme: AppTheme.light, home: const ChangePasswordScreen()),
-      );
-      await tester.pump();
-
-      final fields = find.byType(TextFormField);
-      await tester.enterText(fields.at(0), 'currentPass1');
-      await tester.enterText(fields.at(1), 'newPassword1');
-      await tester.enterText(fields.at(2), 'newPassword1');
-      await tapVisible(
-        tester,
-        find.widgetWithText(FilledButton, 'Update Password'),
-      );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 600));
-
-      expect(find.text('Password Updated'), findsOneWidget);
-      for (final field in tester.widgetList<TextFormField>(fields)) {
-        expect(field.controller?.text, isEmpty);
-      }
-    },
-  );
+    await tester.enterText(fields.at(1), 'password123');
+    await tester.tap(find.widgetWithText(FilledButton, 'Save New Password'));
+    await tester.pump(const Duration(seconds: 1));
+    expect(saved, isTrue);
+  });
 }

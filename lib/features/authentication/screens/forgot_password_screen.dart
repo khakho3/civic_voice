@@ -7,12 +7,12 @@ import 'package:civic_voice/features/authentication/widgets/auth_presentation.da
 enum ForgotPasswordViewState {
   ready,
   disabled,
-  emailNotFound,
+  phoneNotFound,
   passwordResetSuccess,
   recoveryError,
   loading,
   validationError,
-  resetLinkSent,
+  codeSent,
   offline,
 }
 
@@ -22,13 +22,13 @@ class ForgotPasswordScreen extends StatefulWidget {
     super.key,
     this.state = ForgotPasswordViewState.ready,
     this.onBack,
-    this.onSendResetLink,
+    this.onSendCode,
     this.onBackToLogin,
   });
 
   final ForgotPasswordViewState state;
   final VoidCallback? onBack;
-  final ValueChanged<String>? onSendResetLink;
+  final ValueChanged<String>? onSendCode;
   final VoidCallback? onBackToLogin;
 
   @override
@@ -37,7 +37,7 @@ class ForgotPasswordScreen extends StatefulWidget {
 
 class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
+  final _phoneController = TextEditingController();
 
   bool get _isLoading => widget.state == ForgotPasswordViewState.loading;
 
@@ -46,26 +46,26 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       widget.state == ForgotPasswordViewState.offline ||
       widget.state == ForgotPasswordViewState.loading ||
       widget.state == ForgotPasswordViewState.passwordResetSuccess ||
-      widget.state == ForgotPasswordViewState.resetLinkSent;
+      widget.state == ForgotPasswordViewState.codeSent;
 
-  bool get _showEmailNotFound =>
-      widget.state == ForgotPasswordViewState.emailNotFound;
+  bool get _showPhoneNotFound =>
+      widget.state == ForgotPasswordViewState.phoneNotFound;
 
   bool get _showValidationError =>
       widget.state == ForgotPasswordViewState.validationError;
 
   bool get _showStatusPanel =>
-      widget.state == ForgotPasswordViewState.emailNotFound ||
+      widget.state == ForgotPasswordViewState.phoneNotFound ||
       widget.state == ForgotPasswordViewState.passwordResetSuccess ||
       widget.state == ForgotPasswordViewState.recoveryError ||
       widget.state == ForgotPasswordViewState.loading ||
       widget.state == ForgotPasswordViewState.validationError ||
-      widget.state == ForgotPasswordViewState.resetLinkSent ||
+      widget.state == ForgotPasswordViewState.codeSent ||
       widget.state == ForgotPasswordViewState.offline;
 
   @override
   void dispose() {
-    _emailController.dispose();
+    _phoneController.dispose();
     super.dispose();
   }
 
@@ -77,7 +77,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     final isValid = _formKey.currentState?.validate() ?? false;
 
     if (isValid) {
-      widget.onSendResetLink?.call(_emailController.text.trim());
+      widget.onSendCode?.call(_phoneController.text.trim());
     }
   }
 
@@ -90,37 +90,30 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         onBack: widget.onBack,
         title: 'Forgot Password',
         supportingText:
-            'Enter your email address and we will send '
-            'a secure password reset link.',
+            'Enter your phone number and we will send a verification code.',
         form: Form(
           key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Email Address', style: theme.textTheme.labelMedium),
+              Text('Phone Number', style: theme.textTheme.labelMedium),
               const SizedBox(height: AppSpacing.sm),
               TextFormField(
-                controller: _emailController,
+                controller: _phoneController,
                 enabled: !_isDisabled,
-                keyboardType: TextInputType.emailAddress,
+                keyboardType: TextInputType.phone,
                 textInputAction: TextInputAction.done,
-                autofillHints: const [AutofillHints.email],
+                autofillHints: const [AutofillHints.telephoneNumber],
                 onFieldSubmitted: (_) => _submitForm(),
                 decoration: authInputDecoration(
                   context,
-                  hintText: 'e.g. name@example.com',
-                  prefixIcon: AppIcons.email,
-                  errorText: _emailErrorText,
+                  hintText: 'Enter your phone number',
+                  prefixIcon: AppIcons.phone,
+                  errorText: _phoneErrorText,
                 ),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
-                    return 'Please enter your email address.';
-                  }
-
-                  final emailPattern = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
-
-                  if (!emailPattern.hasMatch(value.trim())) {
-                    return 'Please enter a valid email address.';
+                    return 'Please enter your phone number.';
                   }
 
                   return null;
@@ -149,7 +142,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       : const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text('Send Reset Link'),
+                            Text('Send Code'),
                             SizedBox(width: AppSpacing.sm),
                             Icon(AppIcons.chevronRight, size: AppIconSize.md),
                           ],
@@ -174,20 +167,20 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     );
   }
 
-  String? get _emailErrorText {
-    if (_showEmailNotFound) {
-      return 'No account matches this email.';
+  String? get _phoneErrorText {
+    if (_showPhoneNotFound) {
+      return 'No account matches this phone number.';
     }
 
     if (_showValidationError) {
-      return 'Enter a valid email address.';
+      return 'Enter a phone number to continue.';
     }
 
     return null;
   }
 }
 
-/// Status panel displayed below the Send Reset Link button.
+/// Status panel displayed below the Send Code button.
 class _ForgotPasswordStatusPanel extends StatelessWidget {
   const _ForgotPasswordStatusPanel({required this.state});
 
@@ -208,9 +201,9 @@ class _ForgotPasswordStatusPanel extends StatelessWidget {
     late final IconData icon;
     late final Color statusColor;
 
-    if (state == ForgotPasswordViewState.emailNotFound) {
-      title = 'Email Not Found';
-      message = 'We could not find an account with this email.';
+    if (state == ForgotPasswordViewState.phoneNotFound) {
+      title = 'Phone Not Found';
+      message = 'No account matches this phone number.';
       icon = AppIcons.error;
       statusColor = semanticColors.error;
     } else if (state == ForgotPasswordViewState.passwordResetSuccess) {
@@ -224,23 +217,23 @@ class _ForgotPasswordStatusPanel extends StatelessWidget {
       icon = AppIcons.error;
       statusColor = semanticColors.error;
     } else if (state == ForgotPasswordViewState.loading) {
-      title = 'Sending reset link';
-      message = 'Please wait while we send your password reset email.';
+      title = 'Sending Code';
+      message = 'Please wait while we send your verification code.';
       icon = AppIcons.info;
       statusColor = semanticColors.info;
     } else if (state == ForgotPasswordViewState.validationError) {
       title = 'Validation Error';
-      message = 'Enter a valid email address to continue.';
+      message = 'Enter a phone number to continue.';
       icon = AppIcons.error;
       statusColor = semanticColors.error;
-    } else if (state == ForgotPasswordViewState.resetLinkSent) {
-      title = 'Reset Link Sent';
-      message = 'Check your inbox for password reset instructions.';
+    } else if (state == ForgotPasswordViewState.codeSent) {
+      title = 'Code Sent';
+      message = 'Check your messages for a verification code.';
       icon = AppIcons.success;
       statusColor = semanticColors.success;
     } else if (state == ForgotPasswordViewState.offline) {
       title = 'You are Offline';
-      message = 'Reconnect before requesting a reset link.';
+      message = 'Reconnect before requesting a code.';
       icon = AppIcons.offline;
       statusColor = semanticColors.warning;
     } else {
