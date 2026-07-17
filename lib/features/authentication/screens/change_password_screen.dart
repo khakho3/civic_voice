@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import 'package:civic_voice/core/theme/app_theme.dart';
 import 'package:civic_voice/features/authentication/screens/otp_verification_screen.dart';
 import 'package:civic_voice/features/authentication/widgets/auth_presentation.dart';
 import 'package:civic_voice/features/authentication/widgets/set_new_password_form.dart';

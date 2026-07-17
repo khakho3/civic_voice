@@ -233,6 +233,7 @@ class _MinistryProfileScreenState extends State<MinistryProfileScreen> {
                                   emailController: _emailController,
                                   phoneController: _phoneController,
                                   fieldErrors: _fieldErrors,
+                                  onChangePassword: widget.onChangePassword,
                                   onLogOut: _confirmLogOut,
                                 ),
                               _ => _ProfileBody(
@@ -241,6 +242,7 @@ class _MinistryProfileScreenState extends State<MinistryProfileScreen> {
                                 showSuccessBanner:
                                     _state == MinistryProfileViewState.success,
                                 onEditPersonalInfo: _startEditing,
+                                onChangePassword: widget.onChangePassword,
                                 onLogOut: _confirmLogOut,
                               ),
                             },
@@ -356,6 +358,7 @@ class _ProfileBody extends StatelessWidget {
     this.phoneController,
     this.fieldErrors = const {},
     this.onEditPersonalInfo,
+    this.onChangePassword,
     this.onLogOut,
   });
 
@@ -366,6 +369,7 @@ class _ProfileBody extends StatelessWidget {
   final TextEditingController? emailController;
   final TextEditingController? phoneController;
   final Map<String, String> fieldErrors;
+  final VoidCallback? onChangePassword;
   final VoidCallback? onEditPersonalInfo;
   final VoidCallback? onLogOut;
 
@@ -407,7 +411,7 @@ class _ProfileBody extends StatelessWidget {
               _ActionRow(
                 icon: AppIcons.security,
                 label: 'Change Password',
-                onTap: widget.onChangePassword,
+                onTap: onChangePassword,
               ),
               const Divider(height: AppSpacing.lg),
               _ActionRow(

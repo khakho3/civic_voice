@@ -158,17 +158,32 @@ void main() {
       await tester.tap(policy);
       await tester.pump();
 
+      // Two pumps for each Navigator transition below: the first lets the
+      // tap's synchronous onPressed (which calls Navigator.push/
+      // pushNamedAndRemoveUntil) actually run, the second advances the
+      // route's transition animation to completion.
       final createAccount = find.widgetWithText(FilledButton, 'Create Account');
       await tester.ensureVisible(createAccount);
       await tester.tap(createAccount);
+      await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
       expect(find.byType(OtpVerificationScreen), findsOneWidget);
 
-      await tester.enterText(find.byType(TextField), '123456');
+      // The Registration route stays mounted underneath the pushed OTP
+      // route (Navigator.push doesn't pop it), so a bare find.byType(TextField)
+      // would also match its own fields — scope to the OTP screen's subtree.
+      await tester.enterText(
+        find.descendant(
+          of: find.byType(OtpVerificationScreen),
+          matching: find.byType(TextField),
+        ),
+        '123456',
+      );
       await tester.pump();
       await tester.tap(find.widgetWithText(FilledButton, 'Verify Code'));
       await tester.pump(const Duration(seconds: 1));
+      await tester.pump();
 
       expect(find.byType(CitizenDashboardScreen), findsOneWidget);
     },

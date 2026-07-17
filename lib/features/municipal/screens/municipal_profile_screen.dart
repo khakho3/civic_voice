@@ -165,12 +165,15 @@ class _MunicipalProfileScreenState extends State<MunicipalProfileScreen> {
                         const _LoadingSkeleton(),
                       MunicipalProfileViewState.loaded => _ProfileView(
                         profile: _profile,
+                        onChangePassword: widget.onChangePassword,
                       ),
                       MunicipalProfileViewState.success => _ProfileView(
                         profile: _profile,
+                        onChangePassword: widget.onChangePassword,
                       ),
                       MunicipalProfileViewState.offline => _ProfileView(
                         profile: _profile,
+                        onChangePassword: widget.onChangePassword,
                       ),
                       MunicipalProfileViewState.editing ||
                       MunicipalProfileViewState.error => _ProfileEditForm(
@@ -299,9 +302,10 @@ class _SuccessBanner extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _ProfileView extends StatelessWidget {
-  const _ProfileView({required this.profile});
+  const _ProfileView({required this.profile, this.onChangePassword});
 
   final OfficerProfile profile;
+  final VoidCallback? onChangePassword;
 
   @override
   Widget build(BuildContext context) {
@@ -348,7 +352,7 @@ class _ProfileView extends StatelessWidget {
               icon: AppIcons.password,
               label: 'Change Password',
               caption: profile.passwordLastUpdatedLabel,
-              onTap: widget.onChangePassword,
+              onTap: onChangePassword,
             ),
             _ActionRow(
               icon: AppIcons.verify,
