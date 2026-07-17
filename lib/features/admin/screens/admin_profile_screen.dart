@@ -93,6 +93,7 @@ class AdminProfileScreen extends StatefulWidget {
     this.onNavigateToSettings,
     this.onNavigateToActivity,
     this.onChangePassword,
+    this.onNavigateToMaintenanceTeams,
     this.onSignOut,
     this.onNotificationsTap,
   });
@@ -112,6 +113,7 @@ class AdminProfileScreen extends StatefulWidget {
   final VoidCallback? onNavigateToSettings;
 
   final VoidCallback? onNavigateToActivity;
+  final VoidCallback? onNavigateToMaintenanceTeams;
 
   /// Opens the shared Change Password screen (AppRoutes.changePassword).
   final VoidCallback? onChangePassword;
@@ -199,9 +201,13 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
         if (tab == AdminTab.dashboard) widget.onNavigateToDashboard?.call();
         if (tab == AdminTab.users) widget.onNavigateToUsers?.call();
         if (tab == AdminTab.activity) widget.onNavigateToActivity?.call();
+        if (tab == AdminTab.maintenance) {
+          widget.onNavigateToMaintenanceTeams?.call();
+        }
         if (tab == AdminTab.settings) widget.onNavigateToSettings?.call();
       },
       onOpenRoleManagement: widget.onNavigateToRoles,
+      onOpenMaintenanceTeams: widget.onNavigateToMaintenanceTeams,
       body: switch (_state) {
         AdminProfileViewState.loading => const _LoadingSkeleton(),
         AdminProfileViewState.loaded => _ProfileBody(

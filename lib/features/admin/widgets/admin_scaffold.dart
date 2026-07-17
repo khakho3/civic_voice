@@ -25,6 +25,11 @@ enum AdminTab {
     icon: AppIcons.activityPulse,
     headerTitle: 'System Activity',
   ),
+  maintenance(
+    label: 'Teams',
+    icon: AppIcons.maintenanceTeam,
+    headerTitle: 'Maintenance Teams',
+  ),
   settings(
     label: 'Settings',
     icon: AppIcons.settings,
@@ -85,6 +90,7 @@ class AdminScaffold extends StatelessWidget {
     this.onNotificationsTap,
     this.onTabSelected,
     this.onOpenRoleManagement,
+    this.onOpenMaintenanceTeams,
     this.onOpenProfile,
     this.headerTitle,
     this.hideBottomNav = false,
@@ -124,6 +130,7 @@ class AdminScaffold extends StatelessWidget {
   /// now that it's no longer a bottom-nav tab (see [AdminTab]'s own doc
   /// comment for why).
   final VoidCallback? onOpenRoleManagement;
+  final VoidCallback? onOpenMaintenanceTeams;
 
   /// Opens ADM-008 Admin Profile — the drawer is its only entry point.
   final VoidCallback? onOpenProfile;
@@ -150,11 +157,15 @@ class AdminScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final keyboardVisible = MediaQuery.viewInsetsOf(context).bottom > 0;
+    final isSuperAdmin = AdminSession.instance.isSuperAdmin;
     return Scaffold(
-      drawer: _AdminDrawer(
-        onOpenRoleManagement: onOpenRoleManagement,
-        onOpenProfile: onOpenProfile,
-      ),
+      drawer: isSuperAdmin
+          ? _AdminDrawer(
+              onOpenRoleManagement: onOpenRoleManagement,
+              onOpenMaintenanceTeams: onOpenMaintenanceTeams,
+              onOpenProfile: onOpenProfile,
+            )
+          : null,
       body: GestureDetector(
         onTap: () => FocusScope.of(context).unfocus(),
         behavior: HitTestBehavior.translucent,
@@ -166,6 +177,7 @@ class AdminScaffold extends StatelessWidget {
               child: _Header(
                 tab: selectedTab,
                 onNotificationsTap: onNotificationsTap,
+                onOpenProfile: onOpenProfile,
                 titleOverride: headerTitle,
               ),
             ),
@@ -188,17 +200,22 @@ class _Header extends StatelessWidget {
   const _Header({
     required this.tab,
     this.onNotificationsTap,
+    this.onOpenProfile,
     this.titleOverride,
   });
 
   final AdminTab? tab;
   final VoidCallback? onNotificationsTap;
+  final VoidCallback? onOpenProfile;
   final String? titleOverride;
 
   @override
   Widget build(BuildContext context) {
     final semantic = Theme.of(context).extension<AppSemanticColors>()!;
     final textTheme = Theme.of(context).textTheme;
+    final isSuperAdmin = AdminSession.instance.isSuperAdmin;
+    final showNormalAdminBrand =
+        tab == AdminTab.dashboard && titleOverride == null;
     return GlassBar(
       border: Border(bottom: BorderSide(color: semantic.glassBorder)),
       child: SafeArea(
@@ -207,47 +224,77 @@ class _Header extends StatelessWidget {
           height: AppDimensions.headerHeight,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-            child: Row(
-              children: [
-                _IconButton(
-                  icon: AppIcons.menu,
-                  onPressed: () => Scaffold.of(context).openDrawer(),
-                  semantic: semantic,
-                ),
-                const SizedBox(width: AppSpacing.xs),
-                Expanded(
-                  child: tab == AdminTab.dashboard && titleOverride == null
-                      // A lone centered mark, not the full wordmark — the
-                      // hamburger and bell are equal-width, so centering
-                      // inside this Expanded lands the logo at the bar's
-                      // true midpoint. The "CivicVoice" wordmark now lives
-                      // only in the drawer, so it isn't shown twice at once
-                      // when the drawer opens over this header. Only the
-                      // literal Dashboard screen gets this treatment — a
-                      // drill-down that keeps Dashboard selected as its
-                      // parent tab (ADM-006 System Activity) still needs
-                      // its own text title, via [titleOverride].
-                      ? Center(
-                          child: Image.asset(
-                            AppAssets.logoApp,
-                            width: AppIconSize.xl,
-                            height: AppIconSize.xl,
-                          ),
-                        )
-                      : Text(
-                          titleOverride ?? tab?.headerTitle ?? '',
-                          style: textTheme.titleMedium,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                ),
-                _IconButton(
-                  icon: AppIcons.notifications,
-                  onPressed: onNotificationsTap,
-                  semantic: semantic,
-                ),
-              ],
-            ),
+            child: isSuperAdmin
+                ? Row(
+                    children: [
+                      _IconButton(
+                        icon: AppIcons.menu,
+                        onPressed: () => Scaffold.of(context).openDrawer(),
+                        semantic: semantic,
+                      ),
+                      const SizedBox(width: AppSpacing.xs),
+                      Expanded(
+                        child:
+                            tab == AdminTab.dashboard && titleOverride == null
+                            ? Center(
+                                child: Image.asset(
+                                  AppAssets.logoApp,
+                                  width: AppIconSize.xl,
+                                  height: AppIconSize.xl,
+                                ),
+                              )
+                            : Text(
+                                titleOverride ?? tab?.headerTitle ?? '',
+                                style: textTheme.titleMedium,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                      ),
+                      _IconButton(
+                        icon: AppIcons.notifications,
+                        onPressed: onNotificationsTap,
+                        semantic: semantic,
+                      ),
+                    ],
+                  )
+                : Row(
+                    children: [
+                      Expanded(
+                        child: showNormalAdminBrand
+                            ? Row(
+                                children: [
+                                  Image.asset(
+                                    AppAssets.logoApp,
+                                    width: AppIconSize.xl,
+                                    height: AppIconSize.xl,
+                                  ),
+                                  const SizedBox(width: AppSpacing.sm),
+                                  Expanded(
+                                    child: Text(
+                                      'CivicVoice',
+                                      style: textTheme.titleLarge?.copyWith(
+                                        color: AppColors.primary,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              )
+                            : Text(
+                                titleOverride ?? tab?.headerTitle ?? '',
+                                style: textTheme.titleMedium,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                      ),
+                      _IconButton(
+                        icon: AppIcons.profile,
+                        onPressed: onOpenProfile,
+                        semantic: semantic,
+                      ),
+                    ],
+                  ),
           ),
         ),
       ),
@@ -293,9 +340,14 @@ class _IconButton extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _AdminDrawer extends StatelessWidget {
-  const _AdminDrawer({this.onOpenRoleManagement, this.onOpenProfile});
+  const _AdminDrawer({
+    this.onOpenRoleManagement,
+    this.onOpenMaintenanceTeams,
+    this.onOpenProfile,
+  });
 
   final VoidCallback? onOpenRoleManagement;
+  final VoidCallback? onOpenMaintenanceTeams;
   final VoidCallback? onOpenProfile;
 
   @override
@@ -338,6 +390,17 @@ class _AdminDrawer extends StatelessWidget {
                     : () {
                         Navigator.of(context).pop();
                         onOpenRoleManagement!();
+                      },
+              ),
+            if (AdminSession.instance.canManageTeams)
+              _DrawerItem(
+                icon: AppIcons.maintenanceTeam,
+                label: 'Maintenance Teams',
+                onTap: onOpenMaintenanceTeams == null
+                    ? null
+                    : () {
+                        Navigator.of(context).pop();
+                        onOpenMaintenanceTeams!();
                       },
               ),
             _DrawerItem(
@@ -395,8 +458,18 @@ class _BottomNav extends StatelessWidget {
     // — an assembly Admin gets their own region-scoped audit feed there,
     // just not the national health readout Super Admin also sees on it.
     final visibleTabs = AdminSession.instance.isSuperAdmin
-        ? AdminTab.values
-        : AdminTab.values.where((t) => t != AdminTab.settings).toList();
+        ? const [
+            AdminTab.dashboard,
+            AdminTab.users,
+            AdminTab.activity,
+            AdminTab.settings,
+          ]
+        : const [
+            AdminTab.dashboard,
+            AdminTab.users,
+            AdminTab.activity,
+            AdminTab.maintenance,
+          ];
     return GlassBar(
       border: Border(top: BorderSide(color: semantic.glassBorder)),
       child: SafeArea(
@@ -415,7 +488,8 @@ class _BottomNav extends StatelessWidget {
                       onTap: onSelected == null ? null : () => onSelected!(tab),
                     ),
                   ),
-                  if (tab != visibleTabs.last) const SizedBox(width: AppSpacing.sm),
+                  if (tab != visibleTabs.last)
+                    const SizedBox(width: AppSpacing.sm),
                 ],
               ],
             ),

@@ -71,6 +71,7 @@ class AdminRoleManagementScreen extends StatefulWidget {
     this.onNavigateToUsers,
     this.onNavigateToSettings,
     this.onNavigateToActivity,
+    this.onNavigateToMaintenanceTeams,
     this.onOpenProfile,
     this.onNotificationsTap,
   });
@@ -86,6 +87,7 @@ class AdminRoleManagementScreen extends StatefulWidget {
   /// Logs" destination, same shared-destination pattern as Dashboard's
   /// Activity Monitoring card.
   final VoidCallback? onNavigateToActivity;
+  final VoidCallback? onNavigateToMaintenanceTeams;
 
   /// Forwarded to [AdminScaffold]'s drawer.
   final VoidCallback? onOpenProfile;
@@ -119,8 +121,12 @@ class _AdminRoleManagementScreenState extends State<AdminRoleManagementScreen> {
         if (tab == AdminTab.dashboard) widget.onNavigateToDashboard?.call();
         if (tab == AdminTab.users) widget.onNavigateToUsers?.call();
         if (tab == AdminTab.activity) widget.onNavigateToActivity?.call();
+        if (tab == AdminTab.maintenance) {
+          widget.onNavigateToMaintenanceTeams?.call();
+        }
         if (tab == AdminTab.settings) widget.onNavigateToSettings?.call();
       },
+      onOpenMaintenanceTeams: widget.onNavigateToMaintenanceTeams,
       onOpenProfile: widget.onOpenProfile,
       body: switch (_state) {
         AdminRoleManagementViewState.loading => const _LoadingSkeleton(),

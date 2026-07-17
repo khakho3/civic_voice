@@ -3,15 +3,19 @@ import 'package:flutter/material.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_controller.dart';
 import 'features/admin/models/admin_user_management_data.dart';
+import 'features/admin/models/admin_maintenance_team_data.dart';
 import 'features/admin/screens/admin_create_user_screen.dart';
 import 'features/admin/screens/admin_dashboard_screen.dart';
+import 'features/admin/screens/admin_maintenance_teams_screen.dart';
 import 'features/admin/screens/admin_profile_screen.dart' as admin;
 import 'features/admin/screens/admin_role_management_screen.dart';
 import 'features/admin/screens/admin_system_activity_screen.dart';
 import 'features/admin/screens/admin_system_settings_screen.dart';
 import 'features/admin/screens/admin_user_details_screen.dart';
 import 'features/admin/screens/admin_user_management_screen.dart';
+import 'features/admin/services/admin_maintenance_team_directory.dart';
 import 'features/admin/services/admin_session.dart';
+import 'features/admin/services/admin_user_directory.dart';
 import 'features/authentication/screens/change_password_screen.dart';
 import 'features/authentication/screens/forgot_password_screen.dart';
 import 'features/authentication/screens/login_screen.dart';
@@ -109,6 +113,9 @@ abstract final class AppRoutes {
   static const adminUserManagement = '/admin/user-management';
   static const adminUserDetails = '/admin/user-details';
   static const adminCreateUser = '/admin/create-user';
+  static const adminMaintenanceTeams = '/admin/maintenance-teams';
+  static const adminMaintenanceTeamDetails = '/admin/maintenance-team-details';
+  static const adminMaintenanceTeamForm = '/admin/maintenance-team-form';
   static const adminRoleManagement = '/admin/role-management';
   static const adminSystemActivity = '/admin/system-activity';
   static const adminSystemSettings = '/admin/system-settings';
@@ -264,6 +271,22 @@ class CivicVoiceApp extends StatelessWidget {
               _adminUserFromSettings(ModalRoute.of(context)?.settings),
             ),
             AppRoutes.adminCreateUser: _adminCreateUser,
+            AppRoutes.adminMaintenanceTeams: _adminMaintenanceTeams,
+            AppRoutes.adminMaintenanceTeamForm: (context) =>
+                _adminMaintenanceTeamForm(
+                  context,
+                  _maintenanceTeamFromSettings(
+                    ModalRoute.of(context)?.settings,
+                    optional: true,
+                  ),
+                ),
+            AppRoutes.adminMaintenanceTeamDetails: (context) =>
+                _adminMaintenanceTeamDetails(
+                  context,
+                  _maintenanceTeamFromSettings(
+                    ModalRoute.of(context)?.settings,
+                  )!,
+                ),
             AppRoutes.ministryDashboard: _ministryDashboard,
             AppRoutes.ministryReports: _ministryReports,
             AppRoutes.ministryReportInsights: _ministryReportInsights,
@@ -313,6 +336,24 @@ class CivicVoiceApp extends StatelessWidget {
                 builder: (context) => _adminUserDetails(
                   context,
                   _adminUserFromSettings(settings),
+                ),
+              );
+            }
+            if (uri?.path == AppRoutes.adminMaintenanceTeamForm) {
+              return MaterialPageRoute<void>(
+                settings: settings,
+                builder: (context) => _adminMaintenanceTeamForm(
+                  context,
+                  _maintenanceTeamFromSettings(settings, optional: true),
+                ),
+              );
+            }
+            if (uri?.path == AppRoutes.adminMaintenanceTeamDetails) {
+              return MaterialPageRoute<void>(
+                settings: settings,
+                builder: (context) => _adminMaintenanceTeamDetails(
+                  context,
+                  _maintenanceTeamFromSettings(settings)!,
                 ),
               );
             }
@@ -442,7 +483,7 @@ AdminUserItem _adminUserFromSettings(RouteSettings? settings) {
   final argument = settings?.arguments;
   if (argument is AdminUserItem) return argument;
 
-  final users = mockAdminUsers();
+  final users = AdminUserDirectory.instance.users.value;
   final uri = Uri.tryParse(settings?.name ?? '');
   final userId = uri?.queryParameters['userId'];
   if (userId != null) {
@@ -451,6 +492,47 @@ AdminUserItem _adminUserFromSettings(RouteSettings? settings) {
     }
   }
   return users.first;
+}
+
+void _pushAdminMaintenanceTeamDetails(
+  BuildContext context,
+  MaintenanceTeam team,
+) {
+  final route = Uri(
+    path: AppRoutes.adminMaintenanceTeamDetails,
+    queryParameters: {'teamId': team.teamId},
+  ).toString();
+  Navigator.of(context).pushNamed(route, arguments: team);
+}
+
+void _pushAdminMaintenanceTeamForm(
+  BuildContext context, [
+  MaintenanceTeam? team,
+]) {
+  final route = team == null
+      ? AppRoutes.adminMaintenanceTeamForm
+      : Uri(
+          path: AppRoutes.adminMaintenanceTeamForm,
+          queryParameters: {'teamId': team.teamId},
+        ).toString();
+  Navigator.of(context).pushNamed(route, arguments: team);
+}
+
+MaintenanceTeam? _maintenanceTeamFromSettings(
+  RouteSettings? settings, {
+  bool optional = false,
+}) {
+  final argument = settings?.arguments;
+  if (argument is MaintenanceTeam) return argument;
+
+  final uri = Uri.tryParse(settings?.name ?? '');
+  final teamId = uri?.queryParameters['teamId'];
+  if (teamId != null) {
+    final team = MaintenanceTeamDirectory.instance.teamById(teamId);
+    if (team != null) return team;
+  }
+  if (optional) return null;
+  return MaintenanceTeamDirectory.instance.teams.value.first;
 }
 
 Widget _adminDashboard(BuildContext context) {
@@ -465,6 +547,8 @@ Widget _adminDashboard(BuildContext context) {
           _replaceWith(context, AppRoutes.adminSystemSettings),
       onNavigateToActivity: () =>
           _replaceWith(context, AppRoutes.adminSystemActivity),
+      onNavigateToMaintenanceTeams: () =>
+          Navigator.of(context).pushNamed(AppRoutes.adminMaintenanceTeams),
       onOpenProfile: () =>
           Navigator.of(context).pushNamed(AppRoutes.adminProfile),
     ),
@@ -482,6 +566,8 @@ Widget _adminUserManagement(BuildContext context) {
     onOpenUserDetails: (user) => _pushAdminUserDetails(context, user),
     onNavigateToActivity: () =>
         _replaceWith(context, AppRoutes.adminSystemActivity),
+    onNavigateToMaintenanceTeams: () =>
+        Navigator.of(context).pushNamed(AppRoutes.adminMaintenanceTeams),
     onOpenProfile: () =>
         Navigator.of(context).pushNamed(AppRoutes.adminProfile),
     onCreateUser: () =>
@@ -501,6 +587,8 @@ Widget _adminCreateUser(BuildContext context) {
         _replaceWith(context, AppRoutes.adminSystemSettings),
     onNavigateToActivity: () =>
         _replaceWith(context, AppRoutes.adminSystemActivity),
+    onNavigateToMaintenanceTeams: () =>
+        Navigator.of(context).pushNamed(AppRoutes.adminMaintenanceTeams),
     onOpenProfile: () =>
         Navigator.of(context).pushNamed(AppRoutes.adminProfile),
   );
@@ -519,8 +607,77 @@ Widget _adminUserDetails(BuildContext context, AdminUserItem user) {
         _replaceWith(context, AppRoutes.adminSystemSettings),
     onNavigateToActivity: () =>
         _replaceWith(context, AppRoutes.adminSystemActivity),
+    onNavigateToMaintenanceTeams: () =>
+        Navigator.of(context).pushNamed(AppRoutes.adminMaintenanceTeams),
     onOpenProfile: () =>
         Navigator.of(context).pushNamed(AppRoutes.adminProfile),
+  );
+}
+
+Widget _adminMaintenanceTeams(BuildContext context) {
+  return AdminMaintenanceTeamsScreen(
+    initialState: AdminSession.instance.canManageTeams
+        ? AdminMaintenanceTeamsViewState.loaded
+        : AdminMaintenanceTeamsViewState.unauthorized,
+    onNavigateToDashboard: () =>
+        _replaceWith(context, AppRoutes.adminDashboard),
+    onNavigateToUsers: () =>
+        _replaceWith(context, AppRoutes.adminUserManagement),
+    onNavigateToRoles: () =>
+        Navigator.of(context).pushNamed(AppRoutes.adminRoleManagement),
+    onNavigateToSettings: () =>
+        _replaceWith(context, AppRoutes.adminSystemSettings),
+    onNavigateToActivity: () =>
+        _replaceWith(context, AppRoutes.adminSystemActivity),
+    onOpenProfile: () =>
+        Navigator.of(context).pushNamed(AppRoutes.adminProfile),
+    onCreateTeam: () => _pushAdminMaintenanceTeamForm(context),
+    onOpenTeamDetails: (team) =>
+        _pushAdminMaintenanceTeamDetails(context, team),
+  );
+}
+
+Widget _adminMaintenanceTeamForm(BuildContext context, MaintenanceTeam? team) {
+  return AdminMaintenanceTeamFormScreen(
+    team: team,
+    onNavigateToDashboard: () =>
+        _replaceWith(context, AppRoutes.adminDashboard),
+    onNavigateToUsers: () =>
+        _replaceWith(context, AppRoutes.adminUserManagement),
+    onNavigateToRoles: () =>
+        Navigator.of(context).pushNamed(AppRoutes.adminRoleManagement),
+    onNavigateToSettings: () =>
+        _replaceWith(context, AppRoutes.adminSystemSettings),
+    onNavigateToActivity: () =>
+        _replaceWith(context, AppRoutes.adminSystemActivity),
+    onOpenProfile: () =>
+        Navigator.of(context).pushNamed(AppRoutes.adminProfile),
+    onClose: () => _popOrReplaceWith(context, AppRoutes.adminMaintenanceTeams),
+  );
+}
+
+Widget _adminMaintenanceTeamDetails(
+  BuildContext context,
+  MaintenanceTeam team,
+) {
+  return AdminMaintenanceTeamDetailsScreen(
+    team: team,
+    onNavigateToDashboard: () =>
+        _replaceWith(context, AppRoutes.adminDashboard),
+    onNavigateToUsers: () =>
+        _replaceWith(context, AppRoutes.adminUserManagement),
+    onNavigateToRoles: () =>
+        Navigator.of(context).pushNamed(AppRoutes.adminRoleManagement),
+    onNavigateToSettings: () =>
+        _replaceWith(context, AppRoutes.adminSystemSettings),
+    onNavigateToActivity: () =>
+        _replaceWith(context, AppRoutes.adminSystemActivity),
+    onOpenProfile: () =>
+        Navigator.of(context).pushNamed(AppRoutes.adminProfile),
+    onBackToTeams: () =>
+        _popOrReplaceWith(context, AppRoutes.adminMaintenanceTeams),
+    onEditTeam: (team) => _pushAdminMaintenanceTeamForm(context, team),
+    onOpenUserDetails: (user) => _pushAdminUserDetails(context, user),
   );
 }
 
@@ -541,6 +698,8 @@ Widget _adminRoleManagement(BuildContext context) {
         _replaceWith(context, AppRoutes.adminSystemSettings),
     onNavigateToActivity: () =>
         _replaceWith(context, AppRoutes.adminSystemActivity),
+    onNavigateToMaintenanceTeams: () =>
+        Navigator.of(context).pushNamed(AppRoutes.adminMaintenanceTeams),
     onOpenProfile: () =>
         Navigator.of(context).pushNamed(AppRoutes.adminProfile),
   );
@@ -560,6 +719,8 @@ Widget _adminSystemActivity(BuildContext context) {
         Navigator.of(context).pushNamed(AppRoutes.adminRoleManagement),
     onNavigateToSettings: () =>
         _replaceWith(context, AppRoutes.adminSystemSettings),
+    onNavigateToMaintenanceTeams: () =>
+        Navigator.of(context).pushNamed(AppRoutes.adminMaintenanceTeams),
     onOpenProfile: () =>
         Navigator.of(context).pushNamed(AppRoutes.adminProfile),
   );
@@ -581,6 +742,8 @@ Widget _adminSystemSettings(BuildContext context) {
         Navigator.of(context).pushNamed(AppRoutes.adminRoleManagement),
     onNavigateToActivity: () =>
         _replaceWith(context, AppRoutes.adminSystemActivity),
+    onNavigateToMaintenanceTeams: () =>
+        Navigator.of(context).pushNamed(AppRoutes.adminMaintenanceTeams),
     onOpenProfile: () =>
         Navigator.of(context).pushNamed(AppRoutes.adminProfile),
   );
@@ -600,6 +763,8 @@ Widget _adminProfile(BuildContext context) {
         _replaceWith(context, AppRoutes.adminSystemActivity),
     onChangePassword: () =>
         Navigator.of(context).pushNamed(AppRoutes.changePassword),
+    onNavigateToMaintenanceTeams: () =>
+        Navigator.of(context).pushNamed(AppRoutes.adminMaintenanceTeams),
     onSignOut: () => Navigator.of(
       context,
     ).pushNamedAndRemoveUntil(AppRoutes.welcome, (_) => false),

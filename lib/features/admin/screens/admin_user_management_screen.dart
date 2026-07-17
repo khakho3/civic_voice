@@ -70,6 +70,7 @@ class AdminUserManagementScreen extends StatefulWidget {
     this.onNavigateToSettings,
     this.onOpenUserDetails,
     this.onNavigateToActivity,
+    this.onNavigateToMaintenanceTeams,
     this.onOpenProfile,
     this.onNotificationsTap,
     this.onCreateUser,
@@ -89,6 +90,8 @@ class AdminUserManagementScreen extends StatefulWidget {
   final ValueChanged<AdminUserItem>? onOpenUserDetails;
 
   final VoidCallback? onNavigateToActivity;
+
+  final VoidCallback? onNavigateToMaintenanceTeams;
 
   /// Forwarded to [AdminScaffold]'s drawer.
   final VoidCallback? onOpenProfile;
@@ -177,9 +180,13 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
       onTabSelected: (tab) {
         if (tab == AdminTab.dashboard) widget.onNavigateToDashboard?.call();
         if (tab == AdminTab.activity) widget.onNavigateToActivity?.call();
+        if (tab == AdminTab.maintenance) {
+          widget.onNavigateToMaintenanceTeams?.call();
+        }
         if (tab == AdminTab.settings) widget.onNavigateToSettings?.call();
       },
       onOpenRoleManagement: widget.onNavigateToRoles,
+      onOpenMaintenanceTeams: widget.onNavigateToMaintenanceTeams,
       onOpenProfile: widget.onOpenProfile,
       body: Stack(
         children: [

@@ -108,6 +108,7 @@ class AdminSystemActivityScreen extends StatefulWidget {
     this.onNavigateToUsers,
     this.onNavigateToRoles,
     this.onNavigateToSettings,
+    this.onNavigateToMaintenanceTeams,
     this.onOpenProfile,
     this.onNotificationsTap,
   });
@@ -121,6 +122,7 @@ class AdminSystemActivityScreen extends StatefulWidget {
   /// Opens ADM-004 Role Management via [AdminScaffold]'s drawer.
   final VoidCallback? onNavigateToRoles;
   final VoidCallback? onNavigateToSettings;
+  final VoidCallback? onNavigateToMaintenanceTeams;
 
   /// Forwarded to [AdminScaffold]'s drawer.
   final VoidCallback? onOpenProfile;
@@ -170,9 +172,13 @@ class _AdminSystemActivityScreenState extends State<AdminSystemActivityScreen> {
       onTabSelected: (tab) {
         if (tab == AdminTab.dashboard) widget.onNavigateToDashboard?.call();
         if (tab == AdminTab.users) widget.onNavigateToUsers?.call();
+        if (tab == AdminTab.maintenance) {
+          widget.onNavigateToMaintenanceTeams?.call();
+        }
         if (tab == AdminTab.settings) widget.onNavigateToSettings?.call();
       },
       onOpenRoleManagement: widget.onNavigateToRoles,
+      onOpenMaintenanceTeams: widget.onNavigateToMaintenanceTeams,
       onOpenProfile: widget.onOpenProfile,
       body: switch (_state) {
         AdminSystemActivityViewState.loading => const _LoadingSkeleton(),
