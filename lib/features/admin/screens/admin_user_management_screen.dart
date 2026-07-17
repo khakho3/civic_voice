@@ -485,6 +485,11 @@ class _UserList extends StatelessWidget {
     final filtered = users
         .where((u) => filter.matches(u) && u.matchesSearch(query))
         .toList();
+    // Distinguish "nothing here at all" (an assembly Admin whose assembly
+    // has no accounts provisioned yet) from "your search/filter excluded
+    // everyone" — the generic filter-mismatch copy reads as broken when
+    // the real reason is there was never anything to filter.
+    final scopeIsEmpty = users.isEmpty;
 
     return ListView(
       padding: EdgeInsets.fromLTRB(
@@ -494,7 +499,9 @@ class _UserList extends StatelessWidget {
         bottomInset + AppSpacing.xl,
       ),
       children: [
-        if (filtered.isEmpty)
+        if (scopeIsEmpty)
+          const _NoAccountsInScopeHint()
+        else if (filtered.isEmpty)
           _InlineEmptyHint(onClear: onClearFilters)
         else
           for (final user in filtered)
@@ -510,6 +517,52 @@ class _UserList extends StatelessWidget {
               ),
             ),
       ],
+    );
+  }
+}
+
+/// Shown instead of [_InlineEmptyHint] when the session's own visible
+/// scope (before search/filter chips are even applied) has zero accounts
+/// — a brand-new assembly Admin's own team, for instance. Distinct copy
+/// and icon so it reads as "nothing here yet," not "your search was too
+/// narrow."
+class _NoAccountsInScopeHint extends StatelessWidget {
+  const _NoAccountsInScopeHint();
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final colorScheme = Theme.of(context).colorScheme;
+    final session = AdminSession.instance;
+    final scopeLabel = session.isSuperAdmin
+        ? 'the system'
+        : session.assembly?.fullName ?? 'your assembly';
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
+      child: Column(
+        children: [
+          Icon(
+            AppIcons.team,
+            size: AppIconSize.lg,
+            color: colorScheme.onSurfaceVariant,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            'No accounts in $scopeLabel yet.',
+            style: textTheme.bodyMedium,
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            'Use the + button to add the first one.',
+            style: textTheme.bodySmall?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
     );
   }
 }
@@ -633,32 +686,29 @@ class _UserCard extends StatelessWidget {
           const SizedBox(height: AppSpacing.sm),
           Row(
             children: [
-              Expanded(
-                // Wrap, not a plain Row: some role labels ("Municipal
-                // Officer", "Ministry Supervisor") are long enough on a
-                // narrow phone that forcing both pills onto one line would
-                // overflow — letting the status pill flow to a second line
-                // keeps everything readable instead. Its own row (full
-                // card width, not squeezed next to the avatar) so it has
-                // the room those longer labels need.
-                child: Wrap(
-                  spacing: AppSpacing.xs,
-                  runSpacing: AppSpacing.xs,
-                  children: [
-                    _Pill(
-                      icon: user.role.icon,
-                      label: user.role.label,
-                      color: AppColors.primary,
-                    ),
-                    _Pill(label: user.status.label, color: user.status.color),
-                  ],
-                ),
-              ),
+              // Role is a stable identity attribute, not a status — shown
+              // as plain icon+text rather than a second colored pill, so
+              // the one pill that's left (Account Status) actually reads
+              // as "this can change" instead of getting lost among
+              // several same-looking badges.
               Icon(
-                AppIcons.chevronRight,
+                user.role.icon,
                 size: AppIconSize.sm,
                 color: colorScheme.onSurfaceVariant,
               ),
+              const SizedBox(width: AppSpacing.xs),
+              Expanded(
+                child: Text(
+                  user.role.label,
+                  style: textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              _Pill(label: user.status.label, color: user.status.color),
             ],
           ),
         ],
@@ -668,9 +718,8 @@ class _UserCard extends StatelessWidget {
 }
 
 class _Pill extends StatelessWidget {
-  const _Pill({this.icon, required this.label, required this.color});
+  const _Pill({required this.label, required this.color});
 
-  final IconData? icon;
   final String label;
   final Color color;
 
@@ -685,24 +734,11 @@ class _Pill extends StatelessWidget {
         color: color.withValues(alpha: 0.12),
         borderRadius: AppRadius.allXl,
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (icon != null) ...[
-            Icon(icon, size: AppIconSize.sm, color: color),
-            const SizedBox(width: 4),
-          ],
-          Flexible(
-            child: Text(
-              label,
-              style: Theme.of(
-                context,
-              ).textTheme.labelSmall?.copyWith(color: color),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(color: color),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
       ),
     );
   }

@@ -143,6 +143,24 @@ class _AdminCreateUserScreenState extends State<AdminCreateUserScreen> {
     widget.onNavigateToUsers?.call();
   }
 
+  Future<void> _handleCancel() async {
+    final hasInput =
+        _nameController.text.trim().isNotEmpty ||
+        _emailController.text.trim().isNotEmpty ||
+        _phoneController.text.trim().isNotEmpty;
+    if (hasInput) {
+      final confirmed = await showConfirmDialog(
+        context,
+        title: 'Discard this account?',
+        message: 'The details you\'ve entered so far will be lost.',
+        confirmLabel: 'Discard',
+        destructive: true,
+      );
+      if (!confirmed || !mounted) return;
+    }
+    widget.onNavigateToUsers?.call();
+  }
+
   @override
   Widget build(BuildContext context) {
     final session = AdminSession.instance;
@@ -275,7 +293,7 @@ class _AdminCreateUserScreenState extends State<AdminCreateUserScreen> {
             children: [
               Expanded(
                 child: OutlinedButton(
-                  onPressed: widget.onNavigateToUsers,
+                  onPressed: _handleCancel,
                   child: const Text('Cancel'),
                 ),
               ),

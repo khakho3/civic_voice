@@ -236,7 +236,11 @@ abstract final class AppLightTheme {
     navigationBarTheme: NavigationBarThemeData(
       backgroundColor: AppColorsLight.primarySurface,
       surfaceTintColor: Colors.transparent,
-      indicatorColor: AppColors.primary.withValues(alpha: 0.12),
+      // No filled indicator pill — active state is icon/label color+weight
+      // only, matching Citizen's hand-rolled bottom nav (the approved
+      // target style for every module's nav, including Maintenance's
+      // stock NavigationBar).
+      indicatorColor: Colors.transparent,
       elevation: AppElevation.level1,
       labelTextStyle: WidgetStateProperty.resolveWith((states) {
         final selected = states.contains(WidgetState.selected);

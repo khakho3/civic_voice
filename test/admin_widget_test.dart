@@ -74,7 +74,6 @@ void main() {
       // wordmark text — that now lives only in the drawer.
       expect(find.image(const AssetImage(AppAssets.logoApp)), findsOneWidget);
       expect(find.text('Platform Overview'), findsOneWidget);
-      expect(find.text('API Status: Online'), findsOneWidget);
 
       // "System Settings" labels only the Management row now — the top
       // CTA button was dropped as a redundant path to the same
@@ -279,7 +278,6 @@ void main() {
       expect(find.text('You\'re offline'), findsOneWidget);
       expect(find.text('Retry connection'), findsOneWidget);
       expect(find.text('Platform Overview'), findsOneWidget);
-      expect(find.text('API Status: Online'), findsOneWidget);
     },
   );
 
@@ -1427,14 +1425,11 @@ void main() {
 
       // System Activity is now its own bottom-nav tab (see [AdminTab]'s
       // own doc comment), so its "Activity" nav item renders selected —
-      // confirmed via the selected-tab fill color every other selected
-      // [AdminTab] nav item uses.
-      final activityTabMaterial = tester.widget<Material>(
-        find
-            .ancestor(of: find.text('Activity'), matching: find.byType(Material))
-            .first,
-      );
-      expect(activityTabMaterial.color, AppColors.primary);
+      // confirmed via the selected-tab text color every other selected
+      // nav item uses (a plain color/weight change, no filled background —
+      // matching Citizen's own bottom nav).
+      final activityLabel = tester.widget<Text>(find.text('Activity'));
+      expect(activityLabel.style?.color, AppColors.primary);
     },
   );
 
@@ -2112,6 +2107,11 @@ void main() {
       await tester.pump();
 
       await tester.tap(find.text('Cancel'));
+      await tester.pump();
+
+      // Cancel with unsaved changes confirms before discarding.
+      expect(find.text('Discard changes?'), findsOneWidget);
+      await tester.tap(find.text('Discard'));
       await tester.pump();
 
       expect(find.byType(TextFormField), findsNothing);

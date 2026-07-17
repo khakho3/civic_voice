@@ -11,6 +11,7 @@ import 'features/admin/screens/admin_system_activity_screen.dart';
 import 'features/admin/screens/admin_system_settings_screen.dart';
 import 'features/admin/screens/admin_user_details_screen.dart';
 import 'features/admin/screens/admin_user_management_screen.dart';
+import 'features/admin/services/admin_session.dart';
 import 'features/authentication/screens/forgot_password_screen.dart';
 import 'features/authentication/screens/login_screen.dart';
 import 'features/authentication/screens/profile_screen.dart' as auth;
@@ -516,6 +517,13 @@ Widget _adminUserDetails(BuildContext context, AdminUserItem user) {
 
 Widget _adminRoleManagement(BuildContext context) {
   return AdminRoleManagementScreen(
+    // An assembly Admin has no tiers to review — Role Management is a
+    // Super Admin-only screen. The drawer already hides its entry point
+    // for them; this is the fallback if the route is still reached
+    // directly (e.g. a stale deep link).
+    initialState: AdminSession.instance.isSuperAdmin
+        ? AdminRoleManagementViewState.loaded
+        : AdminRoleManagementViewState.unauthorized,
     onNavigateToDashboard: () =>
         _replaceWith(context, AppRoutes.adminDashboard),
     onNavigateToUsers: () =>
@@ -546,6 +554,12 @@ Widget _adminSystemActivity(BuildContext context) {
 
 Widget _adminSystemSettings(BuildContext context) {
   return AdminSystemSettingsScreen(
+    // An assembly Admin doesn't configure the platform — System Settings
+    // is Super Admin-only. The bottom nav already drops this tab for
+    // them; this is the fallback if the route is still reached directly.
+    initialState: AdminSession.instance.isSuperAdmin
+        ? AdminSystemSettingsViewState.loaded
+        : AdminSystemSettingsViewState.unauthorized,
     onNavigateToDashboard: () =>
         _replaceWith(context, AppRoutes.adminDashboard),
     onNavigateToUsers: () =>

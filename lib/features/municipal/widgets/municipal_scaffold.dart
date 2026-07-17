@@ -332,6 +332,9 @@ class _BottomNav extends StatelessWidget {
   }
 }
 
+/// Active state is a plain color/weight change — no filled pill background
+/// — matching Citizen's own bottom nav (`CivicBottomNav`'s `_BottomNavItem`),
+/// the approved target style for every module's nav.
 class _NavItem extends StatelessWidget {
   const _NavItem({required this.tab, required this.isSelected, this.onTap});
 
@@ -344,32 +347,29 @@ class _NavItem extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final foreground = isSelected
-        ? Colors.white
+        ? AppColors.primary
         : (isDark ? AppColorsDark.secondaryText : AppColorsLight.secondaryText);
 
-    // The selected pill is inset within the 80px bar (not edge-to-edge) —
-    // matches the approved Figma spec (80px bar containing a 64px pill) and
-    // Material 3's own indicator convention: a compact floating capsule,
-    // not a block that fills the whole nav bar height.
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-      child: Material(
-        color: isSelected ? AppColors.primary : Colors.transparent,
-        borderRadius: AppRadius.allLg,
-        child: InkWell(
-          borderRadius: AppRadius.allLg,
-          onTap: onTap,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(tab.icon, size: AppIconSize.md, color: foreground),
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                tab.label,
-                style: textTheme.labelMedium?.copyWith(color: foreground),
+    return InkWell(
+      borderRadius: AppRadius.allLg,
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(tab.icon, size: AppIconSize.md, color: foreground),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              tab.label,
+              style: textTheme.labelMedium?.copyWith(
+                color: foreground,
+                fontWeight: isSelected
+                    ? AppFontWeight.semiBold
+                    : AppFontWeight.medium,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

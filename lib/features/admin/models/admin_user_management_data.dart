@@ -224,7 +224,7 @@ List<AdminUserItem> mockAdminUsers() {
       lastSignIn: now.subtract(const Duration(hours: 3)),
       accountCreated: DateTime(2025, 2, 3),
       region: Region.greaterAccra,
-      assembly: ghanaAssemblies[Region.greaterAccra]!.first,
+      assembly: assemblyNamed(Region.greaterAccra, 'Accra'),
     ),
     AdminUserItem(
       name: 'Esi Owusu',
@@ -246,7 +246,7 @@ List<AdminUserItem> mockAdminUsers() {
       lastSignIn: now.subtract(const Duration(hours: 8, minutes: 40)),
       accountCreated: DateTime(2025, 1, 12),
       region: Region.ashanti,
-      assembly: ghanaAssemblies[Region.ashanti]!.first,
+      assembly: assemblyNamed(Region.ashanti, 'Kumasi'),
     ),
     AdminUserItem(
       name: 'Kwame Nyarko',
@@ -279,7 +279,7 @@ List<AdminUserItem> mockAdminUsers() {
       accountCreated: DateTime(2025, 4, 14),
       adminTier: AdminTier.admin,
       region: Region.ashanti,
-      assembly: ghanaAssemblies[Region.ashanti]!.first,
+      assembly: assemblyNamed(Region.ashanti, 'Kumasi'),
     ),
   ];
 }

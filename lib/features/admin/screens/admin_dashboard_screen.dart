@@ -4,6 +4,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../widgets/app_state_message.dart';
 import '../../../widgets/glass_card.dart';
 import '../models/admin_dashboard_data.dart';
+import '../services/admin_session.dart';
 import '../widgets/admin_scaffold.dart';
 
 /// ADM-001 — Admin Dashboard.
@@ -31,15 +32,20 @@ import '../widgets/admin_scaffold.dart';
 /// Default) while everything below it — stat cards, Management list, and
 /// Activity Monitoring — is replaced by a single [AppStateMessage].
 ///
-/// Two post-launch revisions on top of the approved frame:
+/// Post-launch revisions on top of the approved frame:
 /// - The top "System Settings" CTA button was dropped — it pointed at the
 ///   exact same destination as the Management row's own "System Settings"
 ///   entry, one screen down, with nothing distinguishing when you'd use
 ///   one over the other.
 /// - The subtitle ("Real-time metrics and system administrative
-///   summary.") was dropped, and the uptime badge ("System Live: 99.9%
-///   Uptime") was replaced with a plain API Status badge in that same
-///   spot — see [AdminDashboardData.apiStatusOnline]'s own doc comment.
+///   summary.") and the original uptime badge ("System Live: 99.9%
+///   Uptime") were both dropped outright rather than replaced — the
+///   badge was never backed by a real API health check and had no
+///   action tied to it either way, so it was dead weight, not a metric
+///   worth keeping in any form.
+/// - Role Management/System Settings' Management-row entries only render
+///   for a Super Admin session — an assembly Admin has neither to manage,
+///   see [AdminSession].
 enum AdminDashboardViewState { loading, loaded, offline, error, unauthorized }
 
 class AdminDashboardScreen extends StatefulWidget {
@@ -162,14 +168,7 @@ class _DashboardBody extends StatelessWidget {
       children: [
         Opacity(
           opacity: loaded ? 1 : 0.5,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Platform Overview', style: textTheme.headlineSmall),
-              const SizedBox(height: AppSpacing.sm),
-              _ApiStatusBadge(online: data.apiStatusOnline),
-            ],
-          ),
+          child: Text('Platform Overview', style: textTheme.headlineSmall),
         ),
         const SizedBox(height: AppSpacing.lg),
         switch (state) {
@@ -220,108 +219,6 @@ class _DashboardBody extends StatelessWidget {
           ),
         },
       ],
-    );
-  }
-}
-
-class _ApiStatusBadge extends StatelessWidget {
-  const _ApiStatusBadge({required this.online});
-
-  final bool online;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = online ? AppColors.statusResolved : AppColors.error;
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.xs,
-      ),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: AppRadius.allXl,
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _BreathingDot(color: color),
-          const SizedBox(width: AppSpacing.xs),
-          Flexible(
-            child: Text(
-              'API Status: ${online ? 'Online' : 'Offline'}',
-              style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                color: color,
-                fontWeight: AppFontWeight.semiBold,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// A slow, gentle opacity pulse on the API status dot — reads as an
-/// ambient "this is a live status, still updating" signal rather than the
-/// loading skeleton's much faster shimmer (that one signals "content is
-/// still arriving"; this one signals "content is current and alive").
-class _BreathingDot extends StatefulWidget {
-  const _BreathingDot({required this.color});
-
-  final Color color;
-
-  @override
-  State<_BreathingDot> createState() => _BreathingDotState();
-}
-
-class _BreathingDotState extends State<_BreathingDot>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1400),
-  )..repeat(reverse: true);
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final reduceMotion =
-        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
-    if (reduceMotion) {
-      return _Dot(opacity: 1, color: widget.color);
-    }
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, _) {
-        final opacity =
-            0.35 + (Curves.easeInOut.transform(_controller.value) * 0.65);
-        return _Dot(opacity: opacity, color: widget.color);
-      },
-    );
-  }
-}
-
-class _Dot extends StatelessWidget {
-  const _Dot({required this.opacity, required this.color});
-
-  final double opacity;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Opacity(
-      opacity: opacity,
-      child: Container(
-        width: 8,
-        height: 8,
-        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-      ),
     );
   }
 }
@@ -419,20 +316,26 @@ class _LoadedContent extends StatelessWidget {
           subtitle: 'Manage administrator and staff accounts',
           onTap: onNavigateToUsers,
         ),
-        const SizedBox(height: AppSpacing.sm),
-        _ManagementRow(
-          icon: AppIcons.roleManagement,
-          title: 'Role Management',
-          subtitle: 'Review privileges and access groups',
-          onTap: onNavigateToRoles,
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        _ManagementRow(
-          icon: AppIcons.settings,
-          title: 'System Settings',
-          subtitle: 'Governance-approved configuration',
-          onTap: onNavigateToSettings,
-        ),
+        // Role Management and System Settings are Super Admin-only — an
+        // assembly Admin has no tiers to review and no platform config to
+        // touch, so these rows are dropped for them rather than left as a
+        // tap-through to an Unauthorized screen.
+        if (AdminSession.instance.isSuperAdmin) ...[
+          const SizedBox(height: AppSpacing.sm),
+          _ManagementRow(
+            icon: AppIcons.roleManagement,
+            title: 'Role Management',
+            subtitle: 'Review privileges and access groups',
+            onTap: onNavigateToRoles,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          _ManagementRow(
+            icon: AppIcons.settings,
+            title: 'System Settings',
+            subtitle: 'Governance-approved configuration',
+            onTap: onNavigateToSettings,
+          ),
+        ],
         const SizedBox(height: AppSpacing.lg),
         GlassCard(
           onTap: onNavigateToActivity,

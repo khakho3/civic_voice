@@ -138,7 +138,17 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
     });
   }
 
-  void _cancelEdit() {
+  Future<void> _cancelEdit() async {
+    if (_draft != _original) {
+      final confirmed = await showConfirmDialog(
+        context,
+        title: 'Discard changes?',
+        message: 'Your unsaved profile changes will be lost.',
+        confirmLabel: 'Discard',
+        destructive: true,
+      );
+      if (!confirmed || !mounted) return;
+    }
     setState(() {
       _editing = false;
       _draft = _original;

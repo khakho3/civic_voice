@@ -1,266 +1,329 @@
 import 'assembly.dart';
 import 'region.dart';
 
-/// A **starter set** of Ghana's Metropolitan/Municipal/District Assemblies,
-/// keyed by [Region] — not the full ~261-assembly list. Ghana's exact MMDA
-/// roster has shifted over successive Legislative Instruments, so rather
-/// than risk embedding subtly wrong "official" data into a system meant to
-/// be pitched nationally, this ships 2-4 real, high-confidence assemblies
-/// per region (the regional capital plus a few well-known neighbours) and
-/// leaves the map trivially extensible.
+const _metro = AssemblyType.metropolitan;
+const _muni = AssemblyType.municipal;
+const _dist = AssemblyType.district;
+
+List<Assembly> _list(Region region, List<(String, AssemblyType)> items) => [
+  for (final (name, type) in items)
+    Assembly(name: name, type: type, region: region),
+];
+
+/// Looks up one specific assembly by its short [name] (e.g. "Accra",
+/// "Kumasi") within [region] — for mock/seed data that wants a
+/// recognizable assembly rather than whichever one [List.first] happens
+/// to land on.
+Assembly assemblyNamed(Region region, String name) =>
+    ghanaAssemblies[region]!.firstWhere((a) => a.name == name);
+
+/// Ghana's full roster of Metropolitan/Municipal/District Assemblies — all
+/// 261, across all 16 regions. Compiled from public sources (Wikipedia's
+/// "Districts of Ghana", cross-referenced against regional coordinating
+/// council directories) as of 2026-07; Ghana's MMDA roster shifts
+/// periodically via new Legislative Instruments (the most recent wave
+/// upgraded several districts to Municipal/Metropolitan status), so this
+/// is a snapshot, not a permanently-fixed list — re-verify against the
+/// Ministry of Local Government, Decentralisation and Rural Development
+/// before relying on it for anything beyond this app's own
+/// account-provisioning UI.
 ///
-/// **Before real deployment**: verify and expand this list against an
-/// authoritative source (Ghana's Ministry of Local Government, Decentralisation
-/// and Rural Development, or the Local Governance Act's assembly schedule).
+/// The "Municipal Officer" role name predates this full rollout and was
+/// picked because Municipal sits between District and Metropolitan, not
+/// because the role is restricted to Municipal-type assemblies — an
+/// officer at a District or Metropolitan assembly uses the same role.
 final Map<Region, List<Assembly>> ghanaAssemblies = {
-  Region.greaterAccra: const [
-    Assembly(
-      name: 'Accra',
-      type: AssemblyType.metropolitan,
-      region: Region.greaterAccra,
-    ),
-    Assembly(
-      name: 'Tema',
-      type: AssemblyType.metropolitan,
-      region: Region.greaterAccra,
-    ),
-    Assembly(
-      name: 'Ga West',
-      type: AssemblyType.municipal,
-      region: Region.greaterAccra,
-    ),
-    Assembly(
-      name: 'Ashaiman',
-      type: AssemblyType.municipal,
-      region: Region.greaterAccra,
-    ),
-  ],
-  Region.ashanti: const [
-    Assembly(
-      name: 'Kumasi',
-      type: AssemblyType.metropolitan,
-      region: Region.ashanti,
-    ),
-    Assembly(
-      name: 'Obuasi',
-      type: AssemblyType.municipal,
-      region: Region.ashanti,
-    ),
-    Assembly(
-      name: 'Ejisu',
-      type: AssemblyType.municipal,
-      region: Region.ashanti,
-    ),
-  ],
-  Region.western: const [
-    Assembly(
-      name: 'Sekondi-Takoradi',
-      type: AssemblyType.metropolitan,
-      region: Region.western,
-    ),
-    Assembly(
-      name: 'Ahanta West',
-      type: AssemblyType.municipal,
-      region: Region.western,
-    ),
-    Assembly(
-      name: 'Tarkwa-Nsuaem',
-      type: AssemblyType.municipal,
-      region: Region.western,
-    ),
-  ],
-  Region.westernNorth: const [
-    Assembly(
-      name: 'Sefwi Wiawso',
-      type: AssemblyType.municipal,
-      region: Region.westernNorth,
-    ),
-    Assembly(
-      name: 'Bibiani Anhwiaso Bekwai',
-      type: AssemblyType.municipal,
-      region: Region.westernNorth,
-    ),
-    Assembly(
-      name: 'Juaboso',
-      type: AssemblyType.district,
-      region: Region.westernNorth,
-    ),
-  ],
-  Region.central: const [
-    Assembly(
-      name: 'Cape Coast',
-      type: AssemblyType.metropolitan,
-      region: Region.central,
-    ),
-    Assembly(
-      name: 'Komenda-Edina-Eguafo-Abirem',
-      type: AssemblyType.municipal,
-      region: Region.central,
-    ),
-    Assembly(
-      name: 'Awutu Senya East',
-      type: AssemblyType.municipal,
-      region: Region.central,
-    ),
-  ],
-  Region.eastern: const [
-    Assembly(
-      name: 'New Juaben South',
-      type: AssemblyType.municipal,
-      region: Region.eastern,
-    ),
-    Assembly(
-      name: 'Suhum',
-      type: AssemblyType.municipal,
-      region: Region.eastern,
-    ),
-    Assembly(
-      name: 'Nsawam Adoagyiri',
-      type: AssemblyType.municipal,
-      region: Region.eastern,
-    ),
-  ],
-  Region.volta: const [
-    Assembly(name: 'Ho', type: AssemblyType.municipal, region: Region.volta),
-    Assembly(name: 'Keta', type: AssemblyType.municipal, region: Region.volta),
-    Assembly(
-      name: 'Hohoe',
-      type: AssemblyType.municipal,
-      region: Region.volta,
-    ),
-  ],
-  Region.oti: const [
-    Assembly(
-      name: 'Krachi East',
-      type: AssemblyType.municipal,
-      region: Region.oti,
-    ),
-    Assembly(
-      name: 'Nkwanta South',
-      type: AssemblyType.municipal,
-      region: Region.oti,
-    ),
-    Assembly(name: 'Kadjebi', type: AssemblyType.district, region: Region.oti),
-  ],
-  Region.northern: const [
-    Assembly(
-      name: 'Tamale',
-      type: AssemblyType.metropolitan,
-      region: Region.northern,
-    ),
-    Assembly(
-      name: 'Sagnarigu',
-      type: AssemblyType.municipal,
-      region: Region.northern,
-    ),
-    Assembly(
-      name: 'Yendi',
-      type: AssemblyType.municipal,
-      region: Region.northern,
-    ),
-  ],
-  Region.northEast: const [
-    Assembly(
-      name: 'East Mamprusi',
-      type: AssemblyType.municipal,
-      region: Region.northEast,
-    ),
-    Assembly(
-      name: 'Bunkpurugu Nyakpanduri',
-      type: AssemblyType.district,
-      region: Region.northEast,
-    ),
-  ],
-  Region.savannah: const [
-    Assembly(
-      name: 'West Gonja',
-      type: AssemblyType.municipal,
-      region: Region.savannah,
-    ),
-    Assembly(
-      name: 'Bole',
-      type: AssemblyType.district,
-      region: Region.savannah,
-    ),
-  ],
-  Region.upperEast: const [
-    Assembly(
-      name: 'Bolgatanga',
-      type: AssemblyType.municipal,
-      region: Region.upperEast,
-    ),
-    Assembly(
-      name: 'Bawku',
-      type: AssemblyType.municipal,
-      region: Region.upperEast,
-    ),
-    Assembly(
-      name: 'Kassena Nankana',
-      type: AssemblyType.municipal,
-      region: Region.upperEast,
-    ),
-  ],
-  Region.upperWest: const [
-    Assembly(
-      name: 'Wa',
-      type: AssemblyType.municipal,
-      region: Region.upperWest,
-    ),
-    Assembly(
-      name: 'Jirapa',
-      type: AssemblyType.municipal,
-      region: Region.upperWest,
-    ),
-    Assembly(
-      name: 'Nadowli-Kaleo',
-      type: AssemblyType.district,
-      region: Region.upperWest,
-    ),
-  ],
-  Region.bono: const [
-    Assembly(
-      name: 'Sunyani',
-      type: AssemblyType.municipal,
-      region: Region.bono,
-    ),
-    Assembly(
-      name: 'Berekum East',
-      type: AssemblyType.municipal,
-      region: Region.bono,
-    ),
-    Assembly(
-      name: 'Dormaa Central',
-      type: AssemblyType.municipal,
-      region: Region.bono,
-    ),
-  ],
-  Region.bonoEast: const [
-    Assembly(
-      name: 'Techiman',
-      type: AssemblyType.municipal,
-      region: Region.bonoEast,
-    ),
-    Assembly(
-      name: 'Kintampo North',
-      type: AssemblyType.municipal,
-      region: Region.bonoEast,
-    ),
-    Assembly(
-      name: 'Nkoranza South',
-      type: AssemblyType.municipal,
-      region: Region.bonoEast,
-    ),
-  ],
-  Region.ahafo: const [
-    Assembly(
-      name: 'Asunafo North',
-      type: AssemblyType.municipal,
-      region: Region.ahafo,
-    ),
-    Assembly(
-      name: 'Asutifi North',
-      type: AssemblyType.district,
-      region: Region.ahafo,
-    ),
-  ],
+  Region.ahafo: _list(Region.ahafo, const [
+    ('Asunafo North', _muni),
+    ('Asunafo South', _dist),
+    ('Asutifi North', _dist),
+    ('Asutifi South', _dist),
+    ('Tano North', _muni),
+    ('Tano South', _muni),
+  ]),
+  Region.ashanti: _list(Region.ashanti, const [
+    ('Adansi Asokwa', _dist),
+    ('Adansi North', _dist),
+    ('Adansi South', _dist),
+    ('Afigya-Kwabre North', _dist),
+    ('Afigya-Kwabre South', _dist),
+    ('Ahafo-Ano North', _muni),
+    ('Ahafo-Ano South East', _dist),
+    ('Ahafo-Ano South West', _dist),
+    ('Akrofuom', _dist),
+    ('Amansie Central', _dist),
+    ('Amansie West', _dist),
+    ('Amansie South', _dist),
+    ('Asante-Akim Central', _muni),
+    ('Asante-Akim North', _dist),
+    ('Asante-Akim South', _muni),
+    ('Asokore-Mampong', _muni),
+    ('Asokwa', _muni),
+    ('Atwima-Kwanwoma', _dist),
+    ('Atwima-Mponua', _dist),
+    ('Atwima-Nwabiagya', _muni),
+    ('Atwima-Nwabiagya North', _dist),
+    ('Bekwai', _muni),
+    ('Bosome Freho', _dist),
+    ('Bosomtwe', _dist),
+    ('Ejisu', _muni),
+    ('Ejura/Sekyedumase', _muni),
+    ('Juaben', _muni),
+    ('Kumasi', _metro),
+    ('Kwabre East', _muni),
+    ('Kwadaso', _muni),
+    ('Mampong', _muni),
+    ('Obuasi East', _muni),
+    ('Obuasi', _muni),
+    ('Offinso', _muni),
+    ('Offinso North', _dist),
+    ('Oforikrom', _muni),
+    ('Old Tafo', _muni),
+    ('Sekyere Afram Plains', _dist),
+    ('Sekyere Central', _dist),
+    ('Sekyere East', _dist),
+    ('Sekyere Kumawu', _dist),
+    ('Sekyere South', _dist),
+    ('Suame', _muni),
+  ]),
+  Region.bono: _list(Region.bono, const [
+    ('Banda', _dist),
+    ('Berekum East', _muni),
+    ('Berekum West', _dist),
+    ('Dormaa Central', _muni),
+    ('Dormaa East', _dist),
+    ('Dormaa West', _dist),
+    ('Jaman North', _dist),
+    ('Jaman South', _muni),
+    ('Sunyani', _muni),
+    ('Sunyani West', _dist),
+    ('Tain', _dist),
+    ('Wenchi', _muni),
+  ]),
+  Region.bonoEast: _list(Region.bonoEast, const [
+    ('Atebubu-Amantin', _muni),
+    ('Kintampo North', _muni),
+    ('Kintampo South', _dist),
+    ('Nkoranza North', _dist),
+    ('Nkoranza South', _muni),
+    ('Pru East', _dist),
+    ('Pru West', _dist),
+    ('Sene East', _dist),
+    ('Sene West', _dist),
+    ('Techiman', _muni),
+    ('Techiman North', _dist),
+  ]),
+  Region.central: _list(Region.central, const [
+    ('Abura/Asebu/Kwamankese', _dist),
+    ('Agona East', _dist),
+    ('Agona West', _muni),
+    ('Ajumako/Enyan/Essiam', _dist),
+    ('Asikuma Odoben Brakwa', _dist),
+    ('Assin Central', _muni),
+    ('Assin North', _dist),
+    ('Assin South', _dist),
+    ('Awutu Senya East', _muni),
+    ('Awutu Senya West', _dist),
+    ('Cape Coast', _metro),
+    ('Effutu', _muni),
+    ('Ekumfi', _dist),
+    ('Gomoa East', _dist),
+    ('Gomoa Central', _dist),
+    ('Gomoa West', _dist),
+    ('Komenda/Edina/Eguafo/Abirem', _muni),
+    ('Mfantsiman', _muni),
+    ('Twifo Atti Morkwa', _dist),
+    ('Twifo/Hemang/Lower Denkyira', _dist),
+    ('Upper Denkyira East', _muni),
+    ('Upper Denkyira West', _dist),
+  ]),
+  Region.eastern: _list(Region.eastern, const [
+    ('Abuakwa North', _muni),
+    ('Abuakwa South', _muni),
+    ('Achiase', _dist),
+    ('Akuapim North', _muni),
+    ('Akuapim South', _dist),
+    ('Akyemansa', _dist),
+    ('Asene Manso Akroso', _dist),
+    ('Asuogyaman', _dist),
+    ('Atiwa East', _dist),
+    ('Atiwa West', _dist),
+    ('Ayensuano', _dist),
+    ('Birim Central', _muni),
+    ('Birim North', _dist),
+    ('Birim South', _dist),
+    ('Denkyembour', _dist),
+    ('Fanteakwa North', _dist),
+    ('Fanteakwa South', _dist),
+    ('Kwaebibirem', _muni),
+    ('Kwahu Afram Plains North', _dist),
+    ('Kwahu Afram Plains South', _dist),
+    ('Kwahu East', _dist),
+    ('Kwahu South', _dist),
+    ('Kwahu West', _muni),
+    ('Lower Manya Krobo', _muni),
+    ('New Juaben North', _muni),
+    ('New Juaben South', _muni),
+    ('Nsawam Adoagyire', _muni),
+    ('Okere', _dist),
+    ('Suhum', _muni),
+    ('Upper Manya Krobo', _dist),
+    ('Upper West Akim', _dist),
+    ('West Akim', _muni),
+    ('Yilo-Krobo', _muni),
+  ]),
+  Region.greaterAccra: _list(Region.greaterAccra, const [
+    ('Ablekuma Central', _muni),
+    ('Ablekuma North', _muni),
+    ('Ablekuma West', _muni),
+    ('Accra', _metro),
+    ('Ada East', _dist),
+    ('Ada West', _dist),
+    ('Adenta', _muni),
+    ('Ashaiman', _muni),
+    ('Ayawaso Central', _muni),
+    ('Ayawaso East', _muni),
+    ('Ayawaso North', _muni),
+    ('Ayawaso West', _muni),
+    ('Ga Central', _muni),
+    ('Ga East', _muni),
+    ('Ga North', _muni),
+    ('Ga South', _muni),
+    ('Ga West', _muni),
+    ('Korle-Klottey', _muni),
+    ('Kpone-Katamanso', _muni),
+    ('Krowor', _muni),
+    ('La-Dade-Kotopon', _muni),
+    ('La-Nkwantanang-Madina', _muni),
+    ('Ledzokuku', _muni),
+    ('Ningo-Prampram', _dist),
+    ('Okaikwei North', _muni),
+    ('Shai-Osudoku', _dist),
+    ('Tema', _metro),
+    ('Tema West', _muni),
+    ('Weija Gbawe', _muni),
+  ]),
+  Region.northern: _list(Region.northern, const [
+    ('Gushegu', _muni),
+    ('Karaga', _dist),
+    ('Kpandai', _dist),
+    ('Kumbungu', _dist),
+    ('Mion', _dist),
+    ('Nanton', _dist),
+    ('Nanumba North', _muni),
+    ('Nanumba South', _dist),
+    ('Saboba', _dist),
+    ('Sagnarigu', _muni),
+    ('Savelugu', _muni),
+    ('Tamale', _metro),
+    ('Tatale Sanguli', _dist),
+    ('Tolon', _dist),
+    ('Yendi', _muni),
+    ('Zabzugu', _dist),
+  ]),
+  Region.northEast: _list(Region.northEast, const [
+    ('Bunkpurugu Nyankpanduri', _dist),
+    ('Chereponi', _dist),
+    ('East Mamprusi', _muni),
+    ('Mamprugu Moagduri', _dist),
+    ('West Mamprusi', _muni),
+    ('Yunyoo-Nasuan', _dist),
+  ]),
+  Region.oti: _list(Region.oti, const [
+    ('Biakoye', _dist),
+    ('Guan', _dist),
+    ('Jasikan', _muni),
+    ('Kadjebi', _dist),
+    ('Krachi East', _muni),
+    ('Krachi Nchumuru', _dist),
+    ('Krachi West', _muni),
+    ('Nkwanta North', _dist),
+    ('Nkwanta South', _muni),
+  ]),
+  Region.savannah: _list(Region.savannah, const [
+    ('Bole', _dist),
+    ('Central Gonja', _dist),
+    ('East Gonja', _muni),
+    ('North Gonja', _dist),
+    ('North East Gonja', _dist),
+    ('Sawla-Tuna-Kalba', _dist),
+    ('West Gonja', _muni),
+  ]),
+  Region.upperEast: _list(Region.upperEast, const [
+    ('Bawku', _muni),
+    ('Bawku West', _dist),
+    ('Binduri', _dist),
+    ('Bolgatanga East', _dist),
+    ('Bolgatanga', _muni),
+    ('Bongo', _dist),
+    ('Builsa North', _muni),
+    ('Builsa South', _dist),
+    ('Garu', _dist),
+    ('Kassena-Nankana', _muni),
+    ('Kassena-Nankana West', _dist),
+    ('Nabdam', _dist),
+    ('Pusiga', _dist),
+    ('Talensi', _dist),
+    ('Tempane', _dist),
+  ]),
+  Region.upperWest: _list(Region.upperWest, const [
+    ('Daffiama Bussie Issa', _dist),
+    ('Jirapa', _muni),
+    ('Lambussie Karni', _dist),
+    ('Lawra', _muni),
+    ('Nadowli-Kaleo', _dist),
+    ('Nandom', _muni),
+    ('Sissala East', _muni),
+    ('Sissala West', _dist),
+    ('Wa East', _dist),
+    ('Wa', _muni),
+    ('Wa West', _dist),
+  ]),
+  Region.volta: _list(Region.volta, const [
+    ('Adaklu', _dist),
+    ('Afadzato South', _dist),
+    ('Agotime Ziope', _dist),
+    ('Akatsi North', _dist),
+    ('Akatsi South', _dist),
+    ('Anloga', _dist),
+    ('Central Tongu', _dist),
+    ('Ho', _muni),
+    ('Ho West', _dist),
+    ('Hohoe', _muni),
+    ('Keta', _muni),
+    ('Ketu North', _muni),
+    ('Ketu South', _muni),
+    ('Kpando', _muni),
+    ('North Dayi', _dist),
+    ('North Tongu', _dist),
+    ('South Dayi', _dist),
+    ('South Tongu', _dist),
+  ]),
+  Region.western: _list(Region.western, const [
+    ('Ahanta West', _muni),
+    ('Amenfi Central', _dist),
+    ('Amenfi West', _muni),
+    ('Effia Kwesimintsim', _muni),
+    ('Ellembelle', _dist),
+    ('Jomoro', _muni),
+    ('Mpohor', _dist),
+    ('Nzema East', _muni),
+    ('Prestea-Huni Valley', _muni),
+    ('Sekondi Takoradi', _metro),
+    ('Shama', _dist),
+    ('Tarkwa-Nsuaem', _muni),
+    ('Wassa Amenfi East', _muni),
+    ('Wassa East', _dist),
+  ]),
+  Region.westernNorth: _list(Region.westernNorth, const [
+    ('Aowin', _muni),
+    ('Bia East', _dist),
+    ('Bia West', _dist),
+    ('Bibiani Anhwiaso Bekwai', _muni),
+    ('Bodi', _dist),
+    ('Juaboso', _dist),
+    ('Sefwi Akontombra', _dist),
+    ('Sefwi-Wiawso', _muni),
+    ('Suaman', _dist),
+  ]),
 };

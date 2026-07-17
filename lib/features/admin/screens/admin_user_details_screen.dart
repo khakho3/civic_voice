@@ -135,6 +135,28 @@ class _AdminUserDetailsScreenState extends State<AdminUserDetailsScreen> {
     });
   }
 
+  Future<void> _handleCancel() async {
+    final dirty =
+        _role != widget.user.role ||
+        _status != widget.user.status ||
+        _tier != widget.user.adminTier ||
+        _region != widget.user.region ||
+        _assembly != widget.user.assembly;
+    if (dirty) {
+      final confirmed = await showConfirmDialog(
+        context,
+        title: 'Discard changes?',
+        message:
+            'Unsaved changes to ${widget.user.name}\'s account will be '
+            'lost.',
+        confirmLabel: 'Discard',
+        destructive: true,
+      );
+      if (!confirmed || !mounted) return;
+    }
+    widget.onNavigateToUsers?.call();
+  }
+
   Future<void> _save() async {
     final session = AdminSession.instance;
     // A session that can't edit roles/deactivate accounts never changed
@@ -235,7 +257,7 @@ class _AdminUserDetailsScreenState extends State<AdminUserDetailsScreen> {
             _assembly = assembly;
             _showSuccess = false;
           }),
-          onCancel: widget.onNavigateToUsers,
+          onCancel: _handleCancel,
           onSave: _save,
         ),
         _ => Column(
