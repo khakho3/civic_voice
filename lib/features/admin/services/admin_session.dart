@@ -2,6 +2,7 @@ import '../../../models/app_role.dart';
 import '../../../models/assembly.dart';
 import '../../../models/region.dart';
 import '../../../services/mock_auth_service.dart';
+import '../models/admin_maintenance_team_data.dart';
 import '../models/admin_role_management_data.dart';
 import '../models/admin_user_management_data.dart';
 
@@ -43,7 +44,8 @@ class AdminSession {
 
   /// The [Region]/[Assembly] an [AdminTier.admin] session is scoped to —
   /// null for Super Admin (national, no jurisdiction of its own).
-  Region? get region => isSuperAdmin ? null : MockAuthService().getCurrentRegion();
+  Region? get region =>
+      isSuperAdmin ? null : MockAuthService().getCurrentRegion();
 
   Assembly? get assembly =>
       isSuperAdmin ? null : MockAuthService().getCurrentAssembly();
@@ -67,13 +69,17 @@ class AdminSession {
   /// and support their team, not promote/demote or reassign what module an
   /// account opens.
   bool get canEditUserRoles =>
-      isSuperAdmin || AdminTier.admin.permissions[PermissionType.editUserRoles]!;
+      isSuperAdmin ||
+      AdminTier.admin.permissions[PermissionType.editUserRoles]!;
 
   /// [AdminTier.admin]'s `deleteRecords: false` extended to account
   /// deactivation — the closest equivalent this app has to a destructive
   /// record change for a user account.
   bool get canDeactivateUsers =>
-      isSuperAdmin || AdminTier.admin.permissions[PermissionType.deleteRecords]!;
+      isSuperAdmin ||
+      AdminTier.admin.permissions[PermissionType.deleteRecords]!;
+
+  bool get canManageTeams => _role == AppRole.systemAdministrator;
 
   /// The subset of [users] this session is allowed to see. Super Admin sees
   /// every account; an assembly Admin sees only accounts provisioned within
@@ -89,4 +95,38 @@ class AdminSession {
           user,
     ];
   }
+
+  List<MaintenanceTeam> visibleTeams(List<MaintenanceTeam> teams) {
+    if (isSuperAdmin) return teams;
+    final ownAssembly = assembly;
+    if (ownAssembly == null) return const [];
+    return [
+      for (final team in teams)
+        if (_sameAssembly(team.assembly, ownAssembly)) team,
+    ];
+  }
+
+  bool canManageTeam(MaintenanceTeam team) {
+    if (!canManageTeams) return false;
+    if (isSuperAdmin) return true;
+    final ownAssembly = assembly;
+    return ownAssembly != null && _sameAssembly(team.assembly, ownAssembly);
+  }
+
+  List<AdminUserItem> eligibleMaintenanceMembers(
+    List<AdminUserItem> users,
+    Assembly teamAssembly,
+  ) {
+    return [
+      for (final user in users)
+        if (user.role == AppRole.maintenanceTeam &&
+            user.status == AdminUserStatus.active &&
+            user.assembly != null &&
+            _sameAssembly(user.assembly!, teamAssembly))
+          user,
+    ];
+  }
+
+  bool _sameAssembly(Assembly a, Assembly b) =>
+      a.name == b.name && a.region == b.region;
 }

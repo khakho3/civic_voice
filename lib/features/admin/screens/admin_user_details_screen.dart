@@ -86,6 +86,7 @@ class AdminUserDetailsScreen extends StatefulWidget {
     this.onNavigateToRoles,
     this.onNavigateToSettings,
     this.onNavigateToActivity,
+    this.onNavigateToMaintenanceTeams,
     this.onOpenProfile,
     this.onNotificationsTap,
     this.onSaveChanges,
@@ -106,6 +107,7 @@ class AdminUserDetailsScreen extends StatefulWidget {
   final VoidCallback? onNavigateToSettings;
 
   final VoidCallback? onNavigateToActivity;
+  final VoidCallback? onNavigateToMaintenanceTeams;
   final VoidCallback? onOpenProfile;
   final VoidCallback? onNotificationsTap;
 
@@ -208,9 +210,13 @@ class _AdminUserDetailsScreenState extends State<AdminUserDetailsScreen> {
         if (tab == AdminTab.dashboard) widget.onNavigateToDashboard?.call();
         if (tab == AdminTab.users) widget.onNavigateToUsers?.call();
         if (tab == AdminTab.activity) widget.onNavigateToActivity?.call();
+        if (tab == AdminTab.maintenance) {
+          widget.onNavigateToMaintenanceTeams?.call();
+        }
         if (tab == AdminTab.settings) widget.onNavigateToSettings?.call();
       },
       onOpenRoleManagement: widget.onNavigateToRoles,
+      onOpenMaintenanceTeams: widget.onNavigateToMaintenanceTeams,
       onOpenProfile: widget.onOpenProfile,
       body: switch (_state) {
         AdminUserDetailsViewState.loading => const _LoadingSkeleton(),

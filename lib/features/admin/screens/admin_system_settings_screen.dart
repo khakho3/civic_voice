@@ -55,6 +55,7 @@ class AdminSystemSettingsScreen extends StatefulWidget {
     this.onNavigateToUsers,
     this.onNavigateToRoles,
     this.onNavigateToActivity,
+    this.onNavigateToMaintenanceTeams,
     this.onOpenProfile,
     this.onNotificationsTap,
   });
@@ -73,6 +74,7 @@ class AdminSystemSettingsScreen extends StatefulWidget {
   final VoidCallback? onNavigateToRoles;
 
   final VoidCallback? onNavigateToActivity;
+  final VoidCallback? onNavigateToMaintenanceTeams;
 
   /// Forwarded to [AdminScaffold]'s drawer.
   final VoidCallback? onOpenProfile;
@@ -149,8 +151,12 @@ class _AdminSystemSettingsScreenState extends State<AdminSystemSettingsScreen> {
         if (tab == AdminTab.dashboard) widget.onNavigateToDashboard?.call();
         if (tab == AdminTab.users) widget.onNavigateToUsers?.call();
         if (tab == AdminTab.activity) widget.onNavigateToActivity?.call();
+        if (tab == AdminTab.maintenance) {
+          widget.onNavigateToMaintenanceTeams?.call();
+        }
       },
       onOpenRoleManagement: widget.onNavigateToRoles,
+      onOpenMaintenanceTeams: widget.onNavigateToMaintenanceTeams,
       onOpenProfile: widget.onOpenProfile,
       body: switch (_state) {
         AdminSystemSettingsViewState.loading => const _LoadingSkeleton(),

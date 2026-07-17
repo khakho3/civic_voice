@@ -47,6 +47,7 @@ class AdminCreateUserScreen extends StatefulWidget {
     this.onNavigateToRoles,
     this.onNavigateToSettings,
     this.onNavigateToActivity,
+    this.onNavigateToMaintenanceTeams,
     this.onOpenProfile,
     this.onNotificationsTap,
     this.onUserCreated,
@@ -63,6 +64,7 @@ class AdminCreateUserScreen extends StatefulWidget {
   final VoidCallback? onNavigateToSettings;
 
   final VoidCallback? onNavigateToActivity;
+  final VoidCallback? onNavigateToMaintenanceTeams;
   final VoidCallback? onOpenProfile;
   final VoidCallback? onNotificationsTap;
 
@@ -134,7 +136,9 @@ class _AdminCreateUserScreenState extends State<AdminCreateUserScreen> {
       phone: phone,
       role: _role,
       adminTier: _role == AppRole.systemAdministrator ? _tier : null,
-      region: needsAssembly ? (session.isSuperAdmin ? _region : session.region) : null,
+      region: needsAssembly
+          ? (session.isSuperAdmin ? _region : session.region)
+          : null,
       assembly: needsAssembly
           ? (session.isSuperAdmin ? _assembly : session.assembly)
           : null,
@@ -180,9 +184,13 @@ class _AdminCreateUserScreenState extends State<AdminCreateUserScreen> {
         if (tab == AdminTab.dashboard) widget.onNavigateToDashboard?.call();
         if (tab == AdminTab.users) widget.onNavigateToUsers?.call();
         if (tab == AdminTab.activity) widget.onNavigateToActivity?.call();
+        if (tab == AdminTab.maintenance) {
+          widget.onNavigateToMaintenanceTeams?.call();
+        }
         if (tab == AdminTab.settings) widget.onNavigateToSettings?.call();
       },
       onOpenRoleManagement: widget.onNavigateToRoles,
+      onOpenMaintenanceTeams: widget.onNavigateToMaintenanceTeams,
       onOpenProfile: widget.onOpenProfile,
       body: ListView(
         padding: EdgeInsets.fromLTRB(
