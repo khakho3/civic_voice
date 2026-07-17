@@ -1,15 +1,26 @@
-import 'package:flutter/material.dart';
-import 'package:civic_voice/core/theme/app_theme.dart';
-import 'package:civic_voice/features/maintenance/screens/dashboard_screen.dart';
-import 'package:civic_voice/features/maintenance/screens/assigned_tasks_screen.dart';
-import 'package:civic_voice/features/maintenance/screens/upload_evidence_screen.dart';
-import 'package:civic_voice/features/maintenance/screens/profile_screen.dart';
+import 'dart:io';
 
-enum _TaskStatus { inProgress, delayed, blocked }
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:civic_voice/core/theme/app_theme.dart';
+
+enum _TaskStatus { inProgress, completed, failed }
 
 /// MNT-004 — Update Task Progress.
 class UpdateProgressScreen extends StatefulWidget {
-  const UpdateProgressScreen({super.key});
+  const UpdateProgressScreen({
+    super.key,
+    this.onNavigateToDashboard,
+    this.onNavigateToTasks,
+    this.onNavigateToProfile,
+    this.onOpenEvidence,
+  });
+
+  final VoidCallback? onNavigateToDashboard;
+  final VoidCallback? onNavigateToTasks;
+  final VoidCallback? onNavigateToProfile;
+  final VoidCallback? onOpenEvidence;
 
   @override
   State<UpdateProgressScreen> createState() => _UpdateProgressScreenState();
@@ -18,12 +29,17 @@ class UpdateProgressScreen extends StatefulWidget {
 class _UpdateProgressScreenState extends State<UpdateProgressScreen> {
   AppScreenState _state = AppScreenState.success;
 
+  final ImagePicker _imagePicker = ImagePicker();
   _TaskStatus _selectedStatus = _TaskStatus.inProgress;
   final TextEditingController _notesController = TextEditingController();
   String? _validationError;
+  String? _evidenceError;
+  final List<XFile> _evidencePhotos = [];
+  bool _cameraPermissionExplained = false;
   bool _saved = false;
 
   static const int _minNotesLength = 10;
+  static const int _requiredEvidencePhotos = 3;
 
   @override
   void dispose() {
@@ -31,23 +47,108 @@ class _UpdateProgressScreenState extends State<UpdateProgressScreen> {
     super.dispose();
   }
 
-  void _handleSave() {
-    if (_notesController.text.trim().length < _minNotesLength) {
+  Future<void> _captureEvidencePhoto() async {
+    if (_evidencePhotos.length >= _requiredEvidencePhotos) return;
+
+    if (!_cameraPermissionExplained) {
+      final allowed = await _confirmCameraUse();
+      if (!mounted || !allowed) return;
+      _cameraPermissionExplained = true;
+    }
+
+    try {
+      final photo = await _imagePicker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 82,
+        maxWidth: 1600,
+      );
+      if (!mounted) return;
+      if (photo == null) return;
+
+      _addEvidencePhoto(photo);
+    } on MissingPluginException {
+      if (!mounted) return;
       setState(() {
-        _validationError = 'Work notes must contain at least $_minNotesLength characters.';
+        _evidenceError =
+            'Camera is not available on this device for completion evidence.';
+        _saved = false;
+      });
+    } on PlatformException {
+      if (!mounted) return;
+      setState(() {
+        _evidenceError =
+            'Camera permission is required to capture completion evidence.';
+        _saved = false;
+      });
+    }
+  }
+
+  Future<bool> _confirmCameraUse() async {
+    final allowed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Allow camera access?'),
+        content: const Text(
+          'Civic Voice will open your phone camera so you can capture real-time completion evidence.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Not Now'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Allow Camera'),
+          ),
+        ],
+      ),
+    );
+    return allowed ?? false;
+  }
+
+  void _addEvidencePhoto(XFile photo) {
+    setState(() {
+      _evidencePhotos.add(photo);
+      _evidenceError = null;
+      _saved = false;
+    });
+  }
+
+  void _handleSave() {
+    final notes = _notesController.text.trim();
+    if (_selectedStatus == _TaskStatus.failed &&
+        notes.length < _minNotesLength) {
+      setState(() {
+        _validationError = 'Failure note must explain why the task failed.';
+        _evidenceError = null;
         _saved = false;
       });
       return;
     }
+
+    if (_selectedStatus == _TaskStatus.completed &&
+        _evidencePhotos.length < _requiredEvidencePhotos) {
+      setState(() {
+        _validationError = null;
+        _evidenceError =
+            'Attach $_requiredEvidencePhotos photos to mark this completed.';
+        _saved = false;
+      });
+      return;
+    }
+
     setState(() {
       _validationError = null;
+      _evidenceError = null;
       _saved = true;
     });
-    Future.delayed(const Duration(milliseconds: 600), () {
-      if (mounted) {
-        Navigator.push(context, MaterialPageRoute(builder: (_) => const UploadEvidenceScreen()));
-      }
-    });
+    if (_selectedStatus == _TaskStatus.completed) {
+      Future.delayed(const Duration(milliseconds: 600), () {
+        if (mounted) {
+          widget.onOpenEvidence?.call();
+        }
+      });
+    }
   }
 
   @override
@@ -64,17 +165,20 @@ class _UpdateProgressScreenState extends State<UpdateProgressScreen> {
       bottomNavigationBar: NavigationBar(
         selectedIndex: 1,
         destinations: const [
-          NavigationDestination(icon: Icon(AppIcons.dashboard), label: 'Dashboard'),
+          NavigationDestination(
+            icon: Icon(AppIcons.dashboard),
+            label: 'Dashboard',
+          ),
           NavigationDestination(icon: Icon(AppIcons.task), label: 'Tasks'),
           NavigationDestination(icon: Icon(AppIcons.profile), label: 'Profile'),
         ],
         onDestinationSelected: (index) {
           if (index == 0) {
-            Navigator.push(context, MaterialPageRoute(builder: (_) => const DashboardScreen()));
+            widget.onNavigateToDashboard?.call();
           } else if (index == 1) {
-            Navigator.push(context, MaterialPageRoute(builder: (_) => const AssignedTasksScreen()));
+            widget.onNavigateToTasks?.call();
           } else if (index == 2) {
-            Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen()));
+            widget.onNavigateToProfile?.call();
           }
         },
       ),
@@ -88,11 +192,17 @@ class _UpdateProgressScreenState extends State<UpdateProgressScreen> {
       case AppScreenState.empty:
         return _buildForm(context);
       case AppScreenState.error:
-        return _ErrorView(onRetry: () => setState(() => _state = AppScreenState.success));
+        return _ErrorView(
+          onRetry: () => setState(() => _state = AppScreenState.success),
+        );
       case AppScreenState.offline:
-        return _OfflineView(onRetry: () => setState(() => _state = AppScreenState.success));
+        return _OfflineView(
+          onRetry: () => setState(() => _state = AppScreenState.success),
+        );
       case AppScreenState.permission:
-        return _PermissionView(onRetry: () => setState(() => _state = AppScreenState.success));
+        return _PermissionView(
+          onRetry: () => setState(() => _state = AppScreenState.success),
+        );
       case AppScreenState.disabled:
         return _buildForm(context, disabled: true);
       case AppScreenState.success:
@@ -110,9 +220,11 @@ class _UpdateProgressScreenState extends State<UpdateProgressScreen> {
       onStatusChanged: disabled
           ? null
           : (status) => setState(() {
-                _selectedStatus = status;
-                _saved = false;
-              }),
+              _selectedStatus = status;
+              _validationError = null;
+              _evidenceError = null;
+              _saved = false;
+            }),
       onNotesChanged: disabled
           ? null
           : (_) {
@@ -120,17 +232,24 @@ class _UpdateProgressScreenState extends State<UpdateProgressScreen> {
                 setState(() {
                   _saved = false;
                   _validationError = null;
+                  _evidenceError = null;
                 });
               }
             },
+      evidencePhotos: _evidencePhotos,
+      requiredEvidencePhotos: _requiredEvidencePhotos,
+      evidenceError: _evidenceError,
+      onAttachEvidence: disabled ? null : _captureEvidencePhoto,
       onSave: disabled ? null : _handleSave,
       onDiscard: disabled
           ? null
           : () => setState(() {
-                _notesController.clear();
-                _validationError = null;
-                _saved = false;
-              }),
+              _notesController.clear();
+              _validationError = null;
+              _evidenceError = null;
+              _evidencePhotos.clear();
+              _saved = false;
+            }),
     );
   }
 }
@@ -141,9 +260,13 @@ class _UpdateProgressForm extends StatelessWidget {
     required this.selectedStatus,
     required this.notesController,
     required this.validationError,
+    required this.evidencePhotos,
+    required this.requiredEvidencePhotos,
+    required this.evidenceError,
     required this.saved,
     required this.onStatusChanged,
     required this.onNotesChanged,
+    required this.onAttachEvidence,
     required this.onSave,
     required this.onDiscard,
   });
@@ -152,9 +275,13 @@ class _UpdateProgressForm extends StatelessWidget {
   final _TaskStatus selectedStatus;
   final TextEditingController notesController;
   final String? validationError;
+  final List<XFile> evidencePhotos;
+  final int requiredEvidencePhotos;
+  final String? evidenceError;
   final bool saved;
   final ValueChanged<_TaskStatus>? onStatusChanged;
   final ValueChanged<String>? onNotesChanged;
+  final VoidCallback? onAttachEvidence;
   final VoidCallback? onSave;
   final VoidCallback? onDiscard;
 
@@ -163,6 +290,7 @@ class _UpdateProgressForm extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
     final colorScheme = Theme.of(context).colorScheme;
     final semantic = Theme.of(context).extension<AppSemanticColors>()!;
+    final evidencePhotoCount = evidencePhotos.length;
 
     return Opacity(
       opacity: disabled ? 0.5 : 1.0,
@@ -177,11 +305,16 @@ class _UpdateProgressForm extends StatelessWidget {
             ],
             Chip(label: const Text('Task ID: #CV-8842')),
             const SizedBox(height: AppSpacing.sm),
-            Text('Street Light Repair - Sector 4', style: textTheme.titleMedium),
+            Text(
+              'Street Light Repair - Sector 4',
+              style: textTheme.titleMedium,
+            ),
             const SizedBox(height: AppSpacing.xs),
             Text(
               'Update the current status of the maintenance operation for central lighting grid.',
-              style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
+              style: textTheme.bodyMedium?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: AppSpacing.lg),
             Text('Current Status', style: textTheme.titleSmall),
@@ -192,28 +325,39 @@ class _UpdateProgressForm extends StatelessWidget {
               icon: AppIcons.statusInProgress,
               color: AppColors.statusInProgress,
               selected: selectedStatus == _TaskStatus.inProgress,
-              onTap: onStatusChanged == null ? null : () => onStatusChanged!(_TaskStatus.inProgress),
+              onTap: onStatusChanged == null
+                  ? null
+                  : () => onStatusChanged!(_TaskStatus.inProgress),
             ),
             const SizedBox(height: AppSpacing.sm),
             _StatusOption(
-              status: _TaskStatus.delayed,
-              label: 'Delayed',
-              icon: AppIcons.warning,
-              color: semantic.warning,
-              selected: selectedStatus == _TaskStatus.delayed,
-              onTap: onStatusChanged == null ? null : () => onStatusChanged!(_TaskStatus.delayed),
+              status: _TaskStatus.completed,
+              label: 'Completed',
+              icon: AppIcons.statusResolved,
+              color: semantic.success,
+              selected: selectedStatus == _TaskStatus.completed,
+              onTap: onStatusChanged == null
+                  ? null
+                  : () => onStatusChanged!(_TaskStatus.completed),
             ),
             const SizedBox(height: AppSpacing.sm),
             _StatusOption(
-              status: _TaskStatus.blocked,
-              label: 'Blocked',
+              status: _TaskStatus.failed,
+              label: 'Failed',
               icon: AppIcons.statusRejected,
               color: semantic.error,
-              selected: selectedStatus == _TaskStatus.blocked,
-              onTap: onStatusChanged == null ? null : () => onStatusChanged!(_TaskStatus.blocked),
+              selected: selectedStatus == _TaskStatus.failed,
+              onTap: onStatusChanged == null
+                  ? null
+                  : () => onStatusChanged!(_TaskStatus.failed),
             ),
             const SizedBox(height: AppSpacing.lg),
-            Text('Work Notes', style: textTheme.titleSmall),
+            Text(
+              selectedStatus == _TaskStatus.failed
+                  ? 'Failure Note'
+                  : 'Work Notes',
+              style: textTheme.titleSmall,
+            ),
             const SizedBox(height: AppSpacing.sm),
             TextField(
               controller: notesController,
@@ -221,35 +365,74 @@ class _UpdateProgressForm extends StatelessWidget {
               maxLines: 4,
               enabled: !disabled,
               decoration: InputDecoration(
-                hintText: 'Describe current progress, encountered issues, or required parts...',
+                hintText: selectedStatus == _TaskStatus.failed
+                    ? 'Explain why the task failed and what is needed next...'
+                    : 'Describe current progress, encountered issues, or required parts...',
                 errorText: validationError,
               ),
             ),
             const SizedBox(height: AppSpacing.xs),
-            if (validationError == null)
+            if (validationError == null && selectedStatus == _TaskStatus.failed)
               Text(
-                'Minimum 10 characters required',
-                style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
+                'Required for failed tasks',
+                style: textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
               ),
-            const SizedBox(height: AppSpacing.lg),
-            Text('Evidence / Photos', style: textTheme.titleSmall),
-            const SizedBox(height: AppSpacing.sm),
-            Row(
-              children: [
-                _AddPhotoTile(disabled: disabled),
-                const SizedBox(width: AppSpacing.sm),
-                _PhotoThumbnail(),
+            if (selectedStatus == _TaskStatus.completed) ...[
+              const SizedBox(height: AppSpacing.lg),
+              Text('Completion Photo Evidence', style: textTheme.titleSmall),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                '$evidencePhotoCount of $requiredEvidencePhotos photos attached',
+                style: textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Wrap(
+                spacing: AppSpacing.sm,
+                runSpacing: AppSpacing.sm,
+                children: [
+                  for (var index = 0; index < requiredEvidencePhotos; index++)
+                    _EvidencePhotoSlot(
+                      index: index,
+                      photo: index < evidencePhotos.length
+                          ? evidencePhotos[index]
+                          : null,
+                      disabled:
+                          disabled ||
+                          index > evidencePhotoCount ||
+                          evidencePhotoCount >= requiredEvidencePhotos,
+                      onTap: index == evidencePhotoCount
+                          ? onAttachEvidence
+                          : null,
+                    ),
+                ],
+              ),
+              if (evidenceError != null) ...[
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  evidenceError!,
+                  style: textTheme.bodySmall?.copyWith(color: semantic.error),
+                ),
               ],
-            ),
+            ],
             const SizedBox(height: AppSpacing.xl),
             SizedBox(
               width: double.infinity,
-              child: FilledButton(onPressed: onSave, child: const Text('Save Update')),
+              child: FilledButton(
+                onPressed: onSave,
+                child: const Text('Save Update'),
+              ),
             ),
             const SizedBox(height: AppSpacing.sm),
             SizedBox(
               width: double.infinity,
-              child: TextButton(onPressed: onDiscard, child: const Text('Discard Draft')),
+              child: TextButton(
+                onPressed: onDiscard,
+                child: const Text('Discard Draft'),
+              ),
             ),
           ],
         ),
@@ -282,13 +465,15 @@ class _SavedBanner extends StatelessWidget {
               children: [
                 Text(
                   'Progress saved',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(color: semantic.success),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(color: semantic.success),
                 ),
                 Text(
                   'Your status update and work notes were saved to this assigned task.',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),
@@ -329,13 +514,20 @@ class _StatusOption extends StatelessWidget {
           padding: const EdgeInsets.all(AppSpacing.md),
           decoration: BoxDecoration(
             borderRadius: AppComponentRadius.card,
-            border: Border.all(color: selected ? color : colorScheme.outlineVariant),
+            border: Border.all(
+              color: selected ? color : colorScheme.outlineVariant,
+            ),
           ),
           child: Row(
             children: [
               Icon(icon, color: color, size: AppIconSize.md),
               const SizedBox(width: AppSpacing.sm),
-              Expanded(child: Text(label, style: Theme.of(context).textTheme.bodyLarge)),
+              Expanded(
+                child: Text(
+                  label,
+                  style: Theme.of(context).textTheme.bodyLarge,
+                ),
+              ),
               Icon(
                 selected ? AppIcons.statusResolved : Icons.circle_outlined,
                 color: selected ? color : colorScheme.outlineVariant,
@@ -349,35 +541,112 @@ class _StatusOption extends StatelessWidget {
   }
 }
 
-class _AddPhotoTile extends StatelessWidget {
-  const _AddPhotoTile({required this.disabled});
+class _EvidencePhotoSlot extends StatelessWidget {
+  const _EvidencePhotoSlot({
+    required this.index,
+    required this.photo,
+    required this.disabled,
+    required this.onTap,
+  });
+
+  final int index;
+  final XFile? photo;
   final bool disabled;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    return Container(
-      width: 72,
-      height: 72,
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerLow,
-        borderRadius: AppComponentRadius.card,
-        border: Border.all(color: colorScheme.outlineVariant),
+    final semantic = Theme.of(context).extension<AppSemanticColors>()!;
+    final attached = photo != null;
+    final accent = attached ? semantic.success : colorScheme.onSurfaceVariant;
+
+    return InkWell(
+      onTap: disabled ? null : onTap,
+      borderRadius: AppComponentRadius.card,
+      child: Container(
+        clipBehavior: Clip.antiAlias,
+        width: 96,
+        height: 88,
+        decoration: BoxDecoration(
+          color: attached
+              ? semantic.success.withValues(alpha: 0.08)
+              : colorScheme.surfaceContainerLow,
+          borderRadius: AppComponentRadius.card,
+          border: Border.all(
+            color: attached
+                ? semantic.success.withValues(alpha: 0.4)
+                : colorScheme.outlineVariant,
+          ),
+        ),
+        child: attached
+            ? Stack(
+                fit: StackFit.expand,
+                children: [
+                  Image.file(
+                    File(photo!.path),
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) =>
+                        _EvidenceSlotLabel(
+                          icon: AppIcons.success,
+                          label: 'Photo ${index + 1}',
+                          color: accent,
+                        ),
+                  ),
+                  Positioned(
+                    right: AppSpacing.xs,
+                    top: AppSpacing.xs,
+                    child: Container(
+                      padding: const EdgeInsets.all(AppSpacing.xs),
+                      decoration: BoxDecoration(
+                        color: semantic.success,
+                        borderRadius: AppRadius.allXs,
+                      ),
+                      child: Icon(
+                        AppIcons.success,
+                        size: AppIconSize.sm,
+                        color: colorScheme.onPrimary,
+                      ),
+                    ),
+                  ),
+                ],
+              )
+            : _EvidenceSlotLabel(
+                icon: AppIcons.camera,
+                label: 'Add ${index + 1}',
+                color: accent,
+              ),
       ),
-      child: Icon(AppIcons.camera, color: colorScheme.onSurfaceVariant),
     );
   }
 }
 
-class _PhotoThumbnail extends StatelessWidget {
+class _EvidenceSlotLabel extends StatelessWidget {
+  const _EvidenceSlotLabel({
+    required this.icon,
+    required this.label,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Container(
-      width: 72,
-      height: 72,
-      decoration: BoxDecoration(color: colorScheme.surfaceContainerLow, borderRadius: AppComponentRadius.card),
-      child: Icon(AppIcons.imageUnavailable, color: colorScheme.onSurfaceVariant),
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(icon, color: color),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          label,
+          textAlign: TextAlign.center,
+          style: Theme.of(
+            context,
+          ).textTheme.labelMedium?.copyWith(color: color),
+        ),
+      ],
     );
   }
 }
@@ -386,26 +655,29 @@ class _LoadingView extends StatelessWidget {
   const _LoadingView();
   @override
   Widget build(BuildContext context) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const CircularProgressIndicator(),
-              const SizedBox(height: AppSpacing.md),
-              Text('Loading update form', style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                'Preparing status selector, notes, and evidence.',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-              ),
-            ],
+    child: Padding(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const CircularProgressIndicator(),
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            'Loading update form',
+            style: Theme.of(context).textTheme.titleMedium,
           ),
-        ),
-      );
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            'Preparing status selector, notes, and evidence.',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 class _ErrorView extends StatelessWidget {
@@ -423,14 +695,17 @@ class _ErrorView extends StatelessWidget {
           children: [
             Icon(AppIcons.error, size: AppIconSize.xl, color: semantic.error),
             const SizedBox(height: AppSpacing.md),
-            Text('Unable to save progress', style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              'Unable to save progress',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: AppSpacing.xs),
             Text(
               'Try again without changing the maintenance workflow.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: AppSpacing.lg),
             FilledButton(
@@ -458,7 +733,11 @@ class _OfflineView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(AppIcons.offline, size: AppIconSize.xl, color: semantic.warning),
+            Icon(
+              AppIcons.offline,
+              size: AppIconSize.xl,
+              color: semantic.warning,
+            ),
             const SizedBox(height: AppSpacing.md),
             Text('Offline', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: AppSpacing.xs),
@@ -466,8 +745,8 @@ class _OfflineView extends StatelessWidget {
               'Reconnect before saving progress.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: AppSpacing.lg),
             FilledButton(
@@ -495,14 +774,23 @@ class _PermissionView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(AppIcons.permissionDenied, size: AppIconSize.xl, color: colorScheme.onSurfaceVariant),
+            Icon(
+              AppIcons.permissionDenied,
+              size: AppIconSize.xl,
+              color: colorScheme.onSurfaceVariant,
+            ),
             const SizedBox(height: AppSpacing.md),
-            Text('Permission required', style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              'Permission required',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: AppSpacing.xs),
             Text(
               'Maintenance access is required to update this assigned task.',
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: AppSpacing.lg),
             FilledButton(onPressed: onRetry, child: const Text('Retry')),

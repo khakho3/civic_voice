@@ -557,8 +557,14 @@ class _UploadedPhotosSection extends StatelessWidget {
       children: [
         Row(
           children: [
-            Text('Uploaded Photos', style: theme.textTheme.titleLarge),
-            const Spacer(),
+            Expanded(
+              child: Text(
+                'Uploaded Photos',
+                style: theme.textTheme.titleLarge,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
             Text(
               '${photos.length} / $maxPhotos photos',
               style: theme.textTheme.labelMedium?.copyWith(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:civic_voice/main.dart' as app;
 import 'package:civic_voice/core/theme/app_theme.dart';
 import 'package:civic_voice/features/ministry/screens/ministry_analytics_screen.dart';
 import 'package:civic_voice/features/ministry/screens/ministry_dashboard_screen.dart';
@@ -227,6 +228,56 @@ void main() {
       expect(profileTapped, isTrue);
     },
   );
+
+  testWidgets('Ministry routes connect Dashboard, Analytics, Insights, '
+      'Municipalities, Reports, and Profile', (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    Future<void> advanceRoute() async {
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 600));
+    }
+
+    await tester.pumpWidget(
+      const app.CivicVoiceApp(initialRoute: app.AppRoutes.ministryDashboard),
+    );
+    await advanceRoute();
+
+    expect(find.text('National Dashboard'), findsOneWidget);
+
+    await tester.tap(find.text('Analytics'));
+    await advanceRoute();
+
+    expect(find.text('Analytics Dashboard'), findsOneWidget);
+
+    await tester.tap(find.text('Trend Insights'));
+    await advanceRoute();
+
+    expect(find.text('Report Insights'), findsOneWidget);
+
+    await tester.tap(find.byIcon(AppIcons.back));
+    await advanceRoute();
+
+    expect(find.text('Analytics Dashboard'), findsOneWidget);
+
+    await tester.tap(find.byIcon(AppIcons.municipality).last);
+    await advanceRoute();
+
+    expect(find.text('Municipal Performance'), findsOneWidget);
+
+    await tester.tap(find.text('Reports'));
+    await advanceRoute();
+
+    expect(find.text('Reports Overview'), findsOneWidget);
+
+    await tester.tap(find.byIcon(AppIcons.profile));
+    await advanceRoute();
+
+    expect(find.text('My Profile'), findsOneWidget);
+  });
 
   testWidgets('Ministry Dashboard "View All" fires the same callback as the '
       'Reports tab', (WidgetTester tester) async {

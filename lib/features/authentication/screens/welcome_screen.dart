@@ -274,48 +274,57 @@ class _OnboardingActions extends StatelessWidget {
               child: Text(_isFinalPage ? 'Get Started' : 'Next'),
             ),
           ),
-          if (_isFinalPage) ...[
-            const SizedBox(height: AppSpacing.sm),
-            SizedBox(
-              width: double.infinity,
-              child: TextButton(
-                onPressed: onContinueAsGuest,
-                style: TextButton.styleFrom(
-                  foregroundColor: colorScheme.onSurface,
-                  textStyle: const TextStyle(
-                    fontWeight: AppFontWeight.semiBold,
-                  ),
-                ),
-                child: const Text('Continue as Guest'),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            SizedBox(
-              width: double.infinity,
-              child: TextButton(
-                onPressed: onLogin,
-                style: TextButton.styleFrom(
-                  foregroundColor: colorScheme.onSurfaceVariant,
-                  textStyle: theme.textTheme.bodySmall,
-                ),
-                child: Text.rich(
-                  TextSpan(
-                    text: 'Already have an account? ',
-                    children: [
-                      TextSpan(
-                        text: 'Log in',
-                        style: TextStyle(
-                          color: colorScheme.primary,
-                          fontWeight: AppFontWeight.semiBold,
-                        ),
+          Visibility(
+            visible: _isFinalPage,
+            maintainState: true,
+            maintainAnimation: true,
+            maintainSize: true,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: AppSpacing.sm),
+                SizedBox(
+                  width: double.infinity,
+                  child: TextButton(
+                    onPressed: _isFinalPage ? onContinueAsGuest : null,
+                    style: TextButton.styleFrom(
+                      foregroundColor: colorScheme.onSurface,
+                      textStyle: const TextStyle(
+                        fontWeight: AppFontWeight.semiBold,
                       ),
-                    ],
+                    ),
+                    child: const Text('Continue as Guest'),
                   ),
-                  textAlign: TextAlign.center,
                 ),
-              ),
+                const SizedBox(height: AppSpacing.xs),
+                SizedBox(
+                  width: double.infinity,
+                  child: TextButton(
+                    onPressed: _isFinalPage ? onLogin : null,
+                    style: TextButton.styleFrom(
+                      foregroundColor: colorScheme.onSurfaceVariant,
+                      textStyle: theme.textTheme.bodySmall,
+                    ),
+                    child: Text.rich(
+                      TextSpan(
+                        text: 'Already have an account? ',
+                        children: [
+                          TextSpan(
+                            text: 'Log in',
+                            style: TextStyle(
+                              color: colorScheme.primary,
+                              fontWeight: AppFontWeight.semiBold,
+                            ),
+                          ),
+                        ],
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ],
       ),
     );

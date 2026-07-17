@@ -27,7 +27,7 @@
 		<key>LSRequiresIPhoneOS</key>
 		<true/>
 		<key>NSCameraUsageDescription</key>
-		<string>Civic Voice needs camera access so you can attach photos to civic reports.</string>
+		<string>Civic Voice needs camera access so maintenance teams can capture real-time completion evidence photos.</string>
 		<key>NSLocationWhenInUseUsageDescription</key>
 		<string>Civic Voice uses your current location to send the exact report location to municipal teams.</string>
 		<key>NSPhotoLibraryUsageDescription</key>

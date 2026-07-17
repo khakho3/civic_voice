@@ -37,9 +37,9 @@ class _ReportSubmittedScreenState extends State<ReportSubmittedScreen> {
 
   void _copyReference(String referenceNumber) {
     Clipboard.setData(ClipboardData(text: referenceNumber));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Reference number copied.')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Reference number copied.')));
   }
 
   void _selectRating(String rating) {
@@ -176,10 +176,7 @@ class _SuccessIntro extends StatelessWidget {
 }
 
 class _ReferenceCard extends StatelessWidget {
-  const _ReferenceCard({
-    required this.referenceNumber,
-    required this.onCopy,
-  });
+  const _ReferenceCard({required this.referenceNumber, required this.onCopy});
 
   final String referenceNumber;
   final VoidCallback onCopy;
@@ -355,8 +352,8 @@ class _TimelineStep extends StatelessWidget {
     final dotColor = switch (status) {
       _TimelineStatus.done => AppColors.success,
       _TimelineStatus.current => AppColors.warning,
-      _TimelineStatus.future || _TimelineStatus.last =>
-        theme.colorScheme.outline,
+      _TimelineStatus.future ||
+      _TimelineStatus.last => theme.colorScheme.outline,
     };
 
     return Row(
@@ -448,10 +445,12 @@ class _NextInfoCard extends StatelessWidget {
             children: [
               const Icon(AppIcons.info, color: AppColors.primary),
               const SizedBox(width: AppSpacing.sm),
-              Text(
-                'What Happens Next?',
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: AppFontWeight.bold,
+              Expanded(
+                child: Text(
+                  'What Happens Next?',
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: AppFontWeight.bold,
+                  ),
                 ),
               ),
             ],
@@ -492,7 +491,9 @@ class _BulletText extends StatelessWidget {
           ),
         ),
         const SizedBox(width: AppSpacing.sm),
-        Expanded(child: Text(text, style: Theme.of(context).textTheme.bodyMedium)),
+        Expanded(
+          child: Text(text, style: Theme.of(context).textTheme.bodyMedium),
+        ),
       ],
     );
   }

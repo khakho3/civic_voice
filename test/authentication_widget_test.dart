@@ -2,14 +2,25 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:civic_voice/core/theme/app_theme.dart';
+import 'package:civic_voice/features/admin/screens/admin_dashboard_screen.dart';
 import 'package:civic_voice/features/authentication/screens/forgot_password_screen.dart';
 import 'package:civic_voice/features/authentication/screens/login_screen.dart';
 import 'package:civic_voice/features/authentication/screens/registration_screen.dart';
+import 'package:civic_voice/features/authentication/screens/test_role_selector_screen.dart';
 import 'package:civic_voice/features/authentication/screens/welcome_screen.dart';
 import 'package:civic_voice/features/citizen/screens/citizen_dashboard_screen.dart';
 import 'package:civic_voice/main.dart';
+import 'package:civic_voice/models/app_role.dart';
+import 'package:civic_voice/services/mock_auth_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
+  setUp(() async {
+    SharedPreferences.setMockInitialValues({});
+    await MockAuthService().initialize();
+    await MockAuthService().clearUser();
+  });
+
   Future<void> tapVisible(WidgetTester tester, Finder finder) async {
     await tester.ensureVisible(finder);
     await tester.pumpAndSettle();
@@ -17,7 +28,9 @@ void main() {
   }
 
   Future<void> openWelcomeScreen(WidgetTester tester) async {
-    await tester.pumpWidget(const CivicVoiceApp());
+    await tester.pumpWidget(
+      const CivicVoiceApp(initialRoute: AppRoutes.welcome),
+    );
     await tester.pump();
 
     expect(find.byType(WelcomeScreen), findsOneWidget);
@@ -30,13 +43,38 @@ void main() {
     expect(find.text('Resolve.'), findsOneWidget);
   }
 
-  testWidgets('Welcome to Login flow', (WidgetTester tester) async {
+  testWidgets('Mock auth selector chooses Admin dashboard', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(const CivicVoiceApp());
+    await tester.pumpAndSettle();
+
+    expect(find.byType(TestRoleSelectorScreen), findsOneWidget);
+
+    await tester.tap(find.text('Admin'));
+    await tester.pump();
+    await tester.tap(find.widgetWithText(FilledButton, 'Continue'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+
+    expect(MockAuthService().getCurrentRole(), AppRole.systemAdministrator);
+    expect(find.byType(AdminDashboardScreen), findsOneWidget);
+  });
+
+  testWidgets('Welcome Login link opens Test Role Selector', (
+    WidgetTester tester,
+  ) async {
     await reachFinalSlide(tester);
 
     await tapVisible(tester, find.text('Already have an account? Log in'));
     await tester.pumpAndSettle();
 
-    expect(find.byType(LoginScreen), findsOneWidget);
+    expect(find.byType(TestRoleSelectorScreen), findsOneWidget);
   });
 
   testWidgets('Welcome to Registration flow', (WidgetTester tester) async {
@@ -63,9 +101,8 @@ void main() {
   });
 
   testWidgets('Login to Forgot Password flow', (WidgetTester tester) async {
-    await reachFinalSlide(tester);
-    await tapVisible(tester, find.text('Already have an account? Log in'));
-    await tester.pumpAndSettle();
+    await tester.pumpWidget(const CivicVoiceApp(initialRoute: AppRoutes.login));
+    await tester.pump();
 
     expect(find.byType(LoginScreen), findsOneWidget);
 
@@ -79,6 +116,53 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(ForgotPasswordScreen), findsOneWidget);
+  });
+
+  testWidgets('Login Sign In flow opens Citizen Dashboard', (
+    WidgetTester tester,
+  ) async {
+    await MockAuthService().selectRole(AppRole.citizen);
+    await tester.pumpWidget(const CivicVoiceApp(initialRoute: AppRoutes.login));
+    await tester.pump();
+
+    final fields = find.byType(TextFormField);
+    await tester.enterText(fields.at(0), 'amina@example.com');
+    await tester.enterText(fields.at(1), 'password');
+
+    final signIn = find.widgetWithText(FilledButton, 'Sign In');
+    await tester.ensureVisible(signIn);
+    await tester.tap(signIn);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(CitizenDashboardScreen), findsOneWidget);
+  });
+
+  testWidgets('Registration Create Account flow opens Citizen Dashboard', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      const CivicVoiceApp(initialRoute: AppRoutes.registration),
+    );
+    await tester.pump();
+
+    final fields = find.byType(TextFormField);
+    await tester.enterText(fields.at(0), 'Amina Mensah');
+    await tester.enterText(fields.at(1), 'amina@example.com');
+    await tester.enterText(fields.at(2), '+1 555 0100');
+    await tester.enterText(fields.at(3), 'password123');
+    await tester.enterText(fields.at(4), 'password123');
+
+    final policy = find.byType(Checkbox);
+    await tester.ensureVisible(policy);
+    await tester.tap(policy);
+    await tester.pump();
+
+    final createAccount = find.widgetWithText(FilledButton, 'Create Account');
+    await tester.ensureVisible(createAccount);
+    await tester.tap(createAccount);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(CitizenDashboardScreen), findsOneWidget);
   });
 
   testWidgets('Onboarding pages do not overflow on a narrow phone', (

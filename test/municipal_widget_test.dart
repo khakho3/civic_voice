@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:civic_voice/main.dart' as app;
 import 'package:civic_voice/core/theme/app_theme.dart';
 import 'package:civic_voice/features/municipal/models/active_report.dart';
 import 'package:civic_voice/features/municipal/models/incoming_report.dart';
@@ -69,6 +70,91 @@ void main() {
       // A chevron-down is the "tap to open a picker" affordance — it must
       // not be present now that officers can't self-select a municipality.
       expect(find.byIcon(AppIcons.chevronDown), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'Municipal routes connect dashboard, inbox, review, verification, active, '
+    'resolved, details, and profile',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      Future<void> advanceRoute() async {
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 600));
+      }
+
+      await tester.pumpWidget(
+        const app.CivicVoiceApp(initialRoute: app.AppRoutes.municipalDashboard),
+      );
+      await advanceRoute();
+
+      expect(find.text('Recent Reports'), findsOneWidget);
+
+      await tester.tap(find.text('Inbox'));
+      await advanceRoute();
+
+      expect(find.text('Incoming Reports'), findsOneWidget);
+
+      await tester.tap(find.text('Traffic Light Malfunction'));
+      await advanceRoute();
+
+      expect(find.text('Report Review'), findsOneWidget);
+
+      await tester.tap(find.text('Verify Report'));
+      await advanceRoute();
+
+      expect(find.text('Verify Report'), findsWidgets);
+
+      await tester.tap(find.byIcon(AppIcons.back));
+      await advanceRoute();
+
+      expect(find.text('Report Review'), findsOneWidget);
+
+      await tester.tap(find.byIcon(AppIcons.back));
+      await advanceRoute();
+
+      expect(find.text('Incoming Reports'), findsOneWidget);
+
+      await tester.tap(find.text('Active'));
+      await advanceRoute();
+
+      expect(find.text('Active Reports'), findsOneWidget);
+
+      await tester.tap(find.text('Severe Pothole on Main St.'));
+      await advanceRoute();
+
+      expect(find.text('Report Progress'), findsOneWidget);
+
+      await tester.tap(find.byIcon(AppIcons.back));
+      await advanceRoute();
+
+      expect(find.text('Active Reports'), findsOneWidget);
+
+      await tester.tap(find.byIcon(AppIcons.statusResolved).last);
+      await advanceRoute();
+
+      expect(find.text('Resolved Reports'), findsOneWidget);
+
+      final resolvedReport = find.textContaining('Streetlight Outage');
+      await tester.ensureVisible(resolvedReport);
+      await tester.tap(resolvedReport);
+      await advanceRoute();
+
+      expect(find.text('Resolution Details'), findsOneWidget);
+
+      await tester.tap(find.byIcon(AppIcons.back));
+      await advanceRoute();
+
+      expect(find.text('Resolved Reports'), findsOneWidget);
+
+      await tester.tap(find.byIcon(AppIcons.profile));
+      await advanceRoute();
+
+      expect(find.text('Municipal Profile'), findsOneWidget);
     },
   );
 

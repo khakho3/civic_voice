@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:civic_voice/core/theme/app_theme.dart';
-import 'package:civic_voice/features/maintenance/screens/dashboard_screen.dart';
-import 'package:civic_voice/features/maintenance/screens/assigned_tasks_screen.dart';
 
 /// MNT-007 — Maintenance Profile.
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key});
+  const ProfileScreen({
+    super.key,
+    this.onNavigateToDashboard,
+    this.onNavigateToTasks,
+  });
+
+  final VoidCallback? onNavigateToDashboard;
+  final VoidCallback? onNavigateToTasks;
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -14,10 +19,12 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   AppScreenState _state = AppScreenState.success;
 
-  final TextEditingController _emailController =
-      TextEditingController(text: 'marcus.johnson@civicvoice.gov');
-  final TextEditingController _phoneController =
-      TextEditingController(text: '+1 (555) 018-2940');
+  final TextEditingController _emailController = TextEditingController(
+    text: 'marcus.johnson@civicvoice.gov',
+  );
+  final TextEditingController _phoneController = TextEditingController(
+    text: '+1 (555) 018-2940',
+  );
   String? _emailError;
   bool _changesSaved = false;
 
@@ -53,15 +60,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
       bottomNavigationBar: NavigationBar(
         selectedIndex: 2,
         destinations: const [
-          NavigationDestination(icon: Icon(AppIcons.dashboard), label: 'Dashboard'),
+          NavigationDestination(
+            icon: Icon(AppIcons.dashboard),
+            label: 'Dashboard',
+          ),
           NavigationDestination(icon: Icon(AppIcons.task), label: 'Tasks'),
           NavigationDestination(icon: Icon(AppIcons.profile), label: 'Profile'),
         ],
         onDestinationSelected: (index) {
           if (index == 0) {
-            Navigator.push(context, MaterialPageRoute(builder: (_) => const DashboardScreen()));
+            widget.onNavigateToDashboard?.call();
           } else if (index == 1) {
-            Navigator.push(context, MaterialPageRoute(builder: (_) => const AssignedTasksScreen()));
+            widget.onNavigateToTasks?.call();
           }
         },
       ),
@@ -73,13 +83,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
       case AppScreenState.loading:
         return const _LoadingView();
       case AppScreenState.empty:
-        return _EmptyView(onRetry: () => setState(() => _state = AppScreenState.success));
+        return _EmptyView(
+          onRetry: () => setState(() => _state = AppScreenState.success),
+        );
       case AppScreenState.error:
-        return _ErrorView(onRetry: () => setState(() => _state = AppScreenState.success));
+        return _ErrorView(
+          onRetry: () => setState(() => _state = AppScreenState.success),
+        );
       case AppScreenState.offline:
-        return _OfflineView(onRetry: () => setState(() => _state = AppScreenState.success));
+        return _OfflineView(
+          onRetry: () => setState(() => _state = AppScreenState.success),
+        );
       case AppScreenState.permission:
-        return _PermissionView(onRetry: () => setState(() => _state = AppScreenState.success));
+        return _PermissionView(
+          onRetry: () => setState(() => _state = AppScreenState.success),
+        );
       case AppScreenState.disabled:
         return _buildForm(context, disabled: true);
       case AppScreenState.success:
@@ -145,7 +163,9 @@ class _ProfileForm extends StatelessWidget {
             const SizedBox(height: AppSpacing.xs),
             Text(
               'Manage professional credentials',
-              style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
+              style: textTheme.bodyMedium?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: AppSpacing.lg),
             if (changesSaved) ...[
@@ -158,7 +178,11 @@ class _ProfileForm extends StatelessWidget {
                   CircleAvatar(
                     radius: 40,
                     backgroundColor: colorScheme.primaryContainer,
-                    child: Icon(AppIcons.profile, size: AppIconSize.xl, color: colorScheme.primary),
+                    child: Icon(
+                      AppIcons.profile,
+                      size: AppIconSize.xl,
+                      color: colorScheme.primary,
+                    ),
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   Text('Marcus Johnson', style: textTheme.titleLarge),
@@ -171,20 +195,37 @@ class _ProfileForm extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: _InfoTile(icon: AppIcons.maintenanceTeam, label: 'Department', value: 'Maintenance'),
+                  child: _InfoTile(
+                    icon: AppIcons.maintenanceTeam,
+                    label: 'Department',
+                    value: 'Maintenance',
+                  ),
                 ),
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
-                  child: _InfoTile(icon: AppIcons.location, label: 'District', value: 'West District'),
+                  child: _InfoTile(
+                    icon: AppIcons.location,
+                    label: 'District',
+                    value: 'West District',
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: AppSpacing.sm),
-            _InfoTile(icon: AppIcons.idCard, label: 'Employee ID', value: 'CV-2940-MJ'),
+            _InfoTile(
+              icon: AppIcons.idCard,
+              label: 'Employee ID',
+              value: 'CV-2940-MJ',
+            ),
             const SizedBox(height: AppSpacing.lg),
             Text('Contact Information', style: textTheme.titleSmall),
             const SizedBox(height: AppSpacing.sm),
-            Text('Email', style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant)),
+            Text(
+              'Email',
+              style: textTheme.bodySmall?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
             const SizedBox(height: AppSpacing.xs),
             TextField(
               controller: emailController,
@@ -198,19 +239,30 @@ class _ProfileForm extends StatelessWidget {
               ),
             ),
             const SizedBox(height: AppSpacing.sm),
-            Text('Phone', style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant)),
+            Text(
+              'Phone',
+              style: textTheme.bodySmall?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
             const SizedBox(height: AppSpacing.xs),
             TextField(
               controller: phoneController,
               onChanged: onFieldChanged,
               enabled: !disabled,
               keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(hintText: 'Phone', prefixIcon: Icon(AppIcons.phone)),
+              decoration: const InputDecoration(
+                hintText: 'Phone',
+                prefixIcon: Icon(AppIcons.phone),
+              ),
             ),
             const SizedBox(height: AppSpacing.xl),
             SizedBox(
               width: double.infinity,
-              child: FilledButton(onPressed: onSave, child: const Text('Save Changes')),
+              child: FilledButton(
+                onPressed: onSave,
+                child: const Text('Save Changes'),
+              ),
             ),
           ],
         ),
@@ -243,13 +295,15 @@ class _SavedBanner extends StatelessWidget {
               children: [
                 Text(
                   'Changes saved',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(color: semantic.success),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(color: semantic.success),
                 ),
                 Text(
                   'Permitted profile fields were updated.',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),
@@ -261,7 +315,11 @@ class _SavedBanner extends StatelessWidget {
 }
 
 class _InfoTile extends StatelessWidget {
-  const _InfoTile({required this.icon, required this.label, required this.value});
+  const _InfoTile({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
   final IconData icon;
   final String label;
   final String value;
@@ -281,7 +339,12 @@ class _InfoTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(label, style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant)),
+                  Text(
+                    label,
+                    style: textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
                   Text(value, style: textTheme.titleSmall),
                 ],
               ),
@@ -297,26 +360,29 @@ class _LoadingView extends StatelessWidget {
   const _LoadingView();
   @override
   Widget build(BuildContext context) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const CircularProgressIndicator(),
-              const SizedBox(height: AppSpacing.md),
-              Text('Loading profile', style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                'Retrieving maintenance staff information.',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-              ),
-            ],
+    child: Padding(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const CircularProgressIndicator(),
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            'Loading profile',
+            style: Theme.of(context).textTheme.titleMedium,
           ),
-        ),
-      );
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            'Retrieving maintenance staff information.',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 class _EmptyView extends StatelessWidget {
@@ -332,14 +398,23 @@ class _EmptyView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(AppIcons.profile, size: AppIconSize.xl, color: colorScheme.onSurfaceVariant),
+            Icon(
+              AppIcons.profile,
+              size: AppIconSize.xl,
+              color: colorScheme.onSurfaceVariant,
+            ),
             const SizedBox(height: AppSpacing.md),
-            Text('No profile data', style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              'No profile data',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: AppSpacing.xs),
             Text(
               'Staff profile information is not available.',
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: AppSpacing.lg),
             FilledButton(onPressed: onRetry, child: const Text('Retry')),
@@ -365,14 +440,17 @@ class _ErrorView extends StatelessWidget {
           children: [
             Icon(AppIcons.error, size: AppIconSize.xl, color: semantic.error),
             const SizedBox(height: AppSpacing.md),
-            Text('Unable to load profile', style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              'Unable to load profile',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: AppSpacing.xs),
             Text(
               'Try again without exposing administrator-only information.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: AppSpacing.lg),
             FilledButton(
@@ -400,7 +478,11 @@ class _OfflineView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(AppIcons.offline, size: AppIconSize.xl, color: semantic.warning),
+            Icon(
+              AppIcons.offline,
+              size: AppIconSize.xl,
+              color: semantic.warning,
+            ),
             const SizedBox(height: AppSpacing.md),
             Text('Offline', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: AppSpacing.xs),
@@ -408,8 +490,8 @@ class _OfflineView extends StatelessWidget {
               'Reconnect to save profile changes.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: AppSpacing.lg),
             FilledButton(
@@ -437,14 +519,23 @@ class _PermissionView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(AppIcons.permissionDenied, size: AppIconSize.xl, color: colorScheme.onSurfaceVariant),
+            Icon(
+              AppIcons.permissionDenied,
+              size: AppIconSize.xl,
+              color: colorScheme.onSurfaceVariant,
+            ),
             const SizedBox(height: AppSpacing.md),
-            Text('Permission required', style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              'Permission required',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: AppSpacing.xs),
             Text(
               'Maintenance profile access is required.',
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: AppSpacing.lg),
             FilledButton(onPressed: onRetry, child: const Text('Retry')),

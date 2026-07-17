@@ -1,15 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:civic_voice/core/theme/app_theme.dart';
-import 'package:civic_voice/features/maintenance/screens/dashboard_screen.dart';
-import 'package:civic_voice/features/maintenance/screens/assigned_tasks_screen.dart';
-import 'package:civic_voice/features/maintenance/screens/task_completed_screen.dart';
-import 'package:civic_voice/features/maintenance/screens/profile_screen.dart';
 
 enum _UploadStatus { idle, uploading, success }
 
 /// MNT-005 — Upload / Resolution Evidence.
 class UploadEvidenceScreen extends StatefulWidget {
-  const UploadEvidenceScreen({super.key});
+  const UploadEvidenceScreen({
+    super.key,
+    this.onNavigateToDashboard,
+    this.onNavigateToTasks,
+    this.onNavigateToProfile,
+    this.onTaskCompleted,
+  });
+
+  final VoidCallback? onNavigateToDashboard;
+  final VoidCallback? onNavigateToTasks;
+  final VoidCallback? onNavigateToProfile;
+  final VoidCallback? onTaskCompleted;
 
   @override
   State<UploadEvidenceScreen> createState() => _UploadEvidenceScreenState();
@@ -40,7 +47,9 @@ class _UploadEvidenceScreenState extends State<UploadEvidenceScreen> {
 
   void _handleSubmit() {
     if (_photoCount == 0) {
-      setState(() => _validationError = 'Evidence is required before task completion.');
+      setState(
+        () => _validationError = 'Evidence is required before task completion.',
+      );
       return;
     }
     setState(() {
@@ -49,7 +58,7 @@ class _UploadEvidenceScreenState extends State<UploadEvidenceScreen> {
     });
     Future.delayed(const Duration(milliseconds: 600), () {
       if (mounted) {
-        Navigator.push(context, MaterialPageRoute(builder: (_) => const TaskCompletedScreen()));
+        widget.onTaskCompleted?.call();
       }
     });
   }
@@ -68,17 +77,20 @@ class _UploadEvidenceScreenState extends State<UploadEvidenceScreen> {
       bottomNavigationBar: NavigationBar(
         selectedIndex: 1,
         destinations: const [
-          NavigationDestination(icon: Icon(AppIcons.dashboard), label: 'Dashboard'),
+          NavigationDestination(
+            icon: Icon(AppIcons.dashboard),
+            label: 'Dashboard',
+          ),
           NavigationDestination(icon: Icon(AppIcons.task), label: 'Tasks'),
           NavigationDestination(icon: Icon(AppIcons.profile), label: 'Profile'),
         ],
         onDestinationSelected: (index) {
           if (index == 0) {
-            Navigator.push(context, MaterialPageRoute(builder: (_) => const DashboardScreen()));
+            widget.onNavigateToDashboard?.call();
           } else if (index == 1) {
-            Navigator.push(context, MaterialPageRoute(builder: (_) => const AssignedTasksScreen()));
+            widget.onNavigateToTasks?.call();
           } else if (index == 2) {
-            Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen()));
+            widget.onNavigateToProfile?.call();
           }
         },
       ),
@@ -92,11 +104,17 @@ class _UploadEvidenceScreenState extends State<UploadEvidenceScreen> {
       case AppScreenState.empty:
         return _buildForm(context);
       case AppScreenState.error:
-        return _ErrorView(onRetry: () => setState(() => _state = AppScreenState.success));
+        return _ErrorView(
+          onRetry: () => setState(() => _state = AppScreenState.success),
+        );
       case AppScreenState.offline:
-        return _OfflineView(onRetry: () => setState(() => _state = AppScreenState.success));
+        return _OfflineView(
+          onRetry: () => setState(() => _state = AppScreenState.success),
+        );
       case AppScreenState.permission:
-        return _PermissionView(onRetry: () => setState(() => _state = AppScreenState.success));
+        return _PermissionView(
+          onRetry: () => setState(() => _state = AppScreenState.success),
+        );
       case AppScreenState.disabled:
         return _buildForm(context, disabled: true);
       case AppScreenState.success:
@@ -156,7 +174,9 @@ class _UploadEvidenceForm extends StatelessWidget {
             const SizedBox(height: AppSpacing.xs),
             Text(
               'Upload a clear photo showing the completed work for verification.',
-              style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
+              style: textTheme.bodyMedium?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: AppSpacing.md),
             _CapturePanel(hasError: validationError != null, onTap: onCapture),
@@ -182,9 +202,17 @@ class _UploadEvidenceForm extends StatelessWidget {
             ),
             if (uploadStatus == _UploadStatus.uploading) ...[
               const SizedBox(height: AppSpacing.md),
-              Text('Uploading evidence', style: textTheme.labelLarge?.copyWith(color: colorScheme.primary)),
+              Text(
+                'Uploading evidence',
+                style: textTheme.labelLarge?.copyWith(
+                  color: colorScheme.primary,
+                ),
+              ),
               const SizedBox(height: AppSpacing.xs),
-              ClipRRect(borderRadius: AppRadius.allXs, child: LinearProgressIndicator(value: uploadProgress)),
+              ClipRRect(
+                borderRadius: AppRadius.allXs,
+                child: LinearProgressIndicator(value: uploadProgress),
+              ),
             ],
             if (uploadStatus == _UploadStatus.success) ...[
               const SizedBox(height: AppSpacing.md),
@@ -192,7 +220,10 @@ class _UploadEvidenceForm extends StatelessWidget {
             ],
             if (validationError != null) ...[
               const SizedBox(height: AppSpacing.sm),
-              Text(validationError!, style: textTheme.bodySmall?.copyWith(color: semantic.error)),
+              Text(
+                validationError!,
+                style: textTheme.bodySmall?.copyWith(color: semantic.error),
+              ),
             ],
             const SizedBox(height: AppSpacing.lg),
             Text('Image Previews', style: textTheme.titleSmall),
@@ -214,7 +245,8 @@ class _UploadEvidenceForm extends StatelessWidget {
               maxLines: 3,
               enabled: !disabled,
               decoration: const InputDecoration(
-                hintText: "Describe the resolution in detail (e.g., 'Pothole filled with high-grade asphalt, surface leveled...')",
+                hintText:
+                    "Describe the resolution in detail (e.g., 'Pothole filled with high-grade asphalt, surface leveled...')",
               ),
             ),
             const SizedBox(height: AppSpacing.xl),
@@ -252,20 +284,31 @@ class _CapturePanel extends StatelessWidget {
           height: 140,
           decoration: BoxDecoration(
             borderRadius: AppComponentRadius.card,
-            border: Border.all(color: hasError ? semantic.error : colorScheme.outlineVariant),
+            border: Border.all(
+              color: hasError ? semantic.error : colorScheme.outlineVariant,
+            ),
           ),
           child: Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(AppIcons.camera, color: colorScheme.primary, size: AppIconSize.lg),
+                Icon(
+                  AppIcons.camera,
+                  color: colorScheme.primary,
+                  size: AppIconSize.lg,
+                ),
                 const SizedBox(height: AppSpacing.sm),
-                Text('Tap to capture or upload', style: Theme.of(context).textTheme.titleSmall),
+                Text(
+                  'Tap to capture or upload',
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
                   'Camera capture or gallery selection · JPG, PNG up to 10MB',
                   textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),
@@ -286,9 +329,13 @@ class _InlineSuccessNote extends StatelessWidget {
       children: [
         Icon(AppIcons.success, size: AppIconSize.sm, color: semantic.success),
         const SizedBox(width: AppSpacing.xs),
-        Text(
-          'Upload successful — Resolution evidence is attached to the task.',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: semantic.success),
+        Expanded(
+          child: Text(
+            'Upload successful — Resolution evidence is attached to the task.',
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: semantic.success),
+          ),
         ),
       ],
     );
@@ -302,8 +349,14 @@ class _PhotoThumbnail extends StatelessWidget {
     return Container(
       width: 64,
       height: 64,
-      decoration: BoxDecoration(color: colorScheme.surfaceContainerLow, borderRadius: AppComponentRadius.card),
-      child: Icon(AppIcons.imageUnavailable, color: colorScheme.onSurfaceVariant),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerLow,
+        borderRadius: AppComponentRadius.card,
+      ),
+      child: Icon(
+        AppIcons.imageUnavailable,
+        color: colorScheme.onSurfaceVariant,
+      ),
     );
   }
 }
@@ -312,26 +365,29 @@ class _LoadingView extends StatelessWidget {
   const _LoadingView();
   @override
   Widget build(BuildContext context) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const CircularProgressIndicator(),
-              const SizedBox(height: AppSpacing.md),
-              Text('Loading evidence form', style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                'Preparing camera, gallery, and notes.',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-              ),
-            ],
+    child: Padding(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const CircularProgressIndicator(),
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            'Loading evidence form',
+            style: Theme.of(context).textTheme.titleMedium,
           ),
-        ),
-      );
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            'Preparing camera, gallery, and notes.',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 class _ErrorView extends StatelessWidget {
@@ -347,16 +403,23 @@ class _ErrorView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(AppIcons.uploadFailed, size: AppIconSize.xl, color: semantic.error),
+            Icon(
+              AppIcons.uploadFailed,
+              size: AppIconSize.xl,
+              color: semantic.error,
+            ),
             const SizedBox(height: AppSpacing.md),
-            Text('Upload Failed', style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              'Upload Failed',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: AppSpacing.xs),
             Text(
               'Evidence upload failed. Keep the task open and retry.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: AppSpacing.lg),
             FilledButton(
@@ -384,7 +447,11 @@ class _OfflineView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(AppIcons.offline, size: AppIconSize.xl, color: semantic.warning),
+            Icon(
+              AppIcons.offline,
+              size: AppIconSize.xl,
+              color: semantic.warning,
+            ),
             const SizedBox(height: AppSpacing.md),
             Text('Offline', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: AppSpacing.xs),
@@ -392,8 +459,8 @@ class _OfflineView extends StatelessWidget {
               'Reconnect before submitting resolution evidence.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: AppSpacing.lg),
             FilledButton(
@@ -421,14 +488,23 @@ class _PermissionView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(AppIcons.permissionDenied, size: AppIconSize.xl, color: colorScheme.onSurfaceVariant),
+            Icon(
+              AppIcons.permissionDenied,
+              size: AppIconSize.xl,
+              color: colorScheme.onSurfaceVariant,
+            ),
             const SizedBox(height: AppSpacing.md),
-            Text('Permission required', style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              'Permission required',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: AppSpacing.xs),
             Text(
               'Camera/gallery permission is required to upload evidence.',
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: AppSpacing.lg),
             FilledButton(onPressed: onRetry, child: const Text('Retry')),

@@ -591,9 +591,9 @@ class _QuickActionGrid extends StatelessWidget {
                     FilledButton.icon(
                       onPressed: () {
                         Navigator.of(context).pop();
-                        Navigator.of(context).pushNamed(
-                          CitizenReportsScreen.routeName,
-                        );
+                        Navigator.of(
+                          context,
+                        ).pushNamed(CitizenReportsScreen.routeName);
                       },
                       icon: const Icon(AppIcons.report),
                       label: const Text('View All Reports'),
@@ -647,9 +647,9 @@ class _QuickActionGrid extends StatelessWidget {
                 OutlinedButton.icon(
                   onPressed: () {
                     Navigator.of(context).pop();
-                    Navigator.of(context).pushNamed(
-                      CitizenAlertsScreen.routeName,
-                    );
+                    Navigator.of(
+                      context,
+                    ).pushNamed(CitizenAlertsScreen.routeName);
                   },
                   icon: const Icon(AppIcons.notificationsActive),
                   label: const Text('Open Alerts'),
@@ -676,7 +676,7 @@ class _QuickActionGrid extends StatelessWidget {
             crossAxisCount: 2,
             mainAxisSpacing: AppSpacing.md,
             crossAxisSpacing: AppSpacing.md,
-            childAspectRatio: compact ? 0.95 : 1.18,
+            mainAxisExtent: compact ? 188 : 176,
           ),
           itemBuilder: (context, index) {
             final action = _actions[index];
@@ -885,10 +885,7 @@ class _RecentReportsSection extends StatelessWidget {
             Expanded(
               child: Text('Recent Reports', style: theme.textTheme.titleLarge),
             ),
-            TextButton(
-              onPressed: onViewReports,
-              child: const Text('View all'),
-            ),
+            TextButton(onPressed: onViewReports, child: const Text('View all')),
           ],
         ),
         const SizedBox(height: AppSpacing.md),
@@ -968,10 +965,7 @@ class _EmptyRecentReportsCard extends StatelessWidget {
 }
 
 class _ReportListTile extends StatelessWidget {
-  const _ReportListTile({
-    required this.report,
-    this.onTap,
-  });
+  const _ReportListTile({required this.report, this.onTap});
 
   final CivicReport report;
   final VoidCallback? onTap;

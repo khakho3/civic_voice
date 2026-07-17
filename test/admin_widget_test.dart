@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:civic_voice/main.dart' as app;
 import 'package:civic_voice/core/theme/app_theme.dart';
 import 'package:civic_voice/features/admin/models/admin_system_activity_data.dart';
 import 'package:civic_voice/features/admin/models/admin_user_management_data.dart';
@@ -204,6 +205,43 @@ void main() {
       await tester.pump();
 
       expect(activityTapped, isTrue);
+    },
+  );
+
+  testWidgets(
+    'Admin routes connect Dashboard, Users, User Details, and Roles',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        const app.CivicVoiceApp(initialRoute: app.AppRoutes.adminDashboard),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text('Platform Overview'), findsOneWidget);
+
+      await tester.tap(find.text('Users'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text('User Management'), findsWidgets);
+
+      await tester.tap(find.text('Kojo Mensah'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text('User Details'), findsOneWidget);
+      expect(find.text('CV-USER-0102'), findsOneWidget);
+
+      await tester.tap(find.text('Roles').last);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text('Role Management'), findsOneWidget);
     },
   );
 

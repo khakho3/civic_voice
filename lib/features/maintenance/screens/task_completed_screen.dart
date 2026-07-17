@@ -1,12 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:civic_voice/core/theme/app_theme.dart';
-import 'package:civic_voice/features/maintenance/screens/dashboard_screen.dart';
-import 'package:civic_voice/features/maintenance/screens/assigned_tasks_screen.dart';
-import 'package:civic_voice/features/maintenance/screens/profile_screen.dart';
 
 /// MNT-006 — Task Completed.
 class TaskCompletedScreen extends StatefulWidget {
-  const TaskCompletedScreen({super.key});
+  const TaskCompletedScreen({
+    super.key,
+    this.onNavigateToDashboard,
+    this.onNavigateToTasks,
+    this.onNavigateToProfile,
+  });
+
+  final VoidCallback? onNavigateToDashboard;
+  final VoidCallback? onNavigateToTasks;
+  final VoidCallback? onNavigateToProfile;
 
   @override
   State<TaskCompletedScreen> createState() => _TaskCompletedScreenState();
@@ -29,7 +35,10 @@ class _TaskCompletedScreenState extends State<TaskCompletedScreen> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.sm,
+                vertical: AppSpacing.xs,
+              ),
               decoration: BoxDecoration(
                 color: semantic.success.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(AppRadius.xl),
@@ -37,9 +46,9 @@ class _TaskCompletedScreenState extends State<TaskCompletedScreen> {
               child: Text(
                 'READ ONLY',
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: semantic.success,
-                      fontWeight: AppFontWeight.semiBold,
-                    ),
+                  color: semantic.success,
+                  fontWeight: AppFontWeight.semiBold,
+                ),
               ),
             ),
           ),
@@ -49,25 +58,20 @@ class _TaskCompletedScreenState extends State<TaskCompletedScreen> {
       bottomNavigationBar: NavigationBar(
         selectedIndex: 1,
         destinations: const [
-          NavigationDestination(icon: Icon(AppIcons.dashboard), label: 'Dashboard'),
+          NavigationDestination(
+            icon: Icon(AppIcons.dashboard),
+            label: 'Dashboard',
+          ),
           NavigationDestination(icon: Icon(AppIcons.task), label: 'Tasks'),
           NavigationDestination(icon: Icon(AppIcons.profile), label: 'Profile'),
         ],
         onDestinationSelected: (index) {
           if (index == 0) {
-            Navigator.pushAndRemoveUntil(
-              context,
-              MaterialPageRoute(builder: (_) => const DashboardScreen()),
-              (route) => false,
-            );
+            widget.onNavigateToDashboard?.call();
           } else if (index == 1) {
-            Navigator.pushAndRemoveUntil(
-              context,
-              MaterialPageRoute(builder: (_) => const AssignedTasksScreen()),
-              (route) => false,
-            );
+            widget.onNavigateToTasks?.call();
           } else if (index == 2) {
-            Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen()));
+            widget.onNavigateToProfile?.call();
           }
         },
       ),
@@ -81,11 +85,17 @@ class _TaskCompletedScreenState extends State<TaskCompletedScreen> {
       case AppScreenState.empty:
         return const _TaskCompletedContent();
       case AppScreenState.error:
-        return _ErrorView(onRetry: () => setState(() => _state = AppScreenState.success));
+        return _ErrorView(
+          onRetry: () => setState(() => _state = AppScreenState.success),
+        );
       case AppScreenState.offline:
-        return _OfflineView(onRetry: () => setState(() => _state = AppScreenState.success));
+        return _OfflineView(
+          onRetry: () => setState(() => _state = AppScreenState.success),
+        );
       case AppScreenState.permission:
-        return _PermissionView(onRetry: () => setState(() => _state = AppScreenState.success));
+        return _PermissionView(
+          onRetry: () => setState(() => _state = AppScreenState.success),
+        );
       case AppScreenState.disabled:
         return const _ReadOnlyExplainerView();
       case AppScreenState.success:
@@ -111,14 +121,20 @@ class _TaskCompletedContent extends StatelessWidget {
           Center(
             child: Column(
               children: [
-                Icon(AppIcons.statusResolved, size: AppIconSize.xl, color: semantic.success),
+                Icon(
+                  AppIcons.statusResolved,
+                  size: AppIconSize.xl,
+                  color: semantic.success,
+                ),
                 const SizedBox(height: AppSpacing.md),
                 Text('Task Completed', style: textTheme.headlineSmall),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
                   'Completion recorded successfully. This task is now read-only.',
                   textAlign: TextAlign.center,
-                  style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),
@@ -131,11 +147,23 @@ class _TaskCompletedContent extends StatelessWidget {
               padding: const EdgeInsets.all(AppSpacing.md),
               child: Column(
                 children: [
-                  _SummaryRow(icon: AppIcons.task, label: 'Task', value: 'Street Light Repair - Sector 4'),
+                  _SummaryRow(
+                    icon: AppIcons.task,
+                    label: 'Task',
+                    value: 'Street Light Repair - Sector 4',
+                  ),
                   const Divider(height: AppSpacing.lg),
-                  _SummaryRow(icon: AppIcons.location, label: 'Location', value: 'Central lighting grid'),
+                  _SummaryRow(
+                    icon: AppIcons.location,
+                    label: 'Location',
+                    value: 'Central lighting grid',
+                  ),
                   const Divider(height: AppSpacing.lg),
-                  _SummaryRow(icon: AppIcons.calendar, label: 'Completed', value: 'Oct 14, 04:28 PM'),
+                  _SummaryRow(
+                    icon: AppIcons.calendar,
+                    label: 'Completed',
+                    value: 'Oct 14, 04:28 PM',
+                  ),
                 ],
               ),
             ),
@@ -146,10 +174,15 @@ class _TaskCompletedContent extends StatelessWidget {
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(AppSpacing.md),
-            decoration: BoxDecoration(color: colorScheme.surfaceContainerLow, borderRadius: AppComponentRadius.card),
+            decoration: BoxDecoration(
+              color: colorScheme.surfaceContainerLow,
+              borderRadius: AppComponentRadius.card,
+            ),
             child: Text(
               'The asphalt has been leveled and sealed. Proper drainage was checked and confirmed functional. Area cleared of debris and reopened for pedestrian and vehicle traffic.',
-              style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
+              style: textTheme.bodyMedium?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
             ),
           ),
         ],
@@ -159,7 +192,11 @@ class _TaskCompletedContent extends StatelessWidget {
 }
 
 class _SummaryRow extends StatelessWidget {
-  const _SummaryRow({required this.icon, required this.label, required this.value});
+  const _SummaryRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
   final IconData icon;
   final String label;
   final String value;
@@ -176,7 +213,12 @@ class _SummaryRow extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label, style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant)),
+              Text(
+                label,
+                style: textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
               Text(value, style: textTheme.bodyMedium),
             ],
           ),
@@ -205,14 +247,20 @@ class _ReadOnlyExplainerView extends StatelessWidget {
               padding: const EdgeInsets.all(AppSpacing.lg),
               child: Column(
                 children: [
-                  Icon(AppIcons.permissionDenied, size: AppIconSize.xl, color: colorScheme.onSurfaceVariant),
+                  Icon(
+                    AppIcons.permissionDenied,
+                    size: AppIconSize.xl,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
                   const SizedBox(height: AppSpacing.md),
                   Text('Read Only', style: textTheme.titleMedium),
                   const SizedBox(height: AppSpacing.xs),
                   Text(
                     'Completed tasks cannot be edited. You may review the summary, evidence, timestamp, and task history.',
                     textAlign: TextAlign.center,
-                    style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
+                    style: textTheme.bodyMedium?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ],
               ),
@@ -222,14 +270,20 @@ class _ReadOnlyExplainerView extends StatelessWidget {
           Center(
             child: Column(
               children: [
-                Icon(AppIcons.statusResolved, size: AppIconSize.lg, color: semantic.success),
+                Icon(
+                  AppIcons.statusResolved,
+                  size: AppIconSize.lg,
+                  color: semantic.success,
+                ),
                 const SizedBox(height: AppSpacing.sm),
                 Text('Task Completed', style: textTheme.titleMedium),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
                   'Completion recorded successfully. This task is now read-only.',
                   textAlign: TextAlign.center,
-                  style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
+                  style: textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),
@@ -246,26 +300,29 @@ class _LoadingView extends StatelessWidget {
   const _LoadingView();
   @override
   Widget build(BuildContext context) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const CircularProgressIndicator(),
-              const SizedBox(height: AppSpacing.md),
-              Text('Loading completion', style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                'Retrieving completion record and uploaded evidence.',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-              ),
-            ],
+    child: Padding(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const CircularProgressIndicator(),
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            'Loading completion',
+            style: Theme.of(context).textTheme.titleMedium,
           ),
-        ),
-      );
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            'Retrieving completion record and uploaded evidence.',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 class _ErrorView extends StatelessWidget {
@@ -283,14 +340,17 @@ class _ErrorView extends StatelessWidget {
           children: [
             Icon(AppIcons.error, size: AppIconSize.xl, color: semantic.error),
             const SizedBox(height: AppSpacing.md),
-            Text('Unable to load completion', style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              'Unable to load completion',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: AppSpacing.xs),
             Text(
               'Try again without changing the maintenance workflow.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: AppSpacing.lg),
             FilledButton(
@@ -318,7 +378,11 @@ class _OfflineView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(AppIcons.offline, size: AppIconSize.xl, color: semantic.warning),
+            Icon(
+              AppIcons.offline,
+              size: AppIconSize.xl,
+              color: semantic.warning,
+            ),
             const SizedBox(height: AppSpacing.md),
             Text('Offline', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: AppSpacing.xs),
@@ -326,8 +390,8 @@ class _OfflineView extends StatelessWidget {
               'Reconnect to view the completed task record.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: AppSpacing.lg),
             FilledButton(
@@ -355,14 +419,23 @@ class _PermissionView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(AppIcons.permissionDenied, size: AppIconSize.xl, color: colorScheme.onSurfaceVariant),
+            Icon(
+              AppIcons.permissionDenied,
+              size: AppIconSize.xl,
+              color: colorScheme.onSurfaceVariant,
+            ),
             const SizedBox(height: AppSpacing.md),
-            Text('Permission required', style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              'Permission required',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: AppSpacing.xs),
             Text(
               'Maintenance access is required to view this completed task.',
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: AppSpacing.lg),
             FilledButton(onPressed: onRetry, child: const Text('Retry')),
