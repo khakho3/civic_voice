@@ -12,6 +12,7 @@ import 'features/admin/screens/admin_system_settings_screen.dart';
 import 'features/admin/screens/admin_user_details_screen.dart';
 import 'features/admin/screens/admin_user_management_screen.dart';
 import 'features/admin/services/admin_session.dart';
+import 'features/authentication/screens/change_password_screen.dart';
 import 'features/authentication/screens/forgot_password_screen.dart';
 import 'features/authentication/screens/login_screen.dart';
 import 'features/authentication/screens/profile_screen.dart' as auth;
@@ -83,6 +84,11 @@ abstract final class AppRoutes {
   static const login = '/login';
   static const registration = '/registration';
   static const forgotPassword = '/forgot-password';
+
+  /// Shared across every already-authenticated role's Profile screen —
+  /// see [ChangePasswordScreen]'s own doc comment for why this is a
+  /// single cross-module destination rather than one per module.
+  static const changePassword = '/change-password';
   static const profile = '/profile';
   static const testRoleSelector = '/test-role-selector';
 
@@ -220,6 +226,9 @@ class CivicVoiceApp extends StatelessWidget {
                 // later.
               },
               onBackToLogin: () => Navigator.of(context).maybePop(),
+            ),
+            AppRoutes.changePassword: (context) => ChangePasswordScreen(
+              onBack: () => Navigator.of(context).maybePop(),
             ),
             AppRoutes.profile: (context) => auth.ProfileScreen(
               onLogout: () => Navigator.of(
@@ -539,6 +548,10 @@ Widget _adminRoleManagement(BuildContext context) {
 
 Widget _adminSystemActivity(BuildContext context) {
   return AdminSystemActivityScreen(
+    // Both tiers reach a real loaded feed — an assembly Admin's own is
+    // scoped down to their jurisdiction and drops the health stats, both
+    // handled inside the screen itself via AdminSession. See
+    // AdminSystemActivityScreen's own doc comment.
     onNavigateToDashboard: () =>
         _replaceWith(context, AppRoutes.adminDashboard),
     onNavigateToUsers: () =>
@@ -585,6 +598,8 @@ Widget _adminProfile(BuildContext context) {
         _replaceWith(context, AppRoutes.adminSystemSettings),
     onNavigateToActivity: () =>
         _replaceWith(context, AppRoutes.adminSystemActivity),
+    onChangePassword: () =>
+        Navigator.of(context).pushNamed(AppRoutes.changePassword),
     onSignOut: () => Navigator.of(
       context,
     ).pushNamedAndRemoveUntil(AppRoutes.welcome, (_) => false),
@@ -657,6 +672,8 @@ Widget _ministryReportInsights(BuildContext context) {
 Widget _ministryProfile(BuildContext context) {
   return ministry.MinistryProfileScreen(
     onBack: () => _popOrReplaceWith(context, AppRoutes.ministryDashboard),
+    onChangePassword: () =>
+        Navigator.of(context).pushNamed(AppRoutes.changePassword),
     onLogOut: () => Navigator.of(
       context,
     ).pushNamedAndRemoveUntil(AppRoutes.welcome, (_) => false),
@@ -863,6 +880,8 @@ Widget _municipalResolutionDetails(
 Widget _municipalProfile(BuildContext context) {
   return municipal.MunicipalProfileScreen(
     onBack: () => _popOrReplaceWith(context, AppRoutes.municipalDashboard),
+    onChangePassword: () =>
+        Navigator.of(context).pushNamed(AppRoutes.changePassword),
     onLogOut: () => Navigator.of(
       context,
     ).pushNamedAndRemoveUntil(AppRoutes.welcome, (_) => false),

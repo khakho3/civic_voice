@@ -11,10 +11,10 @@ import '../widgets/admin_scaffold.dart';
 /// Approved states (Figma "06/Settings" export): Default, Loading,
 /// Offline, Error ("Something went wrong"), Unauthorized — the screen's
 /// own load state, [AdminSystemSettingsViewState] — plus Saving, Saved,
-/// Failed, Validation, which are outcomes of the in-place "Save Changes"
-/// action and kept out of that enum entirely; see
-/// [SystemSettingsSaveState]'s own doc comment for why, and why [failed]
-/// specifically is preview-only via [initialSaveState].
+/// Failed, which are outcomes of the in-place "Save Changes" action and
+/// kept out of that enum entirely; see [SystemSettingsSaveState]'s own
+/// doc comment for why, and why [failed] specifically is preview-only via
+/// [initialSaveState].
 ///
 /// Export quirks, resolved by content rather than folder/file name (the
 /// same kind of split-across-two-folders slip seen throughout this app):
@@ -28,16 +28,16 @@ import '../widgets/admin_scaffold.dart';
 ///   Saving's light-only frame as its missing dark variant instead of
 ///   introducing an unneeded state.
 ///
-/// "Platform Name" renders as a dropdown in the export, but it's a name,
-/// not a choice from a fixed set — modeled as a text field instead (see
-/// [SystemSettingsData]'s doc comment). This also makes the export's own
-/// "Platform name is required" validation copy reachable: a dropdown,
-/// always populated, could never actually be empty.
+/// The approved export's "Platform Name" field was dropped entirely — see
+/// [SystemSettingsData]'s doc comment for why. "Maintenance Mode" and
+/// "Public status page" render as ordinary live switches in the export,
+/// but neither is backed by a real feature yet, so both carry a "Coming
+/// Soon" [_ComingSoonBadge] next to their label instead — flagged rather
+/// than presented as fully live, without hiding or disabling them.
 ///
 /// "Reset Changes"/"Save Changes" only appear once the draft differs from
 /// the last-saved snapshot — matching the export's own Default frame
-/// (no button row) versus its Saving/Failed/Validation frames (button row
-/// visible).
+/// (no button row) versus its Saving/Failed frames (button row visible).
 enum AdminSystemSettingsViewState {
   loading,
   loaded,
@@ -114,11 +114,6 @@ class _AdminSystemSettingsScreenState extends State<AdminSystemSettingsScreen> {
   }
 
   Future<void> _saveChanges() async {
-    if (_draft.platformName.trim().isEmpty) {
-      setState(() => _saveState = SystemSettingsSaveState.validationError);
-      return;
-    }
-
     final confirmed = await showConfirmDialog(
       context,
       title: 'Save system settings?',
@@ -235,9 +230,6 @@ class _SettingsForm extends StatelessWidget {
   Widget build(BuildContext context) {
     final chromeInset = AdminScaffold.contentPadding(context);
     final dirty = draft != original;
-    final showPlatformNameError =
-        saveState == SystemSettingsSaveState.validationError &&
-        draft.platformName.trim().isEmpty;
 
     return ListView(
       padding: EdgeInsets.fromLTRB(
@@ -268,32 +260,12 @@ class _SettingsForm extends StatelessWidget {
                   'applied.',
             ),
           ),
-          SystemSettingsSaveState.validationError => const Padding(
-            padding: EdgeInsets.only(bottom: AppSpacing.sm),
-            child: _Banner(
-              icon: AppIcons.warning,
-              color: AppColors.error,
-              title: 'Validation Error',
-              message: 'Review the highlighted configuration before saving.',
-            ),
-          ),
           _ => const SizedBox.shrink(),
         },
         _SettingsSection(
           icon: AppIcons.filter,
           title: 'General Configuration',
           children: [
-            _SettingsRow(
-              label: 'Platform Name',
-              errorText: showPlatformNameError
-                  ? 'Platform name is required.'
-                  : null,
-              trailing: _InlineTextField(
-                value: draft.platformName,
-                hasError: showPlatformNameError,
-                onChanged: (v) => onUpdate((d) => d.copyWith(platformName: v)),
-              ),
-            ),
             _SettingsRow(
               label: 'Default Language',
               trailing: _InlineDropdown(
@@ -305,6 +277,7 @@ class _SettingsForm extends StatelessWidget {
             ),
             _SettingsRow(
               label: 'Maintenance Mode',
+              badge: const _ComingSoonBadge(),
               description:
                   'Restricts platform access during approved maintenance.',
               trailing: Switch(
@@ -380,6 +353,7 @@ class _SettingsForm extends StatelessWidget {
           children: [
             _SettingsRow(
               label: 'Public status page',
+              badge: const _ComingSoonBadge(),
               description: 'Shows approved system availability updates.',
               trailing: Switch(
                 value: draft.publicStatusPage,
@@ -535,55 +509,82 @@ class _SettingsRow extends StatelessWidget {
     required this.label,
     required this.trailing,
     this.description,
-    this.errorText,
+    this.badge,
   });
 
   final String label;
   final Widget trailing;
   final String? description;
-  final String? errorText;
+
+  /// Shown inline after [label] — used for [_ComingSoonBadge] on settings
+  /// that aren't backed by a real feature yet.
+  final Widget? badge;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final colorScheme = Theme.of(context).colorScheme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Row(
+      crossAxisAlignment: description == null
+          ? CrossAxisAlignment.center
+          : CrossAxisAlignment.start,
       children: [
-        Row(
-          crossAxisAlignment: description == null
-              ? CrossAxisAlignment.center
-              : CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(label, style: textTheme.bodyLarge),
-                  if (description != null) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      description!,
-                      style: textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                    ),
+                  Flexible(child: Text(label, style: textTheme.bodyLarge)),
+                  if (badge != null) ...[
+                    const SizedBox(width: AppSpacing.xs),
+                    badge!,
                   ],
                 ],
               ),
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            trailing,
-          ],
-        ),
-        if (errorText != null) ...[
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            errorText!,
-            style: textTheme.bodySmall?.copyWith(color: AppColors.error),
+              if (description != null) ...[
+                const SizedBox(height: 2),
+                Text(
+                  description!,
+                  style: textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ],
           ),
-        ],
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        trailing,
       ],
+    );
+  }
+}
+
+/// Neutral (not status-colored) tag flagging a setting that isn't backed
+/// by a real feature yet — deliberately plain rather than a tinted
+/// [ReportStatusBadge]-style pill, so it doesn't read as a status value.
+class _ComingSoonBadge extends StatelessWidget {
+  const _ComingSoonBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerHighest,
+        borderRadius: AppRadius.allSm,
+        border: Border.all(color: colorScheme.outlineVariant),
+      ),
+      child: Text(
+        'Coming Soon',
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          color: colorScheme.onSurfaceVariant,
+          fontWeight: AppFontWeight.semiBold,
+        ),
+      ),
     );
   }
 }
@@ -631,45 +632,6 @@ class _InlineDropdown extends StatelessWidget {
                 : (selected) {
                     if (selected != null) onChanged!(selected);
                   },
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _InlineTextField extends StatelessWidget {
-  const _InlineTextField({
-    required this.value,
-    this.hasError = false,
-    this.onChanged,
-  });
-
-  final String value;
-  final bool hasError;
-  final ValueChanged<String>? onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return SizedBox(
-      width: 140,
-      child: Material(
-        color: hasError
-            ? AppColors.error.withValues(alpha: 0.08)
-            : colorScheme.surfaceContainer,
-        borderRadius: AppRadius.allXl,
-        child: TextFormField(
-          initialValue: value,
-          textAlign: TextAlign.right,
-          onChanged: onChanged,
-          decoration: const InputDecoration(
-            border: InputBorder.none,
-            isDense: true,
-            contentPadding: EdgeInsets.symmetric(
-              horizontal: AppSpacing.md,
-              vertical: AppSpacing.sm,
-            ),
           ),
         ),
       ),

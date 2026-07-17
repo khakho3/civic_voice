@@ -1421,8 +1421,9 @@ void main() {
   );
 
   testWidgets(
-    'Municipal Resolved Reports search field and stats row collapse on '
-    'scroll-down and reappear on scroll-up',
+    'Municipal Resolved Reports search field collapses on scroll-down and '
+    'reappears on scroll-up, while the stats row scrolls as ordinary '
+    'content',
     (WidgetTester tester) async {
       tester.view.physicalSize = const Size(428, 900);
       tester.view.devicePixelRatio = 1.0;
@@ -1438,18 +1439,20 @@ void main() {
       await tester.pumpAndSettle();
 
       final headerFinder = find.byKey(const ValueKey('collapsible_header'));
-      final statsFinder = find.byKey(const ValueKey('collapsible_top_section'));
       final searchExpandedHeight = tester.getSize(headerFinder).height;
-      final statsExpandedHeight = tester.getSize(statsFinder).height;
       expect(searchExpandedHeight, greaterThan(0));
-      expect(statsExpandedHeight, greaterThan(0));
+      // The stats row is regular scrolling content now, not collapsible
+      // chrome — it's always in the tree regardless of header state.
+      // ("Resolved" also labels each card's own status badge, hence
+      // findsWidgets rather than findsOneWidget.)
+      expect(find.text('Resolved'), findsWidgets);
 
       final listFinder = find.byType(ListView).last;
       await tester.drag(listFinder, const Offset(0, -400));
       await tester.pumpAndSettle();
 
       expect(tester.getSize(headerFinder).height, lessThan(1));
-      expect(tester.getSize(statsFinder).height, lessThan(1));
+      expect(find.text('Resolved'), findsWidgets);
 
       await tester.drag(listFinder, const Offset(0, 400));
       await tester.pumpAndSettle();
@@ -1458,33 +1461,19 @@ void main() {
         tester.getSize(headerFinder).height,
         greaterThan(searchExpandedHeight / 2),
       );
-      expect(
-        tester.getSize(statsFinder).height,
-        greaterThan(statsExpandedHeight / 2),
-      );
     },
   );
 
   testWidgets(
-    'CollapsibleListHeader: revealAtTopSection stays hidden through a partial '
-    'scroll-up, and only reappears once the list is back at the very top',
+    'CollapsibleListHeader: header reveals immediately on any upward '
+    'scroll, not just once the list is back at the top',
     (WidgetTester tester) async {
-      // Exercised directly against the shared widget (rather than a real
-      // screen) with a deliberately long list, so the scroll range is large
-      // enough to land cleanly in "scrolled down, not at top" territory —
-      // the real screens' mock data is too short to reliably prove that
-      // middle state once their own header/stats collapse and free up
-      // enough space for everything to fit without any scroll overflow.
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.light,
           home: Scaffold(
             body: CollapsibleListHeader(
               header: const SizedBox(height: 60, child: Text('header')),
-              revealAtTopSection: const SizedBox(
-                height: 60,
-                child: Text('top section'),
-              ),
               child: ListView.builder(
                 itemCount: 30,
                 itemBuilder: (context, index) =>
@@ -1497,41 +1486,22 @@ void main() {
       await tester.pumpAndSettle();
 
       final headerFinder = find.byKey(const ValueKey('collapsible_header'));
-      final topSectionFinder = find.byKey(
-        const ValueKey('collapsible_top_section'),
-      );
       final listFinder = find.byType(ListView);
+      final expandedHeight = tester.getSize(headerFinder).height;
+      expect(expandedHeight, greaterThan(0));
 
-      final headerExpandedHeight = tester.getSize(headerFinder).height;
-      final topSectionExpandedHeight = tester.getSize(topSectionFinder).height;
-      expect(headerExpandedHeight, greaterThan(0));
-      expect(topSectionExpandedHeight, greaterThan(0));
-
-      // Scroll down: both the header and the top section collapse.
+      // Scroll down well past the very top: header hides.
       await tester.drag(listFinder, const Offset(0, -300));
       await tester.pumpAndSettle();
-
       expect(tester.getSize(headerFinder).height, lessThan(1));
-      expect(tester.getSize(topSectionFinder).height, lessThan(1));
 
-      // Scroll back up a little, well short of the top: the header comes
-      // back immediately, but the top section stays hidden.
-      await tester.drag(listFinder, const Offset(0, 50));
+      // A small upward scroll, nowhere near the top, still brings it back
+      // — no 50%-of-header or "reached the top" threshold to clear first.
+      await tester.drag(listFinder, const Offset(0, 40));
       await tester.pumpAndSettle();
-
       expect(
         tester.getSize(headerFinder).height,
-        greaterThan(headerExpandedHeight / 2),
-      );
-      expect(tester.getSize(topSectionFinder).height, lessThan(1));
-
-      // Scroll all the way back to the top: the top section reappears too.
-      await tester.drag(listFinder, const Offset(0, 2000));
-      await tester.pumpAndSettle();
-
-      expect(
-        tester.getSize(topSectionFinder).height,
-        greaterThan(topSectionExpandedHeight / 2),
+        greaterThan(expandedHeight / 2),
       );
     },
   );
@@ -1540,8 +1510,8 @@ void main() {
     'CollapsibleListHeader: chrome can still be pulled back when collapsing '
     'it left the list with nothing to scroll',
     (WidgetTester tester) async {
-      // Regression: on Resolved Reports (3 cards), hiding the search bar +
-      // stats row freed enough room that the whole list fit its viewport —
+      // Regression: on Resolved Reports (3 cards), hiding the search bar
+      // freed enough room that the whole list fit its viewport —
       // maxScrollExtent hit 0, pixels got clamped to 0, and with default
       // clamping physics the list stopped accepting drags entirely, so no
       // gesture could ever bring the chrome back. Content here is sized to
@@ -1558,10 +1528,6 @@ void main() {
           home: Scaffold(
             body: CollapsibleListHeader(
               header: const SizedBox(height: 60, child: Text('header')),
-              revealAtTopSection: const SizedBox(
-                height: 60,
-                child: Text('top section'),
-              ),
               child: ListView.builder(
                 // Mirrors the screens' lists — without this, the list
                 // rejects drags outright once its content fits.
@@ -1577,32 +1543,23 @@ void main() {
       await tester.pumpAndSettle();
 
       final headerFinder = find.byKey(const ValueKey('collapsible_header'));
-      final topSectionFinder = find.byKey(
-        const ValueKey('collapsible_top_section'),
-      );
       final listFinder = find.byType(ListView);
       final headerExpandedHeight = tester.getSize(headerFinder).height;
-      final topSectionExpandedHeight = tester.getSize(topSectionFinder).height;
 
       // Collapse the chrome; the freed space lets the list fit entirely.
       await tester.drag(listFinder, const Offset(0, -300));
       await tester.pumpAndSettle();
 
       expect(tester.getSize(headerFinder).height, lessThan(1));
-      expect(tester.getSize(topSectionFinder).height, lessThan(1));
 
       // Pull back down: even with nothing left to scroll, the drag must
-      // still bring the header — and, being at the top, the stats — back.
+      // still bring the header back.
       await tester.drag(listFinder, const Offset(0, 300));
       await tester.pumpAndSettle();
 
       expect(
         tester.getSize(headerFinder).height,
         greaterThan(headerExpandedHeight / 2),
-      );
-      expect(
-        tester.getSize(topSectionFinder).height,
-        greaterThan(topSectionExpandedHeight / 2),
       );
     },
   );
@@ -1678,6 +1635,29 @@ void main() {
     expect(find.text('Change Password'), findsOneWidget);
     expect(find.text('Two-Factor Authentication'), findsOneWidget);
     expect(find.text('Login Sessions'), findsOneWidget);
+  });
+
+  testWidgets('Municipal Profile Change Password fires onChangePassword', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    var tapped = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: MunicipalProfileScreen(onChangePassword: () => tapped = true),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Change Password'));
+    await tester.pumpAndSettle();
+
+    expect(tapped, isTrue);
   });
 
   testWidgets(

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../models/assembly.dart';
+import '../../../models/ghana_assemblies_data.dart';
+import '../../../models/region.dart';
 
 /// Filter chips above the activity feed — [all]'s the default, the other
 /// two split by [ActivityItem.category].
@@ -73,6 +76,7 @@ class ActivityItem {
     required this.severity,
     required this.category,
     required this.tag,
+    this.assembly,
   });
 
   final String title;
@@ -87,50 +91,44 @@ class ActivityItem {
   /// informational, matching the approved frame's second tag pill.
   final String tag;
 
+  /// Null for platform-wide events (a policy update, a scheduled backup —
+  /// nothing tied to any one jurisdiction). Set for events that happened
+  /// within a specific assembly's jurisdiction — an account provisioned
+  /// there, a citizen registering from there — which is what
+  /// [AdminSession.visibleActivity] scopes an assembly Admin's feed down
+  /// to: their own [assembly], never the platform-wide events a null
+  /// value represents (those stay Super Admin-only, same as the health
+  /// stats above the feed).
+  final Assembly? assembly;
+
   bool matchesTimeRange(ActivityTimeRange range) => range.includes(timestamp);
 }
 
-/// The four summary stat cards at the top of the screen.
-class SystemActivityStats {
-  const SystemActivityStats({
-    required this.totalEvents,
-    required this.totalEventsChangePercent,
-    required this.loginEvents,
-    required this.loginEventsChangePercent,
-    required this.adminActions,
-    required this.adminActionsChangePercent,
-    required this.securityAlerts,
-    required this.securityAlertsBadge,
+/// Live system-health readings at the top of the screen — API reachability,
+/// database latency, uptime. Distinct from the audit feed below it: these
+/// are infrastructure signals a Super Admin checks at a glance, not
+/// counts derived from [ActivityItem]s. Moved here from ADM-001 Admin
+/// Dashboard (which dropped its own "API Status" badge entirely) — a
+/// national-scope health readout belongs on the system-level screen, not
+/// the general overview every admin (including assembly-scoped ones) sees.
+class SystemHealthStats {
+  const SystemHealthStats({
+    required this.apiOnline,
+    required this.dbLatencyMs,
+    required this.uptimePercent,
   });
 
-  final int totalEvents;
-  final num totalEventsChangePercent;
-  final int loginEvents;
-  final num loginEventsChangePercent;
-  final int adminActions;
-
-  /// Negative — Admin Actions is the one stat trending down in the
-  /// approved frame.
-  final num adminActionsChangePercent;
-  final int securityAlerts;
-
-  /// A period label ("Today"), not a percentage delta — the approved
-  /// frame renders Security Alerts differently from the other three stats.
-  final String securityAlertsBadge;
+  final bool apiOnline;
+  final int dbLatencyMs;
+  final double uptimePercent;
 }
 
-/// Placeholder content matching the approved ADM-006 design, used until a
-/// real audit-log service is wired up.
-SystemActivityStats mockSystemActivityStats() {
-  return const SystemActivityStats(
-    totalEvents: 2400,
-    totalEventsChangePercent: 12,
-    loginEvents: 1200,
-    loginEventsChangePercent: 5,
-    adminActions: 850,
-    adminActionsChangePercent: -2,
-    securityAlerts: 42,
-    securityAlertsBadge: 'Today',
+/// Placeholder content, used until a real health-check service is wired up.
+SystemHealthStats mockSystemHealthStats() {
+  return const SystemHealthStats(
+    apiOnline: true,
+    dbLatencyMs: 42,
+    uptimePercent: 99.98,
   );
 }
 
@@ -176,6 +174,29 @@ List<ActivityItem> mockActivityItems() {
       severity: ActivitySeverity.alert,
       category: ActivityCategory.userModification,
       tag: 'Access Management',
+      assembly: assemblyNamed(Region.ashanti, 'Kumasi'),
+    ),
+    ActivityItem(
+      title: 'Citizen Account Registered',
+      description:
+          'A new citizen account self-registered from Kumasi, Ashanti '
+          'Region.',
+      timestamp: now.subtract(const Duration(hours: 5, minutes: 10)),
+      severity: ActivitySeverity.info,
+      category: ActivityCategory.userModification,
+      tag: 'Citizen Registration',
+      assembly: assemblyNamed(Region.ashanti, 'Kumasi'),
+    ),
+    ActivityItem(
+      title: 'Citizen Account Registered',
+      description:
+          'A new citizen account self-registered from Accra, Greater Accra '
+          'Region.',
+      timestamp: now.subtract(const Duration(hours: 9, minutes: 45)),
+      severity: ActivitySeverity.info,
+      category: ActivityCategory.userModification,
+      tag: 'Citizen Registration',
+      assembly: assemblyNamed(Region.greaterAccra, 'Accra'),
     ),
   ];
 }

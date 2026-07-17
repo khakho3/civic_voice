@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:civic_voice/main.dart' as app;
 import 'package:civic_voice/core/theme/app_theme.dart';
+import 'package:civic_voice/core/theme/theme_controller.dart';
+import 'package:civic_voice/features/admin/models/admin_role_management_data.dart';
 import 'package:civic_voice/features/admin/models/admin_system_activity_data.dart';
 import 'package:civic_voice/features/admin/models/admin_user_management_data.dart';
 import 'package:civic_voice/features/admin/screens/admin_dashboard_screen.dart';
@@ -15,6 +18,9 @@ import 'package:civic_voice/features/admin/screens/admin_system_settings_screen.
 import 'package:civic_voice/features/admin/screens/admin_user_details_screen.dart';
 import 'package:civic_voice/features/admin/screens/admin_user_management_screen.dart';
 import 'package:civic_voice/models/app_role.dart';
+import 'package:civic_voice/models/ghana_assemblies_data.dart';
+import 'package:civic_voice/models/region.dart';
+import 'package:civic_voice/services/mock_auth_service.dart';
 
 void main() {
   // ---------------------------------------------------------------------
@@ -1398,12 +1404,12 @@ void main() {
       await tester.pump();
 
       expect(find.text('System Activity'), findsOneWidget);
-      expect(find.text('Total Events'), findsOneWidget);
-      expect(find.text('2.4k'), findsOneWidget);
-      expect(find.text('Login Events'), findsOneWidget);
-      expect(find.text('Admin Actions'), findsOneWidget);
-      expect(find.text('Security Alerts'), findsOneWidget);
-      expect(find.text('Today'), findsOneWidget);
+      expect(find.text('API Status'), findsOneWidget);
+      expect(find.text('Online'), findsOneWidget);
+      expect(find.text('DB Latency'), findsOneWidget);
+      expect(find.text('42ms'), findsOneWidget);
+      expect(find.text('Uptime'), findsOneWidget);
+      expect(find.text('99.98%'), findsOneWidget);
       expect(find.text('All Events'), findsOneWidget);
       expect(find.text('System Updates'), findsOneWidget);
       // "User Modifications" — the third, widest chip — sits beyond the
@@ -1415,9 +1421,16 @@ void main() {
       expect(find.text('Unauthorized Login Attempt'), findsOneWidget);
       expect(find.text('System Policy Update'), findsOneWidget);
       expect(find.text('Automated Backup Complete'), findsOneWidget);
+      // Both mock citizen-registration events (Kumasi and Accra) happened
+      // within the last 24 hours too, so a Super Admin session — which
+      // sees every assembly's events, unlike a scoped assembly Admin —
+      // finds both here.
+      expect(find.text('Citizen Account Registered'), findsNWidgets(2));
       expect(find.text('Critical'), findsOneWidget);
       expect(find.text('Standard'), findsOneWidget);
-      expect(find.text('Info'), findsOneWidget);
+      // Automated Backup Complete plus both citizen registrations all
+      // share Info severity.
+      expect(find.text('Info'), findsNWidgets(3));
       // "Administrative Credential Issued" happened over a day ago, so
       // the default "Last 24 Hours" range already excludes it — covered
       // separately by the time-range dropdown test below.
@@ -1430,6 +1443,61 @@ void main() {
       // matching Citizen's own bottom nav).
       final activityLabel = tester.widget<Text>(find.text('Activity'));
       expect(activityLabel.style?.color, AppColors.primary);
+    },
+  );
+
+  testWidgets(
+    'Admin System Activity scopes an assembly Admin to their own region, '
+    'hides the health stats, and keeps the Activity tab visible',
+    (WidgetTester tester) async {
+      SharedPreferences.setMockInitialValues({});
+      await MockAuthService().initialize();
+      await MockAuthService().selectRole(
+        AppRole.systemAdministrator,
+        adminTier: AdminTier.admin,
+        region: Region.ashanti,
+        assembly: assemblyNamed(Region.ashanti, 'Kumasi'),
+      );
+      addTearDown(() => MockAuthService().clearUser());
+
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: const AdminSystemActivityScreen(),
+        ),
+      );
+      await tester.pump();
+
+      // No national-scope health readout for an assembly Admin.
+      expect(find.text('API Status'), findsNothing);
+      expect(find.text('DB Latency'), findsNothing);
+      expect(find.text('Uptime'), findsNothing);
+
+      // Only the Kumasi citizen registration is theirs to audit — not the
+      // Accra one, and not the platform-wide events with no assembly of
+      // their own (Unauthorized Login Attempt, System Policy Update,
+      // Automated Backup Complete).
+      expect(find.text('Citizen Account Registered'), findsOneWidget);
+      expect(
+        find.text(
+          'A new citizen account self-registered from Kumasi, Ashanti '
+          'Region.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Unauthorized Login Attempt'), findsNothing);
+      expect(find.text('System Policy Update'), findsNothing);
+      expect(find.text('Automated Backup Complete'), findsNothing);
+
+      // The Activity tab itself still shows — only Settings drops for an
+      // assembly Admin.
+      expect(find.text('Activity'), findsOneWidget);
+      expect(find.text('Settings'), findsNothing);
     },
   );
 
@@ -1725,8 +1793,6 @@ void main() {
       await tester.pump();
 
       expect(find.text('General Configuration'), findsOneWidget);
-      expect(find.text('Platform Name'), findsOneWidget);
-      expect(find.text('CivicVoice'), findsOneWidget);
       expect(find.text('Default Language'), findsOneWidget);
       expect(find.text('Maintenance Mode'), findsOneWidget);
       expect(find.text('Security & Access'), findsOneWidget);
@@ -1738,6 +1804,9 @@ void main() {
       expect(find.text('Backup schedule'), findsOneWidget);
       expect(find.text('Service Preferences'), findsOneWidget);
       expect(find.text('Public status page'), findsOneWidget);
+
+      // Maintenance Mode and Public status page both flag as not-yet-real.
+      expect(find.text('Coming Soon'), findsNWidgets(2));
 
       expect(find.text('Save Changes'), findsNothing);
       expect(find.text('Reset Changes'), findsNothing);
@@ -1807,38 +1876,6 @@ void main() {
     expect(find.text('Save Changes'), findsNothing);
     expect(find.text('Reset Changes'), findsNothing);
   });
-
-  testWidgets(
-    'Admin System Settings blocks saving with an empty Platform Name and '
-    'shows the validation copy',
-    (WidgetTester tester) async {
-      tester.view.physicalSize = const Size(428, 2600);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: AppTheme.light,
-          home: const AdminSystemSettingsScreen(),
-        ),
-      );
-      await tester.pump();
-
-      await tester.enterText(
-        find.widgetWithText(TextFormField, 'CivicVoice'),
-        '',
-      );
-      await tester.pump();
-      await tester.tap(find.text('Save Changes'));
-      await tester.pump();
-
-      expect(find.text('Validation Error'), findsOneWidget);
-      expect(find.text('Platform name is required.'), findsOneWidget);
-      // Still dirty — the failed save doesn't clear the bar.
-      expect(find.text('Save Changes'), findsOneWidget);
-    },
-  );
 
   testWidgets(
     'Admin System Settings initialSaveState previews the Update Failed '
@@ -2052,6 +2089,11 @@ void main() {
       expect(find.text('ADM-001'), findsOneWidget);
       expect(find.text('Access Summary'), findsOneWidget);
       expect(find.text('92% governance checklist complete'), findsOneWidget);
+      expect(find.text('Preferences'), findsOneWidget);
+      expect(find.text('Theme'), findsOneWidget);
+      expect(find.text('System'), findsOneWidget);
+      expect(find.text('Light'), findsOneWidget);
+      expect(find.text('Dark'), findsOneWidget);
       expect(find.text('Security Settings'), findsOneWidget);
       expect(find.text('Change Password'), findsOneWidget);
       expect(find.text('Two-factor authentication'), findsOneWidget);
@@ -2067,6 +2109,57 @@ void main() {
       expect(find.byType(TextFormField), findsNothing);
       expect(find.text('Save Changes'), findsNothing);
       expect(find.text('Cancel'), findsNothing);
+    },
+  );
+
+  testWidgets('Admin Profile Change Password fires onChangePassword', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    var tapped = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: AdminProfileScreen(onChangePassword: () => tapped = true),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.text('Change Password'));
+    await tester.pump();
+
+    expect(tapped, isTrue);
+  });
+
+  testWidgets(
+    'Admin Profile Theme row switches ThemeController.mode via the '
+    'System/Light/Dark control',
+    (WidgetTester tester) async {
+      SharedPreferences.setMockInitialValues({});
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(() => ThemeController.mode.value = ThemeMode.system);
+
+      await tester.pumpWidget(
+        MaterialApp(theme: AppTheme.light, home: const AdminProfileScreen()),
+      );
+      await tester.pump();
+
+      expect(ThemeController.mode.value, ThemeMode.system);
+
+      await tester.tap(find.text('Dark'));
+      await tester.pump();
+      expect(ThemeController.mode.value, ThemeMode.dark);
+
+      await tester.tap(find.text('Light'));
+      await tester.pump();
+      expect(ThemeController.mode.value, ThemeMode.light);
     },
   );
 

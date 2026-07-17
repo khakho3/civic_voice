@@ -336,38 +336,48 @@ class _LoadedContent extends StatelessWidget {
             onTap: onNavigateToSettings,
           ),
         ],
-        const SizedBox(height: AppSpacing.lg),
-        GlassCard(
-          onTap: onNavigateToActivity,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Activity Monitoring',
-                      style: textTheme.titleMedium,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+        // This preview card's own content (AdminActivityItem, below) is
+        // static, platform-wide-sounding mock copy, not scoped to any one
+        // assembly — showing it to an assembly Admin would preview events
+        // that don't match what they'd actually see after tapping through
+        // to their own region-scoped System Activity feed. Kept Super
+        // Admin-only for that reason, not because the destination itself
+        // is gated anymore — see AdminSession.visibleActivity's own doc
+        // comment for how an assembly Admin's own feed now works.
+        if (AdminSession.instance.isSuperAdmin) ...[
+          const SizedBox(height: AppSpacing.lg),
+          GlassCard(
+            onTap: onNavigateToActivity,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Activity Monitoring',
+                        style: textTheme.titleMedium,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                  ),
-                  Icon(
-                    AppIcons.activityLog,
-                    size: AppIconSize.md,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
+                    Icon(
+                      AppIcons.activityLog,
+                      size: AppIconSize.md,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.md),
+                for (var i = 0; i < data.activity.length; i++) ...[
+                  _ActivityRow(index: i + 1, item: data.activity[i]),
+                  if (i != data.activity.length - 1)
+                    const SizedBox(height: AppSpacing.md),
                 ],
-              ),
-              const SizedBox(height: AppSpacing.md),
-              for (var i = 0; i < data.activity.length; i++) ...[
-                _ActivityRow(index: i + 1, item: data.activity[i]),
-                if (i != data.activity.length - 1)
-                  const SizedBox(height: AppSpacing.md),
               ],
-            ],
+            ),
           ),
-        ),
+        ],
       ],
     );
   }

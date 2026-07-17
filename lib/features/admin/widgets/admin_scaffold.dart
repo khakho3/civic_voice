@@ -389,9 +389,11 @@ class _BottomNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final semantic = Theme.of(context).extension<AppSemanticColors>()!;
-    // An assembly Admin has no System Settings to configure — see
-    // AdminSession's own doc comment — so that tab is dropped for them
-    // entirely rather than shown and then blocked.
+    // An assembly Admin has no System Settings to configure, so that tab
+    // is dropped for them entirely rather than shown and then blocked.
+    // Activity stays — see AdminSession.visibleActivity's own doc comment
+    // — an assembly Admin gets their own region-scoped audit feed there,
+    // just not the national health readout Super Admin also sees on it.
     final visibleTabs = AdminSession.instance.isSuperAdmin
         ? AdminTab.values
         : AdminTab.values.where((t) => t != AdminTab.settings).toList();

@@ -7,6 +7,7 @@ abstract final class ThemeController {
   static const String _themeModeKey = 'theme_mode';
   static const String _darkValue = 'dark';
   static const String _lightValue = 'light';
+  static const String _systemValue = 'system';
 
   static final ValueNotifier<ThemeMode> mode = ValueNotifier<ThemeMode>(
     ThemeMode.system,
@@ -25,12 +26,20 @@ abstract final class ThemeController {
     };
   }
 
+  /// Binary light/dark toggle — used by modules whose own appearance
+  /// control is still a single Switch (e.g. Citizen Profile) rather than
+  /// the three-way System/Light/Dark control ([setThemeMode]).
   static Future<void> setDarkMode(bool enabled) async {
-    mode.value = enabled ? ThemeMode.dark : ThemeMode.light;
+    await setThemeMode(enabled ? ThemeMode.dark : ThemeMode.light);
+  }
+
+  static Future<void> setThemeMode(ThemeMode newMode) async {
+    mode.value = newMode;
     final preferences = await SharedPreferences.getInstance();
-    await preferences.setString(
-      _themeModeKey,
-      enabled ? _darkValue : _lightValue,
-    );
+    await preferences.setString(_themeModeKey, switch (newMode) {
+      ThemeMode.dark => _darkValue,
+      ThemeMode.light => _lightValue,
+      ThemeMode.system => _systemValue,
+    });
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/theme_controller.dart';
 import '../../../widgets/app_state_message.dart';
 import '../../../widgets/confirm_dialog.dart';
 import '../models/admin_profile_data.dart';
@@ -71,10 +72,14 @@ String _formatActivity(DateTime date) {
 /// "Administrator Information" (Full Name/Email/Department) is ever
 /// editable — Admin ID, Security Settings, Administrative Scope, and
 /// Session are all read-only, matching what the export's own Edit/
-/// Validation frames actually show changing. "Change Password"/
-/// "Two-factor authentication"/"Last activity" render as tappable rows
-/// with no wired destination, matching Ministry Profile's own precedent
-/// for placeholder account-settings rows with nothing spec'd yet.
+/// Validation frames actually show changing.
+///
+/// "Change Password" opens the shared, cross-module Change Password
+/// screen (see that screen's own doc comment). "Two-factor
+/// authentication" and "Last activity" stay unwired placeholders — no
+/// management workflow or session-list screen is spec'd yet — and render
+/// as plain rows with no chevron rather than a dead tappable affordance
+/// (see [_NavRow]'s own doc comment).
 enum AdminProfileViewState { loading, loaded, offline, error, unauthorized }
 
 class AdminProfileScreen extends StatefulWidget {
@@ -87,6 +92,7 @@ class AdminProfileScreen extends StatefulWidget {
     this.onNavigateToRoles,
     this.onNavigateToSettings,
     this.onNavigateToActivity,
+    this.onChangePassword,
     this.onSignOut,
     this.onNotificationsTap,
   });
@@ -106,6 +112,9 @@ class AdminProfileScreen extends StatefulWidget {
   final VoidCallback? onNavigateToSettings;
 
   final VoidCallback? onNavigateToActivity;
+
+  /// Opens the shared Change Password screen (AppRoutes.changePassword).
+  final VoidCallback? onChangePassword;
 
   /// Fired by the "Sign Out" button. Nullable: there's no real
   /// authentication flow to sign out of yet.
@@ -204,6 +213,7 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
           onUpdate: _updateDraft,
           onCancel: _cancelEdit,
           onSave: _saveChanges,
+          onChangePassword: widget.onChangePassword,
           onSignOut: widget.onSignOut,
         ),
         _ => Center(
@@ -268,6 +278,7 @@ class _ProfileBody extends StatelessWidget {
     required this.onUpdate,
     required this.onCancel,
     required this.onSave,
+    this.onChangePassword,
     this.onSignOut,
   });
 
@@ -279,6 +290,7 @@ class _ProfileBody extends StatelessWidget {
   final void Function(AdminProfileData Function(AdminProfileData)) onUpdate;
   final VoidCallback onCancel;
   final VoidCallback onSave;
+  final VoidCallback? onChangePassword;
   final VoidCallback? onSignOut;
 
   @override
@@ -389,11 +401,21 @@ class _ProfileBody extends StatelessWidget {
           ],
         ),
         const SizedBox(height: AppSpacing.lg),
+        const _Section(
+          icon: AppIcons.systemTheme,
+          title: 'Preferences',
+          children: [_ThemeRow()],
+        ),
+        const SizedBox(height: AppSpacing.lg),
         _Section(
           icon: AppIcons.shield,
           title: 'Security Settings',
           children: [
-            const _NavRow(icon: AppIcons.password, label: 'Change Password'),
+            _NavRow(
+              icon: AppIcons.password,
+              label: 'Change Password',
+              onTap: onChangePassword,
+            ),
             const Divider(height: AppSpacing.lg),
             _NavRow(
               icon: AppIcons.security,
@@ -575,24 +597,6 @@ class _ProfileCard extends StatelessWidget {
             'Administrator account · Governance approved',
             style: textTheme.bodyMedium,
             textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.md,
-              vertical: AppSpacing.xs,
-            ),
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.12),
-              borderRadius: AppRadius.allXl,
-            ),
-            child: Text(
-              'Administrative privileges',
-              style: textTheme.labelMedium?.copyWith(
-                color: AppColors.primary,
-                fontWeight: AppFontWeight.semiBold,
-              ),
-            ),
           ),
         ],
       ),
@@ -835,17 +839,28 @@ class _ProfileField extends StatelessWidget {
 }
 
 class _NavRow extends StatelessWidget {
-  const _NavRow({required this.icon, required this.label, this.trailingLabel});
+  const _NavRow({
+    required this.icon,
+    required this.label,
+    this.trailingLabel,
+    this.onTap,
+  });
 
   final IconData icon;
   final String label;
   final String? trailingLabel;
 
+  /// Null for rows with nowhere to go yet (e.g. Two-factor authentication,
+  /// Last activity — both still placeholders pending spec). The trailing
+  /// chevron only renders when this is set, so a row never implies
+  /// navigability it doesn't actually have.
+  final VoidCallback? onTap;
+
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final colorScheme = Theme.of(context).colorScheme;
-    return Row(
+    final row = Row(
       children: [
         Icon(icon, size: AppIconSize.sm, color: AppColors.primary),
         const SizedBox(width: AppSpacing.sm),
@@ -866,12 +881,72 @@ class _NavRow extends StatelessWidget {
           ),
           const SizedBox(width: AppSpacing.xs),
         ],
-        Icon(
-          AppIcons.chevronRight,
-          size: AppIconSize.sm,
-          color: colorScheme.onSurfaceVariant,
-        ),
+        if (onTap != null)
+          Icon(
+            AppIcons.chevronRight,
+            size: AppIconSize.sm,
+            color: colorScheme.onSurfaceVariant,
+          ),
       ],
+    );
+
+    if (onTap == null) return row;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: AppRadius.allSm,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+        child: row,
+      ),
+    );
+  }
+}
+
+/// Theme preference row for the "Preferences" [_Section] — System/Light/
+/// Dark, backed by [ThemeController]. Admin-only for now; Citizen
+/// Profile's own binary Switch stays as-is until the rest of the modules
+/// get the same three-way control in a later pass.
+class _ThemeRow extends StatelessWidget {
+  const _ThemeRow();
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: ThemeController.mode,
+      builder: (context, mode, _) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Theme', style: textTheme.bodyLarge),
+            const SizedBox(height: AppSpacing.sm),
+            SegmentedButton<ThemeMode>(
+              segments: const [
+                ButtonSegment(
+                  value: ThemeMode.system,
+                  label: Text('System'),
+                  icon: Icon(AppIcons.systemTheme, size: AppIconSize.sm),
+                ),
+                ButtonSegment(
+                  value: ThemeMode.light,
+                  label: Text('Light'),
+                  icon: Icon(AppIcons.sun, size: AppIconSize.sm),
+                ),
+                ButtonSegment(
+                  value: ThemeMode.dark,
+                  label: Text('Dark'),
+                  icon: Icon(AppIcons.moon, size: AppIconSize.sm),
+                ),
+              ],
+              selected: {mode},
+              showSelectedIcon: false,
+              onSelectionChanged: (selected) =>
+                  ThemeController.setThemeMode(selected.first),
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -982,8 +1057,6 @@ class _LoadingSkeletonState extends State<_LoadingSkeleton>
               block(height: 16, width: 160),
               const SizedBox(height: AppSpacing.xs),
               block(height: 12, width: 200),
-              const SizedBox(height: AppSpacing.sm),
-              block(height: 24, width: 150, radius: 20),
             ],
           ),
         ),

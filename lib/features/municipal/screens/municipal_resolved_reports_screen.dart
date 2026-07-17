@@ -286,53 +286,48 @@ class _ResolvedReportsBody extends StatelessWidget {
           ],
         ),
       ),
-      revealAtTopSection: Padding(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.md,
-          0,
+      // Stats scroll with the list body, not the collapsible chrome — only
+      // the search field/filter chips are transient chrome worth hiding on
+      // scroll; a stats row is content, same as the cards below it.
+      child: ListView(
+        // Keeps the list draggable even once the collapsed chrome frees
+        // enough room for all cards to fit the viewport — otherwise
+        // maxScrollExtent hits 0, the default physics stop accepting
+        // drags, and the hidden search chrome could never be pulled back
+        // out.
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: EdgeInsets.fromLTRB(
           AppSpacing.md,
           AppSpacing.sm,
+          AppSpacing.md,
+          AppSpacing.xl + MunicipalScaffold.contentPadding(context).bottom,
         ),
-        child: _StatsRow(stats: stats),
-      ),
-      child: reports.isEmpty
-          ? Center(
-              child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.xl),
-                child: Text(
-                  'No resolved reports match your search.',
-                  style: textTheme.bodyMedium,
-                  textAlign: TextAlign.center,
-                ),
+        children: [
+          _StatsRow(stats: stats),
+          const SizedBox(height: AppSpacing.md),
+          if (reports.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.xl),
+              child: Text(
+                'No resolved reports match your search.',
+                style: textTheme.bodyMedium,
+                textAlign: TextAlign.center,
               ),
             )
-          : ListView.separated(
-              // Keeps the list draggable even once the collapsed chrome
-              // frees enough room for all cards to fit the viewport —
-              // otherwise maxScrollExtent hits 0, the default physics stop
-              // accepting drags, and the hidden search/stats chrome could
-              // never be pulled back out.
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: EdgeInsets.fromLTRB(
-                AppSpacing.md,
-                0,
-                AppSpacing.md,
-                AppSpacing.xl +
-                    MunicipalScaffold.contentPadding(context).bottom,
-              ),
-              itemCount: reports.length,
-              separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
-              itemBuilder: (context, index) {
-                final report = reports[index];
-                return _ResolvedReportCard(
+          else
+            for (final report in reports)
+              Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                child: _ResolvedReportCard(
                   report: report,
                   cached: cached,
                   onTap: onReportTap == null
                       ? null
                       : () => onReportTap!(report),
-                );
-              },
-            ),
+                ),
+              ),
+        ],
+      ),
     );
   }
 }

@@ -41,6 +41,7 @@ class MunicipalProfileScreen extends StatefulWidget {
     this.initialState = MunicipalProfileViewState.loaded,
     this.onBack,
     this.onSettingsTap,
+    this.onChangePassword,
     this.onLogOut,
   });
 
@@ -56,6 +57,9 @@ class MunicipalProfileScreen extends StatefulWidget {
   /// placeholder pending a future spec, not a screen this module should
   /// build.
   final VoidCallback? onSettingsTap;
+
+  /// Opens the shared Change Password screen (AppRoutes.changePassword).
+  final VoidCallback? onChangePassword;
 
   /// No account/session workflow is specified yet (Issue 03 §7) —
   /// placeholder pending spec, matching this module's other unwired
@@ -163,12 +167,15 @@ class _MunicipalProfileScreenState extends State<MunicipalProfileScreen> {
                         const _LoadingSkeleton(),
                       MunicipalProfileViewState.loaded => _ProfileView(
                         profile: _profile,
+                        onChangePassword: widget.onChangePassword,
                       ),
                       MunicipalProfileViewState.success => _ProfileView(
                         profile: _profile,
+                        onChangePassword: widget.onChangePassword,
                       ),
                       MunicipalProfileViewState.offline => _ProfileView(
                         profile: _profile,
+                        onChangePassword: widget.onChangePassword,
                       ),
                       MunicipalProfileViewState.editing ||
                       MunicipalProfileViewState.error => _ProfileEditForm(
@@ -297,9 +304,10 @@ class _SuccessBanner extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _ProfileView extends StatelessWidget {
-  const _ProfileView({required this.profile});
+  const _ProfileView({required this.profile, this.onChangePassword});
 
   final OfficerProfile profile;
+  final VoidCallback? onChangePassword;
 
   @override
   Widget build(BuildContext context) {
@@ -346,9 +354,7 @@ class _ProfileView extends StatelessWidget {
               icon: AppIcons.password,
               label: 'Change Password',
               caption: profile.passwordLastUpdatedLabel,
-              // No password-change workflow is specified yet (Issue 03
-              // §7) — placeholder pending spec.
-              onTap: () {},
+              onTap: onChangePassword,
             ),
             _ActionRow(
               icon: AppIcons.verify,

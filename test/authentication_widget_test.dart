@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:civic_voice/core/theme/app_theme.dart';
 import 'package:civic_voice/features/admin/screens/admin_dashboard_screen.dart';
+import 'package:civic_voice/features/authentication/screens/change_password_screen.dart';
 import 'package:civic_voice/features/authentication/screens/forgot_password_screen.dart';
 import 'package:civic_voice/features/authentication/screens/login_screen.dart';
 import 'package:civic_voice/features/authentication/screens/registration_screen.dart';
@@ -245,6 +246,10 @@ void main() {
         screen: const ForgotPasswordScreen(),
         finalAction: find.widgetWithText(FilledButton, 'Send Reset Link'),
       ),
+      (
+        screen: const ChangePasswordScreen(),
+        finalAction: find.widgetWithText(FilledButton, 'Update Password'),
+      ),
     ];
 
     for (final testCase in cases) {
@@ -273,4 +278,87 @@ void main() {
     expect(createAccount, findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+    'Change Password validates required fields, a short new password, and '
+    'a mismatched confirmation',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(theme: AppTheme.light, home: const ChangePasswordScreen()),
+      );
+      await tester.pump();
+
+      await tapVisible(
+        tester,
+        find.widgetWithText(FilledButton, 'Update Password'),
+      );
+      await tester.pump();
+
+      expect(find.text('Please enter your current password.'), findsOneWidget);
+      expect(find.text('Please enter a new password.'), findsOneWidget);
+      expect(find.text('Please confirm your new password.'), findsOneWidget);
+
+      final fields = find.byType(TextFormField);
+      await tester.enterText(fields.at(0), 'currentPass1');
+      await tester.enterText(fields.at(1), 'short');
+      await tester.enterText(fields.at(2), 'short');
+      await tapVisible(
+        tester,
+        find.widgetWithText(FilledButton, 'Update Password'),
+      );
+      await tester.pump();
+
+      expect(
+        find.text('Password must contain at least 8 characters.'),
+        findsOneWidget,
+      );
+
+      await tester.enterText(fields.at(1), 'newPassword1');
+      await tester.enterText(fields.at(2), 'differentPassword');
+      await tapVisible(
+        tester,
+        find.widgetWithText(FilledButton, 'Update Password'),
+      );
+      await tester.pump();
+
+      expect(find.text('Passwords do not match.'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'Change Password with matching valid fields shows the success banner '
+    'and clears the form',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(theme: AppTheme.light, home: const ChangePasswordScreen()),
+      );
+      await tester.pump();
+
+      final fields = find.byType(TextFormField);
+      await tester.enterText(fields.at(0), 'currentPass1');
+      await tester.enterText(fields.at(1), 'newPassword1');
+      await tester.enterText(fields.at(2), 'newPassword1');
+      await tapVisible(
+        tester,
+        find.widgetWithText(FilledButton, 'Update Password'),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 600));
+
+      expect(find.text('Password Updated'), findsOneWidget);
+      for (final field in tester.widgetList<TextFormField>(fields)) {
+        expect(field.controller?.text, isEmpty);
+      }
+    },
+  );
 }

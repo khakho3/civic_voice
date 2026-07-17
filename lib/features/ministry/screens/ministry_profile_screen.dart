@@ -65,6 +65,7 @@ class MinistryProfileScreen extends StatefulWidget {
     this.initialState = MinistryProfileViewState.view,
     this.onBack,
     this.onNotificationsTap,
+    this.onChangePassword,
     this.onLogOut,
   });
 
@@ -77,6 +78,9 @@ class MinistryProfileScreen extends StatefulWidget {
   final VoidCallback? onBack;
 
   final VoidCallback? onNotificationsTap;
+
+  /// Opens the shared Change Password screen (AppRoutes.changePassword).
+  final VoidCallback? onChangePassword;
 
   /// No account/session workflow is specified yet — placeholder pending
   /// spec, matching this module's other unwired forward-references. Wired
@@ -231,6 +235,7 @@ class _MinistryProfileScreenState extends State<MinistryProfileScreen> {
                                   emailController: _emailController,
                                   phoneController: _phoneController,
                                   fieldErrors: _fieldErrors,
+                                  onChangePassword: widget.onChangePassword,
                                   onLogOut: _confirmLogOut,
                                 ),
                               _ => _ProfileBody(
@@ -239,6 +244,7 @@ class _MinistryProfileScreenState extends State<MinistryProfileScreen> {
                                 showSuccessBanner:
                                     _state == MinistryProfileViewState.success,
                                 onEditPersonalInfo: _startEditing,
+                                onChangePassword: widget.onChangePassword,
                                 onLogOut: _confirmLogOut,
                               ),
                             },
@@ -354,6 +360,7 @@ class _ProfileBody extends StatelessWidget {
     this.phoneController,
     this.fieldErrors = const {},
     this.onEditPersonalInfo,
+    this.onChangePassword,
     this.onLogOut,
   });
 
@@ -365,6 +372,7 @@ class _ProfileBody extends StatelessWidget {
   final TextEditingController? phoneController;
   final Map<String, String> fieldErrors;
   final VoidCallback? onEditPersonalInfo;
+  final VoidCallback? onChangePassword;
   final VoidCallback? onLogOut;
 
   @override
@@ -405,9 +413,7 @@ class _ProfileBody extends StatelessWidget {
               _ActionRow(
                 icon: AppIcons.security,
                 label: 'Change Password',
-                // No password-change workflow is specified yet —
-                // placeholder pending spec.
-                onTap: () {},
+                onTap: onChangePassword,
               ),
               const Divider(height: AppSpacing.lg),
               _ActionRow(

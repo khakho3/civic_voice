@@ -22,21 +22,27 @@ const List<String> kBackupScheduleOptions = ['Daily', 'Weekly', 'Monthly'];
 /// top-level state enum: these are transient results of an in-place
 /// interaction, not distinct ways the whole screen can render.
 ///
-/// [failed] has no reachable trigger through normal interaction — there's
-/// no backend here to actually fail a save against — so, like every other
-/// screen's `initialState` preview mechanism, it's only reachable via
+/// No [validationError] value — every field here is a switch or a
+/// closed-set dropdown, always populated, so there's nothing left that
+/// could ever actually fail validation (the one free-text field that
+/// could, "Platform Name," was dropped — see [SystemSettingsData]'s own
+/// doc comment). [failed] itself has no reachable trigger through normal
+/// interaction either — there's no backend here to actually fail a save
+/// against — so, like every other screen's `initialState` preview
+/// mechanism, it's only reachable via
 /// [AdminSystemSettingsScreen.initialSaveState] for building/testing the
-/// approved frame's "Update Failed" copy.
-enum SystemSettingsSaveState { idle, saving, saved, failed, validationError }
+/// "Update Failed" copy.
+enum SystemSettingsSaveState { idle, saving, saved, failed }
 
-/// All the fields on ADM-007 System Settings. The approved frame styles
-/// "Platform Name" as a dropdown, but it's a name, not a choice from a
-/// fixed set — modeled as free text instead, which also makes the
-/// export's own "Platform name is required" validation copy meaningful
-/// (a dropdown, always populated, can never actually be empty).
+/// All the fields on ADM-007 System Settings.
+///
+/// The approved frame's "Platform Name" field was dropped entirely — this
+/// app has exactly one deployment ("CivicVoice," the national platform
+/// being pitched), so an editable platform name has no real admin who'd
+/// ever need to touch it. If this ever becomes a genuinely white-labelled,
+/// multi-deployment product, that's the point to reconsider adding it back.
 class SystemSettingsData {
   const SystemSettingsData({
-    required this.platformName,
     required this.defaultLanguage,
     required this.maintenanceMode,
     required this.enforceTwoFactor,
@@ -47,18 +53,25 @@ class SystemSettingsData {
     required this.publicStatusPage,
   });
 
-  final String platformName;
   final String defaultLanguage;
+
+  /// Not yet backed by anything — flipping it doesn't actually restrict
+  /// access anywhere in the app (that would mean a real platform-wide
+  /// lockout banner/gate, a separate feature of its own). Rendered with a
+  /// "Coming Soon" badge rather than presented as live — see
+  /// [AdminSystemSettingsScreen]'s own doc comment.
   final bool maintenanceMode;
   final bool enforceTwoFactor;
   final String sessionTimeout;
   final bool auditLogging;
   final String auditLogRetention;
   final String backupSchedule;
+
+  /// Same "not yet backed by anything real" caveat as [maintenanceMode] —
+  /// there's no actual public status page in this app yet.
   final bool publicStatusPage;
 
   SystemSettingsData copyWith({
-    String? platformName,
     String? defaultLanguage,
     bool? maintenanceMode,
     bool? enforceTwoFactor,
@@ -69,7 +82,6 @@ class SystemSettingsData {
     bool? publicStatusPage,
   }) {
     return SystemSettingsData(
-      platformName: platformName ?? this.platformName,
       defaultLanguage: defaultLanguage ?? this.defaultLanguage,
       maintenanceMode: maintenanceMode ?? this.maintenanceMode,
       enforceTwoFactor: enforceTwoFactor ?? this.enforceTwoFactor,
@@ -84,7 +96,6 @@ class SystemSettingsData {
   @override
   bool operator ==(Object other) =>
       other is SystemSettingsData &&
-      other.platformName == platformName &&
       other.defaultLanguage == defaultLanguage &&
       other.maintenanceMode == maintenanceMode &&
       other.enforceTwoFactor == enforceTwoFactor &&
@@ -96,7 +107,6 @@ class SystemSettingsData {
 
   @override
   int get hashCode => Object.hash(
-    platformName,
     defaultLanguage,
     maintenanceMode,
     enforceTwoFactor,
@@ -112,7 +122,6 @@ class SystemSettingsData {
 /// real settings service is wired up.
 SystemSettingsData mockSystemSettings() {
   return const SystemSettingsData(
-    platformName: 'CivicVoice',
     defaultLanguage: 'English',
     maintenanceMode: false,
     enforceTwoFactor: true,

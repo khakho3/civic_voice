@@ -3,6 +3,7 @@ import '../../../models/assembly.dart';
 import '../../../models/region.dart';
 import '../../../services/mock_auth_service.dart';
 import '../models/admin_role_management_data.dart';
+import '../models/admin_system_activity_data.dart';
 import '../models/admin_user_management_data.dart';
 
 /// The single place every Admin screen checks "am I allowed to do this" —
@@ -87,6 +88,25 @@ class AdminSession {
         if (user.assembly?.name == ownAssembly.name &&
             user.assembly?.region == ownAssembly.region)
           user,
+    ];
+  }
+
+  /// The subset of [items] this session is allowed to see on System
+  /// Activity. Super Admin sees the full national feed, including
+  /// platform-wide events with no [ActivityItem.assembly] of their own
+  /// (a policy update, a scheduled backup). An assembly Admin sees only
+  /// events tied to their own [assembly] — accounts provisioned there,
+  /// citizens registering from there — never the platform-wide events,
+  /// which aren't their jurisdiction to audit.
+  List<ActivityItem> visibleActivity(List<ActivityItem> items) {
+    if (isSuperAdmin) return items;
+    final ownAssembly = assembly;
+    if (ownAssembly == null) return const [];
+    return [
+      for (final item in items)
+        if (item.assembly?.name == ownAssembly.name &&
+            item.assembly?.region == ownAssembly.region)
+          item,
     ];
   }
 }

@@ -5,6 +5,7 @@ import '../../../widgets/app_state_message.dart';
 import '../../../widgets/collapsible_list_header.dart';
 import '../../../widgets/glass_card.dart';
 import '../models/admin_system_activity_data.dart';
+import '../services/admin_session.dart';
 import '../widgets/admin_scaffold.dart';
 
 const _kMonthNames = [
@@ -49,10 +50,26 @@ String _formatActivityTimestamp(DateTime date) {
 /// Approved states (Figma "05/System Activity" export): Default, Loading,
 /// Empty ("No Activity"), No Results, Offline, Error ("Something went
 /// wrong"), Unauthorized — the same seven-state shape as ADM-002 User
-/// Management, including [CollapsibleListHeader] wrapping the stat cards
-/// and filter chrome above the loaded list, and that chrome staying fixed
-/// (not collapsible) but still interactive for Empty/No Results, then
-/// disabled entirely for Offline/Error/Unauthorized.
+/// Management.
+///
+/// Split visibility, not a whole-screen Super Admin gate like
+/// [AdminSystemSettingsScreen]/[AdminRoleManagementScreen]: [SystemHealthStats]
+/// (API status/DB latency/uptime) is a national-scope infrastructure
+/// readout, Super Admin-only, hidden entirely for an assembly Admin. The
+/// audit feed below it is different — an assembly Admin gets it too, just
+/// scoped down to their own jurisdiction (accounts provisioned in their
+/// assembly, citizens registering from it) via
+/// [AdminSession.visibleActivity], never the platform-wide events
+/// (policy updates, scheduled backups) that stay Super Admin-only
+/// alongside the health stats. `unauthorized` itself is reserved for a
+/// non-admin session reaching this route directly, not for a normal
+/// assembly Admin viewing their own feed.
+///
+/// [SystemHealthStats] renders as ordinary scrolling content, not part of
+/// [CollapsibleListHeader]'s sticky [CollapsibleListHeader.header] — only
+/// the filter chips/time-range dropdown are transient chrome worth hiding
+/// on scroll; a health readout is content, same as the activity cards
+/// below it.
 ///
 /// "unauthorized" (dark only) pairs with "unauthprized" (a typo, light
 /// only) as Unauthorized's two theme variants — the same kind of
@@ -65,12 +82,6 @@ String _formatActivityTimestamp(DateTime date) {
 /// "Activity Monitoring" card, the same "more than one entry point, still
 /// a real tab root" shape [AdminTab.users] already has via Dashboard's own
 /// Management row.
-///
-/// Error/Offline/Unauthorized render as a floating card over dimmed stat
-/// cards in the export, which this implementation keeps (unlike other
-/// Admin screens' floating-card exports, normalized away elsewhere) —
-/// this is the same "chrome visible but disabled" shape User Management's
-/// own Offline/Error/Unauthorized states already use, not a one-off.
 ///
 /// Severity ([ActivitySeverity]) drives each activity card's icon and
 /// tint rather than a separate per-item icon field — the approved frame's
@@ -123,8 +134,10 @@ class AdminSystemActivityScreen extends StatefulWidget {
 
 class _AdminSystemActivityScreenState extends State<AdminSystemActivityScreen> {
   late AdminSystemActivityViewState _state = widget.initialState;
-  final SystemActivityStats _stats = mockSystemActivityStats();
-  final List<ActivityItem> _items = mockActivityItems();
+  final SystemHealthStats _healthStats = mockSystemHealthStats();
+  final List<ActivityItem> _items = AdminSession.instance.visibleActivity(
+    mockActivityItems(),
+  );
   ActivityFilter _filter = ActivityFilter.all;
   ActivityTimeRange _timeRange = ActivityTimeRange.last24Hours;
 
@@ -169,7 +182,6 @@ class _AdminSystemActivityScreenState extends State<AdminSystemActivityScreen> {
           ),
           child: CollapsibleListHeader(
             header: _FilterChrome(
-              stats: _stats,
               filter: _filter,
               timeRange: _timeRange,
               enabled: true,
@@ -177,6 +189,7 @@ class _AdminSystemActivityScreenState extends State<AdminSystemActivityScreen> {
               onTimeRangeChanged: (r) => setState(() => _timeRange = r),
             ),
             child: _ActivityList(
+              healthStats: _healthStats,
               items: _items,
               filter: _filter,
               timeRange: _timeRange,
@@ -188,7 +201,6 @@ class _AdminSystemActivityScreenState extends State<AdminSystemActivityScreen> {
           children: [
             SizedBox(height: AdminScaffold.contentPadding(context).top),
             _FilterChrome(
-              stats: _stats,
               filter: _filter,
               timeRange: _timeRange,
               enabled: chromeEnabled,
@@ -271,12 +283,11 @@ class _AdminSystemActivityScreenState extends State<AdminSystemActivityScreen> {
 }
 
 // ---------------------------------------------------------------------------
-// Filter chrome — stat cards, filter chips, time-range dropdown
+// Filter chrome — filter chips, time-range dropdown
 // ---------------------------------------------------------------------------
 
 class _FilterChrome extends StatelessWidget {
   const _FilterChrome({
-    required this.stats,
     required this.filter,
     required this.timeRange,
     required this.enabled,
@@ -284,7 +295,6 @@ class _FilterChrome extends StatelessWidget {
     this.onTimeRangeChanged,
   });
 
-  final SystemActivityStats stats;
   final ActivityFilter filter;
   final ActivityTimeRange timeRange;
   final bool enabled;
@@ -306,55 +316,6 @@ class _FilterChrome extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            IntrinsicHeight(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Expanded(
-                    child: _StatCard(
-                      label: 'Total Events',
-                      value: _formatThousands(stats.totalEvents),
-                      delta: '+${stats.totalEventsChangePercent}%',
-                      deltaColor: AppColors.statusResolved,
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Expanded(
-                    child: _StatCard(
-                      label: 'Login Events',
-                      value: _formatThousands(stats.loginEvents),
-                      delta: '+${stats.loginEventsChangePercent}%',
-                      deltaColor: AppColors.statusResolved,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            IntrinsicHeight(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Expanded(
-                    child: _StatCard(
-                      label: 'Admin Actions',
-                      value: '${stats.adminActions}',
-                      delta: '${stats.adminActionsChangePercent}%',
-                      deltaColor: AppColors.error,
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Expanded(
-                    child: _StatCard(
-                      label: 'Security Alerts',
-                      value: '${stats.securityAlerts}',
-                      badge: stats.securityAlertsBadge,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: AppSpacing.md),
             SizedBox(
               height: 40,
               child: ListView.separated(
@@ -387,81 +348,101 @@ class _FilterChrome extends StatelessWidget {
       ),
     );
   }
+}
 
-  static String _formatThousands(int value) {
-    if (value < 1000) return '$value';
-    final thousands = value / 1000;
-    return '${thousands.toStringAsFixed(1)}k';
+// ---------------------------------------------------------------------------
+// Health stats — API status, DB latency, uptime
+// ---------------------------------------------------------------------------
+
+class _HealthStatsRow extends StatelessWidget {
+  const _HealthStatsRow({required this.stats});
+
+  final SystemHealthStats stats;
+
+  @override
+  Widget build(BuildContext context) {
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: _HealthStatCard(
+              icon: AppIcons.activityPulse,
+              label: 'API Status',
+              value: stats.apiOnline ? 'Online' : 'Offline',
+              valueColor: stats.apiOnline
+                  ? AppColors.statusResolved
+                  : AppColors.error,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: _HealthStatCard(
+              icon: AppIcons.database,
+              label: 'DB Latency',
+              value: '${stats.dbLatencyMs}ms',
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: _HealthStatCard(
+              icon: AppIcons.resolutionGauge,
+              label: 'Uptime',
+              value: '${stats.uptimePercent.toStringAsFixed(2)}%',
+              valueColor: AppColors.statusResolved,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
-class _StatCard extends StatelessWidget {
-  const _StatCard({
+class _HealthStatCard extends StatelessWidget {
+  const _HealthStatCard({
+    required this.icon,
     required this.label,
     required this.value,
-    this.delta,
-    this.deltaColor,
-    this.badge,
+    this.valueColor,
   });
 
+  final IconData icon;
   final String label;
   final String value;
-  final String? delta;
-  final Color? deltaColor;
-  final String? badge;
+  final Color? valueColor;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final colorScheme = Theme.of(context).colorScheme;
     return GlassCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            label,
-            style: textTheme.bodySmall,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: AppSpacing.xs),
           Row(
             children: [
-              Flexible(
+              Icon(
+                icon,
+                size: AppIconSize.sm,
+                color: colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 4),
+              Expanded(
                 child: Text(
-                  value,
-                  style: textTheme.titleLarge,
+                  label,
+                  style: textTheme.bodySmall,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              const SizedBox(width: AppSpacing.xs),
-              if (delta != null)
-                Flexible(
-                  child: Text(
-                    delta!,
-                    style: textTheme.labelMedium?.copyWith(color: deltaColor),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                )
-              else if (badge != null)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.sm,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.12),
-                    borderRadius: AppRadius.allXl,
-                  ),
-                  child: Text(
-                    badge!,
-                    style: textTheme.labelSmall?.copyWith(
-                      color: AppColors.primary,
-                    ),
-                  ),
-                ),
             ],
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            value,
+            style: textTheme.titleLarge?.copyWith(color: valueColor),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
@@ -569,12 +550,14 @@ class _TimeRangeDropdown extends StatelessWidget {
 
 class _ActivityList extends StatelessWidget {
   const _ActivityList({
+    required this.healthStats,
     required this.items,
     required this.filter,
     required this.timeRange,
     required this.onClearFilters,
   });
 
+  final SystemHealthStats healthStats;
   final List<ActivityItem> items;
   final ActivityFilter filter;
   final ActivityTimeRange timeRange;
@@ -590,11 +573,15 @@ class _ActivityList extends StatelessWidget {
     return ListView(
       padding: EdgeInsets.fromLTRB(
         AppSpacing.md,
-        0,
+        AppSpacing.sm,
         AppSpacing.md,
         bottomInset + AppSpacing.xl,
       ),
       children: [
+        if (AdminSession.instance.isSuperAdmin) ...[
+          _HealthStatsRow(stats: healthStats),
+          const SizedBox(height: AppSpacing.md),
+        ],
         if (filtered.isEmpty)
           _InlineEmptyHint(onClear: onClearFilters)
         else
@@ -836,34 +823,27 @@ class _LoadingSkeletonState extends State<_LoadingSkeleton>
         chromeInset.bottom + AppSpacing.xl,
       ),
       children: [
-        IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(child: block(height: 76, radius: 12)),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(child: block(height: 76, radius: 12)),
-            ],
-          ),
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(child: block(height: 76, radius: 12)),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(child: block(height: 76, radius: 12)),
-            ],
-          ),
-        ),
-        const SizedBox(height: AppSpacing.md),
         block(height: 40, radius: 20),
         const SizedBox(height: AppSpacing.sm),
         block(height: 48, radius: 12),
         const SizedBox(height: AppSpacing.md),
         block(height: 16, width: 120),
         const SizedBox(height: AppSpacing.sm),
+        if (AdminSession.instance.isSuperAdmin) ...[
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(child: block(height: 76, radius: 12)),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(child: block(height: 76, radius: 12)),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(child: block(height: 76, radius: 12)),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+        ],
         cardBlock(),
         const SizedBox(height: AppSpacing.sm),
         cardBlock(),

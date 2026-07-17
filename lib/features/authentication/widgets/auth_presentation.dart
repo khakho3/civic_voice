@@ -48,14 +48,19 @@ class AuthScreenLayout extends StatelessWidget {
     required this.title,
     required this.supportingText,
     required this.form,
-    required this.footer,
+    this.footer,
   });
 
   final VoidCallback? onBack;
   final String title;
   final String supportingText;
   final Widget form;
-  final Widget footer;
+
+  /// Omitted (rather than a `SizedBox.shrink()` placeholder) on screens
+  /// with no "go to a different auth screen" link to offer — e.g.
+  /// Change Password, reached from an already-authenticated profile
+  /// rather than the public onboarding flow.
+  final Widget? footer;
 
   @override
   Widget build(BuildContext context) {
@@ -93,8 +98,10 @@ class AuthScreenLayout extends StatelessWidget {
                         const SizedBox(height: AppSpacing.lg),
                         AuthFormSurface(child: form),
                         const Spacer(),
-                        const SizedBox(height: AppSpacing.lg),
-                        footer,
+                        if (footer != null) ...[
+                          const SizedBox(height: AppSpacing.lg),
+                          footer!,
+                        ],
                       ],
                     ),
                   ),

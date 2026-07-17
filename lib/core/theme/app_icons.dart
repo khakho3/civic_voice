@@ -50,6 +50,7 @@ abstract final class AppIcons {
   static const IconData settings = LucideIcons.settings;
   static const IconData sun = LucideIcons.sun;
   static const IconData moon = LucideIcons.moon;
+  static const IconData systemTheme = LucideIcons.monitor;
   static const IconData logOut = LucideIcons.logOut;
 
   // Common actions.

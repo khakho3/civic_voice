@@ -1733,6 +1733,29 @@ void main() {
     expect(find.byIcon(AppIcons.back), findsOneWidget);
   });
 
+  testWidgets('Ministry Profile Change Password fires onChangePassword', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    var tapped = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: MinistryProfileScreen(onChangePassword: () => tapped = true),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Change Password'));
+    await tester.pumpAndSettle();
+
+    expect(tapped, isTrue);
+  });
+
   testWidgets(
     'Ministry Profile Validation shows the approved copy with an empty Full '
     'Name field',
