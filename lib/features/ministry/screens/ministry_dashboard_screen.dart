@@ -4,6 +4,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../widgets/app_state_message.dart';
 import '../../../widgets/glass_card.dart';
 import '../models/ministry_dashboard_data.dart';
+import '../models/municipal_performance_data.dart';
 import '../widgets/ministry_scaffold.dart';
 
 /// MIN-001 — Ministry Dashboard.
@@ -40,6 +41,7 @@ class MinistryDashboardScreen extends StatefulWidget {
     this.onNavigateToMunicipalities,
     this.onNavigateToReports,
     this.onProfileTap,
+    this.onOpenMunicipality,
   });
 
   /// Testing hook: defaults to the normal loaded view. Pass a different
@@ -47,16 +49,23 @@ class MinistryDashboardScreen extends StatefulWidget {
   /// a live Cloud Firestore stream (Issue 05 dependency).
   final MinistryDashboardViewState initialState;
 
-  /// Wired by the app shell so the bottom nav can switch tabs.
+  /// Wired by the app shell so the bottom nav can switch tabs. Also the
+  /// destination for the "Municipality Performance" card's "View All"
+  /// and every row within it — was mistakenly pointed at
+  /// [onNavigateToReports] before, landing on Reports Overview instead of
+  /// the actual Municipal Performance screen the card is previewing.
   final VoidCallback? onNavigateToAnalytics;
   final VoidCallback? onNavigateToMunicipalities;
 
-  /// Also wired to "View All" on the Municipality Performance card — both
-  /// land on the same Reports/Municipality Performance destination.
   final VoidCallback? onNavigateToReports;
 
   /// Opens MIN-006 Ministry Profile — wired to the header's profile avatar.
   final VoidCallback? onProfileTap;
+
+  /// Opens the Municipal Officer contact detail screen for the tapped
+  /// "Municipality Performance" row — each row is its own destination now,
+  /// distinct from the section's "View All" (still [onNavigateToMunicipalities]).
+  final ValueChanged<RegionalLeaderItem>? onOpenMunicipality;
 
   @override
   State<MinistryDashboardScreen> createState() =>
@@ -94,7 +103,8 @@ class _MinistryDashboardScreenState extends State<MinistryDashboardScreen> {
         MinistryDashboardViewState.loading => const _LoadingSkeleton(),
         MinistryDashboardViewState.loaded => _DashboardContent(
           data: _data,
-          onViewAllMunicipalities: widget.onNavigateToReports,
+          onViewAllMunicipalities: widget.onNavigateToMunicipalities,
+          onOpenMunicipality: widget.onOpenMunicipality,
         ),
         MinistryDashboardViewState.empty => Padding(
           padding: MinistryScaffold.contentPadding(context),
@@ -105,7 +115,7 @@ class _MinistryDashboardScreenState extends State<MinistryDashboardScreen> {
             message:
                 'Aggregated ministry analytics will appear here once '
                 'reports are available.',
-            primaryActionLabel: 'Retry',
+            primaryActionLabel: 'Refresh',
             onPrimaryAction: _retry,
           ),
         ),
@@ -128,7 +138,7 @@ class _MinistryDashboardScreenState extends State<MinistryDashboardScreen> {
             badgeColor: AppColors.error,
             title: 'Unable to Load Dashboard',
             message:
-                'The ministry analytics service could not return '
+                'The ministry dashboard service could not return '
                 'aggregated performance data right now.',
             primaryActionLabel: 'Try again',
             onPrimaryAction: _retry,
@@ -157,10 +167,15 @@ class _MinistryDashboardScreenState extends State<MinistryDashboardScreen> {
 // ---------------------------------------------------------------------------
 
 class _DashboardContent extends StatelessWidget {
-  const _DashboardContent({required this.data, this.onViewAllMunicipalities});
+  const _DashboardContent({
+    required this.data,
+    this.onViewAllMunicipalities,
+    this.onOpenMunicipality,
+  });
 
   final MinistryDashboardData data;
   final VoidCallback? onViewAllMunicipalities;
+  final ValueChanged<RegionalLeaderItem>? onOpenMunicipality;
 
   @override
   Widget build(BuildContext context) {
@@ -205,7 +220,12 @@ class _DashboardContent extends StatelessWidget {
         for (final item in data.topMunicipalities)
           Padding(
             padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-            child: _MunicipalityRow(item: item),
+            child: _MunicipalityRow(
+              item: item,
+              onTap: onOpenMunicipality == null
+                  ? null
+                  : () => onOpenMunicipality!(item),
+            ),
           ),
       ],
     );
@@ -545,9 +565,14 @@ class _QuickInsightCard extends StatelessWidget {
 }
 
 class _MunicipalityRow extends StatelessWidget {
-  const _MunicipalityRow({required this.item});
+  const _MunicipalityRow({required this.item, this.onTap});
 
-  final MunicipalityPerformanceItem item;
+  final RegionalLeaderItem item;
+
+  /// Opens the Municipal Officer contact detail screen for this specific
+  /// municipality — each row is its own destination, distinct from the
+  /// section's "View All" (the full Municipal Performance screen).
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -555,6 +580,7 @@ class _MunicipalityRow extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final semantic = Theme.of(context).extension<AppSemanticColors>()!;
     return GlassCard(
+      onTap: onTap,
       child: Row(
         children: [
           Container(
@@ -582,7 +608,8 @@ class _MunicipalityRow extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
-                  item.metricLabel,
+                  '${item.resolvedPercent}% resolved · '
+                  '${item.responseTimeLabel} response',
                   style: textTheme.bodySmall,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,

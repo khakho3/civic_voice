@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../models/region.dart';
 
 /// Report status — the full canonical six-value taxonomy (shared with
 /// MIN-002 Analytics' "Status Distribution" breakdown), reusing the same
@@ -59,6 +60,7 @@ class ReportSummaryItem {
   const ReportSummaryItem({
     required this.title,
     required this.municipality,
+    required this.region,
     required this.category,
     required this.status,
     required this.dateLabel,
@@ -66,6 +68,12 @@ class ReportSummaryItem {
 
   final String title;
   final String municipality;
+
+  /// Which of Ghana's 16 regions [municipality] sits in — the dimension
+  /// the region filter chip narrows by, separate from the free-text
+  /// [matchesSearch] (which still matches on the municipality's own name,
+  /// for someone who already knows exactly which one they want).
+  final Region region;
   final String category;
   final ReportStatus status;
 
@@ -116,55 +124,169 @@ class MinistryReportsData {
         underReview: 3248,
         resolved: 18604,
       ),
+      // Spans all 16 regions, using the same assemblies Municipal
+      // Performance's Regional Leaders list does, so a municipality reads
+      // consistently wherever it shows up across the module.
       reports: [
         ReportSummaryItem(
           title: 'Pothole on Main Street',
-          municipality: 'Accra Municipal',
+          municipality: 'Accra Metropolitan',
+          region: Region.greaterAccra,
           category: 'Road Infrastructure',
           status: ReportStatus.submitted,
           dateLabel: '2 days ago',
         ),
         ReportSummaryItem(
           title: 'Broken Streetlight',
-          municipality: 'Kumasi Metro',
+          municipality: 'Kumasi Metropolitan',
+          region: Region.ashanti,
           category: 'Utilities',
           status: ReportStatus.resolved,
           dateLabel: '5 days ago',
         ),
         ReportSummaryItem(
           title: 'Overflowing Drainage',
-          municipality: 'Tamale Metro',
+          municipality: 'Tamale Metropolitan',
+          region: Region.northern,
           category: 'Sanitation',
           status: ReportStatus.underReview,
           dateLabel: '1 day ago',
         ),
         ReportSummaryItem(
           title: 'Illegal Dumping Site',
-          municipality: 'Accra Municipal',
+          municipality: 'Accra Metropolitan',
+          region: Region.greaterAccra,
           category: 'Sanitation',
           status: ReportStatus.assigned,
           dateLabel: '3 days ago',
         ),
         ReportSummaryItem(
           title: 'Water Supply Interruption',
-          municipality: 'Kumasi Metro',
+          municipality: 'Kumasi Metropolitan',
+          region: Region.ashanti,
           category: 'Water Services',
           status: ReportStatus.inProgress,
           dateLabel: '6 hours ago',
         ),
         ReportSummaryItem(
           title: 'Damaged Footbridge',
-          municipality: 'Tamale Metro',
+          municipality: 'Tamale Metropolitan',
+          region: Region.northern,
           category: 'Road Infrastructure',
           status: ReportStatus.resolved,
           dateLabel: '1 week ago',
         ),
         ReportSummaryItem(
           title: 'Noise Complaint - Construction',
-          municipality: 'Accra Municipal',
+          municipality: 'Accra Metropolitan',
+          region: Region.greaterAccra,
           category: 'Public Order',
           status: ReportStatus.rejected,
           dateLabel: '4 days ago',
+        ),
+        ReportSummaryItem(
+          title: 'Coastal Erosion Near Market',
+          municipality: 'Sekondi Takoradi Metropolitan',
+          region: Region.western,
+          category: 'Environment',
+          status: ReportStatus.underReview,
+          dateLabel: '8 hours ago',
+        ),
+        ReportSummaryItem(
+          title: 'Uncollected Refuse',
+          municipality: 'Sefwi-Wiawso Municipal',
+          region: Region.westernNorth,
+          category: 'Sanitation',
+          status: ReportStatus.submitted,
+          dateLabel: '12 hours ago',
+        ),
+        ReportSummaryItem(
+          title: 'Broken Public Toilet Facility',
+          municipality: 'Cape Coast Metropolitan',
+          region: Region.central,
+          category: 'Sanitation',
+          status: ReportStatus.assigned,
+          dateLabel: '2 days ago',
+        ),
+        ReportSummaryItem(
+          title: 'Flooded Access Road',
+          municipality: 'Kwahu West Municipal',
+          region: Region.eastern,
+          category: 'Road Infrastructure',
+          status: ReportStatus.inProgress,
+          dateLabel: '1 day ago',
+        ),
+        ReportSummaryItem(
+          title: 'Unsafe Market Electrical Wiring',
+          municipality: 'Ho Municipal',
+          region: Region.volta,
+          category: 'Utilities',
+          status: ReportStatus.resolved,
+          dateLabel: '4 days ago',
+        ),
+        ReportSummaryItem(
+          title: 'Blocked Culvert',
+          municipality: 'Jasikan Municipal',
+          region: Region.oti,
+          category: 'Sanitation',
+          status: ReportStatus.underReview,
+          dateLabel: '3 days ago',
+        ),
+        ReportSummaryItem(
+          title: 'Damaged School Fence',
+          municipality: 'East Mamprusi Municipal',
+          region: Region.northEast,
+          category: 'Public Order',
+          status: ReportStatus.submitted,
+          dateLabel: '5 hours ago',
+        ),
+        ReportSummaryItem(
+          title: 'Borehole Out of Service',
+          municipality: 'East Gonja Municipal',
+          region: Region.savannah,
+          category: 'Water Services',
+          status: ReportStatus.assigned,
+          dateLabel: '2 days ago',
+        ),
+        ReportSummaryItem(
+          title: 'Livestock on Highway',
+          municipality: 'Bolgatanga Municipal',
+          region: Region.upperEast,
+          category: 'Public Order',
+          status: ReportStatus.rejected,
+          dateLabel: '6 days ago',
+        ),
+        ReportSummaryItem(
+          title: 'Damaged Irrigation Channel',
+          municipality: 'Wa Municipal',
+          region: Region.upperWest,
+          category: 'Road Infrastructure',
+          status: ReportStatus.underReview,
+          dateLabel: '1 day ago',
+        ),
+        ReportSummaryItem(
+          title: 'Streetlight Outage on Ring Road',
+          municipality: 'Sunyani Municipal',
+          region: Region.bono,
+          category: 'Utilities',
+          status: ReportStatus.resolved,
+          dateLabel: '3 days ago',
+        ),
+        ReportSummaryItem(
+          title: 'Illegal Structure on Reserve Land',
+          municipality: 'Techiman Municipal',
+          region: Region.bonoEast,
+          category: 'Public Order',
+          status: ReportStatus.submitted,
+          dateLabel: '9 hours ago',
+        ),
+        ReportSummaryItem(
+          title: 'Damaged Bridge Railing',
+          municipality: 'Tano North Municipal',
+          region: Region.ahafo,
+          category: 'Road Infrastructure',
+          status: ReportStatus.inProgress,
+          dateLabel: '2 days ago',
         ),
       ],
     );

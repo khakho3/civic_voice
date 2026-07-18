@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../models/region.dart';
 import '../../../widgets/app_state_message.dart';
 import '../../../widgets/collapsible_list_header.dart';
 import '../../../widgets/glass_card.dart';
 import '../../../widgets/simple_bar_chart.dart';
 import '../models/municipal_performance_data.dart';
 import '../widgets/ministry_scaffold.dart';
+import '../widgets/region_picker_chip.dart';
 
 /// MIN-003 — Municipal Performance Screen.
 ///
@@ -45,6 +47,7 @@ class MinistryMunicipalPerformanceScreen extends StatefulWidget {
     this.onNavigateToAnalytics,
     this.onNavigateToReports,
     this.onProfileTap,
+    this.onOpenMunicipality,
   });
 
   final MinistryMunicipalPerformanceViewState initialState;
@@ -56,6 +59,10 @@ class MinistryMunicipalPerformanceScreen extends StatefulWidget {
 
   /// Opens MIN-006 Ministry Profile — wired to the header's profile avatar.
   final VoidCallback? onProfileTap;
+
+  /// Opens the Municipal Officer contact detail screen for the tapped
+  /// Regional Leaders row.
+  final ValueChanged<RegionalLeaderItem>? onOpenMunicipality;
 
   @override
   State<MinistryMunicipalPerformanceScreen> createState() =>
@@ -69,6 +76,12 @@ class _MinistryMunicipalPerformanceScreenState
   PerformanceFilter _filter = PerformanceFilter.all;
   EfficiencyMetric _metric = EfficiencyMetric.response;
 
+  /// Null means every region — the real narrowing dimension "plenty
+  /// charts" alone couldn't offer: with all 16 regions represented in
+  /// [MunicipalPerformanceData.mock] now, a Ministry Supervisor overseeing
+  /// the whole country can actually drill into one.
+  Region? _region;
+
   void _retry() {
     setState(() => _state = MinistryMunicipalPerformanceViewState.loading);
     Future.delayed(const Duration(milliseconds: 500), () {
@@ -81,8 +94,19 @@ class _MinistryMunicipalPerformanceScreenState
   void _clearFilters() {
     setState(() {
       _filter = PerformanceFilter.all;
+      _region = null;
       _state = MinistryMunicipalPerformanceViewState.loaded;
     });
+  }
+
+  Future<void> _pickRegion() async {
+    final selected = await pickRegion(context, current: _region);
+    // pickRegion returns null both for "picked All Regions" and
+    // "dismissed with no selection" — a second flag would be needed to
+    // tell those apart, but since re-picking "All Regions" is exactly the
+    // reset already in effect for a dismissed sheet, treating them the
+    // same has no observable difference here.
+    setState(() => _region = selected);
   }
 
   @override
@@ -125,13 +149,19 @@ class _MinistryMunicipalPerformanceScreenState
             header: _FilterChrome(
               subtitle: subtitle,
               filter: _filter,
+              region: _region,
               enabled: true,
               onFilterSelected: (f) => setState(() => _filter = f),
+              onRegionTap: _pickRegion,
             ),
             child: _PerformanceContent(
               data: _data,
               metric: _metric,
+              filter: _filter,
+              region: _region,
               onMetricChanged: (m) => setState(() => _metric = m),
+              onClearFilters: _clearFilters,
+              onOpenMunicipality: widget.onOpenMunicipality,
             ),
           ),
         ),
@@ -141,10 +171,12 @@ class _MinistryMunicipalPerformanceScreenState
             _FilterChrome(
               subtitle: subtitle,
               filter: _filter,
+              region: _region,
               enabled: chromeEnabled,
               onFilterSelected: chromeEnabled
                   ? (f) => setState(() => _filter = f)
                   : null,
+              onRegionTap: chromeEnabled ? _pickRegion : null,
             ),
             Expanded(
               child: switch (_state) {
@@ -233,14 +265,18 @@ class _FilterChrome extends StatelessWidget {
   const _FilterChrome({
     required this.subtitle,
     required this.filter,
+    required this.region,
     required this.enabled,
     this.onFilterSelected,
+    this.onRegionTap,
   });
 
   final String subtitle;
   final PerformanceFilter filter;
+  final Region? region;
   final bool enabled;
   final ValueChanged<PerformanceFilter>? onFilterSelected;
+  final VoidCallback? onRegionTap;
 
   @override
   Widget build(BuildContext context) {
@@ -261,10 +297,20 @@ class _FilterChrome extends StatelessWidget {
             height: 40,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
-              itemCount: PerformanceFilter.values.length,
+              // Region picker first — it's the primary narrowing dimension
+              // ("which of the 16 regions"), the scope chips after it just
+              // refine within whatever region is currently in effect.
+              itemCount: PerformanceFilter.values.length + 1,
               separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.xs),
               itemBuilder: (context, index) {
-                final option = PerformanceFilter.values[index];
+                if (index == 0) {
+                  return RegionPickerChip(
+                    label: region?.label ?? 'All Regions',
+                    active: region != null,
+                    onTap: onRegionTap,
+                  );
+                }
+                final option = PerformanceFilter.values[index - 1];
                 return _ScopeChip(
                   label: option.label,
                   selected: option == filter,
@@ -320,12 +366,20 @@ class _PerformanceContent extends StatelessWidget {
   const _PerformanceContent({
     required this.data,
     required this.metric,
+    required this.filter,
+    required this.region,
     required this.onMetricChanged,
+    required this.onClearFilters,
+    this.onOpenMunicipality,
   });
 
   final MunicipalPerformanceData data;
   final EfficiencyMetric metric;
+  final PerformanceFilter filter;
+  final Region? region;
   final ValueChanged<EfficiencyMetric> onMetricChanged;
+  final VoidCallback onClearFilters;
+  final ValueChanged<RegionalLeaderItem>? onOpenMunicipality;
 
   @override
   Widget build(BuildContext context) {
@@ -334,6 +388,26 @@ class _PerformanceContent extends StatelessWidget {
     final trendValues = metric == EfficiencyMetric.response
         ? data.responseTrend
         : data.resolutionTrend;
+
+    final scoped = region == null
+        ? data.regionalLeaders
+        : [
+            for (final leader in data.regionalLeaders)
+              if (leader.region == region) leader,
+          ];
+    final leaders = switch (filter) {
+      PerformanceFilter.all => scoped,
+      PerformanceFilter.needsAttention => [
+        for (final leader in scoped)
+          if (leader.needsAttention) leader,
+      ],
+      PerformanceFilter.top10 =>
+        (List<RegionalLeaderItem>.of(
+          scoped,
+        )..sort((a, b) => b.resolvedPercent.compareTo(a.resolvedPercent)))
+            .take(10)
+            .toList(),
+    };
 
     return ListView(
       padding: EdgeInsets.fromLTRB(
@@ -403,18 +477,29 @@ class _PerformanceContent extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            // No dedicated "all leaders" screen is specified (MIN-003's
-            // only exit point is Ministry Dashboard) — placeholder pending
-            // spec, matching this module's other unwired actions.
-            TextButton(onPressed: () {}, child: const Text('View all')),
+            // The old "View all" here had nowhere real to go — there's no
+            // dedicated MIN-003 detail screen, and now that the region
+            // picker/scope chips above actually narrow this exact list,
+            // there's nothing left to "view all" of that isn't already
+            // shown. A count reads the current scope instead of implying
+            // a hidden destination that doesn't exist.
+            Text('${leaders.length} shown', style: textTheme.bodySmall),
           ],
         ),
         const SizedBox(height: AppSpacing.sm),
-        for (final leader in data.regionalLeaders)
-          Padding(
-            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-            child: _RegionalLeaderRow(item: leader),
-          ),
+        if (leaders.isEmpty)
+          _InlineEmptyHint(onClear: onClearFilters)
+        else
+          for (final leader in leaders)
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+              child: _RegionalLeaderRow(
+                item: leader,
+                onTap: onOpenMunicipality == null
+                    ? null
+                    : () => onOpenMunicipality!(leader),
+              ),
+            ),
         const SizedBox(height: AppSpacing.md),
         GlassCard(
           child: Column(
@@ -499,19 +584,18 @@ class _StatCard extends StatelessWidget {
 }
 
 class _RegionalLeaderRow extends StatelessWidget {
-  const _RegionalLeaderRow({required this.item});
+  const _RegionalLeaderRow({required this.item, this.onTap});
 
   final RegionalLeaderItem item;
+
+  /// Opens the Municipal Officer contact detail screen for this row.
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    final colorScheme = Theme.of(context).colorScheme;
     return GlassCard(
-      // No detail screen is specified for a single municipality yet
-      // (MIN-003's only exit point is Ministry Dashboard) — placeholder
-      // pending spec.
-      onTap: () {},
+      onTap: onTap,
       child: Row(
         children: [
           Container(
@@ -539,7 +623,8 @@ class _RegionalLeaderRow extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
-                  '${item.resolvedPercent}% resolved · ${item.responseTimeLabel} response',
+                  '${item.region.label} · ${item.resolvedPercent}% resolved · '
+                  '${item.responseTimeLabel} response',
                   style: textTheme.bodySmall,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -551,12 +636,6 @@ class _RegionalLeaderRow extends StatelessWidget {
           Text(
             '${item.resolvedPercent}',
             style: textTheme.titleLarge?.copyWith(color: item.rankColor),
-          ),
-          const SizedBox(width: 4),
-          Icon(
-            AppIcons.chevronRight,
-            size: AppIconSize.sm,
-            color: colorScheme.onSurfaceVariant,
           ),
         ],
       ),
@@ -598,6 +677,42 @@ class _MetricToggle extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Shown in place of the Regional Leaders list when the region/scope
+/// combination excludes every entry — matches the inline empty-hint shape
+/// already established on MIN-004 Reports Overview for the same "live
+/// filtering left nothing to show, right here in the list" situation.
+class _InlineEmptyHint extends StatelessWidget {
+  const _InlineEmptyHint({required this.onClear});
+
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final colorScheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
+      child: Column(
+        children: [
+          Icon(
+            AppIcons.noFilterMatch,
+            size: AppIconSize.lg,
+            color: colorScheme.onSurfaceVariant,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            'No municipalities match your region and scope selection.',
+            style: textTheme.bodyMedium,
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          TextButton(onPressed: onClear, child: const Text('Clear')),
+        ],
       ),
     );
   }

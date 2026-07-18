@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../models/region.dart';
 import '../../../widgets/app_state_message.dart';
 import '../../../widgets/collapsible_list_header.dart';
 import '../../../widgets/glass_card.dart';
 import '../models/ministry_reports_data.dart';
 import '../widgets/ministry_scaffold.dart';
+import '../widgets/region_picker_chip.dart';
 
 /// MIN-004 — Reports Overview.
 ///
@@ -80,6 +82,11 @@ class _MinistryReportsScreenState extends State<MinistryReportsScreen> {
   ReportStatusFilter _filter = ReportStatusFilter.all;
   String _query = '';
 
+  /// Null means every region — narrows the national report list the same
+  /// way MIN-003 Municipal Performance's own region picker does, reusing
+  /// the same "chip opens a bottom sheet of all 16 regions" pattern.
+  Region? _region;
+
   @override
   void dispose() {
     _searchController.dispose();
@@ -98,8 +105,14 @@ class _MinistryReportsScreenState extends State<MinistryReportsScreen> {
       _searchController.clear();
       _query = '';
       _filter = ReportStatusFilter.all;
+      _region = null;
       _state = MinistryReportsViewState.loaded;
     });
+  }
+
+  Future<void> _pickRegion() async {
+    final selected = await pickRegion(context, current: _region);
+    setState(() => _region = selected);
   }
 
   @override
@@ -135,14 +148,17 @@ class _MinistryReportsScreenState extends State<MinistryReportsScreen> {
             header: _FilterChrome(
               controller: _searchController,
               filter: _filter,
+              region: _region,
               enabled: true,
               onQueryChanged: (q) => setState(() => _query = q),
               onFilterSelected: (f) => setState(() => _filter = f),
+              onRegionTap: _pickRegion,
             ),
             child: _ReportsContent(
               data: _data,
               query: _query,
               filter: _filter,
+              region: _region,
               onClearFilters: _clearFilters,
               onViewReportInsights: widget.onViewReportInsights,
             ),
@@ -154,6 +170,7 @@ class _MinistryReportsScreenState extends State<MinistryReportsScreen> {
             _FilterChrome(
               controller: _searchController,
               filter: _filter,
+              region: _region,
               enabled: chromeEnabled,
               onQueryChanged: chromeEnabled
                   ? (q) => setState(() => _query = q)
@@ -161,6 +178,7 @@ class _MinistryReportsScreenState extends State<MinistryReportsScreen> {
               onFilterSelected: chromeEnabled
                   ? (f) => setState(() => _filter = f)
                   : null,
+              onRegionTap: chromeEnabled ? _pickRegion : null,
             ),
             Expanded(
               child: switch (_state) {
@@ -225,7 +243,7 @@ class _MinistryReportsScreenState extends State<MinistryReportsScreen> {
                     badgeColor: AppColors.error,
                     title: 'Unauthorized Access',
                     message:
-                        'This read-only reports overview requires '
+                        'This read-only ministry reports overview requires '
                         'supervisor permissions.',
                   ),
                 ),
@@ -246,16 +264,20 @@ class _FilterChrome extends StatelessWidget {
   const _FilterChrome({
     required this.controller,
     required this.filter,
+    required this.region,
     required this.enabled,
     this.onQueryChanged,
     this.onFilterSelected,
+    this.onRegionTap,
   });
 
   final TextEditingController controller;
   final ReportStatusFilter filter;
+  final Region? region;
   final bool enabled;
   final ValueChanged<String>? onQueryChanged;
   final ValueChanged<ReportStatusFilter>? onFilterSelected;
+  final VoidCallback? onRegionTap;
 
   @override
   Widget build(BuildContext context) {
@@ -312,9 +334,19 @@ class _FilterChrome extends StatelessWidget {
             height: 40,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
-              itemCount: ReportStatusFilter.values.length,
+              // Region picker last — status is the primary chip row here
+              // (matching the approved MIN-004 chip row), region is the
+              // additional narrowing dimension appended after it.
+              itemCount: ReportStatusFilter.values.length + 1,
               separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.xs),
               itemBuilder: (context, index) {
+                if (index == ReportStatusFilter.values.length) {
+                  return RegionPickerChip(
+                    label: region?.label ?? 'All Regions',
+                    active: region != null,
+                    onTap: onRegionTap,
+                  );
+                }
                 final option = ReportStatusFilter.values[index];
                 return _StatusChip(
                   label: option.label,
@@ -372,6 +404,7 @@ class _ReportsContent extends StatelessWidget {
     required this.data,
     required this.query,
     required this.filter,
+    required this.region,
     required this.onClearFilters,
     this.onViewReportInsights,
   });
@@ -379,6 +412,7 @@ class _ReportsContent extends StatelessWidget {
   final MinistryReportsData data;
   final String query;
   final ReportStatusFilter filter;
+  final Region? region;
   final VoidCallback onClearFilters;
   final VoidCallback? onViewReportInsights;
 
@@ -387,7 +421,12 @@ class _ReportsContent extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
     final chromeInset = MinistryScaffold.contentPadding(context);
     final filtered = data.reports
-        .where((r) => filter.matches(r.status) && r.matchesSearch(query))
+        .where(
+          (r) =>
+              filter.matches(r.status) &&
+              r.matchesSearch(query) &&
+              (region == null || r.region == region),
+        )
         .toList();
 
     return ListView(

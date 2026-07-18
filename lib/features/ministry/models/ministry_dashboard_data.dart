@@ -1,3 +1,6 @@
+import '../../../models/region.dart';
+import 'municipal_performance_data.dart';
+
 /// Data backing MIN-001 Ministry Dashboard's loaded state.
 class MinistryDashboardData {
   const MinistryDashboardData({
@@ -10,7 +13,17 @@ class MinistryDashboardData {
   final MinistryDashboardStats stats;
   final ReportStatistics reportStatistics;
   final QuickInsights insights;
-  final List<MunicipalityPerformanceItem> topMunicipalities;
+
+  /// The top 3 [MunicipalPerformanceData.mock] entries by resolved rate,
+  /// reusing [RegionalLeaderItem] directly rather than a separate
+  /// `MunicipalityPerformanceItem` model — the old one carried its own
+  /// disconnected mock values (different municipalities, different
+  /// percentages than Municipal Performance's own list), so the same
+  /// municipality could read two different numbers depending which screen
+  /// you were on. One shared model with one shared officer contact record
+  /// is also what makes tapping a row here open the same detail screen
+  /// Municipal Performance's own rows open.
+  final List<RegionalLeaderItem> topMunicipalities;
 
   /// Placeholder content matching the approved MIN-001 design, used until
   /// the Cloud Firestore-backed aggregation service (Issue 05 dependency)
@@ -39,18 +52,34 @@ class MinistryDashboardData {
         assignedPercent: 18,
         inProgressPercent: 20,
       ),
+      // The top 3 of MunicipalPerformanceData.mock's own regionalLeaders by
+      // resolvedPercent — kept in sync by hand for now since these are two
+      // separate mock() calls, but at least the same entries with the same
+      // numbers, not a parallel dataset that can silently drift.
       topMunicipalities: [
-        MunicipalityPerformanceItem(
-          name: 'Greater Accra',
-          metricLabel: '92% SLA compliance',
+        RegionalLeaderItem(
+          name: 'Accra Metropolitan',
+          region: Region.greaterAccra,
+          resolvedPercent: 92,
+          responseTimeLabel: '14h',
+          officerName: 'Kwame Owusu',
+          officerPhone: '+233 24 555 0101',
         ),
-        MunicipalityPerformanceItem(
-          name: 'Kumasi Metro',
-          metricLabel: '86% resolution rate',
+        RegionalLeaderItem(
+          name: 'Kumasi Metropolitan',
+          region: Region.ashanti,
+          resolvedPercent: 86,
+          responseTimeLabel: '18h',
+          officerName: 'Abena Boateng',
+          officerPhone: '+233 24 555 0102',
         ),
-        MunicipalityPerformanceItem(
-          name: 'Tamale Metro',
-          metricLabel: '71% review throughput',
+        RegionalLeaderItem(
+          name: 'Sunyani Municipal',
+          region: Region.bono,
+          resolvedPercent: 83,
+          responseTimeLabel: '17h',
+          officerName: 'Comfort Osei',
+          officerPhone: '+233 24 555 0114',
         ),
       ],
     );
@@ -115,18 +144,4 @@ class QuickInsights {
   final int underReviewPercent;
   final int assignedPercent;
   final int inProgressPercent;
-}
-
-/// One row in the "Municipality Performance" list — each municipality
-/// surfaces whichever metric is most notable for it (SLA compliance,
-/// resolution rate, review throughput, ...), matching the approved frame
-/// rather than forcing every row onto one fixed metric.
-class MunicipalityPerformanceItem {
-  const MunicipalityPerformanceItem({
-    required this.name,
-    required this.metricLabel,
-  });
-
-  final String name;
-  final String metricLabel;
 }

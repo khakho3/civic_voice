@@ -35,9 +35,11 @@ import 'features/citizen/screens/photo_upload_screen.dart';
 import 'features/citizen/screens/report_submitted_screen.dart';
 import 'features/citizen/screens/report_tracking_screen.dart';
 import 'features/citizen/screens/review_report_screen.dart';
+import 'features/ministry/models/municipal_performance_data.dart';
 import 'features/ministry/screens/ministry_analytics_screen.dart';
 import 'features/ministry/screens/ministry_dashboard_screen.dart';
 import 'features/ministry/screens/ministry_municipal_performance_screen.dart';
+import 'features/ministry/screens/ministry_municipality_detail_screen.dart';
 import 'features/ministry/screens/ministry_profile_screen.dart' as ministry;
 import 'features/ministry/screens/ministry_report_insights_screen.dart';
 import 'features/ministry/screens/ministry_reports_screen.dart';
@@ -130,6 +132,7 @@ abstract final class AppRoutes {
   static const ministryReportInsights = '/ministry/report-insights';
   static const ministryAnalytics = '/ministry/analytics';
   static const ministryMunicipalPerformance = '/ministry/municipal-performance';
+  static const ministryMunicipalityDetail = '/ministry/municipality-detail';
   static const ministryProfile = '/ministry/profile';
 
   // Municipal.
@@ -290,6 +293,11 @@ class CivicVoiceApp extends StatelessWidget {
             AppRoutes.ministryAnalytics: _ministryAnalytics,
             AppRoutes.ministryMunicipalPerformance:
                 _ministryMunicipalPerformance,
+            AppRoutes.ministryMunicipalityDetail: (context) =>
+                _ministryMunicipalityDetail(
+                  context,
+                  _regionalLeaderFromSettings(ModalRoute.of(context)?.settings),
+                ),
             AppRoutes.ministryProfile: _ministryProfile,
             AppRoutes.municipalDashboard: _municipalDashboard,
             AppRoutes.municipalInbox: _municipalInbox,
@@ -351,6 +359,15 @@ class CivicVoiceApp extends StatelessWidget {
                 builder: (context) => _adminMaintenanceTeamDetails(
                   context,
                   _maintenanceTeamFromSettings(settings)!,
+                ),
+              );
+            }
+            if (uri?.path == AppRoutes.ministryMunicipalityDetail) {
+              return MaterialPageRoute<void>(
+                settings: settings,
+                builder: (context) => _ministryMunicipalityDetail(
+                  context,
+                  _regionalLeaderFromSettings(settings),
                 ),
               );
             }
@@ -586,6 +603,32 @@ AdminUserItem _adminUserFromSettings(RouteSettings? settings) {
     }
   }
   return users.first;
+}
+
+void _pushMinistryMunicipalityDetail(
+  BuildContext context,
+  RegionalLeaderItem municipality,
+) {
+  final route = Uri(
+    path: AppRoutes.ministryMunicipalityDetail,
+    queryParameters: {'name': municipality.name},
+  ).toString();
+  Navigator.of(context).pushNamed(route, arguments: municipality);
+}
+
+RegionalLeaderItem _regionalLeaderFromSettings(RouteSettings? settings) {
+  final argument = settings?.arguments;
+  if (argument is RegionalLeaderItem) return argument;
+
+  final leaders = MunicipalPerformanceData.mock().regionalLeaders;
+  final uri = Uri.tryParse(settings?.name ?? '');
+  final name = uri?.queryParameters['name'];
+  if (name != null) {
+    for (final leader in leaders) {
+      if (leader.name == name) return leader;
+    }
+  }
+  return leaders.first;
 }
 
 void _pushAdminMaintenanceTeamDetails(
@@ -877,6 +920,8 @@ Widget _ministryDashboard(BuildContext context) {
           _replaceWith(context, AppRoutes.ministryReports),
       onProfileTap: () =>
           Navigator.of(context).pushNamed(AppRoutes.ministryProfile),
+      onOpenMunicipality: (municipality) =>
+          _pushMinistryMunicipalityDetail(context, municipality),
     ),
   );
 }
@@ -904,6 +949,18 @@ Widget _ministryMunicipalPerformance(BuildContext context) {
     onNavigateToReports: () => _replaceWith(context, AppRoutes.ministryReports),
     onProfileTap: () =>
         Navigator.of(context).pushNamed(AppRoutes.ministryProfile),
+    onOpenMunicipality: (municipality) =>
+        _pushMinistryMunicipalityDetail(context, municipality),
+  );
+}
+
+Widget _ministryMunicipalityDetail(
+  BuildContext context,
+  RegionalLeaderItem municipality,
+) {
+  return MinistryMunicipalityDetailScreen(
+    municipality: municipality,
+    onBack: () => Navigator.of(context).maybePop(),
   );
 }
 

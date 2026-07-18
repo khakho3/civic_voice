@@ -281,8 +281,8 @@ class _MinistryReportInsightsScreenState
                           badgeColor: AppColors.error,
                           title: 'Unauthorized Access',
                           message:
-                              'This read-only report insights screen '
-                              'requires supervisor permissions.',
+                              'This read-only ministry report insights '
+                              'screen requires supervisor permissions.',
                         ),
                       ),
                     },
