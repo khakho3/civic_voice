@@ -1,9 +1,16 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
-import '../models/officer_profile.dart';
-import '../../../widgets/glass_card.dart';
+import '../../../widgets/confirm_dialog.dart';
 import '../../../widgets/kebab_menu_button.dart';
+import '../../../widgets/language_preference_row.dart';
+import '../../../widgets/profile_action_row.dart';
+import '../../../widgets/profile_edit_action_bar.dart';
+import '../../../widgets/profile_field_row.dart';
+import '../../../widgets/profile_header_card.dart';
+import '../../../widgets/profile_section.dart';
+import '../../../widgets/theme_preference_row.dart';
+import '../models/officer_profile.dart';
 import '../widgets/municipal_detail_header.dart';
 
 /// MUN-009 — Municipal Profile.
@@ -40,7 +47,6 @@ class MunicipalProfileScreen extends StatefulWidget {
     super.key,
     this.initialState = MunicipalProfileViewState.loaded,
     this.onBack,
-    this.onSettingsTap,
     this.onChangePassword,
     this.onLogOut,
   });
@@ -52,18 +58,11 @@ class MunicipalProfileScreen extends StatefulWidget {
   /// Editing/Error, which cancels the edit instead (see [_cancel]).
   final VoidCallback? onBack;
 
-  /// Settings isn't part of this module (Issue 03) or any other module —
-  /// it isn't in the project's approved scope anywhere yet, so this is a
-  /// placeholder pending a future spec, not a screen this module should
-  /// build.
-  final VoidCallback? onSettingsTap;
-
   /// Opens the shared Change Password screen (AppRoutes.changePassword).
   final VoidCallback? onChangePassword;
 
-  /// No account/session workflow is specified yet (Issue 03 §7) —
-  /// placeholder pending spec, matching this module's other unwired
-  /// actions (Dashboard's Quick Actions, Report Progress's Share Summary).
+  /// Fired after the log-out confirmation dialog is accepted. Nullable:
+  /// there's no real authentication flow to sign out of yet.
   final VoidCallback? onLogOut;
 
   @override
@@ -142,6 +141,17 @@ class _MunicipalProfileScreenState extends State<MunicipalProfileScreen> {
     });
   }
 
+  Future<void> _confirmLogOut() async {
+    final confirmed = await showConfirmDialog(
+      context,
+      title: 'Log out?',
+      message: "You'll need to sign back in to access the municipal console.",
+      confirmLabel: 'Log Out',
+      destructive: true,
+    );
+    if (confirmed) widget.onLogOut?.call();
+  }
+
   @override
   Widget build(BuildContext context) {
     final isEditing =
@@ -188,7 +198,7 @@ class _MunicipalProfileScreenState extends State<MunicipalProfileScreen> {
                     },
                   ),
                   if (isEditing)
-                    _EditActionBar(onSave: _save, onCancel: _cancel),
+                    ProfileEditActionBar(onCancel: _cancel, onSave: _save),
                 ],
               ),
             ),
@@ -210,11 +220,7 @@ class _MunicipalProfileScreenState extends State<MunicipalProfileScreen> {
                           child: const Text('Edit Profile'),
                         ),
                         PopupMenuItem(
-                          onTap: widget.onSettingsTap,
-                          child: const Text('Settings'),
-                        ),
-                        PopupMenuItem(
-                          onTap: widget.onLogOut,
+                          onTap: _confirmLogOut,
                           child: const Text('Log Out'),
                         ),
                       ],
@@ -319,88 +325,10 @@ class _ProfileView extends StatelessWidget {
         AppSpacing.xl,
       ),
       children: [
-        _ProfileHeaderBlock(profile: profile),
-        const SizedBox(height: AppSpacing.xl),
-        _SectionCard(
-          title: 'Contact Information',
-          children: [
-            _InfoRow(
-              icon: AppIcons.email,
-              label: 'EMAIL',
-              value: profile.email,
-            ),
-            _InfoRow(
-              icon: AppIcons.phone,
-              label: 'PHONE',
-              value: profile.phone,
-            ),
-            _InfoRow(
-              icon: AppIcons.systemAdministrator,
-              label: 'DEPARTMENT',
-              value: profile.department,
-            ),
-            _InfoRow(
-              icon: AppIcons.team,
-              label: 'REPORTS TO',
-              value: profile.reportsTo,
-            ),
-          ],
-        ),
-        const SizedBox(height: AppSpacing.md),
-        _SectionCard(
-          title: 'Security',
-          children: [
-            _ActionRow(
-              icon: AppIcons.password,
-              label: 'Change Password',
-              caption: profile.passwordLastUpdatedLabel,
-              onTap: onChangePassword,
-            ),
-            _ActionRow(
-              icon: AppIcons.verify,
-              label: 'Two-Factor Authentication',
-              caption: profile.twoFactorEnabled ? 'Enabled' : 'Disabled',
-              // No 2FA management workflow is specified yet — placeholder
-              // pending spec.
-              onTap: () {},
-            ),
-            _ActionRow(
-              icon: AppIcons.idCard,
-              label: 'Login Sessions',
-              caption: '${profile.activeSessionCount} active devices',
-              // No session-management workflow is specified yet —
-              // placeholder pending spec.
-              onTap: () {},
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-class _ProfileHeaderBlock extends StatelessWidget {
-  const _ProfileHeaderBlock({required this.profile, this.editing = false});
-
-  final OfficerProfile profile;
-  final bool editing;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    return Column(
-      children: [
-        _ProfileAvatar(name: profile.name, editing: editing),
-        const SizedBox(height: AppSpacing.md),
-        Text(profile.name, style: textTheme.headlineSmall),
-        const SizedBox(height: 2),
-        Text(profile.role, style: Theme.of(context).textTheme.bodyMedium),
-        const SizedBox(height: AppSpacing.sm),
-        Wrap(
-          alignment: WrapAlignment.center,
-          spacing: AppSpacing.xs,
-          runSpacing: AppSpacing.xs,
-          children: [
+        ProfileHeaderCard(
+          name: profile.name,
+          subtitle: profile.role,
+          pills: [
             if (profile.verifiedOfficial)
               const _Pill(
                 icon: AppIcons.verify,
@@ -410,58 +338,43 @@ class _ProfileHeaderBlock extends StatelessWidget {
             _Pill(label: 'ID #${profile.employeeId}'),
           ],
         ),
-      ],
-    );
-  }
-}
-
-class _ProfileAvatar extends StatelessWidget {
-  const _ProfileAvatar({required this.name, required this.editing});
-
-  final String name;
-  final bool editing;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final initials = name
-        .trim()
-        .split(RegExp(r'\s+'))
-        .map((p) => p.isEmpty ? '' : p[0])
-        .take(2)
-        .join()
-        .toUpperCase();
-    return Stack(
-      children: [
-        CircleAvatar(
-          radius: 40,
-          backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-          child: Text(
-            initials,
-            style: Theme.of(
-              context,
-            ).textTheme.headlineMedium?.copyWith(color: AppColors.primary),
-          ),
+        const SizedBox(height: AppSpacing.lg),
+        ProfileSection(
+          icon: AppIcons.profile,
+          title: 'Contact Information',
+          children: [
+            ProfileFieldRow(label: 'Email', value: profile.email),
+            const SizedBox(height: AppSpacing.sm),
+            ProfileFieldRow(label: 'Phone', value: profile.phone),
+            const SizedBox(height: AppSpacing.sm),
+            ProfileFieldRow(label: 'Department', value: profile.department),
+            const SizedBox(height: AppSpacing.sm),
+            ProfileFieldRow(label: 'Reports To', value: profile.reportsTo),
+          ],
         ),
-        if (editing)
-          Positioned(
-            right: 0,
-            bottom: 0,
-            child: Container(
-              width: 28,
-              height: 28,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppColors.primary,
-                border: Border.all(color: colorScheme.surface, width: 2),
-              ),
-              child: const Icon(
-                AppIcons.camera,
-                size: AppIconSize.sm,
-                color: Colors.white,
-              ),
+        const SizedBox(height: AppSpacing.lg),
+        ProfileSection(
+          icon: AppIcons.systemTheme,
+          title: 'System Preferences',
+          children: const [
+            ThemePreferenceRow(),
+            Divider(height: AppSpacing.lg),
+            LanguagePreferenceRow(),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        ProfileSection(
+          icon: AppIcons.shield,
+          title: 'Security',
+          children: [
+            ProfileActionRow(
+              icon: AppIcons.password,
+              label: 'Change Password',
+              caption: profile.passwordLastUpdatedLabel,
+              onTap: onChangePassword,
             ),
-          ),
+          ],
+        ),
       ],
     );
   }
@@ -507,128 +420,17 @@ class _Pill extends StatelessWidget {
   }
 }
 
-class _SectionCard extends StatelessWidget {
-  const _SectionCard({required this.title, required this.children});
-
-  final String title;
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) {
-    return GlassCard(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title, style: Theme.of(context).textTheme.titleMedium),
-          ...children,
-        ],
-      ),
-    );
-  }
-}
-
-class _InfoRow extends StatelessWidget {
-  const _InfoRow({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
-
-  final IconData icon;
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final colorScheme = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.md),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: AppIconSize.md, color: colorScheme.onSurfaceVariant),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: textTheme.labelSmall?.copyWith(letterSpacing: 0.96),
-                ),
-                Text(value, style: textTheme.bodyMedium),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ActionRow extends StatelessWidget {
-  const _ActionRow({
-    required this.icon,
-    required this.label,
-    required this.caption,
-    this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final String caption;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final colorScheme = Theme.of(context).colorScheme;
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.only(top: AppSpacing.md),
-        child: Row(
-          children: [
-            Icon(
-              icon,
-              size: AppIconSize.md,
-              color: colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(label, style: textTheme.bodyMedium),
-                  Text(caption, style: textTheme.bodySmall),
-                ],
-              ),
-            ),
-            Icon(
-              AppIcons.chevronRight,
-              size: AppIconSize.sm,
-              color: colorScheme.onSurfaceVariant,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Editing mode — Editing / Error share this
 // ---------------------------------------------------------------------------
 
-/// Email and Phone render locked (`enabled: false`, same treatment
-/// Department already gets) — an admin-provisioned account's contact
-/// credentials are set by whoever provisioned it, not self-editable.
-/// Changing either means a real identity change (a different sign-in
-/// email, a different verified number), so it goes through an
-/// administrator instead of a self-service field. Full Name is the only
-/// field a Municipal Officer can change here.
+/// Email and Phone render locked (no [TextFormField], just a caption), same
+/// treatment Department already gets — an admin-provisioned account's
+/// contact credentials are set by whoever provisioned it, not
+/// self-editable. Changing either means a real identity change (a
+/// different sign-in email, a different verified number), so it goes
+/// through an administrator instead of a self-service field. Full Name is
+/// the only field a Municipal Officer can change here.
 class _ProfileEditForm extends StatelessWidget {
   const _ProfileEditForm({
     required this.profile,
@@ -646,7 +448,6 @@ class _ProfileEditForm extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
     return ListView(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.md,
@@ -655,163 +456,43 @@ class _ProfileEditForm extends StatelessWidget {
         AppSpacing.xl,
       ),
       children: [
-        _ProfileHeaderBlock(profile: profile, editing: true),
-        const SizedBox(height: AppSpacing.xl),
-        GlassCard(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Personal Information', style: textTheme.titleMedium),
-              const SizedBox(height: AppSpacing.md),
-              _FormField(
-                label: 'Full Name',
-                required: true,
-                icon: AppIcons.profile,
-                controller: nameController,
-                errorText: fieldErrors['name'],
-              ),
-              const SizedBox(height: AppSpacing.md),
-              _FormField(
-                label: 'Email Address',
-                required: false,
-                icon: AppIcons.email,
-                controller: emailController,
-                keyboardType: TextInputType.emailAddress,
-                enabled: false,
-                caption: 'Contact your administrator to change this',
-              ),
-              const SizedBox(height: AppSpacing.md),
-              _FormField(
-                label: 'Phone Number',
-                required: false,
-                icon: AppIcons.phone,
-                controller: phoneController,
-                keyboardType: TextInputType.phone,
-                enabled: false,
-                caption: 'Contact your administrator to change this',
-              ),
-              const SizedBox(height: AppSpacing.md),
-              _FormField(
-                label: 'Department',
-                required: false,
-                icon: AppIcons.permissionDenied,
-                controller: TextEditingController(text: profile.department),
-                enabled: false,
-                caption: 'Set by your administrator',
-              ),
-            ],
-          ),
+        ProfileHeaderCard(
+          name: profile.name,
+          subtitle: profile.role,
+          editing: true,
         ),
-      ],
-    );
-  }
-}
-
-class _FormField extends StatelessWidget {
-  const _FormField({
-    required this.label,
-    required this.required,
-    required this.icon,
-    required this.controller,
-    this.enabled = true,
-    this.keyboardType,
-    this.errorText,
-    this.caption,
-  });
-
-  final String label;
-  final bool required;
-  final IconData icon;
-  final TextEditingController controller;
-  final bool enabled;
-  final TextInputType? keyboardType;
-  final String? errorText;
-  final String? caption;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final colorScheme = Theme.of(context).colorScheme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
+        const SizedBox(height: AppSpacing.lg),
+        ProfileSection(
+          icon: AppIcons.profile,
+          title: 'Personal Information',
           children: [
-            Text(label, style: textTheme.titleSmall),
-            if (required) ...[
-              const SizedBox(width: 4),
-              Text(
-                '*',
-                style: textTheme.titleSmall?.copyWith(color: AppColors.error),
-              ),
-              const Spacer(),
-              Text(
-                'Required',
-                style: textTheme.labelSmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
+            ProfileFieldRow(
+              label: 'Full Name',
+              controller: nameController,
+              editable: true,
+              errorText: fieldErrors['name'],
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            ProfileFieldRow(
+              label: 'Email Address',
+              controller: emailController,
+              caption: 'Contact your administrator to change this',
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            ProfileFieldRow(
+              label: 'Phone Number',
+              controller: phoneController,
+              caption: 'Contact your administrator to change this',
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            ProfileFieldRow(
+              label: 'Department',
+              value: profile.department,
+              caption: 'Set by your administrator',
+            ),
           ],
         ),
-        const SizedBox(height: AppSpacing.xs),
-        TextField(
-          controller: controller,
-          enabled: enabled,
-          keyboardType: keyboardType,
-          decoration: InputDecoration(
-            prefixIcon: Icon(icon, size: AppIconSize.md),
-            errorText: errorText,
-          ),
-        ),
-        if (caption != null) ...[
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            caption!,
-            style: textTheme.bodySmall?.copyWith(
-              color: colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ],
       ],
-    );
-  }
-}
-
-class _EditActionBar extends StatelessWidget {
-  const _EditActionBar({required this.onSave, required this.onCancel});
-
-  final VoidCallback onSave;
-  final VoidCallback onCancel;
-
-  @override
-  Widget build(BuildContext context) {
-    final semantic = Theme.of(context).extension<AppSemanticColors>()!;
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        border: Border(top: BorderSide(color: semantic.glassBorder)),
-      ),
-      child: Column(
-        children: [
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton(
-              onPressed: onSave,
-              child: const Text('Save Changes'),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton(
-              onPressed: onCancel,
-              child: const Text('Cancel'),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

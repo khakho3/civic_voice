@@ -41,6 +41,7 @@ class MinistryDashboardScreen extends StatefulWidget {
     this.onNavigateToMunicipalities,
     this.onNavigateToReports,
     this.onProfileTap,
+    this.onNotificationsTap,
     this.onOpenMunicipality,
   });
 
@@ -61,6 +62,9 @@ class MinistryDashboardScreen extends StatefulWidget {
 
   /// Opens MIN-006 Ministry Profile — wired to the header's profile avatar.
   final VoidCallback? onProfileTap;
+
+  /// Opens Ministry Notifications — wired to the header's bell icon.
+  final VoidCallback? onNotificationsTap;
 
   /// Opens the Municipal Officer contact detail screen for the tapped
   /// "Municipality Performance" row — each row is its own destination now,
@@ -87,10 +91,7 @@ class _MinistryDashboardScreenState extends State<MinistryDashboardScreen> {
   Widget build(BuildContext context) {
     return MinistryScaffold(
       selectedTab: MinistryTab.dashboard,
-      // Notifications isn't one of the six approved MIN screens — left as
-      // a placeholder until that screen is specified, matching Municipal
-      // Officer's identical stub.
-      onNotificationsTap: () {},
+      onNotificationsTap: widget.onNotificationsTap,
       onProfileTap: widget.onProfileTap,
       onTabSelected: (tab) {
         if (tab == MinistryTab.analytics) widget.onNavigateToAnalytics?.call();

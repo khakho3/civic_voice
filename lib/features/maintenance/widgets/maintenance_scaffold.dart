@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../services/notification_directory.dart';
 import '../../../widgets/glass_bar.dart';
+import '../../../widgets/unread_dot_badge.dart';
+import '../../admin/services/admin_maintenance_team_directory.dart';
+import '../services/maintenance_task_directory.dart';
 
 /// Primary bottom-navigation destinations for the Maintenance Team module —
 /// Dashboard (MNT-001), Assigned Tasks (MNT-002), Profile (MNT-007). Task
@@ -47,6 +51,7 @@ class MaintenanceScaffold extends StatelessWidget {
     this.onNotificationsTap,
     this.onProfileTap,
     this.onTabSelected,
+    this.hideBottomNav = false,
   });
 
   final Widget body;
@@ -58,6 +63,12 @@ class MaintenanceScaffold extends StatelessWidget {
   /// avatar (account access isn't tied to one tab's content).
   final VoidCallback? onProfileTap;
   final ValueChanged<MaintenanceTab>? onTabSelected;
+
+  /// Hides the floating bottom nav — used while Profile is mid-edit, where
+  /// switching tabs mid-form is more likely a mistake than an intent, and
+  /// where it would otherwise sit on top of that screen's own sticky Save
+  /// bar (matching [AdminScaffold]'s identical `hideBottomNav`).
+  final bool hideBottomNav;
 
   /// The top/bottom inset every [body] must reserve in its own scrollable
   /// content so nothing sits permanently hidden behind the glass header/nav.
@@ -100,7 +111,7 @@ class MaintenanceScaffold extends StatelessWidget {
                 onProfileTap: onProfileTap,
               ),
             ),
-            if (!keyboardVisible)
+            if (!keyboardVisible && !hideBottomNav)
               Align(
                 alignment: Alignment.bottomCenter,
                 child: _BottomNav(
@@ -169,10 +180,22 @@ class _Header extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                 ),
-                _IconButton(
-                  icon: AppIcons.notifications,
-                  onPressed: onNotificationsTap,
-                  semantic: semantic,
+                AnimatedBuilder(
+                  animation: Listenable.merge([
+                    MaintenanceTaskDirectory.instance.tasks,
+                    MaintenanceTeamDirectory.instance.teams,
+                    NotificationDirectory.instance.readIds,
+                  ]),
+                  builder: (context, _) => UnreadDotBadge(
+                    show: NotificationDirectory.instance.hasUnread(
+                      NotificationDirectory.instance.forMaintenance(),
+                    ),
+                    child: _IconButton(
+                      icon: AppIcons.notifications,
+                      onPressed: onNotificationsTap,
+                      semantic: semantic,
+                    ),
+                  ),
                 ),
                 // Omitted on the Profile tab itself — showing a "go to
                 // profile" shortcut while already there duplicated the
@@ -321,7 +344,22 @@ class _NavItem extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(tab.icon, size: AppIconSize.md, color: foreground),
+            if (tab == MaintenanceTab.tasks)
+              AnimatedBuilder(
+                animation: Listenable.merge([
+                  MaintenanceTaskDirectory.instance.tasks,
+                  MaintenanceTeamDirectory.instance.teams,
+                  NotificationDirectory.instance.readIds,
+                ]),
+                builder: (context, _) => UnreadDotBadge(
+                  show: NotificationDirectory.instance.hasUnread(
+                    NotificationDirectory.instance.forMaintenance(),
+                  ),
+                  child: Icon(tab.icon, size: AppIconSize.md, color: foreground),
+                ),
+              )
+            else
+              Icon(tab.icon, size: AppIconSize.md, color: foreground),
             const SizedBox(height: AppSpacing.xs),
             Text(
               tab.label,

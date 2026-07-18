@@ -1,20 +1,11 @@
-/// Fixed option lists for ADM-007's dropdown fields — small, closed sets
-/// with no real-world source of truth to model as anything richer than a
-/// plain string list (unlike [AppRole]/[AdminTier], which gate real
-/// behavior elsewhere in the app, these are purely cosmetic mock choices).
-const List<String> kLanguageOptions = ['English', 'French', 'Spanish'];
+/// Fixed option list for ADM-007's one remaining dropdown field — a small,
+/// closed set with no real-world source of truth to model as anything
+/// richer than a plain string list.
 const List<String> kSessionTimeoutOptions = [
   '15 minutes',
   '30 minutes',
   '60 minutes',
 ];
-const List<String> kAuditLogRetentionOptions = [
-  '3 months',
-  '6 months',
-  '12 months',
-  '24 months',
-];
-const List<String> kBackupScheduleOptions = ['Daily', 'Weekly', 'Monthly'];
 
 /// The outcome of a "Save Changes" attempt — separate from
 /// [AdminSystemSettingsViewState] (the screen's own load state) the same
@@ -24,12 +15,10 @@ const List<String> kBackupScheduleOptions = ['Daily', 'Weekly', 'Monthly'];
 ///
 /// No [validationError] value — every field here is a switch or a
 /// closed-set dropdown, always populated, so there's nothing left that
-/// could ever actually fail validation (the one free-text field that
-/// could, "Platform Name," was dropped — see [SystemSettingsData]'s own
-/// doc comment). [failed] itself has no reachable trigger through normal
-/// interaction either — there's no backend here to actually fail a save
-/// against — so, like every other screen's `initialState` preview
-/// mechanism, it's only reachable via
+/// could ever actually fail validation. [failed] itself has no reachable
+/// trigger through normal interaction either — there's no backend here to
+/// actually fail a save against — so, like every other screen's
+/// `initialState` preview mechanism, it's only reachable via
 /// [AdminSystemSettingsScreen.initialSaveState] for building/testing the
 /// "Update Failed" copy.
 enum SystemSettingsSaveState { idle, saving, saved, failed }
@@ -41,80 +30,77 @@ enum SystemSettingsSaveState { idle, saving, saved, failed }
 /// being pitched), so an editable platform name has no real admin who'd
 /// ever need to touch it. If this ever becomes a genuinely white-labelled,
 /// multi-deployment product, that's the point to reconsider adding it back.
+///
+/// Also dropped, in a later pass: "Default Language" (no per-field state
+/// left to hold — genuinely inert everywhere, same as every module's
+/// profile "Language" row, not just disabled-looking), "Enforce two-factor
+/// authentication" (2FA is out of scope for this system entirely), "Audit
+/// log retention"/"Backup schedule" (no real storage or server-side backup
+/// process for either to govern — see the removed "Data Retention"
+/// section's own history).
 class SystemSettingsData {
   const SystemSettingsData({
-    required this.defaultLanguage,
     required this.maintenanceMode,
-    required this.enforceTwoFactor,
     required this.sessionTimeout,
     required this.auditLogging,
-    required this.auditLogRetention,
-    required this.backupSchedule,
     required this.publicStatusPage,
+    required this.allowNewAccountCreation,
   });
 
-  final String defaultLanguage;
-
-  /// Not yet backed by anything — flipping it doesn't actually restrict
-  /// access anywhere in the app (that would mean a real platform-wide
-  /// lockout banner/gate, a separate feature of its own). Rendered with a
-  /// "Coming Soon" badge rather than presented as live — see
-  /// [AdminSystemSettingsScreen]'s own doc comment.
+  /// Genuinely inert (`Switch.onChanged: null` on the screen, not just a
+  /// "Coming Soon" badge next to a still-live control) — no maintenance-
+  /// lockout feature exists yet to actually flip.
   final bool maintenanceMode;
-  final bool enforceTwoFactor;
-  final String sessionTimeout;
-  final bool auditLogging;
-  final String auditLogRetention;
-  final String backupSchedule;
 
-  /// Same "not yet backed by anything real" caveat as [maintenanceMode] —
-  /// there's no actual public status page in this app yet.
+  /// Real: [IdleSessionTimer] reads this to decide how long the app can
+  /// sit untouched before signing the session out.
+  final String sessionTimeout;
+
+  /// Real: gates whether [AdminSystemActivityScreen] shows its activity
+  /// feed at all, via [AdminSystemSettingsDirectory].
+  final bool auditLogging;
+
+  /// Genuinely inert, same caveat as [maintenanceMode] — no public status
+  /// page exists yet.
   final bool publicStatusPage;
 
+  /// Real: gates whether Admin Create User's form actually submits, via
+  /// [AdminSystemSettingsDirectory].
+  final bool allowNewAccountCreation;
+
   SystemSettingsData copyWith({
-    String? defaultLanguage,
     bool? maintenanceMode,
-    bool? enforceTwoFactor,
     String? sessionTimeout,
     bool? auditLogging,
-    String? auditLogRetention,
-    String? backupSchedule,
     bool? publicStatusPage,
+    bool? allowNewAccountCreation,
   }) {
     return SystemSettingsData(
-      defaultLanguage: defaultLanguage ?? this.defaultLanguage,
       maintenanceMode: maintenanceMode ?? this.maintenanceMode,
-      enforceTwoFactor: enforceTwoFactor ?? this.enforceTwoFactor,
       sessionTimeout: sessionTimeout ?? this.sessionTimeout,
       auditLogging: auditLogging ?? this.auditLogging,
-      auditLogRetention: auditLogRetention ?? this.auditLogRetention,
-      backupSchedule: backupSchedule ?? this.backupSchedule,
       publicStatusPage: publicStatusPage ?? this.publicStatusPage,
+      allowNewAccountCreation:
+          allowNewAccountCreation ?? this.allowNewAccountCreation,
     );
   }
 
   @override
   bool operator ==(Object other) =>
       other is SystemSettingsData &&
-      other.defaultLanguage == defaultLanguage &&
       other.maintenanceMode == maintenanceMode &&
-      other.enforceTwoFactor == enforceTwoFactor &&
       other.sessionTimeout == sessionTimeout &&
       other.auditLogging == auditLogging &&
-      other.auditLogRetention == auditLogRetention &&
-      other.backupSchedule == backupSchedule &&
-      other.publicStatusPage == publicStatusPage;
+      other.publicStatusPage == publicStatusPage &&
+      other.allowNewAccountCreation == allowNewAccountCreation;
 
   @override
   int get hashCode => Object.hash(
-    defaultLanguage,
     maintenanceMode,
-    enforceTwoFactor,
     sessionTimeout,
     auditLogging,
-    auditLogRetention,
-    backupSchedule,
     publicStatusPage,
+    allowNewAccountCreation,
   );
 }
 
@@ -122,13 +108,10 @@ class SystemSettingsData {
 /// real settings service is wired up.
 SystemSettingsData mockSystemSettings() {
   return const SystemSettingsData(
-    defaultLanguage: 'English',
     maintenanceMode: false,
-    enforceTwoFactor: true,
     sessionTimeout: '30 minutes',
     auditLogging: true,
-    auditLogRetention: '12 months',
-    backupSchedule: 'Daily',
     publicStatusPage: true,
+    allowNewAccountCreation: true,
   );
 }

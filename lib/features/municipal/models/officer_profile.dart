@@ -11,8 +11,6 @@ class OfficerProfile {
     required this.department,
     required this.reportsTo,
     required this.passwordLastUpdatedLabel,
-    required this.twoFactorEnabled,
-    required this.activeSessionCount,
   });
 
   final String name;
@@ -29,8 +27,6 @@ class OfficerProfile {
   final String reportsTo;
 
   final String passwordLastUpdatedLabel;
-  final bool twoFactorEnabled;
-  final int activeSessionCount;
 
   OfficerProfile copyWith({String? name, String? email, String? phone}) {
     return OfficerProfile(
@@ -43,8 +39,6 @@ class OfficerProfile {
       department: department,
       reportsTo: reportsTo,
       passwordLastUpdatedLabel: passwordLastUpdatedLabel,
-      twoFactorEnabled: twoFactorEnabled,
-      activeSessionCount: activeSessionCount,
     );
   }
 
@@ -61,8 +55,6 @@ class OfficerProfile {
       department: 'Urban Planning & Dev',
       reportsTo: 'Director M. Chen',
       passwordLastUpdatedLabel: 'Last updated 3 months ago',
-      twoFactorEnabled: true,
-      activeSessionCount: 2,
     );
   }
 }

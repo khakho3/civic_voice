@@ -8,6 +8,7 @@ import '../../../widgets/confirm_dialog.dart';
 import '../models/admin_role_management_data.dart';
 import '../models/admin_user_management_data.dart';
 import '../services/admin_session.dart';
+import '../services/admin_system_settings_directory.dart';
 import '../services/admin_user_directory.dart';
 import '../widgets/admin_scaffold.dart';
 import '../widgets/region_assembly_picker.dart';
@@ -176,6 +177,11 @@ class _AdminCreateUserScreenState extends State<AdminCreateUserScreen> {
     final isAdmin = _role == AppRole.systemAdministrator;
     final jurisdictionLocked = !session.isSuperAdmin;
     final chromeInset = AdminScaffold.contentPadding(context);
+    final creationDisabled = !AdminSystemSettingsDirectory
+        .instance
+        .settings
+        .value
+        .allowNewAccountCreation;
 
     return AdminScaffold(
       selectedTab: AdminTab.users,
@@ -201,92 +207,106 @@ class _AdminCreateUserScreenState extends State<AdminCreateUserScreen> {
           chromeInset.bottom + AppSpacing.xl,
         ),
         children: [
-          if (jurisdictionLocked)
-            _Section(
-              icon: AppIcons.shieldAlert,
-              title: 'Your Jurisdiction',
+          if (creationDisabled) ...[
+            const _AccountCreationFrozenBanner(),
+            const SizedBox(height: AppSpacing.lg),
+          ],
+          Opacity(
+            opacity: creationDisabled ? 0.5 : 1,
+            child: IgnorePointer(
+              ignoring: creationDisabled,
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'You can only provision accounts within your own '
-                    'assembly.',
-                    style: Theme.of(context).textTheme.bodySmall,
+                  if (jurisdictionLocked)
+                    _Section(
+                      icon: AppIcons.shieldAlert,
+                      title: 'Your Jurisdiction',
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'You can only provision accounts within your '
+                            'own assembly.',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+                          _ReadOnlyField(
+                            label: 'Assembly',
+                            value: session.assembly?.fullName ?? 'Not assigned',
+                          ),
+                        ],
+                      ),
+                    ),
+                  if (jurisdictionLocked) const SizedBox(height: AppSpacing.lg),
+                  _Section(
+                    icon: AppIcons.profile,
+                    title: 'Account Details',
+                    child: Column(
+                      children: [
+                        _TextField(
+                          label: 'Full Name',
+                          controller: _nameController,
+                          errorText: _fieldErrors['name'],
+                          onChanged: (_) => setState(() => _fieldErrors = {}),
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        _TextField(
+                          label: 'Phone Number',
+                          controller: _phoneController,
+                          keyboardType: TextInputType.phone,
+                          errorText: _fieldErrors['phone'],
+                          onChanged: (_) => setState(() => _fieldErrors = {}),
+                        ),
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: AppSpacing.sm),
-                  _ReadOnlyField(
-                    label: 'Assembly',
-                    value: session.assembly?.fullName ?? 'Not assigned',
+                  const SizedBox(height: AppSpacing.lg),
+                  _Section(
+                    icon: AppIcons.shield,
+                    title: 'Access',
+                    child: Column(
+                      children: [
+                        _LabeledDropdown<AppRole>(
+                          label: 'Role',
+                          value: _role,
+                          items: session.creatableRoles,
+                          itemLabel: (r) => r.label,
+                          onChanged: (role) => setState(() {
+                            _role = role;
+                            _fieldErrors = {};
+                          }),
+                        ),
+                        if (isAdmin) ...[
+                          const SizedBox(height: AppSpacing.sm),
+                          _LabeledDropdown<AdminTier>(
+                            label: 'Admin Tier',
+                            value: _tier,
+                            items: AdminTier.values,
+                            itemLabel: (t) => t.label,
+                            onChanged: (tier) => setState(() => _tier = tier),
+                          ),
+                        ],
+                        if (needsAssembly && !jurisdictionLocked) ...[
+                          const SizedBox(height: AppSpacing.sm),
+                          RegionAssemblyPicker(
+                            region: _region,
+                            assembly: _assembly,
+                            assemblyErrorText: _fieldErrors['assembly'],
+                            onRegionChanged: (region) => setState(() {
+                              _region = region;
+                              _fieldErrors = {};
+                            }),
+                            onAssemblyChanged: (assembly) => setState(() {
+                              _assembly = assembly;
+                              _fieldErrors = {};
+                            }),
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
                 ],
               ),
-            ),
-          if (jurisdictionLocked) const SizedBox(height: AppSpacing.lg),
-          _Section(
-            icon: AppIcons.profile,
-            title: 'Account Details',
-            child: Column(
-              children: [
-                _TextField(
-                  label: 'Full Name',
-                  controller: _nameController,
-                  errorText: _fieldErrors['name'],
-                  onChanged: (_) => setState(() => _fieldErrors = {}),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                _TextField(
-                  label: 'Phone Number',
-                  controller: _phoneController,
-                  keyboardType: TextInputType.phone,
-                  errorText: _fieldErrors['phone'],
-                  onChanged: (_) => setState(() => _fieldErrors = {}),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          _Section(
-            icon: AppIcons.shield,
-            title: 'Access',
-            child: Column(
-              children: [
-                _LabeledDropdown<AppRole>(
-                  label: 'Role',
-                  value: _role,
-                  items: session.creatableRoles,
-                  itemLabel: (r) => r.label,
-                  onChanged: (role) => setState(() {
-                    _role = role;
-                    _fieldErrors = {};
-                  }),
-                ),
-                if (isAdmin) ...[
-                  const SizedBox(height: AppSpacing.sm),
-                  _LabeledDropdown<AdminTier>(
-                    label: 'Admin Tier',
-                    value: _tier,
-                    items: AdminTier.values,
-                    itemLabel: (t) => t.label,
-                    onChanged: (tier) => setState(() => _tier = tier),
-                  ),
-                ],
-                if (needsAssembly && !jurisdictionLocked) ...[
-                  const SizedBox(height: AppSpacing.sm),
-                  RegionAssemblyPicker(
-                    region: _region,
-                    assembly: _assembly,
-                    assemblyErrorText: _fieldErrors['assembly'],
-                    onRegionChanged: (region) => setState(() {
-                      _region = region;
-                      _fieldErrors = {};
-                    }),
-                    onAssemblyChanged: (assembly) => setState(() {
-                      _assembly = assembly;
-                      _fieldErrors = {};
-                    }),
-                  ),
-                ],
-              ],
             ),
           ),
           const SizedBox(height: AppSpacing.lg),
@@ -301,11 +321,62 @@ class _AdminCreateUserScreenState extends State<AdminCreateUserScreen> {
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: FilledButton(
-                  onPressed: _submit,
+                  onPressed: creationDisabled ? null : _submit,
                   child: const Text('Create User'),
                 ),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Shown when ADM-007 System Settings' "Allow new account creation" is
+/// off — the form beneath stays visible (so an admin can see what a
+/// pending draft would have looked like) but is frozen and un-submittable
+/// rather than hidden outright.
+class _AccountCreationFrozenBanner extends StatelessWidget {
+  const _AccountCreationFrozenBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.warning.withValues(alpha: 0.1),
+        borderRadius: AppComponentRadius.card,
+        border: Border.all(color: AppColors.warning.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(
+            AppIcons.permissionDenied,
+            color: AppColors.warning,
+            size: AppIconSize.md,
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Account creation is paused',
+                  style: textTheme.titleSmall?.copyWith(
+                    color: AppColors.warning,
+                  ),
+                ),
+                Text(
+                  'Turn "Allow new account creation" back on in System '
+                  'Settings to provision new accounts.',
+                  style: textTheme.bodySmall,
+                ),
+              ],
+            ),
           ),
         ],
       ),

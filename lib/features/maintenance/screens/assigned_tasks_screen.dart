@@ -13,11 +13,15 @@ class AssignedTasksScreen extends StatefulWidget {
     super.key,
     this.onNavigateToDashboard,
     this.onNavigateToProfile,
+    this.onNotificationsTap,
     this.onOpenTaskDetails,
   });
 
   final VoidCallback? onNavigateToDashboard;
   final VoidCallback? onNavigateToProfile;
+
+  /// Opens Maintenance Notifications — wired to the header's bell icon.
+  final VoidCallback? onNotificationsTap;
 
   /// Opens Task Details for the tapped task, by [MaintenanceTask.id].
   final ValueChanged<String>? onOpenTaskDetails;
@@ -35,7 +39,7 @@ class _AssignedTasksScreenState extends State<AssignedTasksScreen> {
   Widget build(BuildContext context) {
     return MaintenanceScaffold(
       selectedTab: MaintenanceTab.tasks,
-      onNotificationsTap: () {},
+      onNotificationsTap: widget.onNotificationsTap,
       onProfileTap: widget.onNavigateToProfile,
       onTabSelected: (tab) {
         if (tab == MaintenanceTab.dashboard) {

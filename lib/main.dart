@@ -20,7 +20,6 @@ import 'features/authentication/screens/change_password_screen.dart';
 import 'features/authentication/screens/forgot_password_screen.dart';
 import 'features/authentication/screens/login_screen.dart';
 import 'features/authentication/screens/otp_verification_screen.dart';
-import 'features/authentication/screens/profile_screen.dart' as auth;
 import 'features/authentication/screens/registration_screen.dart';
 import 'features/authentication/screens/set_new_password_screen.dart';
 import 'features/authentication/screens/test_role_selector_screen.dart';
@@ -41,6 +40,7 @@ import 'features/ministry/screens/ministry_dashboard_screen.dart';
 import 'features/ministry/screens/ministry_municipal_performance_screen.dart';
 import 'features/ministry/screens/ministry_municipality_detail_screen.dart';
 import 'features/ministry/screens/ministry_profile_screen.dart' as ministry;
+import 'features/ministry/screens/ministry_notifications_screen.dart';
 import 'features/ministry/screens/ministry_report_insights_screen.dart';
 import 'features/ministry/screens/ministry_reports_screen.dart';
 import 'features/maintenance/models/maintenance_task.dart';
@@ -48,6 +48,7 @@ import 'features/maintenance/screens/assigned_tasks_screen.dart'
     as maintenance_tasks;
 import 'features/maintenance/screens/dashboard_screen.dart'
     as maintenance_dashboard;
+import 'features/maintenance/screens/maintenance_notifications_screen.dart';
 import 'features/maintenance/screens/profile_screen.dart'
     as maintenance_profile;
 import 'features/maintenance/screens/task_completed_screen.dart'
@@ -68,9 +69,11 @@ import 'features/municipal/screens/municipal_profile_screen.dart' as municipal;
 import 'features/municipal/screens/municipal_report_progress_screen.dart';
 import 'features/municipal/screens/municipal_report_review_screen.dart';
 import 'features/municipal/screens/municipal_resolution_details_screen.dart';
+import 'features/municipal/screens/municipal_notifications_screen.dart';
 import 'features/municipal/screens/municipal_resolved_reports_screen.dart';
 import 'features/municipal/screens/municipal_verification_screen.dart';
 import 'models/app_role.dart';
+import 'services/idle_session_timer.dart';
 import 'services/mock_auth_service.dart';
 
 Future<void> main() async {
@@ -98,7 +101,6 @@ abstract final class AppRoutes {
   /// single cross-module destination rather than one per module.
   static const changePassword = '/change-password';
   static const forcePasswordReset = '/force-password-reset';
-  static const profile = '/profile';
   static const testRoleSelector = '/test-role-selector';
 
   // Citizen.
@@ -134,6 +136,7 @@ abstract final class AppRoutes {
   static const ministryMunicipalPerformance = '/ministry/municipal-performance';
   static const ministryMunicipalityDetail = '/ministry/municipality-detail';
   static const ministryProfile = '/ministry/profile';
+  static const ministryNotifications = '/ministry/notifications';
 
   // Municipal.
   static const municipalDashboard = '/municipal/dashboard';
@@ -146,6 +149,7 @@ abstract final class AppRoutes {
   static const municipalResolvedReports = '/municipal/resolved-reports';
   static const municipalResolutionDetails = '/municipal/resolution-details';
   static const municipalProfile = '/municipal/profile';
+  static const municipalNotifications = '/municipal/notifications';
 
   // Maintenance.
   static const maintenanceDashboard = '/maintenance/dashboard';
@@ -154,12 +158,46 @@ abstract final class AppRoutes {
   static const maintenanceUpdateProgress = '/maintenance/update-progress';
   static const maintenanceTaskCompleted = '/maintenance/task-completed';
   static const maintenanceProfile = '/maintenance/profile';
+  static const maintenanceNotifications = '/maintenance/notifications';
 }
 
-class CivicVoiceApp extends StatelessWidget {
+class CivicVoiceApp extends StatefulWidget {
   const CivicVoiceApp({super.key, this.initialRoute});
 
   final String? initialRoute;
+
+  @override
+  State<CivicVoiceApp> createState() => _CivicVoiceAppState();
+}
+
+class _CivicVoiceAppState extends State<CivicVoiceApp> {
+  final _navigatorKey = GlobalKey<NavigatorState>();
+
+  @override
+  void initState() {
+    super.initState();
+    IdleSessionTimer.instance.onExpire = _handleIdleTimeout;
+  }
+
+  @override
+  void dispose() {
+    IdleSessionTimer.instance.onExpire = null;
+    IdleSessionTimer.instance.cancel();
+    super.dispose();
+  }
+
+  /// Fires when [IdleSessionTimer] expires with no activity — real
+  /// app-wide session timeout, driven by ADM-007's Session Timeout
+  /// setting. A no-op if nobody's actually signed in (Welcome/onboarding,
+  /// or already signed out) — there's no session to time out of.
+  void _handleIdleTimeout() {
+    if (MockAuthService().getCurrentRole() == null) return;
+    MockAuthService().clearUser();
+    _navigatorKey.currentState?.pushNamedAndRemoveUntil(
+      AppRoutes.welcome,
+      (_) => false,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -167,11 +205,14 @@ class CivicVoiceApp extends StatelessWidget {
       valueListenable: ThemeController.mode,
       builder: (context, themeMode, _) {
         final effectiveInitialRoute =
-            initialRoute ??
+            widget.initialRoute ??
             _routeForRole(MockAuthService().getCurrentRole()) ??
             AppRoutes.testRoleSelector;
 
-        return MaterialApp(
+        return Listener(
+          onPointerDown: (_) => IdleSessionTimer.instance.registerActivity(),
+          child: MaterialApp(
+          navigatorKey: _navigatorKey,
           title: 'CivicVoice',
           debugShowCheckedModeBanner: false,
           theme: AppTheme.light,
@@ -236,11 +277,6 @@ class CivicVoiceApp extends StatelessWidget {
               onSaved: () => _finishChangePassword(context),
             ),
             AppRoutes.forcePasswordReset: _forcedPasswordReset,
-            AppRoutes.profile: (context) => auth.ProfileScreen(
-              onLogout: () => Navigator.of(
-                context,
-              ).pushNamedAndRemoveUntil(AppRoutes.welcome, (_) => false),
-            ),
             AppRoutes.citizenDashboard: (context) =>
                 _withSwitchRoleButton(context, const CitizenDashboardScreen()),
             AppRoutes.citizenAlerts: (_) => const CitizenAlertsScreen(),
@@ -298,6 +334,7 @@ class CivicVoiceApp extends StatelessWidget {
                   _regionalLeaderFromSettings(ModalRoute.of(context)?.settings),
                 ),
             AppRoutes.ministryProfile: _ministryProfile,
+            AppRoutes.ministryNotifications: _ministryNotifications,
             AppRoutes.municipalDashboard: _municipalDashboard,
             AppRoutes.municipalInbox: _municipalInbox,
             AppRoutes.municipalActiveReports: _municipalActiveReports,
@@ -327,6 +364,7 @@ class CivicVoiceApp extends StatelessWidget {
                   _resolvedReportFromSettings(ModalRoute.of(context)?.settings),
                 ),
             AppRoutes.municipalProfile: _municipalProfile,
+            AppRoutes.municipalNotifications: _municipalNotifications,
             AppRoutes.maintenanceDashboard: _maintenanceDashboard,
             AppRoutes.maintenanceAssignedTasks: _maintenanceAssignedTasks,
             AppRoutes.maintenanceTaskDetails: (context) =>
@@ -351,6 +389,7 @@ class CivicVoiceApp extends StatelessWidget {
                   ),
                 ),
             AppRoutes.maintenanceProfile: _maintenanceProfile,
+            AppRoutes.maintenanceNotifications: _maintenanceNotifications,
           },
           onGenerateRoute: (settings) {
             final uri = Uri.tryParse(settings.name ?? '');
@@ -470,6 +509,7 @@ class CivicVoiceApp extends StatelessWidget {
             }
             return null;
           },
+          ),
         );
       },
     );
@@ -746,6 +786,7 @@ Widget _adminDashboard(BuildContext context) {
           Navigator.of(context).pushNamed(AppRoutes.adminMaintenanceTeams),
       onOpenProfile: () =>
           Navigator.of(context).pushNamed(AppRoutes.adminProfile),
+      onNotificationsTap: () => _openAdminNotifications(context),
     ),
   );
 }
@@ -767,6 +808,7 @@ Widget _adminUserManagement(BuildContext context) {
         Navigator.of(context).pushNamed(AppRoutes.adminProfile),
     onCreateUser: () =>
         Navigator.of(context).pushNamed(AppRoutes.adminCreateUser),
+    onNotificationsTap: () => _openAdminNotifications(context),
   );
 }
 
@@ -786,6 +828,7 @@ Widget _adminCreateUser(BuildContext context) {
         Navigator.of(context).pushNamed(AppRoutes.adminMaintenanceTeams),
     onOpenProfile: () =>
         Navigator.of(context).pushNamed(AppRoutes.adminProfile),
+    onNotificationsTap: () => _openAdminNotifications(context),
   );
 }
 
@@ -806,6 +849,7 @@ Widget _adminUserDetails(BuildContext context, AdminUserItem user) {
         Navigator.of(context).pushNamed(AppRoutes.adminMaintenanceTeams),
     onOpenProfile: () =>
         Navigator.of(context).pushNamed(AppRoutes.adminProfile),
+    onNotificationsTap: () => _openAdminNotifications(context),
   );
 }
 
@@ -829,6 +873,7 @@ Widget _adminMaintenanceTeams(BuildContext context) {
     onCreateTeam: () => _pushAdminMaintenanceTeamForm(context),
     onOpenTeamDetails: (team) =>
         _pushAdminMaintenanceTeamDetails(context, team),
+    onNotificationsTap: () => _openAdminNotifications(context),
   );
 }
 
@@ -848,6 +893,7 @@ Widget _adminMaintenanceTeamForm(BuildContext context, MaintenanceTeam? team) {
     onOpenProfile: () =>
         Navigator.of(context).pushNamed(AppRoutes.adminProfile),
     onClose: () => _popOrReplaceWith(context, AppRoutes.adminMaintenanceTeams),
+    onNotificationsTap: () => _openAdminNotifications(context),
   );
 }
 
@@ -873,6 +919,7 @@ Widget _adminMaintenanceTeamDetails(
         _popOrReplaceWith(context, AppRoutes.adminMaintenanceTeams),
     onEditTeam: (team) => _pushAdminMaintenanceTeamForm(context, team),
     onOpenUserDetails: (user) => _pushAdminUserDetails(context, user),
+    onNotificationsTap: () => _openAdminNotifications(context),
   );
 }
 
@@ -897,6 +944,7 @@ Widget _adminRoleManagement(BuildContext context) {
         Navigator.of(context).pushNamed(AppRoutes.adminMaintenanceTeams),
     onOpenProfile: () =>
         Navigator.of(context).pushNamed(AppRoutes.adminProfile),
+    onNotificationsTap: () => _openAdminNotifications(context),
   );
 }
 
@@ -921,6 +969,17 @@ Widget _adminSystemActivity(BuildContext context) {
   );
 }
 
+/// Admin's bell routes straight to System Activity (ADM-006) rather than a
+/// separate Notifications screen — it's already a full audit feed a Super
+/// Admin/assembly Admin plausibly checks every session, so a second,
+/// mostly-redundant screen would just be more surface area for the same
+/// content. `_replaceWith` switches the Activity tab in place (matching
+/// every other "jump to a tab" callback in this file) rather than pushing
+/// a duplicate copy on top.
+void _openAdminNotifications(BuildContext context) {
+  _replaceWith(context, AppRoutes.adminSystemActivity);
+}
+
 Widget _adminSystemSettings(BuildContext context) {
   return AdminSystemSettingsScreen(
     // An assembly Admin doesn't configure the platform — System Settings
@@ -941,6 +1000,7 @@ Widget _adminSystemSettings(BuildContext context) {
         Navigator.of(context).pushNamed(AppRoutes.adminMaintenanceTeams),
     onOpenProfile: () =>
         Navigator.of(context).pushNamed(AppRoutes.adminProfile),
+    onNotificationsTap: () => _openAdminNotifications(context),
   );
 }
 
@@ -960,6 +1020,7 @@ Widget _adminProfile(BuildContext context) {
         Navigator.of(context).pushNamed(AppRoutes.changePassword),
     onNavigateToMaintenanceTeams: () =>
         Navigator.of(context).pushNamed(AppRoutes.adminMaintenanceTeams),
+    onNotificationsTap: () => _openAdminNotifications(context),
     onSignOut: () => Navigator.of(
       context,
     ).pushNamedAndRemoveUntil(AppRoutes.welcome, (_) => false),
@@ -978,6 +1039,8 @@ Widget _ministryDashboard(BuildContext context) {
           _replaceWith(context, AppRoutes.ministryReports),
       onProfileTap: () =>
           Navigator.of(context).pushNamed(AppRoutes.ministryProfile),
+      onNotificationsTap: () =>
+          Navigator.of(context).pushNamed(AppRoutes.ministryNotifications),
       onOpenMunicipality: (municipality) =>
           _pushMinistryMunicipalityDetail(context, municipality),
     ),
@@ -993,6 +1056,8 @@ Widget _ministryAnalytics(BuildContext context) {
     onNavigateToReports: () => _replaceWith(context, AppRoutes.ministryReports),
     onProfileTap: () =>
         Navigator.of(context).pushNamed(AppRoutes.ministryProfile),
+    onNotificationsTap: () =>
+        Navigator.of(context).pushNamed(AppRoutes.ministryNotifications),
     onViewReportInsights: () =>
         Navigator.of(context).pushNamed(AppRoutes.ministryReportInsights),
   );
@@ -1007,6 +1072,8 @@ Widget _ministryMunicipalPerformance(BuildContext context) {
     onNavigateToReports: () => _replaceWith(context, AppRoutes.ministryReports),
     onProfileTap: () =>
         Navigator.of(context).pushNamed(AppRoutes.ministryProfile),
+    onNotificationsTap: () =>
+        Navigator.of(context).pushNamed(AppRoutes.ministryNotifications),
     onOpenMunicipality: (municipality) =>
         _pushMinistryMunicipalityDetail(context, municipality),
   );
@@ -1032,6 +1099,8 @@ Widget _ministryReports(BuildContext context) {
         _replaceWith(context, AppRoutes.ministryMunicipalPerformance),
     onProfileTap: () =>
         Navigator.of(context).pushNamed(AppRoutes.ministryProfile),
+    onNotificationsTap: () =>
+        Navigator.of(context).pushNamed(AppRoutes.ministryNotifications),
     onViewReportInsights: () =>
         Navigator.of(context).pushNamed(AppRoutes.ministryReportInsights),
   );
@@ -1048,9 +1117,17 @@ Widget _ministryProfile(BuildContext context) {
     onBack: () => _popOrReplaceWith(context, AppRoutes.ministryDashboard),
     onChangePassword: () =>
         Navigator.of(context).pushNamed(AppRoutes.changePassword),
+    onNotificationsTap: () =>
+        Navigator.of(context).pushNamed(AppRoutes.ministryNotifications),
     onLogOut: () => Navigator.of(
       context,
     ).pushNamedAndRemoveUntil(AppRoutes.welcome, (_) => false),
+  );
+}
+
+Widget _ministryNotifications(BuildContext context) {
+  return MinistryNotificationsScreen(
+    onBack: () => Navigator.of(context).maybePop(),
   );
 }
 
@@ -1154,6 +1231,8 @@ Widget _municipalDashboard(BuildContext context) {
           _replaceWith(context, AppRoutes.municipalResolvedReports),
       onProfileTap: () =>
           Navigator.of(context).pushNamed(AppRoutes.municipalProfile),
+      onNotificationsTap: () =>
+          Navigator.of(context).pushNamed(AppRoutes.municipalNotifications),
       onReportTap: (report) => _pushMunicipalReportReview(context, report),
     ),
   );
@@ -1169,6 +1248,8 @@ Widget _municipalInbox(BuildContext context) {
         _replaceWith(context, AppRoutes.municipalResolvedReports),
     onProfileTap: () =>
         Navigator.of(context).pushNamed(AppRoutes.municipalProfile),
+    onNotificationsTap: () =>
+        Navigator.of(context).pushNamed(AppRoutes.municipalNotifications),
     onReportTap: (report) => _pushMunicipalReportReview(context, report),
   );
 }
@@ -1182,6 +1263,8 @@ Widget _municipalActiveReports(BuildContext context) {
         _replaceWith(context, AppRoutes.municipalResolvedReports),
     onProfileTap: () =>
         Navigator.of(context).pushNamed(AppRoutes.municipalProfile),
+    onNotificationsTap: () =>
+        Navigator.of(context).pushNamed(AppRoutes.municipalNotifications),
     onReportTap: (report) => _pushMunicipalReportProgress(context, report),
   );
 }
@@ -1193,6 +1276,8 @@ Widget _municipalResolvedReports(BuildContext context) {
     onNavigateToInbox: () => _replaceWith(context, AppRoutes.municipalInbox),
     onNavigateToActiveReports: () =>
         _replaceWith(context, AppRoutes.municipalActiveReports),
+    onNotificationsTap: () =>
+        Navigator.of(context).pushNamed(AppRoutes.municipalNotifications),
     onProfileTap: () =>
         Navigator.of(context).pushNamed(AppRoutes.municipalProfile),
     onReportTap: (report) => _pushMunicipalResolutionDetails(context, report),
@@ -1268,6 +1353,18 @@ Widget _municipalProfile(BuildContext context) {
   );
 }
 
+Widget _municipalNotifications(BuildContext context) {
+  return MunicipalNotificationsScreen(
+    onBack: () => Navigator.of(context).maybePop(),
+    onOpenReport: (referenceId) {
+      final report = MunicipalReportDirectory.instance.byReferenceId(
+        referenceId,
+      );
+      if (report != null) _pushMunicipalReportReview(context, report);
+    },
+  );
+}
+
 Widget _maintenanceDashboard(BuildContext context) {
   return _withSwitchRoleButton(
     context,
@@ -1276,6 +1373,8 @@ Widget _maintenanceDashboard(BuildContext context) {
           _replaceWith(context, AppRoutes.maintenanceAssignedTasks),
       onNavigateToProfile: () =>
           Navigator.of(context).pushNamed(AppRoutes.maintenanceProfile),
+      onNotificationsTap: () =>
+          Navigator.of(context).pushNamed(AppRoutes.maintenanceNotifications),
       onOpenTaskDetails: (taskId) =>
           _pushMaintenanceTaskDetails(context, taskId),
     ),
@@ -1288,6 +1387,8 @@ Widget _maintenanceAssignedTasks(BuildContext context) {
         _replaceWith(context, AppRoutes.maintenanceDashboard),
     onNavigateToProfile: () =>
         Navigator.of(context).pushNamed(AppRoutes.maintenanceProfile),
+    onNotificationsTap: () =>
+        Navigator.of(context).pushNamed(AppRoutes.maintenanceNotifications),
     onOpenTaskDetails: (taskId) => _pushMaintenanceTaskDetails(context, taskId),
   );
 }
@@ -1321,6 +1422,15 @@ Widget _maintenanceProfile(BuildContext context) {
         _replaceWith(context, AppRoutes.maintenanceDashboard),
     onNavigateToTasks: () =>
         _replaceWith(context, AppRoutes.maintenanceAssignedTasks),
+    onNotificationsTap: () =>
+        Navigator.of(context).pushNamed(AppRoutes.maintenanceNotifications),
+  );
+}
+
+Widget _maintenanceNotifications(BuildContext context) {
+  return MaintenanceNotificationsScreen(
+    onBack: () => Navigator.of(context).maybePop(),
+    onOpenTask: (taskId) => _pushMaintenanceTaskDetails(context, taskId),
   );
 }
 

@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../services/notification_directory.dart';
 import '../../../widgets/glass_bar.dart';
+import '../../../widgets/unread_dot_badge.dart';
+import '../services/report_crud_service.dart';
 
 /// Header chrome for citizen screens — a [GlassBar] floating in a [Stack]
 /// above scrollable content, matching Admin/Municipal/Ministry's own
@@ -21,12 +24,14 @@ class CivicTopBar extends StatelessWidget {
     this.title = 'CivicVoice',
     this.showNotifications = true,
     this.onBack,
+    this.onNotificationsTap,
     this.isHomeTab = false,
   });
 
   final String title;
   final bool showNotifications;
   final VoidCallback? onBack;
+  final VoidCallback? onNotificationsTap;
   final bool isHomeTab;
 
   @override
@@ -79,9 +84,21 @@ class CivicTopBar extends StatelessWidget {
                         ),
                 ),
                 if (showNotifications)
-                  _ChromeIconButton(
-                    icon: AppIcons.notifications,
-                    tooltip: 'Notifications',
+                  AnimatedBuilder(
+                    animation: Listenable.merge([
+                      ReportCrudService.instance.reports,
+                      NotificationDirectory.instance.readIds,
+                    ]),
+                    builder: (context, _) => UnreadDotBadge(
+                      show: NotificationDirectory.instance.hasUnread(
+                        NotificationDirectory.instance.forCitizen(),
+                      ),
+                      child: _ChromeIconButton(
+                        icon: AppIcons.notifications,
+                        tooltip: 'Notifications',
+                        onPressed: onNotificationsTap,
+                      ),
+                    ),
                   ),
               ],
             ),
@@ -181,12 +198,23 @@ class CivicBottomNav extends StatelessWidget {
                           ),
                           const Expanded(child: SizedBox.shrink()),
                           Expanded(
-                            child: _BottomNavItem(
-                              icon: AppIcons.notifications,
-                              label: 'Alerts',
-                              selected: selectedIndex == 3,
-                              compact: compact,
-                              onTap: () => onDestinationSelected(3),
+                            child: AnimatedBuilder(
+                              animation: Listenable.merge([
+                                ReportCrudService.instance.reports,
+                                NotificationDirectory.instance.readIds,
+                              ]),
+                              builder: (context, _) => _BottomNavItem(
+                                icon: AppIcons.notifications,
+                                label: 'Alerts',
+                                selected: selectedIndex == 3,
+                                compact: compact,
+                                showDot: NotificationDirectory.instance
+                                    .hasUnread(
+                                      NotificationDirectory.instance
+                                          .forCitizen(),
+                                    ),
+                                onTap: () => onDestinationSelected(3),
+                              ),
                             ),
                           ),
                           Expanded(
@@ -245,6 +273,7 @@ class _BottomNavItem extends StatelessWidget {
     required this.selected,
     required this.compact,
     required this.onTap,
+    this.showDot = false,
   });
 
   final IconData icon;
@@ -252,6 +281,9 @@ class _BottomNavItem extends StatelessWidget {
   final bool selected;
   final bool compact;
   final VoidCallback onTap;
+
+  /// A plain "new stuff" dot, never a count — see [UnreadDotBadge].
+  final bool showDot;
 
   @override
   Widget build(BuildContext context) {
@@ -268,10 +300,13 @@ class _BottomNavItem extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                icon,
-                color: color,
-                size: compact ? AppIconSize.md : AppIconSize.standard,
+              UnreadDotBadge(
+                show: showDot,
+                child: Icon(
+                  icon,
+                  color: color,
+                  size: compact ? AppIconSize.md : AppIconSize.standard,
+                ),
               ),
               SizedBox(height: compact ? 2 : AppSpacing.xs),
               Text(

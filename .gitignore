@@ -26,6 +26,12 @@ migrate_working_dir/
 # Local secrets
 /android/local.properties
 
+# Claude Code project state — local tool state, not app code
+/.claude/
+
+# Kotlin incremental-compilation cache — build artifact
+/android/.kotlin/
+
 # Flutter/Dart/Pub related
 **/doc/api/
 **/ios/Flutter/.last_build_id

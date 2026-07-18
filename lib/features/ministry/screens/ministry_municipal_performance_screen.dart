@@ -47,6 +47,7 @@ class MinistryMunicipalPerformanceScreen extends StatefulWidget {
     this.onNavigateToAnalytics,
     this.onNavigateToReports,
     this.onProfileTap,
+    this.onNotificationsTap,
     this.onOpenMunicipality,
   });
 
@@ -59,6 +60,9 @@ class MinistryMunicipalPerformanceScreen extends StatefulWidget {
 
   /// Opens MIN-006 Ministry Profile — wired to the header's profile avatar.
   final VoidCallback? onProfileTap;
+
+  /// Opens Ministry Notifications — wired to the header's bell icon.
+  final VoidCallback? onNotificationsTap;
 
   /// Opens the Municipal Officer contact detail screen for the tapped
   /// Regional Leaders row.
@@ -131,7 +135,7 @@ class _MinistryMunicipalPerformanceScreenState
 
     return MinistryScaffold(
       selectedTab: MinistryTab.municipalities,
-      onNotificationsTap: () {},
+      onNotificationsTap: widget.onNotificationsTap,
       onProfileTap: widget.onProfileTap,
       onTabSelected: (tab) {
         if (tab == MinistryTab.dashboard) widget.onNavigateToDashboard?.call();

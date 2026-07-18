@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/theme_controller.dart';
+import '../../../widgets/coming_soon_badge.dart';
 import '../../../widgets/confirm_dialog.dart';
 import '../widgets/civic_glass_card.dart';
 import '../models/citizen_profile.dart';
@@ -954,17 +955,95 @@ class _AppearanceCard extends StatelessWidget {
                 );
               }
 
-              return Row(
+              final appearanceRow = stacked
+                  ? Column(
+                      children: [
+                        info,
+                        const SizedBox(height: AppSpacing.sm),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: toggle,
+                        ),
+                      ],
+                    )
+                  : Row(
+                      children: [
+                        Expanded(child: info),
+                        const SizedBox(width: AppSpacing.sm),
+                        toggle,
+                      ],
+                    );
+
+              return Column(
                 children: [
-                  Expanded(child: info),
-                  const SizedBox(width: AppSpacing.sm),
-                  toggle,
+                  appearanceRow,
+                  const SizedBox(height: AppSpacing.md),
+                  const Divider(height: 1),
+                  const SizedBox(height: AppSpacing.md),
+                  const _LanguageRow(),
                 ],
               );
             },
           );
         },
       ),
+    );
+  }
+}
+
+/// No multi-language content exists anywhere in the app yet — genuinely
+/// inert (no control at all), matching every other module's "Language"
+/// row, just styled to Citizen's own icon-box shape rather than the shared
+/// Civic Glass profile widgets (this screen deliberately keeps its own
+/// design system — see the class doc comment on [CitizenProfileScreen]).
+class _LanguageRow extends StatelessWidget {
+  const _LanguageRow();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      children: [
+        Container(
+          width: AppIconSize.xl,
+          height: AppIconSize.xl,
+          decoration: BoxDecoration(
+            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.1),
+            borderRadius: AppRadius.allLg,
+          ),
+          child: Icon(
+            AppIcons.language,
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(width: AppSpacing.md),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Language',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: AppFontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                'English',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.secondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        const ComingSoonBadge(),
+      ],
     );
   }
 }

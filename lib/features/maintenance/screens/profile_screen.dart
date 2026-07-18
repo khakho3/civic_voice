@@ -2,8 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:civic_voice/core/theme/app_theme.dart';
 
 import '../../../models/team_availability.dart';
+import '../../../widgets/confirm_dialog.dart';
 import '../../../widgets/glass_card.dart';
+import '../../../widgets/language_preference_row.dart';
+import '../../../widgets/profile_action_row.dart';
+import '../../../widgets/profile_edit_action_bar.dart';
+import '../../../widgets/profile_field_row.dart';
+import '../../../widgets/profile_header_card.dart';
+import '../../../widgets/profile_section.dart';
 import '../../../widgets/status_badge.dart';
+import '../../../widgets/theme_preference_row.dart';
 import '../../admin/models/admin_maintenance_team_data.dart';
 import '../../admin/services/admin_maintenance_team_directory.dart';
 import '../../admin/services/admin_user_directory.dart';
@@ -21,16 +29,33 @@ import '../widgets/maintenance_scaffold.dart';
 /// View/Edit is a real toggle now (matching Ministry/Municipal's own
 /// profile screens) rather than an always-open Full Name field sitting next
 /// to an always-visible "Save Changes" button with nothing to actually
-/// enter edit mode through.
+/// enter edit mode through. Edit-mode entry is the "Personal Information"
+/// section's own pencil icon — this screen is tab-embedded (a bottom nav
+/// tab, not a drill-down), so it keeps that entry gesture rather than
+/// Municipal/Ministry's kebab menu, matching Admin Profile's identical
+/// tab-embedded shape.
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({
     super.key,
     this.onNavigateToDashboard,
     this.onNavigateToTasks,
+    this.onNotificationsTap,
+    this.onChangePassword,
+    this.onLogOut,
   });
 
   final VoidCallback? onNavigateToDashboard;
   final VoidCallback? onNavigateToTasks;
+
+  /// Opens Maintenance Notifications — wired to the header's bell icon.
+  final VoidCallback? onNotificationsTap;
+
+  /// Opens the shared Change Password screen (AppRoutes.changePassword).
+  final VoidCallback? onChangePassword;
+
+  /// Fired after the log-out confirmation dialog is accepted. Nullable:
+  /// there's no real authentication flow to sign out of yet.
+  final VoidCallback? onLogOut;
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -99,11 +124,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
   }
 
+  Future<void> _confirmLogOut() async {
+    final confirmed = await showConfirmDialog(
+      context,
+      title: 'Log out?',
+      message:
+          "You'll need to sign back in to access the maintenance console.",
+      confirmLabel: 'Log Out',
+      destructive: true,
+    );
+    if (confirmed) widget.onLogOut?.call();
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaintenanceScaffold(
       selectedTab: MaintenanceTab.profile,
-      onNotificationsTap: () {},
+      onNotificationsTap: widget.onNotificationsTap,
+      hideBottomNav: _isEditing,
       onTabSelected: (tab) {
         if (tab == MaintenanceTab.dashboard) {
           widget.onNavigateToDashboard?.call();
@@ -175,6 +213,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       onEdit: disabled ? null : _startEditing,
       onSave: disabled ? null : _handleSave,
       onCancel: disabled ? null : _cancelEditing,
+      onChangePassword: disabled ? null : widget.onChangePassword,
+      onLogOut: disabled ? null : _confirmLogOut,
     );
   }
 }
@@ -204,6 +244,8 @@ class _ProfileForm extends StatelessWidget {
     required this.onEdit,
     required this.onSave,
     required this.onCancel,
+    required this.onChangePassword,
+    required this.onLogOut,
   });
 
   final bool disabled;
@@ -227,6 +269,8 @@ class _ProfileForm extends StatelessWidget {
   final VoidCallback? onEdit;
   final VoidCallback? onSave;
   final VoidCallback? onCancel;
+  final VoidCallback? onChangePassword;
+  final VoidCallback? onLogOut;
 
   @override
   Widget build(BuildContext context) {
@@ -239,145 +283,168 @@ class _ProfileForm extends StatelessWidget {
       opacity: disabled ? 0.5 : 1.0,
       child: IgnorePointer(
         ignoring: disabled,
-        child: ListView(
-          padding: EdgeInsets.fromLTRB(
-            AppSpacing.md,
-            chromeInset.top + AppSpacing.md,
-            AppSpacing.md,
-            chromeInset.bottom + AppSpacing.xl,
-          ),
+        child: Column(
           children: [
-            Text('My Profile', style: textTheme.headlineSmall),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              'Manage professional credentials',
-              style: textTheme.bodyMedium?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            if (changesSaved) ...[
-              _SavedBanner(semantic: semantic),
-              const SizedBox(height: AppSpacing.md),
-            ],
-            _ProfileHeaderBlock(
-              name: nameController.text,
-              isTeamLead: isTeamLead,
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            Row(
-              children: [
-                Expanded(
-                  child: _InfoTile(
-                    icon: AppIcons.maintenanceTeam,
-                    label: 'Department',
-                    value: 'Maintenance',
-                  ),
+            Expanded(
+              child: ListView(
+                padding: EdgeInsets.fromLTRB(
+                  AppSpacing.md,
+                  chromeInset.top + AppSpacing.md,
+                  AppSpacing.md,
+                  editing
+                      ? AppSpacing.md
+                      : chromeInset.bottom + AppSpacing.xl,
                 ),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: _InfoTile(
-                    icon: AppIcons.location,
-                    label: 'Assembly',
-                    value: district,
+                children: [
+                  Text('My Profile', style: textTheme.headlineSmall),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    'Manage professional credentials',
+                    style: textTheme.bodyMedium?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Row(
-              children: [
-                Expanded(
-                  child: _InfoTile(
-                    icon: AppIcons.team,
-                    label: 'Team',
-                    value: teamName,
+                  const SizedBox(height: AppSpacing.lg),
+                  if (changesSaved) ...[
+                    _SavedBanner(semantic: semantic),
+                    const SizedBox(height: AppSpacing.md),
+                  ],
+                  ProfileHeaderCard(
+                    name: nameController.text,
+                    pills: [
+                      _Pill(
+                        label: isTeamLead
+                            ? 'Maintenance Technician · Team Lead'
+                            : 'Maintenance Technician',
+                      ),
+                    ],
+                    editing: editing,
                   ),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: _InfoTile(
+                  const SizedBox(height: AppSpacing.lg),
+                  ProfileSection(
                     icon: AppIcons.idCard,
-                    label: 'Employee ID',
-                    value: employeeId,
+                    title: 'Account Information',
+                    children: [
+                      const ProfileFieldRow(
+                        label: 'Department',
+                        value: 'Maintenance',
+                        locked: true,
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      ProfileFieldRow(
+                        label: 'Assembly',
+                        value: district,
+                        locked: true,
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      ProfileFieldRow(
+                        label: 'Team',
+                        value: teamName,
+                        locked: true,
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      ProfileFieldRow(
+                        label: 'Employee ID',
+                        value: employeeId,
+                        locked: true,
+                      ),
+                    ],
                   ),
-                ),
-              ],
-            ),
-            if (availability != null) ...[
-              const SizedBox(height: AppSpacing.sm),
-              _TeamStatusRow(
-                availability: availability!,
-                // Only the team lead sets this — everyone else on the team
-                // sees it read-only, matching the "lead does the one
-                // high-impact team action" rule already used for evidence
-                // submission.
-                onChanged: onAvailabilityChanged,
-              ),
-            ],
-            const SizedBox(height: AppSpacing.lg),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Personal Information',
-                    style: textTheme.titleMedium,
+                  if (availability != null) ...[
+                    const SizedBox(height: AppSpacing.md),
+                    _TeamStatusRow(
+                      availability: availability!,
+                      // Only the team lead sets this — everyone else on the
+                      // team sees it read-only, matching the "lead does the
+                      // one high-impact team action" rule already used for
+                      // evidence submission.
+                      onChanged: onAvailabilityChanged,
+                    ),
+                  ],
+                  const SizedBox(height: AppSpacing.lg),
+                  ProfileSection(
+                    icon: AppIcons.profile,
+                    title: 'Personal Information',
+                    trailing: editing
+                        ? null
+                        : IconButton(
+                            onPressed: onEdit,
+                            icon: const Icon(
+                              AppIcons.edit,
+                              size: AppIconSize.sm,
+                            ),
+                            tooltip: 'Edit',
+                          ),
+                    children: [
+                      ProfileFieldRow(
+                        label: 'Full Name',
+                        controller: nameController,
+                        editable: editing,
+                        onChanged: onFieldChanged,
+                        errorText: nameError,
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      ProfileFieldRow(
+                        label: 'Email',
+                        controller: emailController,
+                        caption: editing
+                            ? 'Contact your administrator to change this'
+                            : null,
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      ProfileFieldRow(
+                        label: 'Phone',
+                        controller: phoneController,
+                        caption: editing
+                            ? 'Contact your administrator to change this'
+                            : null,
+                      ),
+                    ],
                   ),
-                ),
-                if (!editing)
-                  SizedBox(
-                    width: AppDimensions.controlHeightStandard,
-                    height: AppDimensions.controlHeightStandard,
-                    child: Material(
-                      color: Colors.transparent,
-                      shape: const CircleBorder(),
-                      child: InkWell(
-                        customBorder: const CircleBorder(),
-                        onTap: onEdit,
-                        child: Icon(
-                          AppIcons.edit,
-                          size: AppIconSize.sm,
-                          color: AppColors.primary,
+                  const SizedBox(height: AppSpacing.lg),
+                  ProfileSection(
+                    icon: AppIcons.shield,
+                    title: 'Security',
+                    children: [
+                      ProfileActionRow(
+                        icon: AppIcons.password,
+                        label: 'Change Password',
+                        onTap: onChangePassword,
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton(
+                          onPressed: onLogOut,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.error,
+                            side: BorderSide(
+                              color: AppColors.error.withValues(alpha: 0.4),
+                            ),
+                          ),
+                          child: const Text('Log Out'),
                         ),
                       ),
-                    ),
+                    ],
                   ),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            editing
-                ? _PersonalInfoForm(
-                    nameController: nameController,
-                    emailController: emailController,
-                    phoneController: phoneController,
-                    nameError: nameError,
-                    onFieldChanged: onFieldChanged,
-                  )
-                : _PersonalInfoDisplay(
-                    name: nameController.text,
-                    email: emailController.text,
-                    phone: phoneController.text,
-                  ),
-            if (editing) ...[
-              const SizedBox(height: AppSpacing.md),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: onCancel,
-                      child: const Text('Cancel'),
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Expanded(
-                    child: FilledButton(
-                      onPressed: onSave,
-                      child: const Text('Save Changes'),
-                    ),
+                  const SizedBox(height: AppSpacing.lg),
+                  ProfileSection(
+                    icon: AppIcons.systemTheme,
+                    title: 'System Preferences',
+                    children: const [
+                      ThemePreferenceRow(),
+                      Divider(height: AppSpacing.lg),
+                      LanguagePreferenceRow(),
+                    ],
                   ),
                 ],
               ),
-            ],
+            ),
+            // A sticky bar, not the last item in the scrollable list — on a
+            // screen this long, a Save button that only appears after
+            // scrolling all the way down is easy to miss entirely.
+            if (editing)
+              ProfileEditActionBar(onCancel: onCancel, onSave: onSave),
           ],
         ),
       ),
@@ -385,61 +452,26 @@ class _ProfileForm extends StatelessWidget {
   }
 }
 
-/// Matches Ministry/Municipal's own profile header shape — an initials
-/// avatar (not a generic profile-icon glyph) and a tinted role pill under
-/// the name, the same pattern those two modules already use rather than a
-/// one-off treatment invented just for this screen.
-class _ProfileHeaderBlock extends StatelessWidget {
-  const _ProfileHeaderBlock({required this.name, required this.isTeamLead});
+class _Pill extends StatelessWidget {
+  const _Pill({required this.label});
 
-  final String name;
-  final bool isTeamLead;
+  final String label;
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final colorScheme = Theme.of(context).colorScheme;
-    final initials = name
-        .trim()
-        .split(RegExp(r'\s+'))
-        .map((part) => part.isEmpty ? '' : part[0])
-        .take(2)
-        .join()
-        .toUpperCase();
-
-    return Center(
-      child: Column(
-        children: [
-          CircleAvatar(
-            radius: 40,
-            backgroundColor: colorScheme.primaryContainer,
-            child: Text(
-              initials,
-              style: textTheme.headlineMedium?.copyWith(
-                color: colorScheme.primary,
-              ),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(name, style: textTheme.titleLarge),
-          const SizedBox(height: AppSpacing.xs),
-          Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.md,
-              vertical: AppSpacing.xs,
-            ),
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.12),
-              borderRadius: AppRadius.allXl,
-            ),
-            child: Text(
-              isTeamLead
-                  ? 'Maintenance Technician · Team Lead'
-                  : 'Maintenance Technician',
-              style: textTheme.labelMedium?.copyWith(color: AppColors.primary),
-            ),
-          ),
-        ],
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.12),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.24)),
+        borderRadius: AppRadius.allXl,
+      ),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          color: AppColors.primary,
+          fontWeight: AppFontWeight.semiBold,
+        ),
       ),
     );
   }
@@ -582,263 +614,6 @@ class _AvailabilityChip extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _InfoTile extends StatelessWidget {
-  const _InfoTile({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
-  final IconData icon;
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final colorScheme = Theme.of(context).colorScheme;
-    return GlassCard(
-      padding: const EdgeInsets.all(AppSpacing.sm),
-      child: Row(
-        children: [
-          Icon(icon, size: AppIconSize.md, color: colorScheme.primary),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: textTheme.bodySmall?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                Text(
-                  value,
-                  style: textTheme.titleSmall,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Read-only display of Name/Email/Phone — the default state, tapping the
-/// section's Edit button (not this card) is how a technician gets into
-/// [_PersonalInfoForm] instead. A plain opaque surface, not [GlassCard] —
-/// matches Ministry's own `_PersonalInfoDisplay`: glass is prohibited on
-/// input-heavy sections (§19.10), and this becomes one once editing.
-class _PersonalInfoDisplay extends StatelessWidget {
-  const _PersonalInfoDisplay({
-    required this.name,
-    required this.email,
-    required this.phone,
-  });
-
-  final String name;
-  final String email;
-  final String phone;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: AppComponentRadius.card,
-        border: Border.all(color: colorScheme.outlineVariant),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _ReadOnlyField(label: 'Full Name', value: name),
-          const SizedBox(height: AppSpacing.md),
-          _ReadOnlyField(label: 'Email', value: email),
-          const SizedBox(height: AppSpacing.md),
-          _ReadOnlyField(label: 'Phone', value: phone),
-        ],
-      ),
-    );
-  }
-}
-
-class _ReadOnlyField extends StatelessWidget {
-  const _ReadOnlyField({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final colorScheme = Theme.of(context).colorScheme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: textTheme.bodySmall),
-        const SizedBox(height: AppSpacing.xs),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.sm,
-          ),
-          decoration: BoxDecoration(
-            color: colorScheme.surfaceContainer,
-            borderRadius: AppComponentRadius.inputField,
-          ),
-          child: Text(
-            value,
-            style: textTheme.bodyLarge,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _PersonalInfoForm extends StatelessWidget {
-  const _PersonalInfoForm({
-    required this.nameController,
-    required this.emailController,
-    required this.phoneController,
-    required this.nameError,
-    required this.onFieldChanged,
-  });
-
-  final TextEditingController nameController;
-  final TextEditingController emailController;
-  final TextEditingController phoneController;
-  final String? nameError;
-  final ValueChanged<String>? onFieldChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: AppComponentRadius.card,
-        border: Border.all(color: colorScheme.outlineVariant),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _EditableField(
-            label: 'Full Name',
-            controller: nameController,
-            onChanged: onFieldChanged,
-            errorText: nameError,
-          ),
-          const SizedBox(height: AppSpacing.md),
-          _EditableField(
-            label: 'Email',
-            controller: emailController,
-            enabled: false,
-            caption: 'Contact your administrator to change this',
-          ),
-          const SizedBox(height: AppSpacing.md),
-          _EditableField(
-            label: 'Phone',
-            controller: phoneController,
-            enabled: false,
-            caption: 'Contact your administrator to change this',
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _EditableField extends StatelessWidget {
-  const _EditableField({
-    required this.label,
-    required this.controller,
-    this.onChanged,
-    this.errorText,
-    this.enabled = true,
-    this.caption,
-  });
-
-  final String label;
-  final TextEditingController controller;
-  final ValueChanged<String>? onChanged;
-  final String? errorText;
-
-  /// False locks the field read-only — used for Email/Phone, which are
-  /// admin-set rather than self-editable (see [_PersonalInfoForm]'s own
-  /// doc comment).
-  final bool enabled;
-
-  /// Shown under a locked field to explain why it's disabled.
-  final String? caption;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final colorScheme = Theme.of(context).colorScheme;
-    final hasError = errorText != null;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: textTheme.bodySmall),
-        const SizedBox(height: AppSpacing.xs),
-        Material(
-          color: colorScheme.surfaceContainer,
-          borderRadius: AppComponentRadius.inputField,
-          child: TextField(
-            controller: controller,
-            onChanged: onChanged,
-            enabled: enabled,
-            style: textTheme.bodyLarge,
-            decoration: InputDecoration(
-              border: hasError
-                  ? OutlineInputBorder(
-                      borderRadius: AppComponentRadius.inputField,
-                      borderSide: const BorderSide(color: AppColors.error),
-                    )
-                  : InputBorder.none,
-              enabledBorder: hasError
-                  ? OutlineInputBorder(
-                      borderRadius: AppComponentRadius.inputField,
-                      borderSide: const BorderSide(color: AppColors.error),
-                    )
-                  : InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.md,
-                vertical: AppSpacing.sm,
-              ),
-            ),
-          ),
-        ),
-        if (hasError) ...[
-          const SizedBox(height: 4),
-          Text(
-            errorText!,
-            style: textTheme.labelSmall?.copyWith(color: AppColors.error),
-          ),
-        ] else if (caption != null) ...[
-          const SizedBox(height: 4),
-          Text(
-            caption!,
-            style: textTheme.labelSmall?.copyWith(
-              color: colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ],
-      ],
     );
   }
 }

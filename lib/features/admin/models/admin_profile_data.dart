@@ -21,7 +21,6 @@ class AdminProfileData {
     required this.phone,
     required this.department,
     required this.adminId,
-    required this.twoFactorEnabled,
     required this.lastActivity,
     required this.governanceChecklistPercent,
     required this.administrativeScope,
@@ -33,7 +32,6 @@ class AdminProfileData {
   final String phone;
   final String department;
   final String adminId;
-  final bool twoFactorEnabled;
   final DateTime lastActivity;
   final int governanceChecklistPercent;
 
@@ -53,7 +51,6 @@ class AdminProfileData {
       phone: phone,
       department: department ?? this.department,
       adminId: adminId,
-      twoFactorEnabled: twoFactorEnabled,
       lastActivity: lastActivity,
       governanceChecklistPercent: governanceChecklistPercent,
       administrativeScope: administrativeScope,
@@ -84,7 +81,6 @@ AdminProfileData mockAdminProfile() {
     phone: '+233 24 111 2222',
     department: 'Platform Administration',
     adminId: 'ADM-001',
-    twoFactorEnabled: true,
     lastActivity: DateTime.now().subtract(const Duration(hours: 1)),
     governanceChecklistPercent: 92,
     administrativeScope: const ['Users', 'Roles', 'Settings'],

@@ -6,6 +6,7 @@ import 'package:url_launcher_platform_interface/url_launcher_platform_interface.
 
 import 'package:civic_voice/core/theme/app_theme.dart';
 import 'package:civic_voice/features/admin/services/admin_maintenance_team_directory.dart';
+import 'package:civic_voice/features/maintenance/services/maintenance_task_directory.dart';
 import 'package:civic_voice/main.dart' as app;
 
 class _FakeImagePickerPlatform extends ImagePickerPlatform {
@@ -39,6 +40,19 @@ class _FakeUrlLauncherPlatform extends UrlLauncherPlatform {
     lastLaunchedUri = Uri.parse(url);
     return true;
   }
+}
+
+/// Snapshots the live `MaintenanceTaskDirectory` task list and restores it
+/// after the test — for tests that write task status through the real
+/// directory singleton, which otherwise leaks into every later test in
+/// this file (e.g. the Notifications test's own "Pothole Repair Request
+/// was just assigned" assertion depends on MNT-1002 still being
+/// `assigned`).
+void _preserveMaintenanceTaskDirectory() {
+  final original = MaintenanceTaskDirectory.instance.tasks.value;
+  addTearDown(
+    () => MaintenanceTaskDirectory.instance.tasks.value = original,
+  );
 }
 
 Future<void> _attachThreeEvidencePhotos(WidgetTester tester) async {
@@ -385,6 +399,7 @@ void main() {
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
+      _preserveMaintenanceTaskDirectory();
 
       await tester.pumpWidget(
         const app.CivicVoiceApp(
@@ -577,6 +592,30 @@ void main() {
       expect(find.text('Yaw Asare'), findsNWidgets(2));
       expect(find.text('Someone Else'), findsNothing);
       expect(find.text('Save Changes'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'Maintenance Notifications shows new task assignments for the '
+    "technician's own team and marks them read on open",
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        const app.CivicVoiceApp(
+          initialRoute: app.AppRoutes.maintenanceNotifications,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('New task assigned'), findsWidgets);
+      expect(
+        find.text('Pothole Repair Request was just assigned to your team.'),
+        findsOneWidget,
+      );
     },
   );
 }

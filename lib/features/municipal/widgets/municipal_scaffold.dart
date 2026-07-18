@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../services/notification_directory.dart';
 import '../../../widgets/glass_bar.dart';
+import '../../../widgets/unread_dot_badge.dart';
+import '../services/municipal_report_directory.dart';
 
 /// Primary bottom-navigation destinations for the Municipal Officer module —
 /// exactly the four shown in the approved Figma frames. Do not add
@@ -222,10 +225,21 @@ class _Header extends StatelessWidget {
                           ],
                         ),
                 ),
-                _IconButton(
-                  icon: AppIcons.notifications,
-                  onPressed: onNotificationsTap,
-                  semantic: semantic,
+                AnimatedBuilder(
+                  animation: Listenable.merge([
+                    MunicipalReportDirectory.instance.reports,
+                    NotificationDirectory.instance.readIds,
+                  ]),
+                  builder: (context, _) => UnreadDotBadge(
+                    show: NotificationDirectory.instance.hasUnread(
+                      NotificationDirectory.instance.forMunicipal(),
+                    ),
+                    child: _IconButton(
+                      icon: AppIcons.notifications,
+                      onPressed: onNotificationsTap,
+                      semantic: semantic,
+                    ),
+                  ),
                 ),
                 const SizedBox(width: AppSpacing.xs),
                 _ProfileButton(onTap: onProfileTap),
@@ -371,7 +385,21 @@ class _NavItem extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(tab.icon, size: AppIconSize.md, color: foreground),
+            if (tab == MunicipalTab.inbox)
+              AnimatedBuilder(
+                animation: Listenable.merge([
+                  MunicipalReportDirectory.instance.reports,
+                  NotificationDirectory.instance.readIds,
+                ]),
+                builder: (context, _) => UnreadDotBadge(
+                  show: NotificationDirectory.instance.hasUnread(
+                    NotificationDirectory.instance.forMunicipal(),
+                  ),
+                  child: Icon(tab.icon, size: AppIconSize.md, color: foreground),
+                ),
+              )
+            else
+              Icon(tab.icon, size: AppIconSize.md, color: foreground),
             const SizedBox(height: AppSpacing.xs),
             Text(
               tab.label,

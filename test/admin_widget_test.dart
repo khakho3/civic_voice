@@ -14,15 +14,29 @@ import 'package:civic_voice/features/admin/services/admin_maintenance_team_direc
 import 'package:civic_voice/features/admin/screens/admin_role_management_screen.dart';
 import 'package:civic_voice/features/admin/models/admin_profile_data.dart';
 import 'package:civic_voice/features/admin/models/admin_system_settings_data.dart';
+import 'package:civic_voice/features/admin/screens/admin_create_user_screen.dart';
 import 'package:civic_voice/features/admin/screens/admin_profile_screen.dart';
 import 'package:civic_voice/features/admin/screens/admin_system_activity_screen.dart';
 import 'package:civic_voice/features/admin/screens/admin_system_settings_screen.dart';
 import 'package:civic_voice/features/admin/screens/admin_user_details_screen.dart';
 import 'package:civic_voice/features/admin/screens/admin_user_management_screen.dart';
+import 'package:civic_voice/features/admin/services/admin_system_settings_directory.dart';
 import 'package:civic_voice/models/app_role.dart';
 import 'package:civic_voice/models/ghana_assemblies_data.dart';
 import 'package:civic_voice/models/region.dart';
 import 'package:civic_voice/services/mock_auth_service.dart';
+
+/// Snapshots the live `AdminSystemSettingsDirectory` settings and restores
+/// them after the test — for tests that write through the real directory
+/// singleton, which otherwise leaks into every later test in this file
+/// (e.g. a test that turns audit logging or account creation off would
+/// otherwise leave it off for every test that runs afterward).
+void _preserveAdminSystemSettingsDirectory() {
+  final original = AdminSystemSettingsDirectory.instance.settings.value;
+  addTearDown(
+    () => AdminSystemSettingsDirectory.instance.settings.value = original,
+  );
+}
 
 void main() {
   // ---------------------------------------------------------------------
@@ -1769,6 +1783,32 @@ void main() {
     },
   );
 
+  testWidgets(
+    'Admin System Activity shows an inline notice instead of the feed when '
+    'Audit logging is off',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      _preserveAdminSystemSettingsDirectory();
+      AdminSystemSettingsDirectory.instance.settings.value =
+          AdminSystemSettingsDirectory.instance.settings.value.copyWith(
+            auditLogging: false,
+          );
+
+      await tester.pumpWidget(
+        MaterialApp(theme: AppTheme.light, home: const AdminSystemActivityScreen()),
+      );
+      await tester.pump();
+
+      expect(find.text('Audit logging is turned off'), findsOneWidget);
+      // A known seeded activity item's title — absent because the feed
+      // itself isn't rendering at all, not because of a filter.
+      expect(find.text('Unauthorized Login Attempt'), findsNothing);
+    },
+  );
+
   // ---------------------------------------------------------------------
   // ADM-007 System Settings
   // ---------------------------------------------------------------------
@@ -1832,22 +1872,55 @@ void main() {
 
       expect(find.text('General Configuration'), findsOneWidget);
       expect(find.text('Default Language'), findsOneWidget);
+      expect(find.text('English'), findsOneWidget);
       expect(find.text('Maintenance Mode'), findsOneWidget);
       expect(find.text('Security & Access'), findsOneWidget);
-      expect(find.text('Enforce two-factor authentication'), findsOneWidget);
+      expect(find.text('Enforce two-factor authentication'), findsNothing);
       expect(find.text('Session timeout'), findsOneWidget);
       expect(find.text('Audit logging'), findsOneWidget);
-      expect(find.text('Data Retention'), findsOneWidget);
-      expect(find.text('Audit log retention'), findsOneWidget);
-      expect(find.text('Backup schedule'), findsOneWidget);
+      expect(find.text('Allow new account creation'), findsOneWidget);
+      expect(find.text('Data Retention'), findsNothing);
+      expect(find.text('Audit log retention'), findsNothing);
+      expect(find.text('Backup schedule'), findsNothing);
       expect(find.text('Service Preferences'), findsOneWidget);
       expect(find.text('Public status page'), findsOneWidget);
 
-      // Maintenance Mode and Public status page both flag as not-yet-real.
-      expect(find.text('Coming Soon'), findsNWidgets(2));
+      // Default Language, Maintenance Mode, and Public status page all
+      // flag as not-yet-real.
+      expect(find.text('Coming Soon'), findsNWidgets(3));
 
       expect(find.text('Save Changes'), findsNothing);
       expect(find.text('Reset Changes'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'Admin System Settings Maintenance Mode and Public status page '
+    'switches are genuinely disabled, not just badged',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: const AdminSystemSettingsScreen(),
+        ),
+      );
+      await tester.pump();
+
+      final switches = tester.widgetList<Switch>(find.byType(Switch)).toList();
+      // Maintenance Mode (index 0) and Public status page (last) both have
+      // no onChanged at all — a disabled-looking Switch that's still live
+      // was the original bug.
+      expect(switches.first.onChanged, isNull);
+      expect(switches.last.onChanged, isNull);
+
+      await tester.tap(find.byType(Switch).first, warnIfMissed: false);
+      await tester.pump();
+      expect(find.text('Save Changes'), findsNothing);
     },
   );
 
@@ -1866,7 +1939,9 @@ void main() {
     );
     await tester.pump();
 
-    await tester.tap(find.byType(Switch).first);
+    // Index 1 is Audit logging — the first genuinely live switch
+    // (Maintenance Mode at index 0 is deliberately disabled).
+    await tester.tap(find.byType(Switch).at(1));
     await tester.pump();
 
     expect(find.text('Save Changes'), findsOneWidget);
@@ -1885,6 +1960,7 @@ void main() {
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
+    _preserveAdminSystemSettingsDirectory();
 
     await tester.pumpWidget(
       MaterialApp(
@@ -1894,7 +1970,7 @@ void main() {
     );
     await tester.pump();
 
-    await tester.tap(find.byType(Switch).first);
+    await tester.tap(find.byType(Switch).at(1));
     await tester.pump();
     await tester.tap(find.text('Save Changes'));
     await tester.pump();
@@ -2065,6 +2141,61 @@ void main() {
   );
 
   // ---------------------------------------------------------------------
+  // Admin Create User — "Allow new account creation" gate
+  // ---------------------------------------------------------------------
+
+  testWidgets(
+    'Admin Create User form and submit button are frozen when account '
+    'creation is turned off in System Settings',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      _preserveAdminSystemSettingsDirectory();
+      AdminSystemSettingsDirectory.instance.settings.value =
+          AdminSystemSettingsDirectory.instance.settings.value.copyWith(
+            allowNewAccountCreation: false,
+          );
+
+      await tester.pumpWidget(
+        MaterialApp(theme: AppTheme.light, home: const AdminCreateUserScreen()),
+      );
+      await tester.pump();
+
+      expect(find.text('Account creation is paused'), findsOneWidget);
+
+      final createButton = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Create User'),
+      );
+      expect(createButton.onPressed, isNull);
+    },
+  );
+
+  testWidgets(
+    'Admin Create User form is fully interactive when account creation is '
+    'allowed',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(theme: AppTheme.light, home: const AdminCreateUserScreen()),
+      );
+      await tester.pump();
+
+      expect(find.text('Account creation is paused'), findsNothing);
+
+      final createButton = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Create User'),
+      );
+      expect(createButton.onPressed, isNotNull);
+    },
+  );
+
+  // ---------------------------------------------------------------------
   // ADM-008 Admin Profile
   // ---------------------------------------------------------------------
 
@@ -2127,15 +2258,17 @@ void main() {
       expect(find.text('ADM-001'), findsOneWidget);
       expect(find.text('Access Summary'), findsOneWidget);
       expect(find.text('92% governance checklist complete'), findsOneWidget);
-      expect(find.text('Preferences'), findsOneWidget);
+      expect(find.text('System Preferences'), findsOneWidget);
       expect(find.text('Theme'), findsOneWidget);
       expect(find.text('System'), findsOneWidget);
       expect(find.text('Light'), findsOneWidget);
       expect(find.text('Dark'), findsOneWidget);
+      expect(find.text('Language'), findsOneWidget);
+      expect(find.text('English'), findsOneWidget);
+      expect(find.text('Coming Soon'), findsOneWidget);
       expect(find.text('Security Settings'), findsOneWidget);
       expect(find.text('Change Password'), findsOneWidget);
-      expect(find.text('Two-factor authentication'), findsOneWidget);
-      expect(find.text('Enabled'), findsOneWidget);
+      expect(find.text('Two-factor authentication'), findsNothing);
       expect(find.text('Administrative Scope'), findsOneWidget);
       expect(find.text('Users'), findsWidgets);
       expect(find.text('Roles'), findsWidgets);
@@ -2587,6 +2720,29 @@ void main() {
         ),
       );
       expect(leadIcon.color, AppColors.warning);
+    },
+  );
+
+  testWidgets(
+    "Admin's bell routes straight to System Activity, not a separate "
+    'Notifications screen',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        const app.CivicVoiceApp(initialRoute: app.AppRoutes.adminDashboard),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+
+      await tester.tap(find.byIcon(AppIcons.notifications));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+
+      expect(find.text('Recent Activity'), findsOneWidget);
     },
   );
 }

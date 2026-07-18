@@ -41,6 +41,7 @@ class MunicipalInboxScreen extends StatefulWidget {
     this.onNavigateToActiveReports,
     this.onNavigateToResolvedReports,
     this.onProfileTap,
+    this.onNotificationsTap,
     this.onReportTap,
   });
 
@@ -64,6 +65,9 @@ class MunicipalInboxScreen extends StatefulWidget {
   /// Opens MUN-009 Municipal Profile — wired to the header's profile
   /// avatar, now that it exists.
   final VoidCallback? onProfileTap;
+
+  /// Opens Municipal Notifications — wired to the header's bell icon.
+  final VoidCallback? onNotificationsTap;
 
   /// Wired by the app shell to navigate to MUN-003 Report Review.
   final ValueChanged<IncomingReportItem>? onReportTap;
@@ -139,9 +143,7 @@ class _MunicipalInboxScreenState extends State<MunicipalInboxScreen> {
   Widget build(BuildContext context) {
     return MunicipalScaffold(
       selectedTab: MunicipalTab.inbox,
-      // Notifications isn't one of the 9 approved MUN screens (Issue 03
-      // §7) — left as a placeholder until that screen is specified.
-      onNotificationsTap: () {},
+      onNotificationsTap: widget.onNotificationsTap,
       onProfileTap: widget.onProfileTap,
       onTabSelected: (tab) {
         if (tab == MunicipalTab.dashboard) widget.onNavigateToDashboard?.call();

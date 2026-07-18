@@ -13,11 +13,15 @@ class DashboardScreen extends StatefulWidget {
     super.key,
     this.onNavigateToTasks,
     this.onNavigateToProfile,
+    this.onNotificationsTap,
     this.onOpenTaskDetails,
   });
 
   final VoidCallback? onNavigateToTasks;
   final VoidCallback? onNavigateToProfile;
+
+  /// Opens Maintenance Notifications — wired to the header's bell icon.
+  final VoidCallback? onNotificationsTap;
 
   /// Opens Task Details for the tapped task, by [MaintenanceTask.id] — each
   /// row now opens the specific task it represents, rather than every row
@@ -36,12 +40,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget build(BuildContext context) {
     return MaintenanceScaffold(
       selectedTab: MaintenanceTab.dashboard,
-      // Notifications isn't one of the seven approved MNT screens — left as
-      // a placeholder until that screen is specified, matching every other
-      // module's identical stub. Previously this wired straight to Assigned
-      // Tasks, which made a notification bell behave like a second "Tasks"
-      // tab button rather than its own affordance.
-      onNotificationsTap: () {},
+      onNotificationsTap: widget.onNotificationsTap,
       onProfileTap: widget.onNavigateToProfile,
       onTabSelected: (tab) {
         if (tab == MaintenanceTab.tasks) widget.onNavigateToTasks?.call();

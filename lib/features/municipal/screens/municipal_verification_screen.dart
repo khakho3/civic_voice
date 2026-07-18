@@ -4,11 +4,12 @@ import '../../../core/theme/app_theme.dart';
 import '../../../models/report_status.dart';
 import '../models/verification_data.dart';
 import '../services/municipal_report_directory.dart';
+import '../../../widgets/app_state_message.dart';
+import '../../../widgets/confirm_dialog.dart';
 import '../../../widgets/glass_card.dart';
+import '../../../widgets/status_badge.dart';
 import '../widgets/municipal_detail_header.dart';
 import '../widgets/officer_contact_row.dart';
-import '../../../widgets/app_state_message.dart';
-import '../../../widgets/status_badge.dart';
 
 /// MUN-004 — Verify / Reject Report.
 ///
@@ -108,7 +109,18 @@ class _MunicipalVerificationScreenState
     });
   }
 
-  void _submitReject() {
+  Future<void> _submitReject() async {
+    final confirmed = await showConfirmDialog(
+      context,
+      title: 'Reject this report?',
+      message:
+          'The citizen who submitted ${widget.referenceId} will be notified '
+          'that it was rejected. This can\'t be undone.',
+      confirmLabel: 'Reject',
+      destructive: true,
+    );
+    if (!confirmed || !mounted) return;
+
     _rejectedWithReason = _reasonController.text.trim().isNotEmpty;
     setState(() => _state = MunicipalVerificationViewState.loading);
     Future.delayed(const Duration(milliseconds: 500), () {

@@ -12,6 +12,7 @@ import 'package:civic_voice/features/municipal/screens/municipal_active_reports_
 import 'package:civic_voice/features/municipal/screens/municipal_assign_team_screen.dart';
 import 'package:civic_voice/features/municipal/screens/municipal_dashboard_screen.dart';
 import 'package:civic_voice/features/municipal/screens/municipal_inbox_screen.dart';
+import 'package:civic_voice/features/municipal/screens/municipal_notifications_screen.dart';
 import 'package:civic_voice/features/municipal/screens/municipal_profile_screen.dart';
 import 'package:civic_voice/features/municipal/screens/municipal_report_progress_screen.dart';
 import 'package:civic_voice/features/municipal/screens/municipal_report_review_screen.dart';
@@ -21,6 +22,7 @@ import 'package:civic_voice/features/municipal/screens/municipal_verification_sc
 import 'package:civic_voice/models/ghana_assemblies_data.dart';
 import 'package:civic_voice/models/region.dart';
 import 'package:civic_voice/models/team_availability.dart';
+import 'package:civic_voice/services/notification_directory.dart';
 import 'package:civic_voice/widgets/collapsible_list_header.dart';
 
 /// Replaces the live `MaintenanceTeamDirectory` with 4 predictable teams for
@@ -80,6 +82,16 @@ void _preserveMunicipalReportDirectory() {
   final original = MunicipalReportDirectory.instance.reports.value;
   addTearDown(
     () => MunicipalReportDirectory.instance.reports.value = original,
+  );
+}
+
+/// Snapshots the live `NotificationDirectory` read ledger and restores it
+/// after the test — for tests that open a real notifications screen, which
+/// marks ids read for real against this same shared singleton.
+void _preserveNotificationReadIds() {
+  final original = NotificationDirectory.instance.readIds.value;
+  addTearDown(
+    () => NotificationDirectory.instance.readIds.value = original,
   );
 }
 
@@ -565,6 +577,8 @@ void main() {
       );
       await tester.pumpAndSettle();
       await tester.tap(find.text('Reject Report'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Reject'));
       await tester.pumpAndSettle(const Duration(milliseconds: 600));
 
       expect(
@@ -597,6 +611,8 @@ void main() {
       await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextField), 'Not a real pothole.');
       await tester.tap(find.text('Reject Report'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Reject'));
       await tester.pumpAndSettle(const Duration(milliseconds: 600));
 
       expect(
@@ -1722,8 +1738,14 @@ void main() {
     expect(find.text('Urban Planning & Dev'), findsOneWidget);
     expect(find.text('Director M. Chen'), findsOneWidget);
     expect(find.text('Change Password'), findsOneWidget);
-    expect(find.text('Two-Factor Authentication'), findsOneWidget);
-    expect(find.text('Login Sessions'), findsOneWidget);
+    expect(find.text('Two-Factor Authentication'), findsNothing);
+    expect(find.text('Login Sessions'), findsNothing);
+
+    // System Preferences: theme control + disabled Language row.
+    expect(find.text('System Preferences'), findsOneWidget);
+    expect(find.text('Language'), findsOneWidget);
+    expect(find.text('English'), findsOneWidget);
+    expect(find.text('Coming Soon'), findsOneWidget);
   });
 
   testWidgets('Municipal Profile Change Password fires onChangePassword', (
@@ -1811,22 +1833,15 @@ void main() {
   );
 
   testWidgets(
-    'Municipal Profile kebab menu offers Settings alongside Edit Profile '
-    'and Log Out',
+    'Municipal Profile kebab menu offers only Edit Profile and Log Out',
     (WidgetTester tester) async {
       tester.view.physicalSize = const Size(428, 2600);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
 
-      var settingsTapped = false;
       await tester.pumpWidget(
-        MaterialApp(
-          theme: AppTheme.light,
-          home: MunicipalProfileScreen(
-            onSettingsTap: () => settingsTapped = true,
-          ),
-        ),
+        MaterialApp(theme: AppTheme.light, home: const MunicipalProfileScreen()),
       );
       await tester.pumpAndSettle();
 
@@ -1834,13 +1849,53 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Edit Profile'), findsOneWidget);
-      expect(find.text('Settings'), findsOneWidget);
+      expect(find.text('Settings'), findsNothing);
       expect(find.text('Log Out'), findsOneWidget);
+    },
+  );
 
-      await tester.tap(find.text('Settings'));
+  testWidgets(
+    'Municipal Profile Log Out asks for confirmation before firing the '
+    'callback',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      var loggedOut = false;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: MunicipalProfileScreen(onLogOut: () => loggedOut = true),
+        ),
+      );
       await tester.pumpAndSettle();
 
-      expect(settingsTapped, isTrue);
+      await tester.tap(find.byIcon(AppIcons.more));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Log Out'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Log out?'), findsOneWidget);
+      expect(loggedOut, isFalse);
+
+      // Dismissing via Cancel doesn't log out.
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(loggedOut, isFalse);
+      expect(find.text('Log out?'), findsNothing);
+
+      // Confirming via the dialog's own button (shares the trigger item's
+      // label, hence .last) does log out.
+      await tester.tap(find.byIcon(AppIcons.more));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Log Out'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Log Out').last);
+      await tester.pumpAndSettle();
+
+      expect(loggedOut, isTrue);
     },
   );
 
@@ -1943,6 +1998,41 @@ void main() {
       expect(find.text('Municipal Profile'), findsOneWidget);
       expect(find.text('Alex Johnston'), findsOneWidget);
       expect(find.text('Someone Else'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'Municipal Notifications shows new incoming reports and marks them '
+    'read on open',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      _preserveMunicipalReportDirectory();
+      _preserveNotificationReadIds();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: const MunicipalNotificationsScreen(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('New incoming report'), findsOneWidget);
+      expect(
+        find.text('Traffic Light Malfunction was just submitted.'),
+        findsOneWidget,
+      );
+      // Opening the screen marks every visible notification read — the
+      // same signal that clears both the bell and the Inbox tab dot.
+      expect(
+        NotificationDirectory.instance.hasUnread(
+          NotificationDirectory.instance.forMunicipal(),
+        ),
+        isFalse,
+      );
     },
   );
 }

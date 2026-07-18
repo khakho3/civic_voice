@@ -41,6 +41,7 @@ class MinistryAnalyticsScreen extends StatefulWidget {
     this.onNavigateToMunicipalities,
     this.onNavigateToReports,
     this.onProfileTap,
+    this.onNotificationsTap,
     this.onViewReportInsights,
   });
 
@@ -53,6 +54,9 @@ class MinistryAnalyticsScreen extends StatefulWidget {
 
   /// Opens MIN-006 Ministry Profile — wired to the header's profile avatar.
   final VoidCallback? onProfileTap;
+
+  /// Opens Ministry Notifications — wired to the header's bell icon.
+  final VoidCallback? onNotificationsTap;
 
   /// Opens MIN-005 Report Insights — wired to the "Trend Insights" callout,
   /// one of that screen's two spec'd entry points (the other is MIN-004
@@ -99,7 +103,7 @@ class _MinistryAnalyticsScreenState extends State<MinistryAnalyticsScreen> {
 
     return MinistryScaffold(
       selectedTab: MinistryTab.analytics,
-      onNotificationsTap: () {},
+      onNotificationsTap: widget.onNotificationsTap,
       onProfileTap: widget.onProfileTap,
       onTabSelected: (tab) {
         if (tab == MinistryTab.dashboard) widget.onNavigateToDashboard?.call();

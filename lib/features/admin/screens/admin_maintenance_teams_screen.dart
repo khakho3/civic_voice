@@ -35,6 +35,7 @@ class AdminMaintenanceTeamsScreen extends StatefulWidget {
     this.onNavigateToSettings,
     this.onNavigateToActivity,
     this.onOpenProfile,
+    this.onNotificationsTap,
     this.onCreateTeam,
     this.onOpenTeamDetails,
   });
@@ -46,6 +47,10 @@ class AdminMaintenanceTeamsScreen extends StatefulWidget {
   final VoidCallback? onNavigateToSettings;
   final VoidCallback? onNavigateToActivity;
   final VoidCallback? onOpenProfile;
+
+  /// Opens Admin Notifications (System Activity) — wired to the header's
+  /// bell icon.
+  final VoidCallback? onNotificationsTap;
   final VoidCallback? onCreateTeam;
   final ValueChanged<MaintenanceTeam>? onOpenTeamDetails;
 
@@ -99,6 +104,7 @@ class _AdminMaintenanceTeamsScreenState
       onOpenRoleManagement: widget.onNavigateToRoles,
       onOpenMaintenanceTeams: () {},
       onOpenProfile: widget.onOpenProfile,
+      onNotificationsTap: widget.onNotificationsTap,
       body: Stack(
         children: [
           Positioned.fill(child: _buildBody(context, chromeEnabled)),
@@ -198,6 +204,7 @@ class AdminMaintenanceTeamFormScreen extends StatefulWidget {
     this.onNavigateToSettings,
     this.onNavigateToActivity,
     this.onOpenProfile,
+    this.onNotificationsTap,
     this.onClose,
   });
 
@@ -208,6 +215,10 @@ class AdminMaintenanceTeamFormScreen extends StatefulWidget {
   final VoidCallback? onNavigateToSettings;
   final VoidCallback? onNavigateToActivity;
   final VoidCallback? onOpenProfile;
+
+  /// Opens Admin Notifications (System Activity) — wired to the header's
+  /// bell icon.
+  final VoidCallback? onNotificationsTap;
   final VoidCallback? onClose;
 
   @override
@@ -322,6 +333,7 @@ class _AdminMaintenanceTeamFormScreenState
       onOpenRoleManagement: widget.onNavigateToRoles,
       onOpenMaintenanceTeams: widget.onClose,
       onOpenProfile: widget.onOpenProfile,
+      onNotificationsTap: widget.onNotificationsTap,
       hideBottomNav: true,
       body: ValueListenableBuilder<List<MaintenanceTeam>>(
         valueListenable: MaintenanceTeamDirectory.instance.teams,
@@ -469,6 +481,7 @@ class AdminMaintenanceTeamDetailsScreen extends StatelessWidget {
     this.onNavigateToSettings,
     this.onNavigateToActivity,
     this.onOpenProfile,
+    this.onNotificationsTap,
     this.onBackToTeams,
     this.onEditTeam,
     this.onOpenUserDetails,
@@ -481,6 +494,10 @@ class AdminMaintenanceTeamDetailsScreen extends StatelessWidget {
   final VoidCallback? onNavigateToSettings;
   final VoidCallback? onNavigateToActivity;
   final VoidCallback? onOpenProfile;
+
+  /// Opens Admin Notifications (System Activity) — wired to the header's
+  /// bell icon.
+  final VoidCallback? onNotificationsTap;
   final VoidCallback? onBackToTeams;
   final ValueChanged<MaintenanceTeam>? onEditTeam;
   final ValueChanged<AdminUserItem>? onOpenUserDetails;
@@ -500,6 +517,7 @@ class AdminMaintenanceTeamDetailsScreen extends StatelessWidget {
             onNavigateToSettings: onNavigateToSettings,
             onNavigateToActivity: onNavigateToActivity,
             onOpenProfile: onOpenProfile,
+            onNotificationsTap: onNotificationsTap,
           );
         }
         return _TeamDetailsBody(
@@ -510,6 +528,7 @@ class AdminMaintenanceTeamDetailsScreen extends StatelessWidget {
           onNavigateToSettings: onNavigateToSettings,
           onNavigateToActivity: onNavigateToActivity,
           onOpenProfile: onOpenProfile,
+          onNotificationsTap: onNotificationsTap,
           onBackToTeams: onBackToTeams,
           onEditTeam: onEditTeam,
           onOpenUserDetails: onOpenUserDetails,
@@ -740,6 +759,7 @@ class _TeamDetailsBody extends StatelessWidget {
     this.onNavigateToSettings,
     this.onNavigateToActivity,
     this.onOpenProfile,
+    this.onNotificationsTap,
     this.onBackToTeams,
     this.onEditTeam,
     this.onOpenUserDetails,
@@ -752,6 +772,7 @@ class _TeamDetailsBody extends StatelessWidget {
   final VoidCallback? onNavigateToSettings;
   final VoidCallback? onNavigateToActivity;
   final VoidCallback? onOpenProfile;
+  final VoidCallback? onNotificationsTap;
   final VoidCallback? onBackToTeams;
   final ValueChanged<MaintenanceTeam>? onEditTeam;
   final ValueChanged<AdminUserItem>? onOpenUserDetails;
@@ -777,6 +798,7 @@ class _TeamDetailsBody extends StatelessWidget {
       onOpenRoleManagement: onNavigateToRoles,
       onOpenMaintenanceTeams: onBackToTeams,
       onOpenProfile: onOpenProfile,
+      onNotificationsTap: onNotificationsTap,
       body: ListView(
         padding: EdgeInsets.fromLTRB(
           AppSpacing.md,
@@ -1203,6 +1225,7 @@ class _MissingTeamScreen extends StatelessWidget {
     this.onNavigateToSettings,
     this.onNavigateToActivity,
     this.onOpenProfile,
+    this.onNotificationsTap,
   });
 
   final VoidCallback? onBackToTeams;
@@ -1212,6 +1235,7 @@ class _MissingTeamScreen extends StatelessWidget {
   final VoidCallback? onNavigateToSettings;
   final VoidCallback? onNavigateToActivity;
   final VoidCallback? onOpenProfile;
+  final VoidCallback? onNotificationsTap;
 
   @override
   Widget build(BuildContext context) {
@@ -1228,6 +1252,7 @@ class _MissingTeamScreen extends StatelessWidget {
       onOpenRoleManagement: onNavigateToRoles,
       onOpenMaintenanceTeams: onBackToTeams,
       onOpenProfile: onOpenProfile,
+      onNotificationsTap: onNotificationsTap,
       body: Padding(
         padding: AdminScaffold.contentPadding(context),
         child: AppStateMessage(

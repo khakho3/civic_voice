@@ -1,9 +1,15 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
-import '../../../core/theme/theme_controller.dart';
 import '../../../widgets/app_state_message.dart';
 import '../../../widgets/confirm_dialog.dart';
+import '../../../widgets/language_preference_row.dart';
+import '../../../widgets/profile_action_row.dart';
+import '../../../widgets/profile_edit_action_bar.dart';
+import '../../../widgets/profile_field_row.dart';
+import '../../../widgets/profile_header_card.dart';
+import '../../../widgets/profile_section.dart';
+import '../../../widgets/theme_preference_row.dart';
 import '../models/admin_profile_data.dart';
 import '../widgets/admin_scaffold.dart';
 
@@ -313,7 +319,11 @@ class _ProfileBody extends StatelessWidget {
         // screen this long, a Save button that only appears after
         // scrolling all the way down is easy to miss entirely.
         if (editing)
-          _SaveBar(saveState: saveState, onCancel: onCancel, onSave: onSave),
+          ProfileEditActionBar(
+            onCancel: onCancel,
+            onSave: onSave,
+            saving: saveState == AdminProfileSaveState.saving,
+          ),
       ],
     );
   }
@@ -331,7 +341,10 @@ class _ProfileBody extends StatelessWidget {
         editing ? AppSpacing.md : chromeInset.bottom + AppSpacing.xl,
       ),
       children: [
-        _ProfileCard(fullName: draft.fullName),
+        ProfileHeaderCard(
+          name: draft.fullName,
+          subtitle: 'Administrator account · Governance approved',
+        ),
         const SizedBox(height: AppSpacing.lg),
         _AccessSummaryCard(percent: draft.governanceChecklistPercent),
         const SizedBox(height: AppSpacing.lg),
@@ -355,7 +368,7 @@ class _ProfileBody extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.lg),
         ],
-        _Section(
+        ProfileSection(
           icon: AppIcons.roleManagement,
           title: 'Administrator Information',
           trailing: editing
@@ -366,7 +379,7 @@ class _ProfileBody extends StatelessWidget {
                   tooltip: 'Edit',
                 ),
           children: [
-            _ProfileField(
+            ProfileFieldRow(
               label: 'Full Name',
               value: draft.fullName,
               editable: editing,
@@ -374,64 +387,60 @@ class _ProfileBody extends StatelessWidget {
               onChanged: (v) => onUpdate((d) => d.copyWith(fullName: v)),
             ),
             const SizedBox(height: AppSpacing.sm),
-            _ProfileField(
+            ProfileFieldRow(
               label: 'Email',
               value: draft.email,
-              editable: false,
               caption: editing
                   ? 'Contact your administrator to change this'
                   : null,
             ),
             const SizedBox(height: AppSpacing.sm),
-            _ProfileField(
+            ProfileFieldRow(
               label: 'Phone Number',
               value: draft.phone,
-              editable: false,
               caption: editing
                   ? 'Contact your administrator to change this'
                   : null,
             ),
             const SizedBox(height: AppSpacing.sm),
-            _ProfileField(
+            ProfileFieldRow(
               label: 'Department',
               value: draft.department,
               editable: editing,
               onChanged: (v) => onUpdate((d) => d.copyWith(department: v)),
             ),
             const SizedBox(height: AppSpacing.sm),
-            _ProfileField(
+            ProfileFieldRow(
               label: 'Admin ID',
               value: draft.adminId,
-              editable: false,
+              locked: true,
             ),
           ],
         ),
         const SizedBox(height: AppSpacing.lg),
-        const _Section(
+        ProfileSection(
           icon: AppIcons.systemTheme,
-          title: 'Preferences',
-          children: [_ThemeRow()],
+          title: 'System Preferences',
+          children: const [
+            ThemePreferenceRow(),
+            Divider(height: AppSpacing.lg),
+            LanguagePreferenceRow(),
+          ],
         ),
         const SizedBox(height: AppSpacing.lg),
-        _Section(
+        ProfileSection(
           icon: AppIcons.shield,
           title: 'Security Settings',
           children: [
-            _NavRow(
+            ProfileActionRow(
               icon: AppIcons.password,
               label: 'Change Password',
               onTap: onChangePassword,
             ),
-            const Divider(height: AppSpacing.lg),
-            _NavRow(
-              icon: AppIcons.security,
-              label: 'Two-factor authentication',
-              trailingLabel: draft.twoFactorEnabled ? 'Enabled' : 'Disabled',
-            ),
           ],
         ),
         const SizedBox(height: AppSpacing.lg),
-        _Section(
+        ProfileSection(
           icon: AppIcons.shieldAlert,
           title: 'Administrative Scope',
           children: [
@@ -443,19 +452,19 @@ class _ProfileBody extends StatelessWidget {
               ],
             ),
             const SizedBox(height: AppSpacing.md),
-            _ProfileField(
+            ProfileFieldRow(
               label: 'Governance Level',
               value: draft.governanceLevel,
-              editable: false,
+              locked: true,
             ),
           ],
         ),
         const SizedBox(height: AppSpacing.lg),
-        _Section(
+        ProfileSection(
           icon: AppIcons.activityPulse,
           title: 'Session',
           children: [
-            _NavRow(
+            ProfileActionRow(
               icon: AppIcons.activityPulse,
               label: 'Last activity',
               trailingLabel: _formatActivity(draft.lastActivity),
@@ -490,122 +499,6 @@ class _ProfileBody extends StatelessWidget {
           ],
         ),
       ],
-    );
-  }
-}
-
-/// Sits at the bottom of the screen, below the scrollable list — not the
-/// last item inside it — so Save/Cancel stay reachable without scrolling
-/// all the way down a screen this long to find them. [AdminScaffold]'s
-/// floating bottom nav is hidden while editing (via `hideBottomNav`), so
-/// this only needs to clear the raw safe-area inset, not the nav's own
-/// height on top of it.
-class _SaveBar extends StatelessWidget {
-  const _SaveBar({
-    required this.saveState,
-    required this.onCancel,
-    required this.onSave,
-  });
-
-  final AdminProfileSaveState saveState;
-  final VoidCallback onCancel;
-  final VoidCallback onSave;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final safeAreaBottom = MediaQuery.paddingOf(context).bottom;
-    return Container(
-      padding: EdgeInsets.fromLTRB(
-        AppSpacing.md,
-        AppSpacing.sm,
-        AppSpacing.md,
-        safeAreaBottom + AppSpacing.sm,
-      ),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        border: Border(top: BorderSide(color: colorScheme.outlineVariant)),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: OutlinedButton(
-              onPressed: onCancel,
-              child: const Text('Cancel'),
-            ),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: FilledButton(
-              onPressed: saveState == AdminProfileSaveState.saving
-                  ? null
-                  : onSave,
-              child: saveState == AdminProfileSaveState.saving
-                  ? const SizedBox(
-                      width: AppIconSize.sm,
-                      height: AppIconSize.sm,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Text('Save Changes'),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ProfileCard extends StatelessWidget {
-  const _ProfileCard({required this.fullName});
-
-  final String fullName;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final colorScheme = Theme.of(context).colorScheme;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: AppComponentRadius.card,
-        border: Border.all(color: colorScheme.outlineVariant),
-      ),
-      child: Column(
-        children: [
-          Container(
-            width: 96,
-            height: 96,
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.12),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              AppIcons.verify,
-              size: AppIconSize.xl,
-              color: AppColors.primary,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Text(
-            fullName,
-            style: textTheme.titleLarge,
-            textAlign: TextAlign.center,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 2),
-          Text(
-            'Administrator account · Governance approved',
-            style: textTheme.bodyMedium,
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
     );
   }
 }
@@ -704,255 +597,6 @@ class _Banner extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _Section extends StatelessWidget {
-  const _Section({
-    required this.icon,
-    required this.title,
-    required this.children,
-    this.trailing,
-  });
-
-  final IconData icon;
-  final String title;
-  final List<Widget> children;
-  final Widget? trailing;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final colorScheme = Theme.of(context).colorScheme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(icon, size: AppIconSize.sm, color: AppColors.primary),
-            const SizedBox(width: AppSpacing.xs),
-            Expanded(
-              child: Text(
-                title,
-                style: textTheme.titleMedium,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            ?trailing,
-          ],
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(AppSpacing.md),
-          decoration: BoxDecoration(
-            color: colorScheme.surface,
-            borderRadius: AppComponentRadius.card,
-            border: Border.all(color: colorScheme.outlineVariant),
-          ),
-          child: Column(children: children),
-        ),
-      ],
-    );
-  }
-}
-
-class _ProfileField extends StatelessWidget {
-  const _ProfileField({
-    required this.label,
-    required this.value,
-    required this.editable,
-    this.errorText,
-    this.onChanged,
-    this.caption,
-  });
-
-  final String label;
-  final String value;
-  final bool editable;
-  final String? errorText;
-  final ValueChanged<String>? onChanged;
-
-  /// Shown under a locked (`editable: false`) field to explain why it's
-  /// disabled, e.g. "Contact your administrator to change this." Ignored
-  /// when [errorText] is set.
-  final String? caption;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final colorScheme = Theme.of(context).colorScheme;
-    final hasError = errorText != null;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: textTheme.bodySmall),
-        const SizedBox(height: AppSpacing.xs),
-        Container(
-          width: double.infinity,
-          decoration: BoxDecoration(
-            color: hasError
-                ? AppColors.error.withValues(alpha: 0.08)
-                : colorScheme.surfaceContainer,
-            borderRadius: AppComponentRadius.inputField,
-            border: hasError ? Border.all(color: AppColors.error) : null,
-          ),
-          child: editable
-              ? TextFormField(
-                  initialValue: value,
-                  onChanged: onChanged,
-                  decoration: const InputDecoration(
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: AppSpacing.md,
-                      vertical: AppSpacing.sm,
-                    ),
-                  ),
-                )
-              : Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.md,
-                    vertical: AppSpacing.sm,
-                  ),
-                  child: Text(
-                    value,
-                    style: textTheme.bodyLarge,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-        ),
-        if (errorText != null) ...[
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            errorText!,
-            style: textTheme.bodySmall?.copyWith(color: AppColors.error),
-          ),
-        ] else if (caption != null) ...[
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            caption!,
-            style: textTheme.bodySmall?.copyWith(
-              color: colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-}
-
-class _NavRow extends StatelessWidget {
-  const _NavRow({
-    required this.icon,
-    required this.label,
-    this.trailingLabel,
-    this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final String? trailingLabel;
-
-  /// Null for rows with nowhere to go yet (e.g. Two-factor authentication,
-  /// Last activity — both still placeholders pending spec). The trailing
-  /// chevron only renders when this is set, so a row never implies
-  /// navigability it doesn't actually have.
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final colorScheme = Theme.of(context).colorScheme;
-    final row = Row(
-      children: [
-        Icon(icon, size: AppIconSize.sm, color: AppColors.primary),
-        const SizedBox(width: AppSpacing.sm),
-        Expanded(
-          child: Text(
-            label,
-            style: textTheme.bodyLarge,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
-        if (trailingLabel != null) ...[
-          Text(
-            trailingLabel!,
-            style: textTheme.bodyMedium?.copyWith(
-              color: colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(width: AppSpacing.xs),
-        ],
-        if (onTap != null)
-          Icon(
-            AppIcons.chevronRight,
-            size: AppIconSize.sm,
-            color: colorScheme.onSurfaceVariant,
-          ),
-      ],
-    );
-
-    if (onTap == null) return row;
-
-    return InkWell(
-      onTap: onTap,
-      borderRadius: AppRadius.allSm,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-        child: row,
-      ),
-    );
-  }
-}
-
-/// Theme preference row for the "Preferences" [_Section] — System/Light/
-/// Dark, backed by [ThemeController]. Admin-only for now; Citizen
-/// Profile's own binary Switch stays as-is until the rest of the modules
-/// get the same three-way control in a later pass.
-class _ThemeRow extends StatelessWidget {
-  const _ThemeRow();
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    return ValueListenableBuilder<ThemeMode>(
-      valueListenable: ThemeController.mode,
-      builder: (context, mode, _) {
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Theme', style: textTheme.bodyLarge),
-            const SizedBox(height: AppSpacing.sm),
-            SegmentedButton<ThemeMode>(
-              segments: const [
-                ButtonSegment(
-                  value: ThemeMode.system,
-                  label: Text('System'),
-                  icon: Icon(AppIcons.systemTheme, size: AppIconSize.sm),
-                ),
-                ButtonSegment(
-                  value: ThemeMode.light,
-                  label: Text('Light'),
-                  icon: Icon(AppIcons.sun, size: AppIconSize.sm),
-                ),
-                ButtonSegment(
-                  value: ThemeMode.dark,
-                  label: Text('Dark'),
-                  icon: Icon(AppIcons.moon, size: AppIconSize.sm),
-                ),
-              ],
-              selected: {mode},
-              showSelectedIcon: false,
-              onSelectionChanged: (selected) =>
-                  ThemeController.setThemeMode(selected.first),
-            ),
-          ],
-        );
-      },
     );
   }
 }

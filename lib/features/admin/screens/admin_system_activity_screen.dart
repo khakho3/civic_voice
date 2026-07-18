@@ -6,6 +6,7 @@ import '../../../widgets/collapsible_list_header.dart';
 import '../../../widgets/glass_card.dart';
 import '../models/admin_system_activity_data.dart';
 import '../services/admin_session.dart';
+import '../services/admin_system_settings_directory.dart';
 import '../widgets/admin_scaffold.dart';
 
 const _kMonthNames = [
@@ -182,26 +183,28 @@ class _AdminSystemActivityScreenState extends State<AdminSystemActivityScreen> {
       onOpenProfile: widget.onOpenProfile,
       body: switch (_state) {
         AdminSystemActivityViewState.loading => const _LoadingSkeleton(),
-        AdminSystemActivityViewState.loaded => Padding(
-          padding: EdgeInsets.only(
-            top: AdminScaffold.contentPadding(context).top,
-          ),
-          child: CollapsibleListHeader(
-            header: _FilterChrome(
-              filter: _filter,
-              timeRange: _timeRange,
-              enabled: true,
-              onFilterSelected: (f) => setState(() => _filter = f),
-              onTimeRangeChanged: (r) => setState(() => _timeRange = r),
+        AdminSystemActivityViewState.loaded => Column(
+          children: [
+            SizedBox(height: AdminScaffold.contentPadding(context).top),
+            Expanded(
+              child: CollapsibleListHeader(
+                header: _FilterChrome(
+                  filter: _filter,
+                  timeRange: _timeRange,
+                  enabled: true,
+                  onFilterSelected: (f) => setState(() => _filter = f),
+                  onTimeRangeChanged: (r) => setState(() => _timeRange = r),
+                ),
+                child: _ActivityList(
+                  healthStats: _healthStats,
+                  items: _items,
+                  filter: _filter,
+                  timeRange: _timeRange,
+                  onClearFilters: _clearFilters,
+                ),
+              ),
             ),
-            child: _ActivityList(
-              healthStats: _healthStats,
-              items: _items,
-              filter: _filter,
-              timeRange: _timeRange,
-              onClearFilters: _clearFilters,
-            ),
-          ),
+          ],
         ),
         _ => Column(
           children: [
@@ -572,11 +575,17 @@ class _ActivityList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bottomInset = AdminScaffold.contentPadding(context).bottom;
+    final auditLoggingOn =
+        AdminSystemSettingsDirectory.instance.settings.value.auditLogging;
     final filtered = items
         .where((i) => filter.matches(i) && i.matchesTimeRange(timeRange))
         .toList();
 
     return ListView(
+      // Stays draggable even when the collapsed chrome lets a short (e.g.
+      // filtered-down) list fit the viewport — see Municipal's own list
+      // screens for the failure mode this prevents.
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: EdgeInsets.fromLTRB(
         AppSpacing.md,
         AppSpacing.sm,
@@ -588,7 +597,9 @@ class _ActivityList extends StatelessWidget {
           _HealthStatsRow(stats: healthStats),
           const SizedBox(height: AppSpacing.md),
         ],
-        if (filtered.isEmpty)
+        if (!auditLoggingOn)
+          const _AuditLoggingOffNotice()
+        else if (filtered.isEmpty)
           _InlineEmptyHint(onClear: onClearFilters)
         else
           for (final item in filtered)
@@ -597,6 +608,47 @@ class _ActivityList extends StatelessWidget {
               child: _ActivityCard(item: item),
             ),
       ],
+    );
+  }
+}
+
+/// Shown instead of the activity feed when ADM-007 System Settings' "Audit
+/// logging" is off — the feed reads from that same directory, so this is
+/// the real, honest state of "there's nothing being recorded right now,"
+/// not a cosmetic empty state.
+class _AuditLoggingOffNotice extends StatelessWidget {
+  const _AuditLoggingOffNotice();
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final colorScheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
+      child: Column(
+        children: [
+          Icon(
+            AppIcons.activityLog,
+            size: AppIconSize.lg,
+            color: colorScheme.onSurfaceVariant,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            'Audit logging is turned off',
+            style: textTheme.titleSmall,
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            'No administrative activity is being recorded. Turn it back on '
+            'in System Settings to resume the audit trail.',
+            style: textTheme.bodySmall?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
     );
   }
 }

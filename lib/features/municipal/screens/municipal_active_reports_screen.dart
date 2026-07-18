@@ -46,6 +46,7 @@ class MunicipalActiveReportsScreen extends StatefulWidget {
     this.onNavigateToInbox,
     this.onNavigateToResolvedReports,
     this.onProfileTap,
+    this.onNotificationsTap,
     this.onReportTap,
     this.onSystemStatus,
   });
@@ -66,6 +67,9 @@ class MunicipalActiveReportsScreen extends StatefulWidget {
   /// Opens MUN-009 Municipal Profile — wired to the header's profile
   /// avatar, now that it exists.
   final VoidCallback? onProfileTap;
+
+  /// Opens Municipal Notifications — wired to the header's bell icon.
+  final VoidCallback? onNotificationsTap;
 
   /// Opens the tapped report's full detail (Report Progress — every report
   /// listed here is already past triage, so Report Review's Verify/Reject
@@ -199,9 +203,7 @@ class _MunicipalActiveReportsScreenState
     final chromeInset = MunicipalScaffold.contentPadding(context);
     return MunicipalScaffold(
       selectedTab: MunicipalTab.active,
-      // Notifications isn't one of the 9 approved MUN screens (Issue 03
-      // §7) — left as a placeholder until that screen is specified.
-      onNotificationsTap: () {},
+      onNotificationsTap: widget.onNotificationsTap,
       onProfileTap: widget.onProfileTap,
       onTabSelected: (tab) {
         if (tab == MunicipalTab.dashboard) widget.onNavigateToDashboard?.call();

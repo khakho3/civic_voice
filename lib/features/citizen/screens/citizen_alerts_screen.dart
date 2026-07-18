@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../models/notification_item.dart';
+import '../../../services/notification_directory.dart';
 import '../widgets/civic_glass_card.dart';
-import '../models/civic_report.dart';
 import '../services/report_crud_service.dart';
 import '../widgets/civic_app_chrome.dart';
 import 'citizen_profile_screen.dart';
@@ -20,8 +21,6 @@ class CitizenAlertsScreen extends StatefulWidget {
 }
 
 class _CitizenAlertsScreenState extends State<CitizenAlertsScreen> {
-  final Set<String> _readNotificationIds = <String>{};
-
   void _openDashboard() {
     Navigator.of(context).popUntil((route) => route.isFirst);
   }
@@ -47,59 +46,6 @@ class _CitizenAlertsScreenState extends State<CitizenAlertsScreen> {
     );
   }
 
-  void _markAsRead(String notificationId) {
-    setState(() => _readNotificationIds.add(notificationId));
-  }
-
-  List<_NotificationItem> _notificationsFor(
-    BuildContext context,
-    List<CivicReport> reports,
-  ) {
-    if (reports.isEmpty) return const <_NotificationItem>[];
-
-    return [
-      for (final report in reports)
-        _NotificationItem(
-          id: report.id.isEmpty ? report.title : report.id,
-          reportId: report.id,
-          title: switch (report.status) {
-            ReportStatus.submitted => 'Report submitted',
-            ReportStatus.underReview => 'Report under review',
-            ReportStatus.assigned => 'Report assigned',
-            ReportStatus.inProgress => 'Report moved to In Progress',
-            ReportStatus.resolved => 'Report resolved',
-            ReportStatus.rejected => 'Report rejected',
-          },
-          message: switch (report.status) {
-            ReportStatus.submitted =>
-              'Your report has been submitted and is waiting for review.',
-            ReportStatus.underReview =>
-              'Your report is being reviewed by the civic team.',
-            ReportStatus.assigned =>
-              'Your report was assigned to the responsible maintenance team.',
-            ReportStatus.inProgress =>
-              'Public Works has started repair work for this report.',
-            ReportStatus.resolved =>
-              'The responsible team has marked this report as resolved.',
-            ReportStatus.rejected =>
-              'Your report was reviewed and could not be accepted.',
-          },
-          reference: report.id.isEmpty ? 'Reference pending' : report.id,
-          timeLabel: report.timeLabel,
-          category: switch (report.status) {
-            ReportStatus.submitted => 'Report',
-            ReportStatus.underReview => 'Report',
-            ReportStatus.assigned => 'Status',
-            ReportStatus.inProgress => 'Status',
-            ReportStatus.resolved => 'Resolved',
-            ReportStatus.rejected => 'Rejected',
-          },
-          icon: report.status.icon,
-          color: report.status.color,
-        ),
-    ];
-  }
-
   @override
   Widget build(BuildContext context) {
     final compact = MediaQuery.sizeOf(context).width < 360;
@@ -113,12 +59,16 @@ class _CitizenAlertsScreenState extends State<CitizenAlertsScreen> {
       body: Stack(
         children: [
           Positioned.fill(
-            child: ValueListenableBuilder<List<CivicReport>>(
-              valueListenable: ReportCrudService.instance.reports,
-              builder: (context, reports, _) {
-                final notifications = _notificationsFor(context, reports);
+            child: AnimatedBuilder(
+              animation: Listenable.merge([
+                ReportCrudService.instance.reports,
+                NotificationDirectory.instance.readIds,
+              ]),
+              builder: (context, _) {
+                final notifications = NotificationDirectory.instance
+                    .forCitizen();
                 final unreadCount = notifications
-                    .where((item) => !_readNotificationIds.contains(item.id))
+                    .where((item) => !item.read)
                     .length;
                 final readCount = notifications.length - unreadCount;
                 final chromeInset = civicContentPadding(context);
@@ -148,15 +98,13 @@ class _CitizenAlertsScreenState extends State<CitizenAlertsScreen> {
                       for (final notification in notifications) ...[
                         _NotificationCard(
                           notification: notification,
-                          isUnread: !_readNotificationIds.contains(
-                            notification.id,
-                          ),
-                          onMarkRead: () => _markAsRead(notification.id),
+                          onMarkRead: () => NotificationDirectory.instance
+                              .markRead(notification.id),
                           onViewReport: () {
                             Navigator.of(context).push(
                               MaterialPageRoute<void>(
                                 builder: (_) => ReportTrackingScreen(
-                                  reportId: notification.reportId,
+                                  reportId: notification.referenceId ?? '',
                                 ),
                               ),
                             );
@@ -199,30 +147,6 @@ class _CitizenAlertsScreenState extends State<CitizenAlertsScreen> {
       ),
     );
   }
-}
-
-class _NotificationItem {
-  const _NotificationItem({
-    required this.id,
-    required this.reportId,
-    required this.title,
-    required this.message,
-    required this.reference,
-    required this.timeLabel,
-    required this.category,
-    required this.icon,
-    required this.color,
-  });
-
-  final String id;
-  final String reportId;
-  final String title;
-  final String message;
-  final String reference;
-  final String timeLabel;
-  final String category;
-  final IconData icon;
-  final Color color;
 }
 
 class _NotificationSummary extends StatelessWidget {
@@ -364,19 +288,18 @@ class _SummaryTile extends StatelessWidget {
 class _NotificationCard extends StatelessWidget {
   const _NotificationCard({
     required this.notification,
-    required this.isUnread,
     required this.onMarkRead,
     required this.onViewReport,
   });
 
-  final _NotificationItem notification;
-  final bool isUnread;
+  final NotificationItem notification;
   final VoidCallback onMarkRead;
   final VoidCallback onViewReport;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isUnread = !notification.read;
 
     return CivicGlassCard(
       borderRadius: AppRadius.allLg,
@@ -433,7 +356,7 @@ class _NotificationCard extends StatelessWidget {
                   children: [
                     _NotificationTag(label: notification.category),
                     Text(
-                      notification.reference,
+                      notification.referenceId ?? 'Reference pending',
                       style: theme.textTheme.labelSmall?.copyWith(
                         color: theme.colorScheme.secondary,
                       ),
@@ -482,7 +405,7 @@ class _NotificationCard extends StatelessWidget {
 class _NotificationIcon extends StatelessWidget {
   const _NotificationIcon({required this.notification});
 
-  final _NotificationItem notification;
+  final NotificationItem notification;
 
   @override
   Widget build(BuildContext context) {

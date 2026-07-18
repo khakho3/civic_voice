@@ -10,6 +10,7 @@ import 'package:civic_voice/features/ministry/screens/ministry_dashboard_screen.
 import 'package:civic_voice/features/ministry/models/municipal_performance_data.dart';
 import 'package:civic_voice/features/ministry/screens/ministry_municipal_performance_screen.dart';
 import 'package:civic_voice/features/ministry/screens/ministry_municipality_detail_screen.dart';
+import 'package:civic_voice/features/ministry/screens/ministry_notifications_screen.dart';
 import 'package:civic_voice/features/ministry/screens/ministry_profile_screen.dart';
 import 'package:civic_voice/features/ministry/screens/ministry_report_insights_screen.dart';
 import 'package:civic_voice/features/ministry/screens/ministry_reports_screen.dart';
@@ -1723,37 +1724,39 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('My Profile'), findsOneWidget);
-    // Each also appears a second time in the Personal Information
-    // display card below the header card.
+    // Also appears a second time in the Personal Information field row
+    // below the header card.
     expect(find.text('Ministry Supervisor'), findsNWidgets(2));
     expect(find.text('Public Works Ministry'), findsOneWidget);
     expect(find.text('Read-only supervisor'), findsOneWidget);
-    expect(find.text('supervisor@ministry.gov'), findsNWidgets(2));
-    expect(find.text('+233 20 000 0000'), findsNWidgets(2));
+    expect(find.text('supervisor@ministry.gov'), findsOneWidget);
+    expect(find.text('+233 20 000 0000'), findsOneWidget);
 
     expect(find.text('Personal Information'), findsOneWidget);
     expect(find.text('Full Name'), findsOneWidget);
 
     expect(find.text('Security'), findsOneWidget);
     expect(find.text('Change Password'), findsOneWidget);
-    expect(find.text('Two-factor authentication'), findsOneWidget);
-    expect(find.text('Enabled'), findsOneWidget);
+    expect(find.text('Two-factor authentication'), findsNothing);
 
-    expect(find.text('Preferences'), findsOneWidget);
-    expect(find.text('Dark Theme'), findsOneWidget);
+    expect(find.text('System Preferences'), findsOneWidget);
+    expect(find.text('Theme'), findsOneWidget);
     expect(find.text('Language'), findsOneWidget);
+    expect(find.text('Coming Soon'), findsOneWidget);
 
     expect(find.text('Account Metadata'), findsOneWidget);
     expect(find.text('Supervisor'), findsOneWidget);
     expect(find.text('Read-only module'), findsOneWidget);
     expect(find.text('Analytics access'), findsOneWidget);
 
-    expect(find.text('Log Out'), findsOneWidget);
+    // Log Out lives in the header kebab menu now, not a standalone row —
+    // not visible until the menu is opened.
+    expect(find.text('Log Out'), findsNothing);
     expect(find.text('Save'), findsNothing);
   });
 
   testWidgets(
-    'Ministry Profile tapping Personal Information enters edit mode',
+    'Ministry Profile kebab menu Edit Profile enters edit mode',
     (WidgetTester tester) async {
       tester.view.physicalSize = const Size(428, 2600);
       tester.view.devicePixelRatio = 1.0;
@@ -1765,13 +1768,18 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Full Name'));
+      await tester.tap(find.byIcon(AppIcons.more));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Edit Profile'));
       await tester.pumpAndSettle();
 
       expect(find.text('Save'), findsOneWidget);
-      expect(find.text('Save changes'), findsOneWidget);
+      expect(find.text('Save Changes'), findsOneWidget);
       expect(find.text('Cancel'), findsOneWidget);
-      expect(find.byType(TextField), findsNWidgets(3));
+      // Only Full Name is actually editable — Email/Phone render as plain
+      // captioned text (admin-provisioned, not self-service), matching
+      // Admin/Municipal Officer's own profile forms.
+      expect(find.byType(TextField), findsNWidgets(1));
       expect(find.byIcon(AppIcons.close), findsOneWidget);
     },
   );
@@ -1790,7 +1798,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Full Name'));
+      await tester.tap(find.byIcon(AppIcons.more));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Edit Profile'));
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField).first, '');
@@ -1799,7 +1809,7 @@ void main() {
 
       expect(find.text('Full name is required.'), findsOneWidget);
       // Still editing, not bounced back to the view state.
-      expect(find.text('Save changes'), findsOneWidget);
+      expect(find.text('Save Changes'), findsOneWidget);
     },
   );
 
@@ -1817,7 +1827,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Full Name'));
+      await tester.tap(find.byIcon(AppIcons.more));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Edit Profile'));
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField).first, 'Updated Name');
@@ -1849,7 +1861,9 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Full Name'));
+    await tester.tap(find.byIcon(AppIcons.more));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Edit Profile'));
     await tester.pumpAndSettle();
 
     await tester.enterText(find.byType(TextField).first, 'Discarded Name');
@@ -1858,7 +1872,7 @@ void main() {
 
     expect(find.text('Ministry Supervisor'), findsNWidgets(2));
     expect(find.text('Discarded Name'), findsNothing);
-    expect(find.text('Save changes'), findsNothing);
+    expect(find.text('Save Changes'), findsNothing);
   });
 
   testWidgets('Ministry Profile header close icon during edit also cancels', (
@@ -1874,13 +1888,15 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Full Name'));
+    await tester.tap(find.byIcon(AppIcons.more));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Edit Profile'));
     await tester.pumpAndSettle();
 
     await tester.tap(find.byIcon(AppIcons.close));
     await tester.pumpAndSettle();
 
-    expect(find.text('Save changes'), findsNothing);
+    expect(find.text('Save Changes'), findsNothing);
     expect(find.byIcon(AppIcons.back), findsOneWidget);
   });
 
@@ -1933,8 +1949,8 @@ void main() {
   );
 
   testWidgets(
-    'Ministry Profile Log Out row asks for confirmation before firing the '
-    'callback',
+    'Ministry Profile kebab menu Log Out asks for confirmation before '
+    'firing the callback',
     (WidgetTester tester) async {
       tester.view.physicalSize = const Size(428, 2600);
       tester.view.devicePixelRatio = 1.0;
@@ -1950,15 +1966,16 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      await tester.tap(find.byIcon(AppIcons.more));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Log Out'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Are you sure you want to log out?'), findsOneWidget);
+      expect(find.text('Log out?'), findsOneWidget);
       expect(loggedOut, isFalse);
 
-      // "Log Out" appears both on the row (now dimmed behind the dialog)
-      // and as the dialog's confirm button — the confirm button is built
-      // last.
+      // "Log Out" appears both on the (now closed) kebab item and as the
+      // dialog's confirm button — the confirm button is built last.
       await tester.tap(find.text('Log Out').last);
       await tester.pumpAndSettle();
 
@@ -1983,6 +2000,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      await tester.tap(find.byIcon(AppIcons.more));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Log Out'));
       await tester.pumpAndSettle();
 
@@ -1990,7 +2009,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(loggedOut, isFalse);
-      expect(find.text('Are you sure you want to log out?'), findsNothing);
+      expect(find.text('Log out?'), findsNothing);
     },
   );
 
@@ -2021,11 +2040,12 @@ void main() {
       expect(find.text('Retry'), findsOneWidget);
       expect(find.text('Back to Safety'), findsOneWidget);
 
-      // The dimmed backdrop is still present but not interactive — tapping
-      // through it must not start an edit.
-      await tester.tap(find.text('Full Name'), warnIfMissed: false);
+      // The dimmed backdrop's body content is not interactive — tapping
+      // through it must not start an edit. (The kebab menu itself lives in
+      // the header, outside the dimmed region, so it isn't blocked.)
+      await tester.tap(find.text('Personal Information'), warnIfMissed: false);
       await tester.pumpAndSettle();
-      expect(find.text('Save changes'), findsNothing);
+      expect(find.text('Save Changes'), findsNothing);
     },
   );
 
@@ -2306,4 +2326,29 @@ void main() {
 
     expect(backTapped, isTrue);
   });
+
+  testWidgets(
+    'Ministry Notifications shows nationally resolved reports and marks '
+    'them read on open',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: const MinistryNotificationsScreen(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Report resolved'), findsWidgets);
+      expect(
+        find.text('Sidewalk Crack was marked resolved.'),
+        findsOneWidget,
+      );
+    },
+  );
 }

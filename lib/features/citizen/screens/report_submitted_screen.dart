@@ -87,9 +87,17 @@ class _ReportSubmittedScreenState extends State<ReportSubmittedScreen> {
               ],
             ),
           ),
-          const Align(
+          Align(
             alignment: Alignment.topCenter,
-            child: CivicTopBar(title: 'Submitted', showNotifications: true),
+            child: CivicTopBar(
+              title: 'Submitted',
+              showNotifications: true,
+              onNotificationsTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const CitizenAlertsScreen(),
+                ),
+              ),
+            ),
           ),
           if (!keyboardVisible)
             Align(

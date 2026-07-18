@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../services/notification_directory.dart';
 import '../../../widgets/glass_bar.dart';
+import '../../../widgets/unread_dot_badge.dart';
+import '../../municipal/services/municipal_report_directory.dart';
 
 /// Primary bottom-navigation destinations for the Ministry Supervisor
 /// module. The approved Figma export's nav bar showed "Dashboard / Analytics
@@ -238,10 +241,21 @@ class _Header extends StatelessWidget {
                           ],
                         ),
                 ),
-                _IconButton(
-                  icon: AppIcons.notifications,
-                  onPressed: onNotificationsTap,
-                  semantic: semantic,
+                AnimatedBuilder(
+                  animation: Listenable.merge([
+                    MunicipalReportDirectory.instance.reports,
+                    NotificationDirectory.instance.readIds,
+                  ]),
+                  builder: (context, _) => UnreadDotBadge(
+                    show: NotificationDirectory.instance.hasUnread(
+                      NotificationDirectory.instance.forMinistry(),
+                    ),
+                    child: _IconButton(
+                      icon: AppIcons.notifications,
+                      onPressed: onNotificationsTap,
+                      semantic: semantic,
+                    ),
+                  ),
                 ),
                 const SizedBox(width: AppSpacing.xs),
                 _ProfileButton(onTap: onProfileTap),

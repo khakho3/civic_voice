@@ -6,7 +6,6 @@ class MinistryProfileData {
     required this.ministry,
     required this.email,
     required this.phone,
-    required this.twoFactorEnabled,
     required this.metadataBadges,
   });
 
@@ -17,7 +16,6 @@ class MinistryProfileData {
   final String ministry;
   final String email;
   final String phone;
-  final bool twoFactorEnabled;
 
   /// "Supervisor" / "Read-only module" / "Analytics access" — read-only
   /// tags in the Account Metadata card, not user-editable.
@@ -30,7 +28,6 @@ class MinistryProfileData {
       ministry: ministry,
       email: email ?? this.email,
       phone: phone ?? this.phone,
-      twoFactorEnabled: twoFactorEnabled,
       metadataBadges: metadataBadges,
     );
   }
@@ -45,7 +42,6 @@ class MinistryProfileData {
       ministry: 'Public Works Ministry',
       email: 'supervisor@ministry.gov',
       phone: '+233 20 000 0000',
-      twoFactorEnabled: true,
       metadataBadges: ['Supervisor', 'Read-only module', 'Analytics access'],
     );
   }

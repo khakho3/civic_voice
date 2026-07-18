@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../widgets/app_state_message.dart';
+import '../../../widgets/coming_soon_badge.dart';
 import '../../../widgets/confirm_dialog.dart';
+import '../../../widgets/settings_section.dart';
 import '../models/admin_system_settings_data.dart';
+import '../services/admin_system_settings_directory.dart';
 import '../widgets/admin_scaffold.dart';
 
 /// ADM-007 — System Settings.
@@ -29,11 +32,23 @@ import '../widgets/admin_scaffold.dart';
 ///   introducing an unneeded state.
 ///
 /// The approved export's "Platform Name" field was dropped entirely — see
-/// [SystemSettingsData]'s doc comment for why. "Maintenance Mode" and
-/// "Public status page" render as ordinary live switches in the export,
-/// but neither is backed by a real feature yet, so both carry a "Coming
-/// Soon" [_ComingSoonBadge] next to their label instead — flagged rather
-/// than presented as fully live, without hiding or disabling them.
+/// [SystemSettingsData]'s doc comment for why. A later pass dropped
+/// "Default Language" down to a frozen, badge-only row (no multi-language
+/// content anywhere in the app), removed "Enforce two-factor
+/// authentication" entirely (out of scope for this system), removed the
+/// whole "Data Retention" section (no real storage/backup process to
+/// govern), and — the one real bug fix in that pass — made "Maintenance
+/// Mode" and "Public status page" genuinely inert (`Switch.onChanged:
+/// null`) rather than a live switch sitting next to a "Coming Soon" badge
+/// that implied it wasn't.
+///
+/// Backed by [AdminSystemSettingsDirectory] rather than screen-local
+/// state — "Save Changes" used to silently reset back to
+/// [mockSystemSettings] every time this screen was left and reopened,
+/// which also meant nothing else in the app could ever observe a real
+/// saved value. [AdminSystemActivityScreen]'s audit-logging gate and
+/// [IdleSessionTimer]'s session-timeout duration both read the same
+/// directory this screen writes to.
 ///
 /// "Reset Changes"/"Save Changes" only appear once the draft differs from
 /// the last-saved snapshot — matching the export's own Default frame
@@ -89,7 +104,7 @@ class AdminSystemSettingsScreen extends StatefulWidget {
 class _AdminSystemSettingsScreenState extends State<AdminSystemSettingsScreen> {
   late AdminSystemSettingsViewState _state = widget.initialState;
   late SystemSettingsSaveState _saveState = widget.initialSaveState;
-  SystemSettingsData _original = mockSystemSettings();
+  SystemSettingsData _original = AdminSystemSettingsDirectory.instance.settings.value;
   late SystemSettingsData _draft = _original;
 
   void _retry() {
@@ -132,6 +147,7 @@ class _AdminSystemSettingsScreenState extends State<AdminSystemSettingsScreen> {
       if (!mounted) return;
       setState(() {
         _original = _draft;
+        AdminSystemSettingsDirectory.instance.settings.value = _draft;
         _saveState = SystemSettingsSaveState.saved;
       });
     });
@@ -268,48 +284,37 @@ class _SettingsForm extends StatelessWidget {
           ),
           _ => const SizedBox.shrink(),
         },
-        _SettingsSection(
+        SettingsSection(
           icon: AppIcons.filter,
           title: 'General Configuration',
           children: [
-            _SettingsRow(
+            SettingsRow(
               label: 'Default Language',
-              trailing: _InlineDropdown(
-                value: draft.defaultLanguage,
-                options: kLanguageOptions,
-                onChanged: (v) =>
-                    onUpdate((d) => d.copyWith(defaultLanguage: v)),
+              badge: const ComingSoonBadge(),
+              trailing: Text(
+                'English',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
             ),
-            _SettingsRow(
+            SettingsRow(
               label: 'Maintenance Mode',
-              badge: const _ComingSoonBadge(),
+              badge: const ComingSoonBadge(),
               description:
                   'Restricts platform access during approved maintenance.',
-              trailing: Switch(
-                value: draft.maintenanceMode,
-                onChanged: (v) =>
-                    onUpdate((d) => d.copyWith(maintenanceMode: v)),
-              ),
+              trailing: const Switch(value: false, onChanged: null),
             ),
           ],
         ),
         const SizedBox(height: AppSpacing.lg),
-        _SettingsSection(
+        SettingsSection(
           icon: AppIcons.shield,
           title: 'Security & Access',
           children: [
-            _SettingsRow(
-              label: 'Enforce two-factor authentication',
-              description: 'Required for administrator accounts.',
-              trailing: Switch(
-                value: draft.enforceTwoFactor,
-                onChanged: (v) =>
-                    onUpdate((d) => d.copyWith(enforceTwoFactor: v)),
-              ),
-            ),
-            _SettingsRow(
+            SettingsRow(
               label: 'Session timeout',
+              description: 'Signs out an idle session automatically.',
               trailing: _InlineDropdown(
                 value: draft.sessionTimeout,
                 options: kSessionTimeoutOptions,
@@ -317,7 +322,7 @@ class _SettingsForm extends StatelessWidget {
                     onUpdate((d) => d.copyWith(sessionTimeout: v)),
               ),
             ),
-            _SettingsRow(
+            SettingsRow(
               label: 'Audit logging',
               description: 'Retains administrative activity records.',
               trailing: Switch(
@@ -325,47 +330,27 @@ class _SettingsForm extends StatelessWidget {
                 onChanged: (v) => onUpdate((d) => d.copyWith(auditLogging: v)),
               ),
             ),
-          ],
-        ),
-        const SizedBox(height: AppSpacing.lg),
-        _SettingsSection(
-          icon: AppIcons.database,
-          title: 'Data Retention',
-          children: [
-            _SettingsRow(
-              label: 'Audit log retention',
-              trailing: _InlineDropdown(
-                value: draft.auditLogRetention,
-                options: kAuditLogRetentionOptions,
+            SettingsRow(
+              label: 'Allow new account creation',
+              description: 'Turn off to freeze provisioning platform-wide.',
+              trailing: Switch(
+                value: draft.allowNewAccountCreation,
                 onChanged: (v) =>
-                    onUpdate((d) => d.copyWith(auditLogRetention: v)),
-              ),
-            ),
-            _SettingsRow(
-              label: 'Backup schedule',
-              trailing: _InlineDropdown(
-                value: draft.backupSchedule,
-                options: kBackupScheduleOptions,
-                onChanged: (v) =>
-                    onUpdate((d) => d.copyWith(backupSchedule: v)),
+                    onUpdate((d) => d.copyWith(allowNewAccountCreation: v)),
               ),
             ),
           ],
         ),
         const SizedBox(height: AppSpacing.lg),
-        _SettingsSection(
+        SettingsSection(
           icon: AppIcons.globe,
           title: 'Service Preferences',
           children: [
-            _SettingsRow(
+            SettingsRow(
               label: 'Public status page',
-              badge: const _ComingSoonBadge(),
+              badge: const ComingSoonBadge(),
               description: 'Shows approved system availability updates.',
-              trailing: Switch(
-                value: draft.publicStatusPage,
-                onChanged: (v) =>
-                    onUpdate((d) => d.copyWith(publicStatusPage: v)),
-              ),
+              trailing: const Switch(value: true, onChanged: null),
             ),
           ],
         ),
@@ -447,149 +432,6 @@ class _Banner extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _SettingsSection extends StatelessWidget {
-  const _SettingsSection({
-    required this.icon,
-    required this.title,
-    required this.children,
-  });
-
-  final IconData icon;
-  final String title;
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final colorScheme = Theme.of(context).colorScheme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(icon, size: AppIconSize.sm, color: AppColors.primary),
-            const SizedBox(width: AppSpacing.xs),
-            Flexible(
-              child: Text(
-                title,
-                style: textTheme.titleMedium,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        Container(
-          width: double.infinity,
-          decoration: BoxDecoration(
-            color: colorScheme.surface,
-            borderRadius: AppComponentRadius.card,
-            border: Border.all(color: colorScheme.outlineVariant),
-          ),
-          child: Column(
-            children: [
-              for (var i = 0; i < children.length; i++) ...[
-                Padding(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  child: children[i],
-                ),
-                if (i != children.length - 1)
-                  Divider(height: 1, color: colorScheme.outlineVariant),
-              ],
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _SettingsRow extends StatelessWidget {
-  const _SettingsRow({
-    required this.label,
-    required this.trailing,
-    this.description,
-    this.badge,
-  });
-
-  final String label;
-  final Widget trailing;
-  final String? description;
-
-  /// Shown inline after [label] — used for [_ComingSoonBadge] on settings
-  /// that aren't backed by a real feature yet.
-  final Widget? badge;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final colorScheme = Theme.of(context).colorScheme;
-    return Row(
-      crossAxisAlignment: description == null
-          ? CrossAxisAlignment.center
-          : CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Flexible(child: Text(label, style: textTheme.bodyLarge)),
-                  if (badge != null) ...[
-                    const SizedBox(width: AppSpacing.xs),
-                    badge!,
-                  ],
-                ],
-              ),
-              if (description != null) ...[
-                const SizedBox(height: 2),
-                Text(
-                  description!,
-                  style: textTheme.bodySmall?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        trailing,
-      ],
-    );
-  }
-}
-
-/// Neutral (not status-colored) tag flagging a setting that isn't backed
-/// by a real feature yet — deliberately plain rather than a tinted
-/// [ReportStatusBadge]-style pill, so it doesn't read as a status value.
-class _ComingSoonBadge extends StatelessWidget {
-  const _ComingSoonBadge();
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest,
-        borderRadius: AppRadius.allSm,
-        border: Border.all(color: colorScheme.outlineVariant),
-      ),
-      child: Text(
-        'Coming Soon',
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: colorScheme.onSurfaceVariant,
-          fontWeight: AppFontWeight.semiBold,
-        ),
       ),
     );
   }
@@ -734,10 +576,6 @@ class _LoadingSkeletonState extends State<_LoadingSkeleton>
         chromeInset.bottom + AppSpacing.xl,
       ),
       children: [
-        block(height: 16, width: 180),
-        const SizedBox(height: AppSpacing.sm),
-        sectionBlock(),
-        const SizedBox(height: AppSpacing.lg),
         block(height: 16, width: 180),
         const SizedBox(height: AppSpacing.sm),
         sectionBlock(),

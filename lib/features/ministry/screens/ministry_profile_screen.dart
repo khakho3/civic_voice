@@ -2,8 +2,16 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../widgets/app_state_message.dart';
+import '../../../widgets/confirm_dialog.dart';
 import '../../../widgets/detail_header.dart';
-import '../../../widgets/glass_card.dart';
+import '../../../widgets/kebab_menu_button.dart';
+import '../../../widgets/language_preference_row.dart';
+import '../../../widgets/profile_action_row.dart';
+import '../../../widgets/profile_edit_action_bar.dart';
+import '../../../widgets/profile_field_row.dart';
+import '../../../widgets/profile_header_card.dart';
+import '../../../widgets/profile_section.dart';
+import '../../../widgets/theme_preference_row.dart';
 import '../models/ministry_profile_data.dart';
 
 /// MIN-006 — Ministry Profile.
@@ -29,25 +37,20 @@ import '../models/ministry_profile_data.dart';
 /// with a matching "Back to Safety" action, not a one-off copy/paste
 /// artifact the way the header/nav mismatches are.
 ///
-/// The frame has no visible entry point into Edit mode (no pencil icon, no
-/// menu) — tapping the "Personal Information" card itself is the way in,
-/// the only interactive-looking affordance the frame actually draws. Once
-/// editing, the header's leading icon becomes a close (X) that cancels
-/// rather than navigating away — Municipal Officer's own profile screen
-/// (MUN-009) already establishes this exact pattern for the identical
-/// problem (a back arrow mid-edit would silently discard changes), so this
-/// reuses that precedent rather than inventing a new one.
+/// Edit-mode entry is the header's kebab menu (matching every other
+/// drill-down screen's profile — Municipal Officer's MUN-009), not the
+/// frame's original "tap the whole Personal Information card" gesture,
+/// which the earlier version of this screen's own doc comment flagged as
+/// an unintentional Figma-export artifact rather than a deliberate
+/// affordance. Once editing, the header's leading icon becomes a close (X)
+/// that cancels rather than navigating away.
 ///
-/// The spec lists a "Logout Button" component and a "Logout" user action,
-/// but no exported frame shows one anywhere. Added as its own row after
-/// Account Metadata (with a confirmation step) since the spec requires the
-/// action to exist somewhere and that's the most discoverable place for it
-/// — not shown in any frame, so there was nothing to be faithful to.
-///
-/// The "Personal Information" card is a plain opaque surface, not
-/// [GlassCard] — per [GlassCard]'s own doc comment, glass is prohibited on
-/// input-heavy forms (§19.10), and this card contains real text fields once
-/// editing.
+/// Log Out lives in the same kebab menu as Edit Profile, confirmed via
+/// [showConfirmDialog] before firing — the spec lists a "Logout Button"
+/// component and a "Logout" user action but no exported frame shows one
+/// anywhere, so there was no original placement to be faithful to; this
+/// matches Municipal Officer's own profile screen exactly rather than
+/// inventing a third pattern.
 enum MinistryProfileViewState {
   loading,
   view,
@@ -82,10 +85,8 @@ class MinistryProfileScreen extends StatefulWidget {
   /// Opens the shared Change Password screen (AppRoutes.changePassword).
   final VoidCallback? onChangePassword;
 
-  /// No account/session workflow is specified yet — placeholder pending
-  /// spec, matching this module's other unwired forward-references. Wired
-  /// to a confirmation dialog rather than firing directly, since logging
-  /// out isn't reversible.
+  /// Fired after the log-out confirmation dialog is accepted. Nullable:
+  /// there's no real authentication flow to sign out of yet.
   final VoidCallback? onLogOut;
 
   @override
@@ -178,25 +179,14 @@ class _MinistryProfileScreenState extends State<MinistryProfileScreen> {
   }
 
   Future<void> _confirmLogOut() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Log Out'),
-        content: const Text('Are you sure you want to log out?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Log Out'),
-          ),
-        ],
-      ),
+    final confirmed = await showConfirmDialog(
+      context,
+      title: 'Log out?',
+      message: "You'll need to sign back in to access the ministry console.",
+      confirmLabel: 'Log Out',
+      destructive: true,
     );
-    if (confirmed == true) widget.onLogOut?.call();
+    if (confirmed) widget.onLogOut?.call();
   }
 
   @override
@@ -226,33 +216,23 @@ class _MinistryProfileScreenState extends State<MinistryProfileScreen> {
                             child: switch (_state) {
                               MinistryProfileViewState.loading =>
                                 const _LoadingSkeleton(),
-                              MinistryProfileViewState.edit ||
-                              MinistryProfileViewState.validation =>
-                                _ProfileBody(
-                                  profile: _profile,
-                                  editing: true,
-                                  nameController: _nameController,
-                                  emailController: _emailController,
-                                  phoneController: _phoneController,
-                                  fieldErrors: _fieldErrors,
-                                  onChangePassword: widget.onChangePassword,
-                                  onLogOut: _confirmLogOut,
-                                ),
                               _ => _ProfileBody(
                                 profile: _profile,
-                                editing: false,
+                                editing: isEditing,
                                 showSuccessBanner:
                                     _state == MinistryProfileViewState.success,
-                                onEditPersonalInfo: _startEditing,
+                                nameController: _nameController,
+                                emailController: _emailController,
+                                phoneController: _phoneController,
+                                fieldErrors: _fieldErrors,
                                 onChangePassword: widget.onChangePassword,
-                                onLogOut: _confirmLogOut,
                               ),
                             },
                           ),
                           if (isEditing)
-                            _EditActionBar(
-                              onSave: _save,
+                            ProfileEditActionBar(
                               onCancel: _cancelEdit,
+                              onSave: _save,
                             ),
                         ],
                       ),
@@ -320,23 +300,40 @@ class _MinistryProfileScreenState extends State<MinistryProfileScreen> {
               onBack: isEditing ? _cancelEdit : widget.onBack,
               trailing: isEditing
                   ? TextButton(onPressed: _save, child: const Text('Save'))
-                  : SizedBox(
-                      width: AppDimensions.controlHeightStandard,
-                      height: AppDimensions.controlHeightStandard,
-                      child: Material(
-                        color: Colors.transparent,
-                        shape: const RoundedRectangleBorder(
-                          borderRadius: AppComponentRadius.card,
-                        ),
-                        child: InkWell(
-                          borderRadius: AppComponentRadius.card,
-                          onTap: widget.onNotificationsTap,
-                          child: Icon(
-                            AppIcons.notifications,
-                            size: AppIconSize.md,
+                  : Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SizedBox(
+                          width: AppDimensions.controlHeightStandard,
+                          height: AppDimensions.controlHeightStandard,
+                          child: Material(
+                            color: Colors.transparent,
+                            shape: const RoundedRectangleBorder(
+                              borderRadius: AppComponentRadius.card,
+                            ),
+                            child: InkWell(
+                              borderRadius: AppComponentRadius.card,
+                              onTap: widget.onNotificationsTap,
+                              child: Icon(
+                                AppIcons.notifications,
+                                size: AppIconSize.md,
+                              ),
+                            ),
                           ),
                         ),
-                      ),
+                        KebabMenuButton<void>(
+                          itemBuilder: (context) => [
+                            PopupMenuItem(
+                              onTap: _startEditing,
+                              child: const Text('Edit Profile'),
+                            ),
+                            PopupMenuItem(
+                              onTap: _confirmLogOut,
+                              child: const Text('Log Out'),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
             ),
           ),
@@ -355,29 +352,24 @@ class _ProfileBody extends StatelessWidget {
     required this.profile,
     required this.editing,
     this.showSuccessBanner = false,
-    this.nameController,
-    this.emailController,
-    this.phoneController,
+    required this.nameController,
+    required this.emailController,
+    required this.phoneController,
     this.fieldErrors = const {},
-    this.onEditPersonalInfo,
     this.onChangePassword,
-    this.onLogOut,
   });
 
   final MinistryProfileData profile;
   final bool editing;
   final bool showSuccessBanner;
-  final TextEditingController? nameController;
-  final TextEditingController? emailController;
-  final TextEditingController? phoneController;
+  final TextEditingController nameController;
+  final TextEditingController emailController;
+  final TextEditingController phoneController;
   final Map<String, String> fieldErrors;
-  final VoidCallback? onEditPersonalInfo;
   final VoidCallback? onChangePassword;
-  final VoidCallback? onLogOut;
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
     final bottomInset = MediaQuery.paddingOf(context).bottom;
 
     return ListView(
@@ -388,224 +380,114 @@ class _ProfileBody extends StatelessWidget {
         bottomInset + AppSpacing.xl,
       ),
       children: [
-        _ProfileHeaderCard(profile: profile),
+        ProfileHeaderCard(
+          name: profile.name,
+          subtitle: profile.ministry,
+          pills: [_Pill(label: profile.role)],
+          editing: editing,
+        ),
         if (showSuccessBanner) ...[
           const SizedBox(height: AppSpacing.md),
           const _SuccessBanner(),
         ],
         const SizedBox(height: AppSpacing.lg),
-        Text('Personal Information', style: textTheme.titleMedium),
-        const SizedBox(height: AppSpacing.sm),
-        editing
-            ? _PersonalInfoForm(
-                nameController: nameController!,
-                emailController: emailController!,
-                phoneController: phoneController!,
-                fieldErrors: fieldErrors,
-              )
-            : _PersonalInfoDisplay(profile: profile, onTap: onEditPersonalInfo),
-        const SizedBox(height: AppSpacing.lg),
-        Text('Security', style: textTheme.titleMedium),
-        const SizedBox(height: AppSpacing.sm),
-        GlassCard(
-          child: Column(
-            children: [
-              _ActionRow(
-                icon: AppIcons.security,
-                label: 'Change Password',
-                onTap: onChangePassword,
-              ),
-              const Divider(height: AppSpacing.lg),
-              _ActionRow(
-                icon: AppIcons.verify,
-                label: 'Two-factor authentication',
-                trailingLabel: profile.twoFactorEnabled
-                    ? 'Enabled'
-                    : 'Disabled',
-                // No 2FA management workflow is specified yet —
-                // placeholder pending spec.
-                onTap: () {},
-              ),
-            ],
-          ),
+        ProfileSection(
+          icon: AppIcons.profile,
+          title: 'Personal Information',
+          children: [
+            ProfileFieldRow(
+              label: 'Full Name',
+              controller: nameController,
+              editable: editing,
+              errorText: fieldErrors['name'],
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            ProfileFieldRow(
+              label: 'Email',
+              controller: emailController,
+              caption: editing
+                  ? 'Contact your administrator to change this'
+                  : null,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            ProfileFieldRow(
+              label: 'Phone',
+              controller: phoneController,
+              caption: editing
+                  ? 'Contact your administrator to change this'
+                  : null,
+            ),
+          ],
         ),
         const SizedBox(height: AppSpacing.lg),
-        Text('Preferences', style: textTheme.titleMedium),
-        const SizedBox(height: AppSpacing.sm),
-        GlassCard(
-          child: Column(
-            children: [
-              _ActionRow(
-                icon: AppIcons.settings,
-                label: 'Dark Theme',
-                trailingLabel: 'System',
-                // Theme switching isn't wired to a persisted preference
-                // yet — placeholder pending spec.
-                onTap: () {},
-              ),
-              const Divider(height: AppSpacing.lg),
-              _ActionRow(
-                icon: AppIcons.language,
-                label: 'Language',
-                trailingLabel: 'English',
-                // No localization workflow is specified yet — placeholder
-                // pending spec.
-                onTap: () {},
-              ),
-            ],
-          ),
+        ProfileSection(
+          icon: AppIcons.systemTheme,
+          title: 'System Preferences',
+          children: const [
+            ThemePreferenceRow(),
+            Divider(height: AppSpacing.lg),
+            LanguagePreferenceRow(),
+          ],
         ),
         const SizedBox(height: AppSpacing.lg),
-        Text('Account Metadata', style: textTheme.titleMedium),
-        const SizedBox(height: AppSpacing.sm),
-        GlassCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Permissions are managed by administrators. This screen '
-                'only allows editing your own profile.',
-                style: textTheme.bodyMedium,
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              Wrap(
-                spacing: AppSpacing.xs,
-                runSpacing: AppSpacing.xs,
-                children: [
-                  for (final badge in profile.metadataBadges)
-                    _MetadataBadge(label: badge),
-                ],
-              ),
-            ],
-          ),
+        ProfileSection(
+          icon: AppIcons.shield,
+          title: 'Security',
+          children: [
+            ProfileActionRow(
+              icon: AppIcons.password,
+              label: 'Change Password',
+              onTap: onChangePassword,
+            ),
+          ],
         ),
         const SizedBox(height: AppSpacing.lg),
-        GlassCard(
-          onTap: onLogOut,
-          child: Row(
-            children: [
-              const Icon(
-                AppIcons.logOut,
-                size: AppIconSize.md,
-                color: AppColors.error,
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Text(
-                'Log Out',
-                style: textTheme.bodyLarge?.copyWith(color: AppColors.error),
-              ),
-            ],
-          ),
+        ProfileSection(
+          icon: AppIcons.shieldAlert,
+          title: 'Account Metadata',
+          children: [
+            Text(
+              'Permissions are managed by administrators. This screen only '
+              'allows editing your own profile.',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Wrap(
+              spacing: AppSpacing.xs,
+              runSpacing: AppSpacing.xs,
+              children: [
+                for (final badge in profile.metadataBadges)
+                  _MetadataBadge(label: badge),
+              ],
+            ),
+          ],
         ),
       ],
     );
   }
 }
 
-class _ProfileHeaderCard extends StatelessWidget {
-  const _ProfileHeaderCard({required this.profile});
+class _Pill extends StatelessWidget {
+  const _Pill({required this.label});
 
-  final MinistryProfileData profile;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    return GlassCard(
-      child: Column(
-        children: [
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.12),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              AppIcons.profile,
-              size: AppIconSize.xl,
-              color: AppColors.primary,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Text(
-            profile.name,
-            style: textTheme.titleLarge,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 2),
-          Text(
-            profile.ministry,
-            style: textTheme.bodyMedium,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.md,
-              vertical: AppSpacing.xs,
-            ),
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.12),
-              borderRadius: AppRadius.allXl,
-            ),
-            child: Text(
-              profile.role,
-              style: textTheme.labelMedium?.copyWith(color: AppColors.primary),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          const Divider(height: 1),
-          const SizedBox(height: AppSpacing.md),
-          _ContactRow(
-            icon: AppIcons.email,
-            label: 'Email',
-            value: profile.email,
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          _ContactRow(
-            icon: AppIcons.phone,
-            label: 'Phone',
-            value: profile.phone,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ContactRow extends StatelessWidget {
-  const _ContactRow({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
-
-  final IconData icon;
   final String label;
-  final String value;
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final colorScheme = Theme.of(context).colorScheme;
-    return Row(
-      children: [
-        Icon(icon, size: AppIconSize.sm, color: colorScheme.onSurfaceVariant),
-        const SizedBox(width: AppSpacing.xs),
-        Text(label, style: textTheme.bodySmall),
-        const Spacer(),
-        Flexible(
-          child: Text(
-            value,
-            style: textTheme.bodyMedium,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.right,
-          ),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.12),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.24)),
+        borderRadius: AppRadius.allXl,
+      ),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          color: AppColors.primary,
+          fontWeight: AppFontWeight.semiBold,
         ),
-      ],
+      ),
     );
   }
 }
@@ -653,275 +535,8 @@ class _SuccessBanner extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Personal Information — read-only display vs. editable form
-// ---------------------------------------------------------------------------
-
-/// A plain opaque surface, not [GlassCard] — per §19.10, glass is
-/// prohibited on input-heavy forms. Tapping anywhere on the card is the
-/// frame's only visible entry point into Edit mode (see the class doc
-/// comment on [MinistryProfileScreen]).
-class _PersonalInfoDisplay extends StatelessWidget {
-  const _PersonalInfoDisplay({required this.profile, this.onTap});
-
-  final MinistryProfileData profile;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Material(
-      color: colorScheme.surface,
-      borderRadius: AppComponentRadius.card,
-      child: InkWell(
-        borderRadius: AppComponentRadius.card,
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          decoration: BoxDecoration(
-            borderRadius: AppComponentRadius.card,
-            border: Border.all(color: colorScheme.outlineVariant),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _ReadOnlyField(label: 'Full Name', value: profile.name),
-              const SizedBox(height: AppSpacing.md),
-              _ReadOnlyField(label: 'Email', value: profile.email),
-              const SizedBox(height: AppSpacing.md),
-              _ReadOnlyField(label: 'Phone', value: profile.phone),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ReadOnlyField extends StatelessWidget {
-  const _ReadOnlyField({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final colorScheme = Theme.of(context).colorScheme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: textTheme.bodySmall),
-        const SizedBox(height: AppSpacing.xs),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.sm,
-          ),
-          decoration: BoxDecoration(
-            color: colorScheme.surfaceContainer,
-            borderRadius: AppComponentRadius.inputField,
-          ),
-          child: Text(
-            value,
-            style: textTheme.bodyLarge,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-/// Email and Phone render locked — an admin-provisioned account's contact
-/// credentials are set by whoever provisioned it, not self-editable.
-/// Full Name is the only field a Ministry Supervisor can change here.
-class _PersonalInfoForm extends StatelessWidget {
-  const _PersonalInfoForm({
-    required this.nameController,
-    required this.emailController,
-    required this.phoneController,
-    required this.fieldErrors,
-  });
-
-  final TextEditingController nameController;
-  final TextEditingController emailController;
-  final TextEditingController phoneController;
-  final Map<String, String> fieldErrors;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: AppComponentRadius.card,
-        border: Border.all(color: colorScheme.outlineVariant),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _EditableField(
-            label: 'Full Name',
-            controller: nameController,
-            errorText: fieldErrors['name'],
-          ),
-          const SizedBox(height: AppSpacing.md),
-          _EditableField(
-            label: 'Email',
-            controller: emailController,
-            keyboardType: TextInputType.emailAddress,
-            enabled: false,
-            caption: 'Contact your administrator to change this',
-          ),
-          const SizedBox(height: AppSpacing.md),
-          _EditableField(
-            label: 'Phone',
-            controller: phoneController,
-            keyboardType: TextInputType.phone,
-            enabled: false,
-            caption: 'Contact your administrator to change this',
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _EditableField extends StatelessWidget {
-  const _EditableField({
-    required this.label,
-    required this.controller,
-    this.errorText,
-    this.keyboardType,
-    this.enabled = true,
-    this.caption,
-  });
-
-  final String label;
-  final TextEditingController controller;
-  final String? errorText;
-  final TextInputType? keyboardType;
-
-  /// False locks the field read-only, matching the treatment Municipal
-  /// Officer's own profile form (`_FormField`) already gives Department —
-  /// used here for Email/Phone, which are admin-set rather than
-  /// self-editable (see [_PersonalInfoForm]'s own doc comment).
-  final bool enabled;
-
-  /// Shown under a locked field to explain why it's disabled, e.g.
-  /// "Contact your administrator to change this."
-  final String? caption;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final colorScheme = Theme.of(context).colorScheme;
-    final hasError = errorText != null;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: textTheme.bodySmall),
-        const SizedBox(height: AppSpacing.xs),
-        Material(
-          color: colorScheme.surfaceContainer,
-          borderRadius: AppComponentRadius.inputField,
-          child: TextField(
-            controller: controller,
-            keyboardType: keyboardType,
-            enabled: enabled,
-            style: textTheme.bodyLarge,
-            decoration: InputDecoration(
-              border: hasError
-                  ? OutlineInputBorder(
-                      borderRadius: AppComponentRadius.inputField,
-                      borderSide: const BorderSide(color: AppColors.error),
-                    )
-                  : InputBorder.none,
-              enabledBorder: hasError
-                  ? OutlineInputBorder(
-                      borderRadius: AppComponentRadius.inputField,
-                      borderSide: const BorderSide(color: AppColors.error),
-                    )
-                  : InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.md,
-                vertical: AppSpacing.sm,
-              ),
-            ),
-          ),
-        ),
-        if (hasError) ...[
-          const SizedBox(height: 4),
-          Text(
-            errorText!,
-            style: textTheme.labelSmall?.copyWith(color: AppColors.error),
-          ),
-        ] else if (caption != null) ...[
-          const SizedBox(height: 4),
-          Text(
-            caption!,
-            style: textTheme.labelSmall?.copyWith(
-              color: colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
 // Shared row/badge pieces
 // ---------------------------------------------------------------------------
-
-class _ActionRow extends StatelessWidget {
-  const _ActionRow({
-    required this.icon,
-    required this.label,
-    this.trailingLabel,
-    this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final String? trailingLabel;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final colorScheme = Theme.of(context).colorScheme;
-    return InkWell(
-      onTap: onTap,
-      child: Row(
-        children: [
-          Icon(icon, size: AppIconSize.md, color: AppColors.primary),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Text(
-              label,
-              style: textTheme.bodyLarge,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          if (trailingLabel != null) ...[
-            Text(trailingLabel!, style: textTheme.bodyMedium),
-            const SizedBox(width: AppSpacing.xs),
-          ],
-          Icon(
-            AppIcons.chevronRight,
-            size: AppIconSize.sm,
-            color: colorScheme.onSurfaceVariant,
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 class _MetadataBadge extends StatelessWidget {
   const _MetadataBadge({required this.label});
@@ -945,52 +560,6 @@ class _MetadataBadge extends StatelessWidget {
         style: Theme.of(
           context,
         ).textTheme.labelMedium?.copyWith(color: colorScheme.onSurfaceVariant),
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Edit action bar
-// ---------------------------------------------------------------------------
-
-class _EditActionBar extends StatelessWidget {
-  const _EditActionBar({this.onSave, this.onCancel});
-
-  final VoidCallback? onSave;
-  final VoidCallback? onCancel;
-
-  @override
-  Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.paddingOf(context).bottom;
-    return Container(
-      padding: EdgeInsets.fromLTRB(
-        AppSpacing.md,
-        AppSpacing.sm,
-        AppSpacing.md,
-        bottomInset + AppSpacing.sm,
-      ),
-      decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: onSave,
-              icon: const Icon(AppIcons.save, size: AppIconSize.sm),
-              label: const Text('Save changes'),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton(
-              onPressed: onCancel,
-              child: const Text('Cancel'),
-            ),
-          ),
-        ],
       ),
     );
   }
