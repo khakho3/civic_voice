@@ -57,7 +57,7 @@ class ReviewReportScreen extends StatelessWidget {
 
     if (!context.mounted) return;
 
-    Navigator.of(context).pushReplacement(
+    Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute<void>(
         builder: (_) => ReportSubmittedScreen(
           referenceNumber: report.id,
@@ -67,6 +67,7 @@ class ReviewReportScreen extends StatelessWidget {
           photoCount: photos.length,
         ),
       ),
+      (route) => route.isFirst,
     );
   }
 
