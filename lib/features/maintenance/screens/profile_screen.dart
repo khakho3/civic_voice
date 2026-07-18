@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:civic_voice/core/theme/app_theme.dart';
 
+import '../../../models/team_availability.dart';
 import '../../../widgets/glass_card.dart';
+import '../../../widgets/status_badge.dart';
 import '../../admin/models/admin_maintenance_team_data.dart';
 import '../../admin/services/admin_maintenance_team_directory.dart';
 import '../../admin/services/admin_user_directory.dart';
@@ -77,6 +79,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
   }
 
+  void _changeAvailability(MaintenanceTeam team, TeamAvailability value) {
+    MaintenanceTeamDirectory.instance.updateTeam(
+      team.copyWith(availability: value),
+    );
+    setState(() {});
+  }
+
   void _handleSave() {
     final name = _nameController.text.trim();
     if (name.isEmpty) {
@@ -141,6 +150,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
     }
 
+    final isTeamLead = team != null && team.leadUserId == _account.userId;
     return _ProfileForm(
       disabled: disabled,
       editing: _isEditing,
@@ -150,7 +160,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       employeeId: _account.userId,
       district: _account.assembly?.fullName ?? 'Unassigned',
       teamName: team?.name ?? 'Not yet assigned to a team',
-      isTeamLead: team != null && team.leadUserId == _account.userId,
+      isTeamLead: isTeamLead,
+      availability: team?.availability,
+      onAvailabilityChanged: disabled || !isTeamLead
+          ? null
+          : (value) => _changeAvailability(team!, value),
       nameError: _nameError,
       changesSaved: _changesSaved,
       onFieldChanged: disabled
@@ -182,6 +196,8 @@ class _ProfileForm extends StatelessWidget {
     required this.district,
     required this.teamName,
     required this.isTeamLead,
+    required this.availability,
+    required this.onAvailabilityChanged,
     required this.nameError,
     required this.changesSaved,
     required this.onFieldChanged,
@@ -199,6 +215,12 @@ class _ProfileForm extends StatelessWidget {
   final String district;
   final String teamName;
   final bool isTeamLead;
+
+  /// Null when the technician isn't on a team yet — no status to show.
+  final TeamAvailability? availability;
+
+  /// Null unless [isTeamLead] — only the lead sets their team's status.
+  final ValueChanged<TeamAvailability>? onAvailabilityChanged;
   final String? nameError;
   final bool changesSaved;
   final ValueChanged<String>? onFieldChanged;
@@ -282,6 +304,17 @@ class _ProfileForm extends StatelessWidget {
                 ),
               ],
             ),
+            if (availability != null) ...[
+              const SizedBox(height: AppSpacing.sm),
+              _TeamStatusRow(
+                availability: availability!,
+                // Only the team lead sets this — everyone else on the team
+                // sees it read-only, matching the "lead does the one
+                // high-impact team action" rule already used for evidence
+                // submission.
+                onChanged: onAvailabilityChanged,
+              ),
+            ],
             const SizedBox(height: AppSpacing.lg),
             Row(
               children: [
@@ -450,6 +483,104 @@ class _SavedBanner extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// The team's own self-reported work status — read-only for a regular
+/// member, a real tap-to-change control for the lead (see
+/// [MaintenanceTeamDirectory.updateTeam] at the call site). This is what
+/// Municipal's Assign Team actually reads now, so changing it here is a
+/// real action, not a cosmetic toggle.
+class _TeamStatusRow extends StatelessWidget {
+  const _TeamStatusRow({required this.availability, this.onChanged});
+
+  final TeamAvailability availability;
+  final ValueChanged<TeamAvailability>? onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final colorScheme = Theme.of(context).colorScheme;
+    return GlassCard(
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      child: Row(
+        children: [
+          Icon(
+            AppIcons.activityPulse,
+            size: AppIconSize.md,
+            color: colorScheme.primary,
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              onChanged == null ? 'Team Status' : 'Team Status (you set this)',
+              style: textTheme.bodySmall?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          if (onChanged == null)
+            TintedBadge(
+              label: availability.label,
+              color: availability.color ?? colorScheme.onSurfaceVariant,
+              textColor: availability.color ?? colorScheme.onSurfaceVariant,
+            )
+          else
+            for (final option in TeamAvailability.values) ...[
+              _AvailabilityChip(
+                option: option,
+                selected: option == availability,
+                onTap: () => onChanged!(option),
+              ),
+              if (option != TeamAvailability.values.last)
+                const SizedBox(width: AppSpacing.xs),
+            ],
+        ],
+      ),
+    );
+  }
+}
+
+class _AvailabilityChip extends StatelessWidget {
+  const _AvailabilityChip({
+    required this.option,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final TeamAvailability option;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final color = option.color ?? colorScheme.onSurfaceVariant;
+    return Material(
+      color: selected ? color.withValues(alpha: 0.12) : Colors.transparent,
+      shape: StadiumBorder(
+        side: BorderSide(color: selected ? color : colorScheme.outline),
+      ),
+      child: InkWell(
+        customBorder: const StadiumBorder(),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.sm,
+            vertical: 6,
+          ),
+          child: Text(
+            option.label,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: selected ? color : colorScheme.onSurfaceVariant,
+              fontWeight: selected ? AppFontWeight.semiBold : null,
+            ),
+          ),
+        ),
       ),
     );
   }

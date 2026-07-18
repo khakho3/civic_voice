@@ -9,6 +9,8 @@ import 'package:civic_voice/features/admin/models/admin_role_management_data.dar
 import 'package:civic_voice/features/admin/models/admin_system_activity_data.dart';
 import 'package:civic_voice/features/admin/models/admin_user_management_data.dart';
 import 'package:civic_voice/features/admin/screens/admin_dashboard_screen.dart';
+import 'package:civic_voice/features/admin/screens/admin_maintenance_teams_screen.dart';
+import 'package:civic_voice/features/admin/services/admin_maintenance_team_directory.dart';
 import 'package:civic_voice/features/admin/screens/admin_role_management_screen.dart';
 import 'package:civic_voice/features/admin/models/admin_profile_data.dart';
 import 'package:civic_voice/features/admin/models/admin_system_settings_data.dart';
@@ -326,6 +328,37 @@ void main() {
     expect(find.text('Management'), findsOneWidget);
   });
 
+  testWidgets(
+    'Admin Dashboard greets an assembly Admin by their provisioned name '
+    'and assembly, instead of Platform Overview',
+    (WidgetTester tester) async {
+      SharedPreferences.setMockInitialValues({});
+      await MockAuthService().initialize();
+      await MockAuthService().selectRole(
+        AppRole.systemAdministrator,
+        adminTier: AdminTier.admin,
+        region: Region.ashanti,
+        assembly: assemblyNamed(Region.ashanti, 'Kumasi'),
+      );
+      addTearDown(() => MockAuthService().clearUser());
+
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(theme: AppTheme.light, home: const AdminDashboardScreen()),
+      );
+      await tester.pump();
+
+      expect(find.text('Platform Overview'), findsNothing);
+      // "Efua Darko" is the seeded Admin-tier account for Kumasi.
+      expect(find.text('Good Morning, Efua Darko'), findsOneWidget);
+      expect(find.text('Kumasi Metropolitan Assembly'), findsOneWidget);
+    },
+  );
+
   // ---------------------------------------------------------------------
   // Admin drawer (shared AdminScaffold chrome, exercised via Dashboard)
   // ---------------------------------------------------------------------
@@ -538,7 +571,7 @@ void main() {
       expect(find.text('Inactive'), findsNWidgets(2));
 
       expect(find.text('Ama Boateng'), findsOneWidget);
-      expect(find.text('admin@civicvoice.gov'), findsOneWidget);
+      expect(find.text('+233 24 111 2222'), findsOneWidget);
       // "System Administrator" labels both Ama Boateng's (Super Admin) and
       // Efua Darko's (Admin) role pills.
       expect(find.text('System Administrator'), findsNWidgets(2));
@@ -2476,4 +2509,84 @@ void main() {
     await tester.pump(const Duration(milliseconds: 600));
     expect(find.text('Access Summary'), findsOneWidget);
   });
+
+  testWidgets(
+    'Admin Create Team: first member ticked becomes lead by default, and '
+    'the crown button reassigns it',
+    (WidgetTester tester) async {
+      SharedPreferences.setMockInitialValues({});
+      await MockAuthService().initialize();
+      await MockAuthService().selectRole(
+        AppRole.systemAdministrator,
+        adminTier: AdminTier.admin,
+        region: Region.ashanti,
+        assembly: assemblyNamed(Region.ashanti, 'Kumasi'),
+      );
+      addTearDown(() => MockAuthService().clearUser());
+
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      // "Kumasi Central Crew" already has both of Kumasi's maintenance
+      // workers as members (Yaw Asare leading) — editing it, rather than
+      // creating a new team, since both are otherwise "assigned elsewhere"
+      // and wouldn't appear as eligible for a brand-new team.
+      final team = MaintenanceTeamDirectory.instance.teams.value.first;
+      expect(team.name, 'Kumasi Central Crew');
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: AdminMaintenanceTeamFormScreen(team: team),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('Yaw Asare'), findsOneWidget);
+      expect(find.text('Kojo Mensah-Boateng'), findsOneWidget);
+      // Both start selected with Yaw already the lead.
+      expect(find.byTooltip('Team lead'), findsOneWidget);
+      expect(find.byTooltip('Make team lead'), findsOneWidget);
+
+      // Untick both, back to a clean slate.
+      await tester.tap(
+        find.widgetWithText(CheckboxListTile, 'Kojo Mensah-Boateng'),
+      );
+      await tester.pump();
+      await tester.tap(find.widgetWithText(CheckboxListTile, 'Yaw Asare'));
+      await tester.pump();
+      expect(find.byTooltip('Team lead'), findsNothing);
+      expect(find.byTooltip('Make team lead'), findsNothing);
+
+      // Kojo ticked first now defaults to lead.
+      await tester.tap(
+        find.widgetWithText(CheckboxListTile, 'Kojo Mensah-Boateng'),
+      );
+      await tester.pump();
+      expect(find.byTooltip('Team lead'), findsOneWidget);
+      expect(find.byTooltip('Make team lead'), findsNothing);
+
+      // Yaw ticked second doesn't steal the lead automatically.
+      await tester.tap(find.widgetWithText(CheckboxListTile, 'Yaw Asare'));
+      await tester.pump();
+      expect(find.byTooltip('Team lead'), findsOneWidget);
+      expect(find.byTooltip('Make team lead'), findsOneWidget);
+
+      // Explicit reassignment via the crown moves the lead to Yaw — still
+      // exactly one lead, never zero or two.
+      await tester.tap(find.byTooltip('Make team lead'));
+      await tester.pump();
+      expect(find.byTooltip('Team lead'), findsOneWidget);
+      expect(find.byTooltip('Make team lead'), findsOneWidget);
+      final leadIcon = tester.widget<Icon>(
+        find.descendant(
+          of: find.byTooltip('Team lead'),
+          matching: find.byIcon(AppIcons.teamLead),
+        ),
+      );
+      expect(leadIcon.color, AppColors.warning);
+    },
+  );
 }

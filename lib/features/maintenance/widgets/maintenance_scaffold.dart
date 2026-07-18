@@ -63,9 +63,14 @@ class MaintenanceScaffold extends StatelessWidget {
   /// content so nothing sits permanently hidden behind the glass header/nav.
   static EdgeInsets contentPadding(BuildContext context) {
     final viewPadding = MediaQuery.paddingOf(context);
+    final viewInsets = MediaQuery.viewInsetsOf(context);
     return EdgeInsets.only(
       top: viewPadding.top + AppDimensions.headerHeight,
-      bottom: viewPadding.bottom + AppDimensions.bottomNavHeight,
+      bottom:
+          viewPadding.bottom +
+          (viewInsets.bottom > 0
+              ? viewInsets.bottom
+              : AppDimensions.bottomNavHeight),
     );
   }
 
@@ -73,6 +78,14 @@ class MaintenanceScaffold extends StatelessWidget {
   Widget build(BuildContext context) {
     final keyboardVisible = MediaQuery.viewInsetsOf(context).bottom > 0;
     return Scaffold(
+      // Header/nav are Align-positioned in a Stack, not real Scaffold slots
+      // — the default (true) resize shrank the whole Stack a frame behind
+      // keyboardVisible above during the keyboard's open/close animation,
+      // producing a brief mismatched-position flash. False keeps them
+      // pinned to the true screen edges always; [contentPadding] reserves
+      // the keyboard's own height instead so scrollable content still
+      // clears it.
+      resizeToAvoidBottomInset: false,
       body: GestureDetector(
         onTap: () => FocusScope.of(context).unfocus(),
         behavior: HitTestBehavior.translucent,
@@ -103,7 +116,11 @@ class MaintenanceScaffold extends StatelessWidget {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({required this.tab, this.onNotificationsTap, this.onProfileTap});
+  const _Header({
+    required this.tab,
+    this.onNotificationsTap,
+    this.onProfileTap,
+  });
 
   final MaintenanceTab tab;
   final VoidCallback? onNotificationsTap;

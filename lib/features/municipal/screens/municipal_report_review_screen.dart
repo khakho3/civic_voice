@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../models/report_status.dart';
 import '../models/report_review_data.dart';
 import '../widgets/dashed_border_box.dart';
 import '../../../widgets/glass_card.dart';
-import '../widgets/map_preview.dart';
 import '../widgets/municipal_detail_header.dart';
+import '../widgets/officer_contact_row.dart';
 import '../../../widgets/app_state_message.dart';
 import '../../../widgets/status_badge.dart';
 
@@ -125,21 +126,20 @@ class _MunicipalReportReviewScreenState
                       MunicipalReportReviewViewState.offline => _ReviewBody(
                         data: _data,
                       ),
-                      MunicipalReportReviewViewState.error =>
-                        AppStateMessage(
-                          icon: AppIcons.warning,
-                          badgeColor: AppColors.error,
-                          primaryActionColor: AppColors.error,
-                          title: 'Failed to load report',
-                          message:
-                              'We encountered a network issue while '
-                              'retrieving this report. Check your '
-                              'connection and try again.',
-                          primaryActionLabel: 'Try again',
-                          onPrimaryAction: _retry,
-                          secondaryActionLabel: 'Return to Dashboard',
-                          onSecondaryAction: widget.onNavigateToDashboard,
-                        ),
+                      MunicipalReportReviewViewState.error => AppStateMessage(
+                        icon: AppIcons.warning,
+                        badgeColor: AppColors.error,
+                        primaryActionColor: AppColors.error,
+                        title: 'Failed to load report',
+                        message:
+                            'We encountered a network issue while '
+                            'retrieving this report. Check your '
+                            'connection and try again.',
+                        primaryActionLabel: 'Try again',
+                        onPrimaryAction: _retry,
+                        secondaryActionLabel: 'Return to Dashboard',
+                        onSecondaryAction: widget.onNavigateToDashboard,
+                      ),
                       MunicipalReportReviewViewState.permissionDenied =>
                         AppStateMessage(
                           icon: AppIcons.permissionDenied,
@@ -245,6 +245,15 @@ class _ReviewBody extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.md),
         _SectionCard(
+          icon: AppIcons.municipalOfficer,
+          title: 'Assigned Officer',
+          child: OfficerContactRow(
+            officerName: data.officerName,
+            officerPhone: data.officerPhone,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        _SectionCard(
           icon: AppIcons.report,
           title: 'Report Details',
           child: _ReportDetails(data: data),
@@ -259,7 +268,11 @@ class _ReviewBody extends StatelessWidget {
         _SectionCard(
           icon: AppIcons.location,
           title: 'Location',
-          child: MapPreview(locationLabel: data.locationLabel),
+          child: _ReportLocationMap(
+            latitude: data.latitude,
+            longitude: data.longitude,
+            locationLabel: data.locationLabel,
+          ),
         ),
         const SizedBox(height: AppSpacing.md),
         _SectionCard(
@@ -403,14 +416,7 @@ class _ReportDetails extends StatelessWidget {
         const SizedBox(height: AppSpacing.xs),
         Text(data.description, style: textTheme.bodyMedium),
         const SizedBox(height: AppSpacing.sm),
-        Wrap(
-          spacing: AppSpacing.xs,
-          runSpacing: AppSpacing.xs,
-          children: [
-            _NeutralTag(label: data.category.label),
-            ReportSeverityBadge(severity: data.severity, suffix: ' Priority'),
-          ],
-        ),
+        _NeutralTag(label: data.category.label),
       ],
     );
   }
@@ -512,6 +518,87 @@ class _EvidenceThumbnail extends StatelessWidget {
           AppIcons.camera,
           size: AppIconSize.lg,
           color: colorScheme.onSurfaceVariant,
+        ),
+      ),
+    );
+  }
+}
+
+/// A real, live map tile with a single marker at the report's location —
+/// replaces the previous custom-painted placeholder now that a Google Maps
+/// API key is already configured for this app (see
+/// `LocationPickerScreen`'s own `GoogleMap` for the citizen-side precedent
+/// this mirrors). Lite mode + every gesture disabled: a location preview,
+/// not a picker — there's nothing here for an officer to drag or zoom.
+class _ReportLocationMap extends StatelessWidget {
+  const _ReportLocationMap({
+    required this.latitude,
+    required this.longitude,
+    required this.locationLabel,
+  });
+
+  final double latitude;
+  final double longitude;
+  final String locationLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final target = LatLng(latitude, longitude);
+    return ClipRRect(
+      borderRadius: AppComponentRadius.card,
+      child: SizedBox(
+        height: 140,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            GoogleMap(
+              initialCameraPosition: CameraPosition(target: target, zoom: 16),
+              markers: {
+                Marker(
+                  markerId: const MarkerId('report-location'),
+                  position: target,
+                ),
+              },
+              compassEnabled: false,
+              liteModeEnabled: true,
+              mapToolbarEnabled: false,
+              myLocationButtonEnabled: false,
+              rotateGesturesEnabled: false,
+              scrollGesturesEnabled: false,
+              tiltGesturesEnabled: false,
+              zoomControlsEnabled: false,
+              zoomGesturesEnabled: false,
+            ),
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.sm,
+                  vertical: AppSpacing.xs,
+                ),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.bottomCenter,
+                    end: Alignment.topCenter,
+                    colors: [
+                      Colors.black.withValues(alpha: 0.55),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+                child: Text(
+                  locationLabel,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.labelMedium?.copyWith(color: Colors.white),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

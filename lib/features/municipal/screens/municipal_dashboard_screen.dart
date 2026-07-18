@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
-import '../../../models/report_status.dart';
 import '../models/dashboard_data.dart';
+import '../models/incoming_report.dart';
 import '../../../widgets/glass_card.dart';
 import '../widgets/municipal_scaffold.dart';
 import '../../../widgets/app_state_message.dart';
+import '../../../widgets/status_badge.dart';
 
 /// MUN-001 — Municipal Dashboard.
 ///
@@ -34,6 +35,7 @@ class MunicipalDashboardScreen extends StatefulWidget {
     this.onNavigateToActiveReports,
     this.onNavigateToResolvedReports,
     this.onProfileTap,
+    this.onReportTap,
   });
 
   /// Testing hook: defaults to the normal loaded view. Pass a different
@@ -56,6 +58,11 @@ class MunicipalDashboardScreen extends StatefulWidget {
   /// Opens MUN-009 Municipal Profile — wired to the header's profile
   /// avatar, now that it exists.
   final VoidCallback? onProfileTap;
+
+  /// Opens MUN-004 Report Review for the tapped row — the same report
+  /// shown here, since Recent Reports now reuses MUN-002 Incoming Reports'
+  /// own [IncomingReportItem] list instead of a separate mock dataset.
+  final ValueChanged<IncomingReportItem>? onReportTap;
 
   @override
   State<MunicipalDashboardScreen> createState() =>
@@ -95,16 +102,22 @@ class _MunicipalDashboardScreenState extends State<MunicipalDashboardScreen> {
           data: _data,
           loading: true,
           empty: false,
+          onViewAllReports: widget.onNavigateToInbox,
+          onReportTap: widget.onReportTap,
         ),
         MunicipalDashboardViewState.loaded => _DashboardContent(
           data: _data,
           loading: false,
           empty: false,
+          onViewAllReports: widget.onNavigateToInbox,
+          onReportTap: widget.onReportTap,
         ),
         MunicipalDashboardViewState.empty => _DashboardContent(
           data: _data,
+          onViewAllReports: widget.onNavigateToInbox,
           loading: false,
           empty: true,
+          onReportTap: widget.onReportTap,
         ),
         MunicipalDashboardViewState.error => Padding(
           padding: MunicipalScaffold.contentPadding(context),
@@ -166,9 +179,13 @@ class _DashboardContent extends StatelessWidget {
     required this.data,
     required this.loading,
     required this.empty,
+    this.onViewAllReports,
+    this.onReportTap,
   });
 
   final MunicipalDashboardData data;
+  final VoidCallback? onViewAllReports;
+  final ValueChanged<IncomingReportItem>? onReportTap;
   final bool loading;
   final bool empty;
 
@@ -184,26 +201,23 @@ class _DashboardContent extends StatelessWidget {
         chromeInset.bottom + AppSpacing.xl,
       ),
       children: [
-        _MunicipalitySelector(name: data.municipalityName),
+        _DashboardGreeting(
+          officerName: data.officerName,
+          municipalityName: data.municipalityName,
+        ),
         if (loading) ...[
           const SizedBox(height: AppSpacing.sm),
           const _LoadingIndicatorRow(),
         ],
-        // Tighter than the xl gap used between the major content sections
-        // below — the municipality card reads as a compact context strip
-        // ahead of the stats, not a section in its own right, so xl here
-        // left a visibly oversized gap.
-        const SizedBox(height: AppSpacing.lg),
+        const SizedBox(height: AppSpacing.xl),
         _StatsGrid(stats: stats, isLoading: loading),
-        if (!loading) ...[
-          const SizedBox(height: AppSpacing.xl),
-          _QuickActionsCard(),
-        ],
         const SizedBox(height: AppSpacing.xl),
         _RecentReportsCard(
           reports: data.recentReports,
           isLoading: loading,
           isEmpty: empty,
+          onViewAll: onViewAllReports,
+          onReportTap: onReportTap,
         ),
         if (!loading && !empty) ...[
           const SizedBox(height: AppSpacing.xl),
@@ -237,64 +251,55 @@ class _LoadingIndicatorRow extends StatelessWidget {
   }
 }
 
-class _MunicipalitySelector extends StatelessWidget {
-  const _MunicipalitySelector({required this.name});
+class _DashboardGreeting extends StatelessWidget {
+  const _DashboardGreeting({
+    required this.officerName,
+    required this.municipalityName,
+  });
 
-  final String name;
+  final String officerName;
+  final String municipalityName;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final colorScheme = Theme.of(context).colorScheme;
-    // Officers are scoped to a single municipality, assigned by the System
-    // Administrator at account creation (Issue 03 business rule) — there's
-    // no self-service switch workflow, and there shouldn't be, so this is a
-    // plain read-only card rather than anything styled or wrapped to look
-    // tappable (a chevron/input-field border/InkWell all imply a picker
-    // that doesn't exist and would suggest an officer can reassign
-    // themselves to another district).
-    return Container(
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: AppComponentRadius.inputField,
-        border: Border.all(color: colorScheme.outline),
-      ),
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.sm,
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'MUNICIPALITY',
-                  style: textTheme.labelSmall?.copyWith(letterSpacing: 0.96),
-                ),
-                Text(
-                  name,
-                  style: textTheme.bodyLarge?.copyWith(
-                    fontWeight: AppFontWeight.semiBold,
-                  ),
-                ),
-                Text(
-                  'Assigned by your administrator',
-                  style: textTheme.labelSmall?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
+    final compact = MediaQuery.sizeOf(context).width < 360;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Good Morning, $officerName',
+          style: compact ? textTheme.headlineSmall : textTheme.headlineMedium,
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        // Plain text, no card/border: officers are scoped to a single
+        // assembly by the System Administrator at account creation (Issue
+        // 03 business rule) — there's no self-service switch workflow —
+        // and assemblies can be District, Municipal, or Metropolitan, so a
+        // fixed "MUNICIPALITY" label was often just wrong. The name alone
+        // says what it needs to.
+        Row(
+          children: [
+            Icon(
+              AppIcons.municipality,
+              size: AppIconSize.sm,
+              color: colorScheme.onSurfaceVariant,
             ),
-          ),
-          Icon(
-            AppIcons.permissionDenied,
-            size: AppIconSize.md,
-            color: colorScheme.onSurfaceVariant,
-          ),
-        ],
-      ),
+            const SizedBox(width: AppSpacing.xs),
+            Expanded(
+              child: Text(
+                municipalityName,
+                style: textTheme.bodyLarge?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }
@@ -403,55 +408,20 @@ class _StatCard extends StatelessWidget {
   }
 }
 
-class _QuickActionsCard extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    return GlassCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Quick Actions', style: textTheme.titleMedium),
-          const SizedBox(height: AppSpacing.md),
-          Row(
-            children: [
-              Expanded(
-                child: FilledButton.icon(
-                  // No MUN screen specifies officer-initiated report
-                  // creation (Issue 03 §7) — placeholder pending spec.
-                  onPressed: () {},
-                  icon: const Icon(AppIcons.add, size: AppIconSize.sm + 2),
-                  label: const Text('New report'),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: OutlinedButton.icon(
-                  // No MUN screen specifies a map view (Issue 03 §7) —
-                  // placeholder pending spec.
-                  onPressed: () {},
-                  icon: const Icon(AppIcons.location, size: AppIconSize.sm + 2),
-                  label: const Text('View map'),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _RecentReportsCard extends StatelessWidget {
   const _RecentReportsCard({
     required this.reports,
     required this.isLoading,
     required this.isEmpty,
+    this.onViewAll,
+    this.onReportTap,
   });
 
-  final List<RecentReportItem> reports;
+  final List<IncomingReportItem> reports;
   final bool isLoading;
   final bool isEmpty;
+  final VoidCallback? onViewAll;
+  final ValueChanged<IncomingReportItem>? onReportTap;
 
   @override
   Widget build(BuildContext context) {
@@ -467,12 +437,7 @@ class _RecentReportsCard extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text('Recent Reports', style: textTheme.titleMedium),
-                TextButton(
-                  // MUN-002 Incoming Reports isn't built yet — wire up once
-                  // that screen exists.
-                  onPressed: () {},
-                  child: const Text('View all'),
-                ),
+                TextButton(onPressed: onViewAll, child: const Text('View all')),
               ],
             ),
           ),
@@ -486,6 +451,7 @@ class _RecentReportsCard extends StatelessWidget {
               _RecentReportRow(
                 report: report,
                 isFirst: report == reports.first,
+                onTap: onReportTap == null ? null : () => onReportTap!(report),
               ),
         ],
       ),
@@ -494,57 +460,65 @@ class _RecentReportsCard extends StatelessWidget {
 }
 
 class _RecentReportRow extends StatelessWidget {
-  const _RecentReportRow({required this.report, required this.isFirst});
+  const _RecentReportRow({
+    required this.report,
+    required this.isFirst,
+    this.onTap,
+  });
 
-  final RecentReportItem report;
+  final IncomingReportItem report;
   final bool isFirst;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final semantic = Theme.of(context).extension<AppSemanticColors>()!;
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.md,
-      ),
-      decoration: BoxDecoration(
-        border: isFirst
-            ? null
-            : Border(top: BorderSide(color: semantic.glassBorder)),
-      ),
-      child: Row(
-        children: [
-          const _ReportRowIcon(),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        report.title,
-                        style: textTheme.titleSmall,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.md,
+        ),
+        decoration: BoxDecoration(
+          border: isFirst
+              ? null
+              : Border(top: BorderSide(color: semantic.glassBorder)),
+        ),
+        child: Row(
+          children: [
+            const _ReportRowIcon(),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          report.title,
+                          style: textTheme.titleSmall,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    _StatusBadge(status: report.status),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  '${report.category} · ${report.timeAgo} · ${report.referenceId}',
-                  style: textTheme.bodySmall,
-                ),
-              ],
+                      const SizedBox(width: AppSpacing.sm),
+                      ReportStatusBadge(status: report.status),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    '${report.category.label} · ${report.timeAgo} · ${report.referenceId}',
+                    style: textTheme.bodySmall,
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -651,32 +625,6 @@ class _RecentReportsEmpty extends StatelessWidget {
             textAlign: TextAlign.center,
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _StatusBadge extends StatelessWidget {
-  const _StatusBadge({required this.status});
-
-  final ReportStatus status;
-
-  @override
-  Widget build(BuildContext context) {
-    final brightness = Theme.of(context).brightness;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-      decoration: BoxDecoration(
-        color: status.color.withValues(alpha: 0.12),
-        border: Border.all(color: status.color.withValues(alpha: 0.24)),
-        borderRadius: AppRadius.allXl,
-      ),
-      child: Text(
-        status.label,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: status.badgeTextColor(brightness),
-          fontWeight: AppFontWeight.semiBold,
-        ),
       ),
     );
   }

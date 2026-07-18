@@ -79,7 +79,6 @@ class AdminCreateUserScreen extends StatefulWidget {
 
 class _AdminCreateUserScreenState extends State<AdminCreateUserScreen> {
   final _nameController = TextEditingController();
-  final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
   late AppRole _role = AdminSession.instance.creatableRoles.first;
   AdminTier _tier = AdminTier.admin;
@@ -90,7 +89,6 @@ class _AdminCreateUserScreenState extends State<AdminCreateUserScreen> {
   @override
   void dispose() {
     _nameController.dispose();
-    _emailController.dispose();
     _phoneController.dispose();
     super.dispose();
   }
@@ -98,7 +96,6 @@ class _AdminCreateUserScreenState extends State<AdminCreateUserScreen> {
   Future<void> _submit() async {
     final session = AdminSession.instance;
     final name = _nameController.text.trim();
-    final email = _emailController.text.trim();
     final phone = _phoneController.text.trim();
     final needsAssembly = AdminUserItem.roleRequiresAssembly(
       _role,
@@ -107,9 +104,6 @@ class _AdminCreateUserScreenState extends State<AdminCreateUserScreen> {
 
     final errors = <String, String>{};
     if (name.isEmpty) errors['name'] = 'Full name is required';
-    if (email.isNotEmpty && (!email.contains('@') || !email.contains('.'))) {
-      errors['email'] = 'Enter a valid email address';
-    }
     if (phone.isEmpty) errors['phone'] = 'Phone number is required';
     if (needsAssembly && _assembly == null) {
       errors['assembly'] = 'Select the assembly this account is scoped to';
@@ -130,7 +124,6 @@ class _AdminCreateUserScreenState extends State<AdminCreateUserScreen> {
 
     final created = AdminUserDirectory.instance.createUser(
       name: name,
-      email: email,
       phone: phone,
       role: _role,
       adminTier: _role == AppRole.systemAdministrator ? _tier : null,
@@ -159,7 +152,6 @@ class _AdminCreateUserScreenState extends State<AdminCreateUserScreen> {
   Future<void> _handleCancel() async {
     final hasInput =
         _nameController.text.trim().isNotEmpty ||
-        _emailController.text.trim().isNotEmpty ||
         _phoneController.text.trim().isNotEmpty;
     if (hasInput) {
       final confirmed = await showConfirmDialog(
@@ -239,14 +231,6 @@ class _AdminCreateUserScreenState extends State<AdminCreateUserScreen> {
                   label: 'Full Name',
                   controller: _nameController,
                   errorText: _fieldErrors['name'],
-                  onChanged: (_) => setState(() => _fieldErrors = {}),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                _TextField(
-                  label: 'Email',
-                  controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  errorText: _fieldErrors['email'],
                   onChanged: (_) => setState(() => _fieldErrors = {}),
                 ),
                 const SizedBox(height: AppSpacing.sm),

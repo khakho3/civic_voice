@@ -2,13 +2,12 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
 
-/// The four breakdown dimensions MIN-002 Analytics Dashboard's filter chips
+/// The three breakdown dimensions MIN-002 Analytics Dashboard's filter chips
 /// pivot the "Distribution" section between.
 enum AnalyticsDimension {
   category('Category'),
   status('Status'),
-  municipality('Municipality'),
-  department('Department');
+  municipality('Municipality');
 
   const AnalyticsDimension(this.label);
 
@@ -89,9 +88,8 @@ class MinistryAnalyticsData {
   /// status" is the only reading that isn't circular (a status's own
   /// "resolution rate" would trivially be 100% for Resolved). Municipality
   /// deliberately reuses the exact figures from MIN-001 Dashboard's
-  /// Municipality Performance list, and Department reuses the department
-  /// names already established on the Municipal Officer module, so the
-  /// same entities read consistently everywhere they appear.
+  /// Municipality Performance list, so the same entities read consistently
+  /// everywhere they appear.
   static MinistryAnalyticsData mock() {
     return const MinistryAnalyticsData(
       dateRangeLabel: 'Last 30 Days',
@@ -152,23 +150,6 @@ class MinistryAnalyticsData {
           AnalyticsBreakdownItem(
             label: 'Tamale Metro',
             percent: 71,
-            color: AppColors.warning,
-          ),
-        ],
-        AnalyticsDimension.department: [
-          AnalyticsBreakdownItem(
-            label: 'Public Works',
-            percent: 74,
-            color: AppColors.primary,
-          ),
-          AnalyticsBreakdownItem(
-            label: 'Road Maintenance',
-            percent: 68,
-            color: AppColors.statusInProgress,
-          ),
-          AnalyticsBreakdownItem(
-            label: 'Parks & Recreation',
-            percent: 89,
             color: AppColors.warning,
           ),
         ],

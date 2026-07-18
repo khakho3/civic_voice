@@ -305,7 +305,11 @@ void main() {
     await advanceRoute();
 
     expect(find.text('Municipal Officer'), findsOneWidget);
-    expect(find.text('Kwame Owusu'), findsOneWidget);
+    // Accra Metropolitan already has a real provisioned Municipal Officer
+    // (Kojo Mensah) in AdminUserDirectory's own mock data — that wins over
+    // Municipal Performance's own static officerName ("Kwame Owusu"). See
+    // AdminUserDirectory.correspondentOfficerFor.
+    expect(find.text('Kojo Mensah'), findsOneWidget);
 
     await tester.tap(find.byIcon(AppIcons.back));
     await advanceRoute();
@@ -2149,8 +2153,12 @@ void main() {
       expect(find.text('14h'), findsOneWidget);
 
       expect(find.text('Municipal Officer'), findsOneWidget);
-      expect(find.text('Kwame Owusu'), findsOneWidget);
-      expect(find.text('+233 24 555 0101'), findsOneWidget);
+      // A real Municipal Officer account (Kojo Mensah) is already
+      // provisioned for Accra Metropolitan in AdminUserDirectory's own mock
+      // data — AdminUserDirectory.correspondentOfficerFor prefers that real
+      // account over testMunicipality's own static officerName/officerPhone.
+      expect(find.text('Kojo Mensah'), findsOneWidget);
+      expect(find.text('+233 24 333 4444'), findsOneWidget);
       expect(find.text('Call'), findsOneWidget);
       expect(find.text('Message'), findsOneWidget);
 
@@ -2260,14 +2268,16 @@ void main() {
 
       expect(tester.takeException(), isNull);
       expect(find.textContaining('Could not open'), findsNothing);
-      expect(fake.lastLaunchedUri.toString(), 'tel:+233245550101');
+      // Real provisioned officer (Kojo Mensah) wins over testMunicipality's
+      // own static officerPhone — see the test above.
+      expect(fake.lastLaunchedUri.toString(), 'tel:+233243334444');
 
       await tester.ensureVisible(find.text('Message'));
       await tester.tap(find.text('Message'));
       await tester.pumpAndSettle();
 
       expect(tester.takeException(), isNull);
-      expect(fake.lastLaunchedUri.toString(), 'sms:+233245550101');
+      expect(fake.lastLaunchedUri.toString(), 'sms:+233243334444');
     },
   );
 

@@ -1,6 +1,7 @@
 import '../../../models/assembly.dart';
 import '../../../models/ghana_assemblies_data.dart';
 import '../../../models/region.dart';
+import '../../../models/team_availability.dart';
 
 class MaintenanceTeam {
   const MaintenanceTeam({
@@ -11,6 +12,7 @@ class MaintenanceTeam {
     required this.memberUserIds,
     required this.createdAt,
     this.leadUserId,
+    this.availability = TeamAvailability.available,
   });
 
   final String teamId;
@@ -28,6 +30,12 @@ class MaintenanceTeam {
   /// for a 1-person team but ambiguous once a team has several.
   final String? leadUserId;
 
+  /// Self-reported by the team lead from Maintenance's own Profile screen
+  /// (see `lib/features/maintenance/screens/profile_screen.dart`) — this
+  /// is what Municipal's Assign Team actually reads/filters by now,
+  /// instead of a fixed-forever mock value.
+  final TeamAvailability availability;
+
   static const _unset = Object();
 
   /// [leadUserId] takes `_unset` (via the default) to mean "leave
@@ -39,6 +47,7 @@ class MaintenanceTeam {
     Assembly? assembly,
     List<String>? memberUserIds,
     Object? leadUserId = _unset,
+    TeamAvailability? availability,
   }) {
     final nextAssembly = assembly ?? this.assembly;
     return MaintenanceTeam(
@@ -51,6 +60,7 @@ class MaintenanceTeam {
       leadUserId: identical(leadUserId, _unset)
           ? this.leadUserId
           : leadUserId as String?,
+      availability: availability ?? this.availability,
     );
   }
 

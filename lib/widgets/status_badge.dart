@@ -1,16 +1,15 @@
 import 'package:flutter/material.dart';
 
 import '../core/theme/app_theme.dart';
-import '../models/report_severity.dart';
 import '../models/report_status.dart';
 
-/// Shared tinted-pill badge shape for [ReportStatusBadge] and
-/// [ReportSeverityBadge] — promoted out of the Incoming Reports screen once
-/// Report Review needed the same components. Public (not module-private)
-/// since other modules' own status-like enums (e.g. Maintenance Team's
-/// `MaintenanceTaskStatus`) want this exact pill treatment — a tinted,
-/// bordered label with no icon mixed in — rather than each module building
-/// its own slightly-different badge shape.
+/// Shared tinted-pill badge shape for [ReportStatusBadge] — promoted out of
+/// the Incoming Reports screen once Report Review needed the same
+/// component. Public (not module-private) since other modules' own
+/// status-like enums (e.g. Maintenance Team's `MaintenanceTaskStatus`) want
+/// this exact pill treatment — a tinted, bordered label with no icon mixed
+/// in — rather than each module building its own slightly-different badge
+/// shape.
 class TintedBadge extends StatelessWidget {
   const TintedBadge({
     super.key,
@@ -55,26 +54,6 @@ class ReportStatusBadge extends StatelessWidget {
       label: status.label,
       color: status.color,
       textColor: status.badgeTextColor(brightness),
-    );
-  }
-}
-
-class ReportSeverityBadge extends StatelessWidget {
-  const ReportSeverityBadge({super.key, required this.severity, this.suffix});
-
-  final ReportSeverity severity;
-
-  /// Appended to the label, e.g. " Priority" for Report Review's
-  /// "High Priority" tag vs. Incoming Reports' bare "High".
-  final String? suffix;
-
-  @override
-  Widget build(BuildContext context) {
-    final brightness = Theme.of(context).brightness;
-    return TintedBadge(
-      label: suffix == null ? severity.label : '${severity.label}$suffix',
-      color: severity.color,
-      textColor: severity.badgeTextColor(brightness),
     );
   }
 }

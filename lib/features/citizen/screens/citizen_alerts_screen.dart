@@ -104,8 +104,12 @@ class _CitizenAlertsScreenState extends State<CitizenAlertsScreen> {
   Widget build(BuildContext context) {
     final compact = MediaQuery.sizeOf(context).width < 360;
     final horizontalPadding = compact ? AppSpacing.sm : AppSpacing.md;
+    final keyboardVisible = MediaQuery.viewInsetsOf(context).bottom > 0;
 
     return Scaffold(
+      // See create_report_screen.dart's build() for why this is false and
+      // paired with the keyboardVisible-guarded nav below.
+      resizeToAvoidBottomInset: false,
       body: Stack(
         children: [
           Positioned.fill(
@@ -173,23 +177,24 @@ class _CitizenAlertsScreenState extends State<CitizenAlertsScreen> {
               onBack: _openDashboard,
             ),
           ),
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: CivicBottomNav(
-              selectedIndex: 3,
-              onDestinationSelected: (index) {
-                if (index == 0) {
-                  _openDashboard();
-                } else if (index == 1) {
-                  _openReports();
-                } else if (index == 2) {
-                  _openCreateReport();
-                } else if (index == 4) {
-                  _openProfile();
-                }
-              },
+          if (!keyboardVisible)
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: CivicBottomNav(
+                selectedIndex: 3,
+                onDestinationSelected: (index) {
+                  if (index == 0) {
+                    _openDashboard();
+                  } else if (index == 1) {
+                    _openReports();
+                  } else if (index == 2) {
+                    _openCreateReport();
+                  } else if (index == 4) {
+                    _openProfile();
+                  }
+                },
+              ),
             ),
-          ),
         ],
       ),
     );

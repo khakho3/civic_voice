@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:civic_voice/core/theme/app_theme.dart';
 
-import '../../../models/report_severity.dart';
 import '../../../widgets/glass_card.dart';
 import '../../../widgets/status_badge.dart';
 import '../models/maintenance_task.dart';
@@ -31,7 +30,6 @@ class _AssignedTasksScreenState extends State<AssignedTasksScreen> {
   AppScreenState _state = AppScreenState.success;
   String _query = '';
   MaintenanceTaskStatus? _statusFilter;
-  ReportSeverity? _priorityFilter;
 
   @override
   Widget build(BuildContext context) {
@@ -88,11 +86,9 @@ class _AssignedTasksScreenState extends State<AssignedTasksScreen> {
           tasks: openTasks,
           query: _query,
           statusFilter: _statusFilter,
-          priorityFilter: _priorityFilter,
           disabled: _state == AppScreenState.disabled,
           onQueryChanged: (value) => setState(() => _query = value),
           onStatusChanged: (value) => setState(() => _statusFilter = value),
-          onPriorityChanged: (value) => setState(() => _priorityFilter = value),
           onOpenTaskDetails: widget.onOpenTaskDetails,
         );
     }
@@ -104,22 +100,18 @@ class _AssignedTasksContent extends StatelessWidget {
     required this.tasks,
     required this.query,
     required this.statusFilter,
-    required this.priorityFilter,
     required this.disabled,
     required this.onQueryChanged,
     required this.onStatusChanged,
-    required this.onPriorityChanged,
     required this.onOpenTaskDetails,
   });
 
   final List<MaintenanceTask> tasks;
   final String query;
   final MaintenanceTaskStatus? statusFilter;
-  final ReportSeverity? priorityFilter;
   final bool disabled;
   final ValueChanged<String> onQueryChanged;
   final ValueChanged<MaintenanceTaskStatus?> onStatusChanged;
-  final ValueChanged<ReportSeverity?> onPriorityChanged;
   final ValueChanged<String>? onOpenTaskDetails;
 
   @override
@@ -131,9 +123,7 @@ class _AssignedTasksContent extends StatelessWidget {
           final queryMatch = query.trim().isEmpty || task.matches(query);
           final statusMatch =
               statusFilter == null || task.status == statusFilter;
-          final priorityMatch =
-              priorityFilter == null || task.priority == priorityFilter;
-          return queryMatch && statusMatch && priorityMatch;
+          return queryMatch && statusMatch;
         })
         .toList(growable: false);
 
@@ -165,9 +155,7 @@ class _AssignedTasksContent extends StatelessWidget {
             const SizedBox(height: AppSpacing.md),
             _FilterRail(
               statusFilter: statusFilter,
-              priorityFilter: priorityFilter,
               onStatusChanged: onStatusChanged,
-              onPriorityChanged: onPriorityChanged,
             ),
             const SizedBox(height: AppSpacing.lg),
             Row(
@@ -208,8 +196,8 @@ class _QueueOverview extends StatelessWidget {
     final activeCount = tasks
         .where((task) => task.status == MaintenanceTaskStatus.inProgress)
         .length;
-    final highPriorityCount = tasks
-        .where((task) => task.priority == ReportSeverity.high)
+    final newCount = tasks
+        .where((task) => task.status == MaintenanceTaskStatus.assigned)
         .length;
 
     return GlassCard(
@@ -233,10 +221,10 @@ class _QueueOverview extends StatelessWidget {
           ),
           Expanded(
             child: _QueueMetric(
-              icon: AppIcons.criticalAlert,
-              value: '$highPriorityCount',
-              label: 'High',
-              color: semantic.error,
+              icon: AppIcons.statusAssigned,
+              value: '$newCount',
+              label: 'New',
+              color: Theme.of(context).colorScheme.secondary,
             ),
           ),
         ],
@@ -287,22 +275,14 @@ class _QueueMetric extends StatelessWidget {
 }
 
 class _FilterRail extends StatelessWidget {
-  const _FilterRail({
-    required this.statusFilter,
-    required this.priorityFilter,
-    required this.onStatusChanged,
-    required this.onPriorityChanged,
-  });
+  const _FilterRail({required this.statusFilter, required this.onStatusChanged});
 
   final MaintenanceTaskStatus? statusFilter;
-  final ReportSeverity? priorityFilter;
   final ValueChanged<MaintenanceTaskStatus?> onStatusChanged;
-  final ValueChanged<ReportSeverity?> onPriorityChanged;
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
     final statusOptions = const [
       (null, 'All', AppIcons.filter),
       (MaintenanceTaskStatus.assigned, 'New', AppIcons.statusAssigned),
@@ -315,81 +295,22 @@ class _FilterRail extends StatelessWidget {
         color: colorScheme.surfaceContainerLow,
         borderRadius: AppComponentRadius.inputField,
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  for (final option in statusOptions)
-                    Padding(
-                      padding: const EdgeInsets.only(right: AppSpacing.xs),
-                      child: _CuteFilterPill(
-                        icon: option.$3,
-                        label: option.$2,
-                        selected: statusFilter == option.$1,
-                        onTap: () => onStatusChanged(option.$1),
-                      ),
-                    ),
-                ],
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            for (final option in statusOptions)
+              Padding(
+                padding: const EdgeInsets.only(right: AppSpacing.xs),
+                child: _CuteFilterPill(
+                  icon: option.$3,
+                  label: option.$2,
+                  selected: statusFilter == option.$1,
+                  onTap: () => onStatusChanged(option.$1),
+                ),
               ),
-            ),
-          ),
-          const SizedBox(width: AppSpacing.xs),
-          PopupMenuButton<ReportSeverity?>(
-            tooltip: 'Priority filter',
-            initialValue: priorityFilter,
-            onSelected: onPriorityChanged,
-            itemBuilder: (context) => const [
-              PopupMenuItem(value: null, child: Text('Any priority')),
-              PopupMenuItem(value: ReportSeverity.high, child: Text('High')),
-              PopupMenuItem(
-                value: ReportSeverity.medium,
-                child: Text('Medium'),
-              ),
-              PopupMenuItem(value: ReportSeverity.low, child: Text('Low')),
-            ],
-            child: Container(
-              constraints: const BoxConstraints(maxWidth: 116),
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.sm,
-                vertical: AppSpacing.sm,
-              ),
-              decoration: BoxDecoration(
-                color: priorityFilter == null
-                    ? colorScheme.surface
-                    : colorScheme.primary,
-                borderRadius: BorderRadius.circular(AppRadius.xl),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    AppIcons.criticalAlert,
-                    size: AppIconSize.sm,
-                    color: priorityFilter == null
-                        ? colorScheme.onSurfaceVariant
-                        : colorScheme.onPrimary,
-                  ),
-                  const SizedBox(width: AppSpacing.xs),
-                  Flexible(
-                    child: Text(
-                      priorityFilter?.label ?? 'Priority',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: textTheme.labelMedium?.copyWith(
-                        color: priorityFilter == null
-                            ? colorScheme.onSurfaceVariant
-                            : colorScheme.onPrimary,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -580,21 +501,13 @@ class _TaskCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: AppSpacing.sm),
-          Row(
-            children: [
-              ReportSeverityBadge(severity: task.priority, suffix: ' Priority'),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Text(
-                  task.eta,
-                  style: textTheme.bodySmall?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
+          Text(
+            task.eta,
+            style: textTheme.bodySmall?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: AppSpacing.sm),
           Row(

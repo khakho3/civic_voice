@@ -1,4 +1,3 @@
-import '../../../models/report_severity.dart';
 import '../../../models/report_status.dart';
 
 /// One entry in the Status Timeline card.
@@ -37,18 +36,14 @@ class CaseSummary {
   const CaseSummary({
     required this.referenceId,
     required this.title,
-    required this.department,
     required this.resolutionDate,
-    required this.severity,
     required this.reporterName,
     required this.evidencePhotoCount,
   });
 
   final String referenceId;
   final String title;
-  final String department;
   final String resolutionDate;
-  final ReportSeverity severity;
   final String reporterName;
   final int evidencePhotoCount;
 }
@@ -60,6 +55,7 @@ class ReportProgressData {
     required this.title,
     required this.districtLabel,
     required this.officerName,
+    required this.officerPhone,
     required this.status,
     required this.completionPercent,
     required this.timeline,
@@ -74,6 +70,11 @@ class ReportProgressData {
   final String title;
   final String districtLabel;
   final String officerName;
+
+  /// E.164-ish Ghana mobile format (e.g. "+233 24 555 0123") — same format
+  /// `tel:`/`sms:` URIs expect, so it can be handed straight to
+  /// [OfficerContactRow] with no reformatting.
+  final String officerPhone;
   final ReportStatus status;
   final int completionPercent;
   final List<ProgressTimelineStep> timeline;
@@ -107,7 +108,8 @@ class ReportProgressData {
       referenceId: 'REQ-8421',
       title: 'Main St. Pothole Repair',
       districtLabel: 'North District, Zone 4',
-      officerName: 'Officer J. Sterling',
+      officerName: 'Alex Johnston',
+      officerPhone: '+233 24 555 0142',
       status: ReportStatus.inProgress,
       completionPercent: 65,
       timeline: [
@@ -142,8 +144,7 @@ class ReportProgressData {
         ActivityLogEntry(
           timeAgo: 'Just now',
           label: 'Photo Upload — Queued',
-          description:
-              'Evidence photo of completed patching queued for sync.',
+          description: 'Evidence photo of completed patching queued for sync.',
         ),
         ActivityLogEntry(
           timeAgo: 'Yesterday',
@@ -159,9 +160,7 @@ class ReportProgressData {
       caseSummary: CaseSummary(
         referenceId: 'REQ-8421',
         title: 'Main St. Pothole Repair',
-        department: 'Public Works',
         resolutionDate: 'Oct 25, 2026',
-        severity: ReportSeverity.high,
         // Matches Report Review's Citizen Information for this same report.
         reporterName: 'John Smith',
         evidencePhotoCount: 2,

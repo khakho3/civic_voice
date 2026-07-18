@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../models/report_status.dart';
 import '../models/incoming_report.dart';
+import '../services/municipal_report_directory.dart';
 import '../../../widgets/collapsible_list_header.dart';
 import '../../../widgets/glass_card.dart';
 import '../widgets/municipal_scaffold.dart';
@@ -74,10 +76,19 @@ class _MunicipalInboxScreenState extends State<MunicipalInboxScreen> {
   late MunicipalInboxViewState _state = widget.initialState;
   final _searchController = TextEditingController();
   ReportCategory? _selectedCategory;
+  // Only new/reviewed-but-unassigned reports belong in the Inbox — once a
+  // team is assigned, a report only shows on Active Reports (see
+  // MunicipalReportDirectory.assignTeam).
   late final List<IncomingReportItem> _reports =
       widget.initialState == MunicipalInboxViewState.empty
       ? const []
-      : IncomingReportItem.mock();
+      : MunicipalReportDirectory.instance.reports.value
+            .where(
+              (r) =>
+                  r.status == ReportStatus.submitted ||
+                  r.status == ReportStatus.underReview,
+            )
+            .toList();
 
   @override
   void initState() {
@@ -494,17 +505,8 @@ class _ReportCard extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Wrap(
-                  spacing: AppSpacing.xs,
-                  runSpacing: AppSpacing.xs,
-                  children: [
-                    ReportSeverityBadge(severity: report.severity),
-                    ReportStatusBadge(status: report.status),
-                  ],
-                ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
+              ReportStatusBadge(status: report.status),
+              const Spacer(),
               Text(report.timeAgo, style: textTheme.bodySmall),
             ],
           ),

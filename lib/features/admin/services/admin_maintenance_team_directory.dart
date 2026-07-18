@@ -18,6 +18,7 @@ class MaintenanceTeamDirectory {
     required String name,
     required Assembly assembly,
     List<String> memberUserIds = const [],
+    String? leadUserId,
   }) {
     final team = MaintenanceTeam(
       teamId: 'TEAM-${(_nextTeamNumber++).toString().padLeft(4, '0')}',
@@ -25,6 +26,7 @@ class MaintenanceTeamDirectory {
       region: assembly.region,
       assembly: assembly,
       memberUserIds: List.unmodifiable(memberUserIds),
+      leadUserId: leadUserId,
       createdAt: DateTime.now(),
     );
     teams.value = [

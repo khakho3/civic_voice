@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:civic_voice/core/theme/app_theme.dart';
+import 'package:civic_voice/features/admin/models/admin_role_management_data.dart';
 import 'package:civic_voice/features/admin/screens/admin_dashboard_screen.dart';
 import 'package:civic_voice/features/authentication/screens/forgot_password_screen.dart';
 import 'package:civic_voice/features/authentication/screens/login_screen.dart';
@@ -13,6 +14,8 @@ import 'package:civic_voice/features/authentication/screens/welcome_screen.dart'
 import 'package:civic_voice/features/citizen/screens/citizen_dashboard_screen.dart';
 import 'package:civic_voice/main.dart';
 import 'package:civic_voice/models/app_role.dart';
+import 'package:civic_voice/models/ghana_assemblies_data.dart';
+import 'package:civic_voice/models/region.dart';
 import 'package:civic_voice/services/mock_auth_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -67,6 +70,42 @@ void main() {
     expect(MockAuthService().getCurrentRole(), AppRole.systemAdministrator);
     expect(find.byType(AdminDashboardScreen), findsOneWidget);
   });
+
+  testWidgets(
+    'Test Role Selector resets Admin Tier to Super Admin when System '
+    'Administrator is freshly reselected after a different role',
+    (WidgetTester tester) async {
+      // Simulate a prior session that tested Admin tier for Kumasi — the
+      // exact sticky-state scenario that silently hid Super-Admin-only
+      // content (e.g. the health stats) the next time "Admin" was picked.
+      await MockAuthService().selectRole(
+        AppRole.systemAdministrator,
+        adminTier: AdminTier.admin,
+        region: Region.ashanti,
+        assembly: assemblyNamed(Region.ashanti, 'Kumasi'),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: TestRoleSelectorScreen(onRoleSelected: (_) {}, onSkip: () {}),
+        ),
+      );
+      await tester.pump();
+
+      // Switch away to a different role, then back to Admin — a fresh
+      // reselection, not a resumed session.
+      await tester.tap(find.text('Citizen'));
+      await tester.pump();
+      await tester.tap(find.text('Admin'));
+      await tester.pump();
+
+      final tierGroup = tester.widget<RadioGroup<AdminTier>>(
+        find.byType(RadioGroup<AdminTier>),
+      );
+      expect(tierGroup.groupValue, AdminTier.superAdmin);
+    },
+  );
 
   testWidgets('Welcome Login link opens Test Role Selector', (
     WidgetTester tester,

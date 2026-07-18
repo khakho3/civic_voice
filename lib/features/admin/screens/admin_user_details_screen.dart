@@ -393,9 +393,12 @@ class _DetailsForm extends StatelessWidget {
             children: [
               _ReadOnlyField(label: 'Full Name', value: user.name),
               const SizedBox(height: AppSpacing.sm),
-              _ReadOnlyField(label: 'Email', value: user.email),
-              const SizedBox(height: AppSpacing.sm),
               _ReadOnlyField(label: 'Phone Number', value: user.phone),
+              const SizedBox(height: AppSpacing.sm),
+              _ReadOnlyField(
+                label: 'Email',
+                value: user.email ?? 'Not provided',
+              ),
               const SizedBox(height: AppSpacing.sm),
               _ReadOnlyField(label: 'User ID', value: user.userId),
             ],
@@ -560,7 +563,7 @@ class _ProfileCard extends StatelessWidget {
             textAlign: TextAlign.center,
           ),
           Text(
-            user.email,
+            user.phone,
             style: textTheme.bodyMedium,
             textAlign: TextAlign.center,
           ),

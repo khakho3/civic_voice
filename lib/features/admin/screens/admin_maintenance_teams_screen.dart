@@ -223,6 +223,7 @@ class _AdminMaintenanceTeamFormScreenState
   late Assembly? _assembly =
       widget.team?.assembly ?? AdminSession.instance.assembly;
   late Set<String> _selectedMemberIds = {...?widget.team?.memberUserIds};
+  late String? _leadUserId = widget.team?.leadUserId;
   String _memberQuery = '';
   String? _nameError;
   String? _assemblyError;
@@ -296,6 +297,7 @@ class _AdminMaintenanceTeamFormScreenState
           name: name,
           assembly: _assembly,
           memberUserIds: _selectedMemberIds.toList(),
+          leadUserId: _leadUserId,
         ),
       );
     } else {
@@ -303,6 +305,7 @@ class _AdminMaintenanceTeamFormScreenState
         name: name,
         assembly: _assembly!,
         memberUserIds: _selectedMemberIds.toList(),
+        leadUserId: _leadUserId,
       );
     }
     widget.onClose?.call();
@@ -392,16 +395,30 @@ class _AdminMaintenanceTeamFormScreenState
                       controller: _memberSearchController,
                       users: eligible,
                       selectedIds: _selectedMemberIds,
+                      leadUserId: _leadUserId,
                       queryEnabled: _assembly != null,
                       onQueryChanged: (value) =>
                           setState(() => _memberQuery = value),
                       onToggle: (user) => setState(() {
                         if (_selectedMemberIds.contains(user.userId)) {
                           _selectedMemberIds.remove(user.userId);
+                          if (_leadUserId == user.userId) {
+                            // First remaining member (Set is insertion-
+                            // ordered) inherits the lead — a team a lead
+                            // just left shouldn't silently have none.
+                            _leadUserId = _selectedMemberIds.isEmpty
+                                ? null
+                                : _selectedMemberIds.first;
+                          }
                         } else {
                           _selectedMemberIds.add(user.userId);
+                          // First person ticked becomes lead by default;
+                          // reassign explicitly via the crown button.
+                          _leadUserId ??= user.userId;
                         }
                       }),
+                      onSetLead: (user) =>
+                          setState(() => _leadUserId = user.userId),
                     ),
                   ),
                   const SizedBox(height: AppSpacing.lg),
@@ -831,6 +848,7 @@ class _TeamDetailsBody extends StatelessWidget {
                       for (final member in members) ...[
                         _MemberRow(
                           user: member,
+                          isLead: member.userId == team.leadUserId,
                           onTap: onOpenUserDetails == null
                               ? null
                               : () => onOpenUserDetails!(member),
@@ -865,17 +883,28 @@ class _MemberPicker extends StatelessWidget {
     required this.controller,
     required this.users,
     required this.selectedIds,
+    required this.leadUserId,
     required this.queryEnabled,
     required this.onQueryChanged,
     required this.onToggle,
+    required this.onSetLead,
   });
 
   final TextEditingController controller;
   final List<AdminUserItem> users;
   final Set<String> selectedIds;
+
+  /// The current team lead, if any — only meaningful for a row that's also
+  /// in [selectedIds]; the crown affordance is hidden for anyone not yet a
+  /// member.
+  final String? leadUserId;
   final bool queryEnabled;
   final ValueChanged<String> onQueryChanged;
   final ValueChanged<AdminUserItem> onToggle;
+
+  /// Explicitly reassigns the lead to this member — the escape hatch for
+  /// when the default (first person ticked) isn't who should lead.
+  final ValueChanged<AdminUserItem> onSetLead;
 
   @override
   Widget build(BuildContext context) {
@@ -903,26 +932,70 @@ class _MemberPicker extends StatelessWidget {
             style: Theme.of(context).textTheme.bodyMedium,
           )
         else
-          for (final user in users)
-            CheckboxListTile(
-              contentPadding: EdgeInsets.zero,
-              value: selectedIds.contains(user.userId),
-              onChanged: (_) => onToggle(user),
-              title: Text(user.name),
-              subtitle: Text(user.email),
-              controlAffinity: ListTileControlAffinity.leading,
+          // CheckboxListTile paints its own background/ink on the nearest
+          // Material ancestor — without this, that lands on _Section's own
+          // colored Container instead and gets silently clipped/hidden.
+          Material(
+            type: MaterialType.transparency,
+            child: Column(
+              children: [
+                for (final user in users)
+                  CheckboxListTile(
+                    contentPadding: EdgeInsets.zero,
+                    value: selectedIds.contains(user.userId),
+                    onChanged: (_) => onToggle(user),
+                    title: Text(user.name),
+                    subtitle: Text(user.phone),
+                    controlAffinity: ListTileControlAffinity.leading,
+                    secondary: selectedIds.contains(user.userId)
+                        ? _LeadButton(
+                            isLead: user.userId == leadUserId,
+                            onTap: () => onSetLead(user),
+                          )
+                        : null,
+                  ),
+              ],
             ),
+          ),
       ],
     );
   }
 }
 
+/// Crown toggle marking (or reassigning) a selected member as team lead —
+/// only ever shown next to a member already on the team.
+class _LeadButton extends StatelessWidget {
+  const _LeadButton({required this.isLead, required this.onTap});
+
+  final bool isLead;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return IconButton(
+      tooltip: isLead ? 'Team lead' : 'Make team lead',
+      icon: Icon(
+        AppIcons.teamLead,
+        color: isLead ? AppColors.warning : colorScheme.onSurfaceVariant,
+      ),
+      onPressed: onTap,
+    );
+  }
+}
+
 class _MemberRow extends StatelessWidget {
-  const _MemberRow({required this.user, this.onTap, required this.onRemove});
+  const _MemberRow({
+    required this.user,
+    this.onTap,
+    required this.onRemove,
+    this.isLead = false,
+  });
 
   final AdminUserItem user;
   final VoidCallback? onTap;
   final VoidCallback onRemove;
+  final bool isLead;
 
   @override
   Widget build(BuildContext context) {
@@ -949,9 +1022,27 @@ class _MemberRow extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(user.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          user.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (isLead) ...[
+                        const SizedBox(width: AppSpacing.xs),
+                        Icon(
+                          AppIcons.teamLead,
+                          size: AppIconSize.sm,
+                          color: AppColors.warning,
+                        ),
+                      ],
+                    ],
+                  ),
                   Text(
-                    user.email,
+                    user.phone,
                     style: Theme.of(context).textTheme.bodySmall,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,

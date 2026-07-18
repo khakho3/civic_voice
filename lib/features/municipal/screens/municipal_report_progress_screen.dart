@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../models/report_status.dart';
@@ -6,6 +7,7 @@ import '../models/report_progress_data.dart';
 import '../../../widgets/glass_card.dart';
 import '../../../widgets/kebab_menu_button.dart';
 import '../widgets/municipal_detail_header.dart';
+import '../widgets/officer_contact_row.dart';
 import '../../../widgets/status_badge.dart';
 
 /// MUN-007 — Report Progress.
@@ -38,7 +40,6 @@ class MunicipalReportProgressScreen extends StatefulWidget {
     this.status = ReportStatus.inProgress,
     this.initialState = MunicipalReportProgressViewState.loaded,
     this.onBack,
-    this.onShareSummary,
   });
 
   final String referenceId;
@@ -49,11 +50,6 @@ class MunicipalReportProgressScreen extends StatefulWidget {
   /// "Return to Active Reports" action (see the class doc comment for why
   /// those are the same callback here).
   final VoidCallback? onBack;
-
-  /// No share integration is specified yet — placeholder the app shell can
-  /// wire up once one exists, same treatment as Dashboard's "New report"/
-  /// "View map" quick actions.
-  final VoidCallback? onShareSummary;
 
   @override
   State<MunicipalReportProgressScreen> createState() =>
@@ -104,6 +100,21 @@ class _MunicipalReportProgressScreenState
     );
   }
 
+  Future<void> _shareSummary() {
+    return SharePlus.instance.share(
+      ShareParams(
+        text:
+            'Case ${_data.referenceId} — ${_data.title}\n'
+            'District: ${_data.districtLabel}\n'
+            'Officer: ${_data.officerName}\n'
+            'Status: ${_data.completionPercent}% complete\n'
+            'Latest update (${_data.latestUpdateTeam}, '
+            '${_data.latestUpdateTimeAgo}): ${_data.latestUpdateNote}',
+        subject: 'CivicVoice case ${_data.referenceId} — progress',
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final showActionBar = _state != MunicipalReportProgressViewState.success;
@@ -144,7 +155,7 @@ class _MunicipalReportProgressScreenState
                       MunicipalReportProgressViewState.success => _SuccessBody(
                         data: _data,
                         onReturnToActiveReports: widget.onBack,
-                        onShareSummary: widget.onShareSummary,
+                        onShareSummary: _shareSummary,
                       ),
                     },
                   ),
@@ -171,7 +182,7 @@ class _MunicipalReportProgressScreenState
                   KebabMenuButton<void>(
                     itemBuilder: (context) => [
                       PopupMenuItem(
-                        onTap: widget.onShareSummary,
+                        onTap: _shareSummary,
                         child: const Text('Share Summary'),
                       ),
                     ],
@@ -313,36 +324,22 @@ class _SummaryCard extends StatelessWidget {
           const SizedBox(height: 2),
           Text(data.title, style: textTheme.titleMedium),
           const SizedBox(height: AppSpacing.xs),
-          Wrap(
-            spacing: AppSpacing.md,
-            runSpacing: 4,
-            crossAxisAlignment: WrapCrossAlignment.center,
+          Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    AppIcons.location,
-                    size: AppIconSize.sm,
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(data.districtLabel, style: textTheme.bodySmall),
-                ],
+              Icon(
+                AppIcons.location,
+                size: AppIconSize.sm,
+                color: colorScheme.onSurfaceVariant,
               ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    AppIcons.profile,
-                    size: AppIconSize.sm,
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(data.officerName, style: textTheme.bodySmall),
-                ],
-              ),
+              const SizedBox(width: 4),
+              Text(data.districtLabel, style: textTheme.bodySmall),
             ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          OfficerContactRow(
+            officerName: data.officerName,
+            officerPhone: data.officerPhone,
           ),
           const SizedBox(height: AppSpacing.md),
           Row(
@@ -792,7 +789,7 @@ class _SuccessBody extends StatelessWidget {
         const SizedBox(height: AppSpacing.sm),
         Text(
           'The civic issue has been addressed and verified by the '
-          'designated department.',
+          'assigned team.',
           style: textTheme.bodyMedium,
           textAlign: TextAlign.center,
         ),
@@ -845,42 +842,12 @@ class _CaseSummaryCard extends StatelessWidget {
           const SizedBox(height: 2),
           Text(summary.title, style: textTheme.titleMedium),
           const SizedBox(height: AppSpacing.md),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: _LabeledValue(
-                  label: 'DEPARTMENT',
-                  value: summary.department,
-                ),
-              ),
-              Expanded(
-                child: _LabeledValue(
-                  label: 'RESOLUTION DATE',
-                  value: summary.resolutionDate,
-                ),
-              ),
-            ],
+          _LabeledValue(
+            label: 'RESOLUTION DATE',
+            value: summary.resolutionDate,
           ),
           const SizedBox(height: AppSpacing.sm),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: _LabeledValue(
-                  label: 'PRIORITY',
-                  value: summary.severity.label,
-                  valueColor: summary.severity.color,
-                ),
-              ),
-              Expanded(
-                child: _LabeledValue(
-                  label: 'REPORTER',
-                  value: summary.reporterName,
-                ),
-              ),
-            ],
-          ),
+          _LabeledValue(label: 'REPORTER', value: summary.reporterName),
           const SizedBox(height: AppSpacing.md),
           Row(
             children: [
@@ -909,15 +876,10 @@ class _CaseSummaryCard extends StatelessWidget {
 }
 
 class _LabeledValue extends StatelessWidget {
-  const _LabeledValue({
-    required this.label,
-    required this.value,
-    this.valueColor,
-  });
+  const _LabeledValue({required this.label, required this.value});
 
   final String label;
   final String value;
-  final Color? valueColor;
 
   @override
   Widget build(BuildContext context) {
@@ -927,7 +889,7 @@ class _LabeledValue extends StatelessWidget {
       children: [
         Text(label, style: textTheme.labelSmall?.copyWith(letterSpacing: 0.96)),
         const SizedBox(height: 2),
-        Text(value, style: textTheme.titleSmall?.copyWith(color: valueColor)),
+        Text(value, style: textTheme.titleSmall),
       ],
     );
   }

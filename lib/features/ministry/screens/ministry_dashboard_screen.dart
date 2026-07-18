@@ -191,7 +191,7 @@ class _DashboardContent extends StatelessWidget {
       children: [
         Text('Ministry Supervisor', style: textTheme.bodySmall),
         Text('National Dashboard', style: textTheme.headlineSmall),
-        const SizedBox(height: AppSpacing.lg),
+        const SizedBox(height: AppSpacing.xl),
         _StatsGrid(stats: data.stats),
         const SizedBox(height: AppSpacing.xl),
         _ReportStatisticsCard(reportStatistics: data.reportStatistics),

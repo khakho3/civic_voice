@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
-import '../../../models/report_severity.dart';
 
 /// A maintenance task's lifecycle state — what Dashboard/Assigned Tasks list
 /// by, what Update Progress writes to, and what Task Details/Task Completed
@@ -63,7 +62,6 @@ class MaintenanceTask {
     required this.locationLabel,
     required this.latitude,
     required this.longitude,
-    required this.priority,
     required this.status,
     required this.eta,
     required this.distanceLabel,
@@ -83,13 +81,6 @@ class MaintenanceTask {
   final double latitude;
   final double longitude;
 
-  /// Inherited straight from the citizen's original report — set during
-  /// the Municipal Officer's own triage/review (MUN-003 Report Review), the
-  /// same [ReportSeverity] a report already carries before it's ever
-  /// assigned to a maintenance team. Not a value a technician sets or a
-  /// maintenance-side concept invented independently — this is the answer
-  /// to "what sets task priority": whoever reviewed the underlying report.
-  final ReportSeverity priority;
   final MaintenanceTaskStatus status;
 
   /// The [MaintenanceTeam.teamId] (see the Admin module's own
@@ -144,7 +135,6 @@ class MaintenanceTask {
       distanceLabel,
       teamNote,
       status.label,
-      priority.label,
     ].any((value) => value.toLowerCase().contains(normalizedQuery));
   }
 
@@ -162,7 +152,6 @@ class MaintenanceTask {
       locationLabel: locationLabel,
       latitude: latitude,
       longitude: longitude,
-      priority: priority,
       status: status ?? this.status,
       eta: eta,
       distanceLabel: distanceLabel,
@@ -179,8 +168,8 @@ class MaintenanceTask {
 /// Placeholder content matching the approved MNT-00x designs, used until the
 /// Cloud Firestore-backed task assignment service is wired up. Five tasks —
 /// enough to give Dashboard's weekly-completion chart and Assigned Tasks'
-/// status/priority filters real variety, rather than the 2-5 disconnected
-/// entries the four screens each hardcoded separately before.
+/// status filter real variety, rather than the 2-5 disconnected entries
+/// the four screens each hardcoded separately before.
 List<MaintenanceTask> mockMaintenanceTasks() {
   return const [
     MaintenanceTask(
@@ -193,7 +182,6 @@ List<MaintenanceTask> mockMaintenanceTasks() {
       locationLabel: '242 Main Avenue, Central District',
       latitude: 6.5244,
       longitude: 3.3792,
-      priority: ReportSeverity.high,
       status: MaintenanceTaskStatus.inProgress,
       eta: 'On site',
       distanceLabel: '1.2 km',
@@ -210,7 +198,6 @@ List<MaintenanceTask> mockMaintenanceTasks() {
       locationLabel: 'Elm Street & 4th Cross',
       latitude: 6.5312,
       longitude: 3.3689,
-      priority: ReportSeverity.medium,
       status: MaintenanceTaskStatus.assigned,
       eta: 'Today 2:30 PM',
       distanceLabel: '3.8 km',
@@ -226,7 +213,6 @@ List<MaintenanceTask> mockMaintenanceTasks() {
       locationLabel: '1242 Oak Street, Downtown',
       latitude: 6.5201,
       longitude: 3.3765,
-      priority: ReportSeverity.low,
       status: MaintenanceTaskStatus.assigned,
       eta: 'Tomorrow 9:00 AM',
       distanceLabel: '2.1 km',
@@ -242,7 +228,6 @@ List<MaintenanceTask> mockMaintenanceTasks() {
       locationLabel: 'West Park Perimeter',
       latitude: 6.5178,
       longitude: 3.3821,
-      priority: ReportSeverity.low,
       status: MaintenanceTaskStatus.completed,
       eta: 'Completed',
       distanceLabel: '0.9 km',
@@ -262,7 +247,6 @@ List<MaintenanceTask> mockMaintenanceTasks() {
       locationLabel: 'Maple Ave & 5th Crossing',
       latitude: 6.5299,
       longitude: 3.3711,
-      priority: ReportSeverity.medium,
       status: MaintenanceTaskStatus.completed,
       eta: 'Completed',
       distanceLabel: '1.6 km',

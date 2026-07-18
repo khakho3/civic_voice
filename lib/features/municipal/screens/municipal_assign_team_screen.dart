@@ -2,10 +2,16 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../models/report_status.dart';
+import '../../../models/team_availability.dart';
 import '../models/team_data.dart';
 import '../../../widgets/glass_card.dart';
+import '../../admin/models/admin_maintenance_team_data.dart';
+import '../../admin/services/admin_maintenance_team_directory.dart';
+import '../../admin/services/admin_user_directory.dart';
+import '../services/municipal_report_directory.dart';
 import '../widgets/municipal_detail_header.dart';
 import '../widgets/municipal_search_field.dart';
+import '../widgets/officer_contact_row.dart';
 import '../../../widgets/app_state_message.dart';
 import '../../../widgets/status_badge.dart';
 
@@ -69,14 +75,19 @@ class _MunicipalAssignTeamScreenState extends State<MunicipalAssignTeamScreen> {
   final _searchController = TextEditingController();
   TeamFilter _filter = TeamFilter.all;
 
-  // Unit Alpha (first/best match) pre-selected, matching every approved
-  // frame that shows a selection already made.
-  late String? _selectedTeamName = _data.teams.first.name;
+  // First team pre-selected, matching every approved frame that shows a
+  // selection already made — reads live from MaintenanceTeamDirectory
+  // (the same real, Admin-provisioned teams Admin's own Maintenance Teams
+  // screen manages) rather than a separate Municipal-only mock list, so
+  // assigning here is a real action against a real team.
+  String? _selectedTeamId;
 
   @override
   void initState() {
     super.initState();
     _searchController.addListener(() => setState(() {}));
+    final teams = MaintenanceTeamDirectory.instance.teams.value;
+    if (teams.isNotEmpty) _selectedTeamId = teams.first.teamId;
   }
 
   @override
@@ -85,51 +96,47 @@ class _MunicipalAssignTeamScreenState extends State<MunicipalAssignTeamScreen> {
     super.dispose();
   }
 
-  /// Real filtering/sorting/search — unlike the static mockup, which shows
-  /// all 4 teams unchanged regardless of which filter chip is "selected".
+  /// Real filtering/search — unlike the old static mockup, which showed
+  /// every team unchanged regardless of which filter chip was "selected".
   List<MaintenanceTeam> get _visibleTeams {
-    var teams = _data.teams.toList();
+    var teams = MaintenanceTeamDirectory.instance.teams.value.toList();
     final query = _searchController.text.trim().toLowerCase();
     if (query.isNotEmpty) {
       teams = teams
-          .where(
-            (t) =>
-                t.name.toLowerCase().contains(query) ||
-                t.specialty.toLowerCase().contains(query),
-          )
+          .where((t) => t.name.toLowerCase().contains(query))
           .toList();
     }
-    switch (_filter) {
-      case TeamFilter.all:
-        break;
-      case TeamFilter.available:
-        teams = teams
-            .where((t) => t.availability == TeamAvailability.available)
-            .toList();
-      case TeamFilter.nearest:
-        teams.sort((a, b) => a.distanceKm.compareTo(b.distanceKm));
-      case TeamFilter.highestRated:
-        teams.sort((a, b) => b.rating.compareTo(a.rating));
+    if (_filter == TeamFilter.available) {
+      teams = teams
+          .where((t) => t.availability == TeamAvailability.available)
+          .toList();
     }
     return teams;
   }
 
   MaintenanceTeam? get _selectedTeam {
-    for (final team in _data.teams) {
-      if (team.name == _selectedTeamName) return team;
+    for (final team in MaintenanceTeamDirectory.instance.teams.value) {
+      if (team.teamId == _selectedTeamId) return team;
     }
     return null;
   }
 
   void _selectTeam(MaintenanceTeam team) {
     if (team.availability == TeamAvailability.offDuty) return;
-    setState(() => _selectedTeamName = team.name);
+    setState(() => _selectedTeamId = team.teamId);
   }
 
   void _submitAssign() {
+    final team = _selectedTeam;
     setState(() => _state = MunicipalAssignTeamViewState.loading);
     Future.delayed(const Duration(milliseconds: 500), () {
       if (mounted) {
+        if (team != null) {
+          MunicipalReportDirectory.instance.assignTeam(
+            widget.referenceId,
+            team.name,
+          );
+        }
         setState(() => _state = MunicipalAssignTeamViewState.assigned);
       }
     });
@@ -212,31 +219,29 @@ class _MunicipalAssignTeamScreenState extends State<MunicipalAssignTeamScreen> {
                         disabledCaption:
                             'This report is no longer available for assignment.',
                       ),
-                      MunicipalAssignTeamViewState.empty =>
-                        AppStateMessage(
-                          icon: AppIcons.team,
-                          title: 'No Teams Available',
-                          message:
-                              'There are no maintenance teams available in this '
-                              'district right now.',
-                          primaryActionLabel: 'Refresh',
-                          onPrimaryAction: _retryLoad,
-                          secondaryActionLabel: 'Return to Dashboard',
-                          onSecondaryAction: widget.onNavigateToDashboard,
-                        ),
-                      MunicipalAssignTeamViewState.assigned =>
-                        AppStateMessage(
-                          icon: AppIcons.success,
-                          badgeColor: AppColors.success,
-                          title: 'Team Assigned',
-                          message: selected == null
-                              ? 'The maintenance team has been notified and will '
-                                    'begin work shortly.'
-                              : '${selected.name} has been notified and will begin '
-                                    'work shortly.',
-                          primaryActionLabel: 'Return to Dashboard',
-                          onPrimaryAction: widget.onNavigateToDashboard,
-                        ),
+                      MunicipalAssignTeamViewState.empty => AppStateMessage(
+                        icon: AppIcons.team,
+                        title: 'No Teams Available',
+                        message:
+                            'There are no maintenance teams available in this '
+                            'district right now.',
+                        primaryActionLabel: 'Refresh',
+                        onPrimaryAction: _retryLoad,
+                        secondaryActionLabel: 'Return to Dashboard',
+                        onSecondaryAction: widget.onNavigateToDashboard,
+                      ),
+                      MunicipalAssignTeamViewState.assigned => AppStateMessage(
+                        icon: AppIcons.success,
+                        badgeColor: AppColors.success,
+                        title: 'Team Assigned',
+                        message: selected == null
+                            ? 'The maintenance team is now assigned to this '
+                                  'report.'
+                            : '${selected.name} is now assigned to this '
+                                  'report.',
+                        primaryActionLabel: 'Return to Dashboard',
+                        onPrimaryAction: widget.onNavigateToDashboard,
+                      ),
                       MunicipalAssignTeamViewState.error => AppStateMessage(
                         icon: AppIcons.warning,
                         badgeColor: AppColors.error,
@@ -448,13 +453,11 @@ class _ReportSummaryCard extends StatelessWidget {
           const SizedBox(height: AppSpacing.xs),
           Text(data.locationSummary, style: textTheme.bodySmall),
           const SizedBox(height: AppSpacing.sm),
-          Wrap(
-            spacing: AppSpacing.xs,
-            runSpacing: AppSpacing.xs,
-            children: [
-              _NeutralTag(label: data.category.label),
-              ReportSeverityBadge(severity: data.severity, suffix: ' Priority'),
-            ],
+          _NeutralTag(label: data.category.label),
+          const SizedBox(height: AppSpacing.md),
+          OfficerContactRow(
+            officerName: data.officerName,
+            officerPhone: data.officerPhone,
           ),
         ],
       ),
@@ -565,6 +568,12 @@ class _TeamCard extends StatelessWidget {
   final bool enabled;
   final VoidCallback onTap;
 
+  String _leadName(MaintenanceTeam team) {
+    final leadId = team.leadUserId;
+    if (leadId == null) return 'No lead set';
+    return AdminUserDirectory.instance.userById(leadId)?.name ?? 'No lead set';
+  }
+
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
@@ -589,7 +598,10 @@ class _TeamCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(team.name, style: textTheme.titleSmall),
-                      Text(team.specialty, style: textTheme.bodySmall),
+                      Text(
+                        team.assembly.fullName,
+                        style: textTheme.bodySmall,
+                      ),
                     ],
                   ),
                 ),
@@ -606,61 +618,8 @@ class _TeamCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 4),
                 Text(
-                  '${team.leadName} · ${team.memberCount} members',
+                  '${_leadName(team)} · ${team.memberUserIds.length} members',
                   style: textTheme.bodySmall,
-                ),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Wrap(
-              spacing: AppSpacing.md,
-              runSpacing: 4,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      AppIcons.location,
-                      size: AppIconSize.sm,
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${team.distanceKm.toStringAsFixed(1)} km away',
-                      style: textTheme.bodySmall,
-                    ),
-                  ],
-                ),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      AppIcons.eta,
-                      size: AppIconSize.sm,
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      'ETA ${team.etaMinutes} min',
-                      style: textTheme.bodySmall,
-                    ),
-                  ],
-                ),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      AppIcons.rating,
-                      size: AppIconSize.sm,
-                      color: AppColors.warning,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      team.rating.toStringAsFixed(1),
-                      style: textTheme.bodySmall,
-                    ),
-                  ],
                 ),
               ],
             ),
@@ -697,8 +656,7 @@ class _AssignmentSummaryCard extends StatelessWidget {
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(
-              '${team.name} will be dispatched to this location — '
-              'estimated arrival in ${team.etaMinutes} min.',
+              '${team.name} is now assigned to this report.',
               style: textTheme.bodySmall?.copyWith(color: AppColors.primary),
             ),
           ),

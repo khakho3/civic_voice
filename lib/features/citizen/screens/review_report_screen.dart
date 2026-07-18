@@ -80,8 +80,12 @@ class ReviewReportScreen extends StatelessWidget {
     final horizontalPadding = compact ? AppSpacing.sm : AppSpacing.md;
 
     final chromeInset = civicContentPadding(context);
+    final keyboardVisible = MediaQuery.viewInsetsOf(context).bottom > 0;
 
     return Scaffold(
+      // See create_report_screen.dart's build() for why this is false and
+      // paired with the keyboardVisible-guarded nav below.
+      resizeToAvoidBottomInset: false,
       body: Stack(
         children: [
           Positioned.fill(
@@ -126,32 +130,33 @@ class ReviewReportScreen extends StatelessWidget {
               onBack: () => Navigator.of(context).maybePop(),
             ),
           ),
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: CivicBottomNav(
-              selectedIndex: 2,
-              onDestinationSelected: (index) {
-                if (index == 0) {
-                  Navigator.of(context).popUntil((route) => route.isFirst);
-                } else if (index == 1) {
-                  Navigator.of(context).pushNamedAndRemoveUntil(
-                    CitizenReportsScreen.routeName,
-                    (route) => route.isFirst,
-                  );
-                } else if (index == 3) {
-                  Navigator.of(context).pushNamedAndRemoveUntil(
-                    CitizenAlertsScreen.routeName,
-                    (route) => route.isFirst,
-                  );
-                } else if (index == 4) {
-                  Navigator.of(context).pushNamedAndRemoveUntil(
-                    CitizenProfileScreen.routeName,
-                    (route) => route.isFirst,
-                  );
-                }
-              },
+          if (!keyboardVisible)
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: CivicBottomNav(
+                selectedIndex: 2,
+                onDestinationSelected: (index) {
+                  if (index == 0) {
+                    Navigator.of(context).popUntil((route) => route.isFirst);
+                  } else if (index == 1) {
+                    Navigator.of(context).pushNamedAndRemoveUntil(
+                      CitizenReportsScreen.routeName,
+                      (route) => route.isFirst,
+                    );
+                  } else if (index == 3) {
+                    Navigator.of(context).pushNamedAndRemoveUntil(
+                      CitizenAlertsScreen.routeName,
+                      (route) => route.isFirst,
+                    );
+                  } else if (index == 4) {
+                    Navigator.of(context).pushNamedAndRemoveUntil(
+                      CitizenProfileScreen.routeName,
+                      (route) => route.isFirst,
+                    );
+                  }
+                },
+              ),
             ),
-          ),
         ],
       ),
     );

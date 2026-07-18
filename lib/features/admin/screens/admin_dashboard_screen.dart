@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../models/assembly.dart';
 import '../../../widgets/app_state_message.dart';
 import '../../../widgets/glass_card.dart';
 import '../models/admin_dashboard_data.dart';
+import '../models/admin_profile_data.dart';
 import '../services/admin_session.dart';
+import '../services/admin_user_directory.dart';
 import '../widgets/admin_scaffold.dart';
 
 /// ADM-001 — Admin Dashboard.
@@ -175,9 +178,11 @@ class _DashboardBody extends StatelessWidget {
       children: [
         Opacity(
           opacity: loaded ? 1 : 0.5,
-          child: Text('Platform Overview', style: textTheme.headlineSmall),
+          child: AdminSession.instance.isSuperAdmin
+              ? Text('Platform Overview', style: textTheme.headlineSmall)
+              : _AdminGreeting(assembly: AdminSession.instance.assembly),
         ),
-        const SizedBox(height: AppSpacing.lg),
+        const SizedBox(height: AppSpacing.xl),
         switch (state) {
           // AdminDashboardViewState.loading never actually reaches this
           // widget (the parent screen routes it straight to
@@ -225,6 +230,62 @@ class _DashboardBody extends StatelessWidget {
             bordered: true,
           ),
         },
+      ],
+    );
+  }
+}
+
+/// Assembly-scoped ("normal", non-Super) Admin sessions get the same
+/// "Good Morning" + jurisdiction treatment Municipal Officer's own Dashboard
+/// greeting already has — Super Admin keeps "Platform Overview" instead
+/// (see the switch above), since a national session has no single assembly
+/// to greet them with.
+class _AdminGreeting extends StatelessWidget {
+  const _AdminGreeting({required this.assembly});
+
+  final Assembly? assembly;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final colorScheme = Theme.of(context).colorScheme;
+    final assembly = this.assembly;
+    final name =
+        (assembly == null
+                ? null
+                : AdminUserDirectory.instance.correspondentAdminFor(
+                    assembly,
+                  ))
+            ?.name ??
+        mockAdminProfile().fullName;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Good Morning, $name', style: textTheme.headlineSmall),
+        if (assembly != null) ...[
+          const SizedBox(height: AppSpacing.xs),
+          Row(
+            children: [
+              Icon(
+                AppIcons.municipality,
+                size: AppIconSize.sm,
+                color: colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              Expanded(
+                child: Text(
+                  assembly.fullName,
+                  style: textTheme.bodyLarge?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ],
       ],
     );
   }
@@ -314,7 +375,7 @@ class _LoadedContent extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(height: AppSpacing.lg),
+        const SizedBox(height: AppSpacing.xl),
         Text('Management', style: textTheme.titleMedium),
         const SizedBox(height: AppSpacing.sm),
         _ManagementRow(
@@ -352,7 +413,7 @@ class _LoadedContent extends StatelessWidget {
         // is gated anymore — see AdminSession.visibleActivity's own doc
         // comment for how an assembly Admin's own feed now works.
         if (AdminSession.instance.isSuperAdmin) ...[
-          const SizedBox(height: AppSpacing.lg),
+          const SizedBox(height: AppSpacing.xl),
           GlassCard(
             onTap: onNavigateToActivity,
             child: Column(

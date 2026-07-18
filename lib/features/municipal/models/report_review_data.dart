@@ -1,7 +1,6 @@
 import 'package:flutter/widgets.dart';
 
 import '../../../core/theme/app_theme.dart';
-import '../../../models/report_severity.dart';
 import '../../../models/report_status.dart';
 import 'incoming_report.dart';
 
@@ -35,12 +34,15 @@ class ReportReviewData {
     required this.title,
     required this.description,
     required this.category,
-    required this.severity,
     required this.status,
     required this.citizenName,
     required this.citizenPhone,
+    required this.officerName,
+    required this.officerPhone,
     required this.evidencePhotoUrls,
     required this.locationLabel,
+    required this.latitude,
+    required this.longitude,
     required this.timeline,
   });
 
@@ -48,14 +50,32 @@ class ReportReviewData {
   final String title;
   final String description;
   final ReportCategory category;
-  final ReportSeverity severity;
   final ReportStatus status;
   final String citizenName;
   final String citizenPhone;
 
+  /// The Municipal Officer this report is currently with — shown with
+  /// real Call/Message actions via [OfficerContactRow] so anyone else
+  /// looking at the report (Maintenance, another officer) knows who to
+  /// reach, now that an assembly can have more than one officer account.
+  ///
+  /// Matches [OfficerProfile.mock]'s own name/phone — this mock always
+  /// shows the signed-in officer as the one assigned. There's no real
+  /// "whoever verifies becomes the assigned officer" logic yet — that
+  /// needs a real session tied to an [AdminUserItem] (see
+  /// `AdminSession`/`MockAuthService`), not just a role, which doesn't
+  /// exist for Municipal Officer sessions today.
+  final String officerName;
+  final String officerPhone;
+
   /// Empty list renders the No-Evidence inline empty state.
   final List<String> evidencePhotoUrls;
   final String locationLabel;
+
+  /// Real coordinates for the Location section's map — see
+  /// `_ReportLocationMap` in `municipal_report_review_screen.dart`.
+  final double latitude;
+  final double longitude;
   final List<ReportTimelineStep> timeline;
 
   /// Placeholder content matching the approved MUN-003 design, used until
@@ -69,14 +89,17 @@ class ReportReviewData {
           'St and 4th Ave. Causing vehicles to swerve into oncoming '
           'traffic.',
       category: ReportCategory.infrastructure,
-      severity: ReportSeverity.high,
       status: ReportStatus.submitted,
       citizenName: 'John Smith',
       citizenPhone: '+1 (555) 019-8421',
+      officerName: 'Alex Johnston',
+      officerPhone: '+233 24 555 0142',
       evidencePhotoUrls: withEvidence
           ? const ['placeholder-1', 'placeholder-2']
           : const [],
       locationLabel: '4th Ave & Main St, Sector 7',
+      latitude: 5.5600,
+      longitude: -0.2050,
       timeline: const [
         ReportTimelineStep(
           label: 'Submitted',

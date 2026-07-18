@@ -106,6 +106,7 @@ abstract final class AppIcons {
   static const IconData ministrySupervisor = LucideIcons.landmark;
   static const IconData systemAdministrator = LucideIcons.building2;
   static const IconData team = LucideIcons.users;
+  static const IconData teamLead = LucideIcons.crown;
 
   /// Same glyph as [ministrySupervisor] — the classic civic/government
   /// building silhouette (columns + dome) reads clearly as "a municipality"

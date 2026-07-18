@@ -57,9 +57,9 @@ import 'features/maintenance/screens/task_details_screen.dart'
 import 'features/maintenance/screens/update_progress_screen.dart'
     as maintenance_progress;
 import 'features/maintenance/services/maintenance_task_directory.dart';
-import 'features/municipal/models/active_report.dart';
 import 'features/municipal/models/incoming_report.dart';
 import 'features/municipal/models/resolved_report.dart';
+import 'features/municipal/services/municipal_report_directory.dart';
 import 'features/municipal/screens/municipal_active_reports_screen.dart';
 import 'features/municipal/screens/municipal_assign_team_screen.dart';
 import 'features/municipal/screens/municipal_dashboard_screen.dart';
@@ -195,12 +195,12 @@ class CivicVoiceApp extends StatelessWidget {
                   Navigator.of(context).pushNamed(AppRoutes.testRoleSelector),
             ),
             AppRoutes.testRoleSelector: (context) => TestRoleSelectorScreen(
-              onRoleSelected: (role) {
-                final routeName = _routeForRole(role)!;
-                Navigator.of(
-                  context,
-                ).pushNamedAndRemoveUntil(routeName, (_) => false);
-              },
+              // MockAuthService().selectRole(...) already ran by the time
+              // this fires (TestRoleSelectorScreen._continue awaits it
+              // first) — reusing _completeSignIn's routing means the
+              // "Simulate first login" checkbox actually gets honored here
+              // too, not just on the real LoginScreen's onSignIn.
+              onRoleSelected: (role) => _completeSignIn(context),
               onSkip: () => Navigator.of(
                 context,
               ).pushNamedAndRemoveUntil(AppRoutes.welcome, (_) => false),
@@ -306,7 +306,10 @@ class CivicVoiceApp extends StatelessWidget {
                   context,
                   _incomingReportFromSettings(ModalRoute.of(context)?.settings),
                 ),
-            AppRoutes.municipalAssignTeam: _municipalAssignTeam,
+            AppRoutes.municipalAssignTeam: (context) => _municipalAssignTeam(
+              context,
+              _incomingReportFromSettings(ModalRoute.of(context)?.settings),
+            ),
             AppRoutes.municipalReportProgress: (context) =>
                 _municipalReportProgress(
                   context,
@@ -329,17 +332,23 @@ class CivicVoiceApp extends StatelessWidget {
             AppRoutes.maintenanceTaskDetails: (context) =>
                 _maintenanceTaskDetails(
                   context,
-                  _maintenanceTaskFromSettings(ModalRoute.of(context)?.settings),
+                  _maintenanceTaskFromSettings(
+                    ModalRoute.of(context)?.settings,
+                  ),
                 ),
             AppRoutes.maintenanceUpdateProgress: (context) =>
                 _maintenanceUpdateProgress(
                   context,
-                  _maintenanceTaskFromSettings(ModalRoute.of(context)?.settings),
+                  _maintenanceTaskFromSettings(
+                    ModalRoute.of(context)?.settings,
+                  ),
                 ),
             AppRoutes.maintenanceTaskCompleted: (context) =>
                 _maintenanceTaskCompleted(
                   context,
-                  _maintenanceTaskFromSettings(ModalRoute.of(context)?.settings),
+                  _maintenanceTaskFromSettings(
+                    ModalRoute.of(context)?.settings,
+                  ),
                 ),
             AppRoutes.maintenanceProfile: _maintenanceProfile,
           },
@@ -420,6 +429,15 @@ class CivicVoiceApp extends StatelessWidget {
                 builder: (context) => _municipalResolutionDetails(
                   context,
                   _resolvedReportFromSettings(settings),
+                ),
+              );
+            }
+            if (uri?.path == AppRoutes.municipalAssignTeam) {
+              return MaterialPageRoute<void>(
+                settings: settings,
+                builder: (context) => _municipalAssignTeam(
+                  context,
+                  _incomingReportFromSettings(settings),
                 ),
               );
             }
@@ -1062,7 +1080,7 @@ void _pushMunicipalVerification(
 
 void _pushMunicipalReportProgress(
   BuildContext context,
-  ActiveReportItem report,
+  IncomingReportItem report,
 ) {
   Navigator.of(context).pushNamed(
     _reportRoute(AppRoutes.municipalReportProgress, report.referenceId),
@@ -1095,11 +1113,11 @@ IncomingReportItem _incomingReportFromSettings(RouteSettings? settings) {
   return reports.first;
 }
 
-ActiveReportItem _activeReportFromSettings(RouteSettings? settings) {
+IncomingReportItem _activeReportFromSettings(RouteSettings? settings) {
   final argument = settings?.arguments;
-  if (argument is ActiveReportItem) return argument;
+  if (argument is IncomingReportItem) return argument;
 
-  final reports = ActiveReportItem.mock();
+  final reports = MunicipalReportDirectory.instance.reports.value;
   final uri = Uri.tryParse(settings?.name ?? '');
   final reportId = uri?.queryParameters['reportId'];
   if (reportId != null) {
@@ -1136,6 +1154,7 @@ Widget _municipalDashboard(BuildContext context) {
           _replaceWith(context, AppRoutes.municipalResolvedReports),
       onProfileTap: () =>
           Navigator.of(context).pushNamed(AppRoutes.municipalProfile),
+      onReportTap: (report) => _pushMunicipalReportReview(context, report),
     ),
   );
 }
@@ -1206,15 +1225,20 @@ Widget _municipalVerification(BuildContext context, IncomingReportItem report) {
   );
 }
 
-Widget _municipalAssignTeam(BuildContext context) {
+Widget _municipalAssignTeam(BuildContext context, IncomingReportItem report) {
   return MunicipalAssignTeamScreen(
+    referenceId: report.referenceId,
+    status: report.status,
     onBack: () => _popOrReplaceWith(context, AppRoutes.municipalVerification),
     onNavigateToDashboard: () =>
         _replaceWith(context, AppRoutes.municipalDashboard),
   );
 }
 
-Widget _municipalReportProgress(BuildContext context, ActiveReportItem report) {
+Widget _municipalReportProgress(
+  BuildContext context,
+  IncomingReportItem report,
+) {
   return MunicipalReportProgressScreen(
     referenceId: report.referenceId,
     status: report.status,
@@ -1264,8 +1288,7 @@ Widget _maintenanceAssignedTasks(BuildContext context) {
         _replaceWith(context, AppRoutes.maintenanceDashboard),
     onNavigateToProfile: () =>
         Navigator.of(context).pushNamed(AppRoutes.maintenanceProfile),
-    onOpenTaskDetails: (taskId) =>
-        _pushMaintenanceTaskDetails(context, taskId),
+    onOpenTaskDetails: (taskId) => _pushMaintenanceTaskDetails(context, taskId),
   );
 }
 
@@ -1273,8 +1296,7 @@ Widget _maintenanceTaskDetails(BuildContext context, MaintenanceTask task) {
   return maintenance_details.TaskDetailsScreen(
     task: task,
     onBack: () => Navigator.of(context).maybePop(),
-    onUpdateProgress: () =>
-        _pushMaintenanceUpdateProgress(context, task.id),
+    onUpdateProgress: () => _pushMaintenanceUpdateProgress(context, task.id),
   );
 }
 
@@ -1282,8 +1304,7 @@ Widget _maintenanceUpdateProgress(BuildContext context, MaintenanceTask task) {
   return maintenance_progress.UpdateProgressScreen(
     task: task,
     onBack: () => Navigator.of(context).maybePop(),
-    onTaskCompleted: (taskId) =>
-        _pushMaintenanceTaskCompleted(context, taskId),
+    onTaskCompleted: (taskId) => _pushMaintenanceTaskCompleted(context, taskId),
   );
 }
 

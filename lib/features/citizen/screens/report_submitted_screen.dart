@@ -41,8 +41,12 @@ class _ReportSubmittedScreenState extends State<ReportSubmittedScreen> {
         : 'CV-2026-004582';
 
     final chromeInset = civicContentPadding(context);
+    final keyboardVisible = MediaQuery.viewInsetsOf(context).bottom > 0;
 
     return Scaffold(
+      // See create_report_screen.dart's build() for why this is false and
+      // paired with the keyboardVisible-guarded nav below.
+      resizeToAvoidBottomInset: false,
       body: Stack(
         children: [
           Positioned.fill(
@@ -87,37 +91,38 @@ class _ReportSubmittedScreenState extends State<ReportSubmittedScreen> {
             alignment: Alignment.topCenter,
             child: CivicTopBar(title: 'Submitted', showNotifications: true),
           ),
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: CivicBottomNav(
-              selectedIndex: 1,
-              onDestinationSelected: (index) {
-                if (index == 0) {
-                  Navigator.of(context).popUntil((route) => route.isFirst);
-                } else if (index == 1) {
-                  Navigator.of(context).pushNamedAndRemoveUntil(
-                    CitizenReportsScreen.routeName,
-                    (route) => route.isFirst,
-                  );
-                } else if (index == 2) {
-                  Navigator.of(context).pushNamedAndRemoveUntil(
-                    CreateReportScreen.routeName,
-                    (route) => route.isFirst,
-                  );
-                } else if (index == 3) {
-                  Navigator.of(context).pushNamedAndRemoveUntil(
-                    CitizenAlertsScreen.routeName,
-                    (route) => route.isFirst,
-                  );
-                } else if (index == 4) {
-                  Navigator.of(context).pushNamedAndRemoveUntil(
-                    CitizenProfileScreen.routeName,
-                    (route) => route.isFirst,
-                  );
-                }
-              },
+          if (!keyboardVisible)
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: CivicBottomNav(
+                selectedIndex: 1,
+                onDestinationSelected: (index) {
+                  if (index == 0) {
+                    Navigator.of(context).popUntil((route) => route.isFirst);
+                  } else if (index == 1) {
+                    Navigator.of(context).pushNamedAndRemoveUntil(
+                      CitizenReportsScreen.routeName,
+                      (route) => route.isFirst,
+                    );
+                  } else if (index == 2) {
+                    Navigator.of(context).pushNamedAndRemoveUntil(
+                      CreateReportScreen.routeName,
+                      (route) => route.isFirst,
+                    );
+                  } else if (index == 3) {
+                    Navigator.of(context).pushNamedAndRemoveUntil(
+                      CitizenAlertsScreen.routeName,
+                      (route) => route.isFirst,
+                    );
+                  } else if (index == 4) {
+                    Navigator.of(context).pushNamedAndRemoveUntil(
+                      CitizenProfileScreen.routeName,
+                      (route) => route.isFirst,
+                    );
+                  }
+                },
+              ),
             ),
-          ),
         ],
       ),
     );
@@ -302,7 +307,7 @@ class _TimelineSection extends StatelessWidget {
         ),
         const _TimelineStep(
           status: _TimelineStatus.future,
-          title: 'Assigned to Department',
+          title: 'Team Assigned',
         ),
         const _TimelineStep(
           status: _TimelineStatus.future,

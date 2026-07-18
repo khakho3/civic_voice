@@ -1,4 +1,5 @@
-import '../../../models/report_status.dart';
+import 'incoming_report.dart';
+import '../services/municipal_report_directory.dart';
 
 /// Aggregate counters shown on the Municipal Dashboard stat cards.
 class MunicipalDashboardStats {
@@ -22,23 +23,6 @@ class MunicipalDashboardStats {
   );
 }
 
-/// A single row in the Dashboard's "Recent Reports" card.
-class RecentReportItem {
-  const RecentReportItem({
-    required this.referenceId,
-    required this.title,
-    required this.category,
-    required this.timeAgo,
-    required this.status,
-  });
-
-  final String referenceId;
-  final String title;
-  final String category;
-  final String timeAgo;
-  final ReportStatus status;
-}
-
 /// A single row in the Dashboard's "Assignment Summary" card — a maintenance
 /// team's completion progress across its currently assigned reports.
 class AssignmentProgress {
@@ -53,59 +37,43 @@ class AssignmentProgress {
 /// Full data payload for MUN-001 Municipal Dashboard.
 class MunicipalDashboardData {
   const MunicipalDashboardData({
+    required this.officerName,
     required this.municipalityName,
     required this.stats,
     required this.recentReports,
     required this.assignmentSummary,
   });
 
+  /// The signed-in officer — matches [OfficerProfile.mock]'s own name (see
+  /// that field's own doc comment for why this is a fixed mock identity,
+  /// not yet derived from any real session).
+  final String officerName;
   final String municipalityName;
   final MunicipalDashboardStats stats;
-  final List<RecentReportItem> recentReports;
+
+  /// The same [IncomingReportItem] records MUN-002/MUN-006 list, read
+  /// straight from `MunicipalReportDirectory` — one shared list means
+  /// tapping a row here opens the exact report it displays, and its status
+  /// is the real one, not a disconnected snapshot.
+  final List<IncomingReportItem> recentReports;
   final List<AssignmentProgress> assignmentSummary;
 
   /// Placeholder content matching the approved MUN-001 design, used until
   /// the Cloud Firestore-backed service (Issue 03 dependency) is wired up.
   factory MunicipalDashboardData.mock() {
-    return const MunicipalDashboardData(
+    return MunicipalDashboardData(
+      officerName: 'Alex Johnston',
       municipalityName: 'Springfield District',
-      stats: MunicipalDashboardStats(
+      stats: const MunicipalDashboardStats(
         newReports: 128,
         underReview: 42,
         assigned: 31,
         resolved: 87,
       ),
-      recentReports: [
-        RecentReportItem(
-          referenceId: 'CV-1042',
-          title: 'Pothole on Oak Avenue',
-          category: 'Roads',
-          timeAgo: '24 min ago',
-          status: ReportStatus.submitted,
-        ),
-        RecentReportItem(
-          referenceId: 'CV-1041',
-          title: 'Streetlight outage near Ward 4',
-          category: 'Utilities',
-          timeAgo: '1 hr ago',
-          status: ReportStatus.underReview,
-        ),
-        RecentReportItem(
-          referenceId: 'CV-1040',
-          title: 'Overflowing waste bin at Civic Park',
-          category: 'Sanitation',
-          timeAgo: 'Today',
-          status: ReportStatus.assigned,
-        ),
-        RecentReportItem(
-          referenceId: 'CV-1039',
-          title: 'Graffiti cleanup request',
-          category: 'Public Works',
-          timeAgo: 'Yesterday',
-          status: ReportStatus.inProgress,
-        ),
-      ],
-      assignmentSummary: [
+      recentReports: MunicipalReportDirectory.instance.reports.value
+          .take(3)
+          .toList(),
+      assignmentSummary: const [
         AssignmentProgress(teamName: 'Public Works', percent: 0.72),
         AssignmentProgress(teamName: 'Sanitation', percent: 0.54),
         AssignmentProgress(teamName: 'Utilities', percent: 0.38),

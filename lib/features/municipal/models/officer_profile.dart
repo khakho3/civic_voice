@@ -57,7 +57,7 @@ class OfficerProfile {
       employeeId: 'MC-4092',
       verifiedOfficial: true,
       email: 'alex.johnston@city.gov',
-      phone: '(555) 128-4092',
+      phone: '+233 24 555 0142',
       department: 'Urban Planning & Dev',
       reportsTo: 'Director M. Chen',
       passwordLastUpdatedLabel: 'Last updated 3 months ago',

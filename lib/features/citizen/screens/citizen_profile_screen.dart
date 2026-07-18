@@ -262,79 +262,91 @@ class _CitizenProfileScreenState extends State<CitizenProfileScreen> {
   Widget build(BuildContext context) {
     final compact = MediaQuery.sizeOf(context).width < 360;
     final horizontalPadding = compact ? AppSpacing.sm : AppSpacing.md;
+    final keyboardVisible = MediaQuery.viewInsetsOf(context).bottom > 0;
 
     final chromeInset = civicContentPadding(context);
 
     return Scaffold(
+      // See create_report_screen.dart's build() for why this is false. This
+      // screen also has its own sticky edit Save/Cancel bar at the bottom of
+      // the content Column (not the nav) — the extra bottom padding below
+      // replaces the room resizeToAvoidBottomInset used to make for it.
+      resizeToAvoidBottomInset: false,
       body: Stack(
         children: [
           Positioned.fill(
-            child: Column(
-              children: [
-                Expanded(
-                  child: ListView(
-                    padding: EdgeInsets.fromLTRB(
-                      horizontalPadding,
-                      chromeInset.top + AppSpacing.xl,
-                      horizontalPadding,
-                      _isEditing
-                          ? MediaQuery.paddingOf(context).bottom + AppSpacing.xl
-                          : chromeInset.bottom + AppSpacing.xl,
-                    ),
-                    children: [
-                      if (_showSaveSuccess) ...[
-                        const _SaveSuccessBanner(),
-                        const SizedBox(height: AppSpacing.md),
-                      ],
-                      ValueListenableBuilder<CitizenProfile>(
-                        valueListenable: _profileCrudService.profile,
-                        builder: (context, profile, _) {
-                          return Column(
-                            children: [
-                              _ProfileIdentity(
-                                displayName: _displayName,
-                                subtitle: _wardLabel,
-                                initials: _initials,
-                                photoPath: profile.photoPath,
-                                isEditing: _isEditing,
-                                photoUpdating: _photoUpdating,
-                                onChoosePhoto: _chooseProfilePhoto,
-                                onEditProfile: _startEditing,
-                              ),
-                              const SizedBox(height: AppSpacing.xl),
-                              _PersonalInformationCard(
-                                isEditing: _isEditing,
-                                nameController: _nameController,
-                                emailController: _emailController,
-                                phoneController: _phoneController,
-                                locationController: _locationController,
-                              ),
-                              const SizedBox(height: AppSpacing.lg),
-                              _SecurityCard(
-                                twoStepEnabled: profile.twoStepEnabled,
-                                onTwoStepChanged: (enabled) {
-                                  _profileCrudService.updateTwoStep(enabled);
-                                },
-                              ),
-                              const SizedBox(height: AppSpacing.lg),
-                              const _AppearanceCard(),
-                              if (!_isEditing) ...[
-                                const SizedBox(height: AppSpacing.lg),
-                                _LogOutCard(onLogOut: _confirmLogOut),
-                              ],
-                            ],
-                          );
-                        },
+            child: Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.viewInsetsOf(context).bottom,
+              ),
+              child: Column(
+                children: [
+                  Expanded(
+                    child: ListView(
+                      padding: EdgeInsets.fromLTRB(
+                        horizontalPadding,
+                        chromeInset.top + AppSpacing.xl,
+                        horizontalPadding,
+                        _isEditing
+                            ? MediaQuery.paddingOf(context).bottom +
+                                  AppSpacing.xl
+                            : chromeInset.bottom + AppSpacing.xl,
                       ),
-                    ],
+                      children: [
+                        if (_showSaveSuccess) ...[
+                          const _SaveSuccessBanner(),
+                          const SizedBox(height: AppSpacing.md),
+                        ],
+                        ValueListenableBuilder<CitizenProfile>(
+                          valueListenable: _profileCrudService.profile,
+                          builder: (context, profile, _) {
+                            return Column(
+                              children: [
+                                _ProfileIdentity(
+                                  displayName: _displayName,
+                                  subtitle: _wardLabel,
+                                  initials: _initials,
+                                  photoPath: profile.photoPath,
+                                  isEditing: _isEditing,
+                                  photoUpdating: _photoUpdating,
+                                  onChoosePhoto: _chooseProfilePhoto,
+                                  onEditProfile: _startEditing,
+                                ),
+                                const SizedBox(height: AppSpacing.xl),
+                                _PersonalInformationCard(
+                                  isEditing: _isEditing,
+                                  nameController: _nameController,
+                                  emailController: _emailController,
+                                  phoneController: _phoneController,
+                                  locationController: _locationController,
+                                ),
+                                const SizedBox(height: AppSpacing.lg),
+                                _SecurityCard(
+                                  twoStepEnabled: profile.twoStepEnabled,
+                                  onTwoStepChanged: (enabled) {
+                                    _profileCrudService.updateTwoStep(enabled);
+                                  },
+                                ),
+                                const SizedBox(height: AppSpacing.lg),
+                                const _AppearanceCard(),
+                                if (!_isEditing) ...[
+                                  const SizedBox(height: AppSpacing.lg),
+                                  _LogOutCard(onLogOut: _confirmLogOut),
+                                ],
+                              ],
+                            );
+                          },
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                if (_isEditing)
-                  _ProfileEditActionBar(
-                    onSave: _saveProfile,
-                    onCancel: _cancelEditing,
-                  ),
-              ],
+                  if (_isEditing)
+                    _ProfileEditActionBar(
+                      onSave: _saveProfile,
+                      onCancel: _cancelEditing,
+                    ),
+                ],
+              ),
             ),
           ),
           Align(
@@ -345,7 +357,7 @@ class _CitizenProfileScreenState extends State<CitizenProfileScreen> {
               onBack: () => _openDashboard(context),
             ),
           ),
-          if (!_isEditing)
+          if (!_isEditing && !keyboardVisible)
             Align(
               alignment: Alignment.bottomCenter,
               child: CivicBottomNav(

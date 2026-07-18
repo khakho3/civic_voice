@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../models/report_status.dart';
 import '../models/active_report.dart';
+import '../models/incoming_report.dart';
+import '../services/municipal_report_directory.dart';
 import '../../../widgets/collapsible_list_header.dart';
 import '../../../widgets/glass_card.dart';
 import '../widgets/municipal_scaffold.dart';
@@ -68,7 +70,7 @@ class MunicipalActiveReportsScreen extends StatefulWidget {
   /// Opens the tapped report's full detail (Report Progress — every report
   /// listed here is already past triage, so Report Review's Verify/Reject
   /// decision doesn't apply).
-  final ValueChanged<ActiveReportItem>? onReportTap;
+  final ValueChanged<IncomingReportItem>? onReportTap;
 
   /// Wired to Error's "System Status" action — no status page exists yet.
   final VoidCallback? onSystemStatus;
@@ -81,7 +83,22 @@ class MunicipalActiveReportsScreen extends StatefulWidget {
 class _MunicipalActiveReportsScreenState
     extends State<MunicipalActiveReportsScreen> {
   late MunicipalActiveReportsViewState _state = widget.initialState;
-  final List<ActiveReportItem> _data = ActiveReportItem.mock();
+
+  /// Reads the live directory once per screen instance (same reactivity
+  /// level as MaintenanceTeamDirectory's own consumers elsewhere) — only
+  /// reports a team has actually taken on show up here, per the real
+  /// Inbox/Active split.
+  final List<IncomingReportItem> _data = MunicipalReportDirectory
+      .instance
+      .reports
+      .value
+      .where(
+        (r) =>
+            r.status == ReportStatus.assigned ||
+            r.status == ReportStatus.inProgress ||
+            r.status == ReportStatus.resolved,
+      )
+      .toList();
   final _searchController = TextEditingController();
   ActiveReportFilter _filter = ActiveReportFilter.all;
   ActiveReportSort _sort = ActiveReportSort.mostRecent;
@@ -101,7 +118,7 @@ class _MunicipalActiveReportsScreenState
   /// Real filtering/sorting/search — matching the interactive treatment
   /// already established on MUN-005's team list, rather than the static
   /// mockup's non-functional chips.
-  List<ActiveReportItem> get _visibleReports {
+  List<IncomingReportItem> get _visibleReports {
     var reports = _data.toList();
     final query = _searchController.text.trim().toLowerCase();
     if (query.isNotEmpty) {
@@ -133,9 +150,15 @@ class _MunicipalActiveReportsScreenState
       case ActiveReportSort.mostRecent:
         break;
       case ActiveReportSort.highestProgress:
-        reports.sort((a, b) => b.progressPercent.compareTo(a.progressPercent));
+        reports.sort(
+          (a, b) =>
+              (b.progressPercent ?? 0).compareTo(a.progressPercent ?? 0),
+        );
       case ActiveReportSort.lowestProgress:
-        reports.sort((a, b) => a.progressPercent.compareTo(b.progressPercent));
+        reports.sort(
+          (a, b) =>
+              (a.progressPercent ?? 0).compareTo(b.progressPercent ?? 0),
+        );
     }
     return reports;
   }
@@ -307,13 +330,13 @@ class _ActiveReportsBody extends StatelessWidget {
     this.onReportTap,
   });
 
-  final List<ActiveReportItem> reports;
+  final List<IncomingReportItem> reports;
   final bool cached;
   final TextEditingController searchController;
   final ActiveReportFilter filter;
   final ValueChanged<ActiveReportFilter> onFilterChanged;
   final VoidCallback onSortTap;
-  final ValueChanged<ActiveReportItem>? onReportTap;
+  final ValueChanged<IncomingReportItem>? onReportTap;
 
   @override
   Widget build(BuildContext context) {
@@ -333,10 +356,6 @@ class _ActiveReportsBody extends StatelessWidget {
             MunicipalSearchField(
               controller: searchController,
               hintText: 'Search report ID or street...',
-              trailing: IconButton(
-                icon: const Icon(AppIcons.filter, size: AppIconSize.md),
-                onPressed: onSortTap,
-              ),
             ),
             const SizedBox(height: AppSpacing.sm),
             SizedBox(
@@ -460,7 +479,7 @@ class _FilterChip extends StatelessWidget {
 class _ActiveReportCard extends StatelessWidget {
   const _ActiveReportCard({required this.report, this.onTap});
 
-  final ActiveReportItem report;
+  final IncomingReportItem report;
   final VoidCallback? onTap;
 
   @override
@@ -522,14 +541,17 @@ class _ActiveReportCard extends StatelessWidget {
                 style: textTheme.labelSmall?.copyWith(letterSpacing: 0.96),
               ),
               const Spacer(),
-              Text('${report.progressPercent}%', style: textTheme.titleSmall),
+              Text(
+                '${report.progressPercent ?? 0}%',
+                style: textTheme.titleSmall,
+              ),
             ],
           ),
           const SizedBox(height: 4),
           ClipRRect(
             borderRadius: AppRadius.allXs,
             child: LinearProgressIndicator(
-              value: report.progressPercent / 100,
+              value: (report.progressPercent ?? 0) / 100,
               minHeight: 6,
               backgroundColor: colorScheme.surfaceContainer,
               color: report.status.color,
@@ -552,9 +574,12 @@ class _ActiveReportCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(report.teamName, style: textTheme.titleSmall),
                     Text(
-                      'ETA ${report.etaLabel} · ${report.updatedLabel}',
+                      report.teamName ?? 'Unassigned',
+                      style: textTheme.titleSmall,
+                    ),
+                    Text(
+                      'Updated ${report.updatedLabel ?? '—'}',
                       style: textTheme.bodySmall,
                     ),
                   ],

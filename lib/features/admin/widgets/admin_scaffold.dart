@@ -145,12 +145,19 @@ class AdminScaffold extends StatelessWidget {
 
   /// The top/bottom inset every [body] must reserve in its own scrollable
   /// content so nothing sits permanently hidden behind the glass header/nav
-  /// — see the class doc comment.
+  /// — see the class doc comment. Reserves room for the keyboard instead of
+  /// the (now-hidden) bottom nav while it's up, since [build] disables
+  /// [Scaffold.resizeToAvoidBottomInset] — see that field's doc comment.
   static EdgeInsets contentPadding(BuildContext context) {
     final viewPadding = MediaQuery.paddingOf(context);
+    final viewInsets = MediaQuery.viewInsetsOf(context);
     return EdgeInsets.only(
       top: viewPadding.top + AppDimensions.headerHeight,
-      bottom: viewPadding.bottom + AppDimensions.bottomNavHeight,
+      bottom:
+          viewPadding.bottom +
+          (viewInsets.bottom > 0
+              ? viewInsets.bottom
+              : AppDimensions.bottomNavHeight),
     );
   }
 
@@ -159,6 +166,15 @@ class AdminScaffold extends StatelessWidget {
     final keyboardVisible = MediaQuery.viewInsetsOf(context).bottom > 0;
     final isSuperAdmin = AdminSession.instance.isSuperAdmin;
     return Scaffold(
+      // The header/nav are Align-positioned in a Stack below, not real
+      // Scaffold slots, so the default (true) resize made the *whole* Stack
+      // — including the Align(bottom)-positioned nav — shrink and re-anchor
+      // as the keyboard opened, one frame behind the keyboardVisible check
+      // above during the transition. That mismatch was the "shadow"/flash
+      // Francis saw. False keeps header/nav pinned to the true screen edges
+      // always; [contentPadding] reserves the keyboard's own height instead
+      // so scrollable content still clears it.
+      resizeToAvoidBottomInset: false,
       drawer: isSuperAdmin
           ? _AdminDrawer(
               onOpenRoleManagement: onOpenRoleManagement,

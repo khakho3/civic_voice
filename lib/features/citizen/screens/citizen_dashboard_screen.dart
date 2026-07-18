@@ -214,7 +214,11 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen>
 
   @override
   Widget build(BuildContext context) {
+    final keyboardVisible = MediaQuery.viewInsetsOf(context).bottom > 0;
     return Scaffold(
+      // See create_report_screen.dart's build() for why this is false and
+      // paired with the keyboardVisible-guarded nav below.
+      resizeToAvoidBottomInset: false,
       body: Stack(
         children: [
           Positioned.fill(
@@ -251,37 +255,40 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen>
             alignment: Alignment.topCenter,
             child: CivicTopBar(showNotifications: false, isHomeTab: true),
           ),
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: CivicBottomNav(
-              selectedIndex: _selectedIndex,
-              onDestinationSelected: (index) {
-                if (index == 1) {
-                  Navigator.of(
-                    context,
-                  ).pushNamed(CitizenReportsScreen.routeName);
-                  return;
-                }
-                if (index == 2) {
-                  Navigator.of(context).pushNamed(CreateReportScreen.routeName);
-                  return;
-                }
-                if (index == 3) {
-                  Navigator.of(
-                    context,
-                  ).pushNamed(CitizenAlertsScreen.routeName);
-                  return;
-                }
-                if (index == 4) {
-                  Navigator.of(
-                    context,
-                  ).pushNamed(CitizenProfileScreen.routeName);
-                  return;
-                }
-                setState(() => _selectedIndex = index);
-              },
+          if (!keyboardVisible)
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: CivicBottomNav(
+                selectedIndex: _selectedIndex,
+                onDestinationSelected: (index) {
+                  if (index == 1) {
+                    Navigator.of(
+                      context,
+                    ).pushNamed(CitizenReportsScreen.routeName);
+                    return;
+                  }
+                  if (index == 2) {
+                    Navigator.of(
+                      context,
+                    ).pushNamed(CreateReportScreen.routeName);
+                    return;
+                  }
+                  if (index == 3) {
+                    Navigator.of(
+                      context,
+                    ).pushNamed(CitizenAlertsScreen.routeName);
+                    return;
+                  }
+                  if (index == 4) {
+                    Navigator.of(
+                      context,
+                    ).pushNamed(CitizenProfileScreen.routeName);
+                    return;
+                  }
+                  setState(() => _selectedIndex = index);
+                },
+              ),
             ),
-          ),
         ],
       ),
     );

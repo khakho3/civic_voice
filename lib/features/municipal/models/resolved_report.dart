@@ -5,7 +5,6 @@ class ResolvedReportItem {
     required this.referenceId,
     required this.title,
     required this.locationLabel,
-    required this.department,
     required this.resolvedDate,
     required this.resolvedTimeLabel,
     required this.durationDays,
@@ -17,7 +16,6 @@ class ResolvedReportItem {
   final String referenceId;
   final String title;
   final String locationLabel;
-  final String department;
 
   /// Real [DateTime] (not a fixed string) so "This Week"/"This Month" can
   /// filter against it honestly, and so the mock data doesn't read as
@@ -59,7 +57,6 @@ class ResolvedReportItem {
         referenceId: 'REQ-8355',
         title: 'Streetlight Outage — 4th Ave',
         locationLabel: '1240 Main St',
-        department: 'Public Works',
         resolvedDate: now.subtract(const Duration(days: 2)),
         resolvedTimeLabel: '2:45 PM',
         durationDays: 2,
@@ -71,7 +68,6 @@ class ResolvedReportItem {
         referenceId: 'REQ-8244',
         title: 'Pothole Cluster — Elm Rd',
         locationLabel: '88 Elm Rd',
-        department: 'Road Maintenance',
         resolvedDate: now.subtract(const Duration(days: 4)),
         resolvedTimeLabel: '11:20 AM',
         durationDays: 3,
@@ -83,7 +79,6 @@ class ResolvedReportItem {
         referenceId: 'REQ-8201',
         title: 'Graffiti Removal — Bridge',
         locationLabel: 'Riverside Bridge',
-        department: 'Public Works',
         resolvedDate: now.subtract(const Duration(days: 9)),
         resolvedTimeLabel: '9:00 AM',
         durationDays: 1,
@@ -95,7 +90,6 @@ class ResolvedReportItem {
         referenceId: 'REQ-8155',
         title: 'Fallen Tree Branch — Oak Park',
         locationLabel: 'Oak Park, North Entrance',
-        department: 'Parks & Recreation',
         resolvedDate: now.subtract(const Duration(days: 13)),
         resolvedTimeLabel: '3:30 PM',
         durationDays: 1,
@@ -107,7 +101,6 @@ class ResolvedReportItem {
         referenceId: 'REQ-8092',
         title: 'Broken Sidewalk — 2nd St',
         locationLabel: '412 2nd St',
-        department: 'Road Maintenance',
         resolvedDate: now.subtract(const Duration(days: 20)),
         resolvedTimeLabel: '10:15 AM',
         durationDays: 4,
@@ -119,14 +112,11 @@ class ResolvedReportItem {
   }
 }
 
-/// Filter chips for MUN-008 — mixes a time window (This Week/This Month)
-/// with a department spot-check (Public Works), matching the approved
-/// frame exactly rather than normalizing to a single filter dimension.
+/// Filter chips for MUN-008 — a time window over the resolved list.
 enum ResolvedReportFilter {
   all('All'),
   thisWeek('This Week'),
-  thisMonth('This Month'),
-  publicWorks('Public Works');
+  thisMonth('This Month');
 
   const ResolvedReportFilter(this.label);
 

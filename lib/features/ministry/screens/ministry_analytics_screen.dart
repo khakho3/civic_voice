@@ -85,28 +85,6 @@ class _MinistryAnalyticsScreenState extends State<MinistryAnalyticsScreen> {
     });
   }
 
-  Future<void> _pickDateRange() async {
-    final selected = await showModalBottomSheet<AnalyticsDateRange>(
-      context: context,
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (final option in AnalyticsDateRange.values)
-              ListTile(
-                title: Text(option.label),
-                trailing: option == _dateRange
-                    ? const Icon(AppIcons.success, color: AppColors.primary)
-                    : null,
-                onTap: () => Navigator.of(context).pop(option),
-              ),
-          ],
-        ),
-      ),
-    );
-    if (selected != null) setState(() => _dateRange = selected);
-  }
-
   @override
   Widget build(BuildContext context) {
     // Empty/No Results keep the chrome fixed (not collapsible) rather than
@@ -138,10 +116,10 @@ class _MinistryAnalyticsScreenState extends State<MinistryAnalyticsScreen> {
           ),
           child: CollapsibleListHeader(
             header: _FilterChrome(
-              dateRangeLabel: _dateRange.label,
+              dateRange: _dateRange,
               dimension: _dimension,
               enabled: true,
-              onDateRangeTap: _pickDateRange,
+              onDateRangeChanged: (r) => setState(() => _dateRange = r),
               onDimensionSelected: (d) => setState(() => _dimension = d),
             ),
             child: _AnalyticsContent(
@@ -155,10 +133,12 @@ class _MinistryAnalyticsScreenState extends State<MinistryAnalyticsScreen> {
           children: [
             SizedBox(height: MinistryScaffold.contentPadding(context).top),
             _FilterChrome(
-              dateRangeLabel: _dateRange.label,
+              dateRange: _dateRange,
               dimension: _dimension,
               enabled: chromeEnabled,
-              onDateRangeTap: chromeEnabled ? _pickDateRange : null,
+              onDateRangeChanged: chromeEnabled
+                  ? (r) => setState(() => _dateRange = r)
+                  : null,
               onDimensionSelected: chromeEnabled
                   ? (d) => setState(() => _dimension = d)
                   : null,
@@ -247,23 +227,23 @@ class _MinistryAnalyticsScreenState extends State<MinistryAnalyticsScreen> {
 
 class _FilterChrome extends StatelessWidget {
   const _FilterChrome({
-    required this.dateRangeLabel,
+    required this.dateRange,
     required this.dimension,
     required this.enabled,
-    this.onDateRangeTap,
+    this.onDateRangeChanged,
     this.onDimensionSelected,
   });
 
-  final String dateRangeLabel;
+  final AnalyticsDateRange dateRange;
   final AnalyticsDimension dimension;
   final bool enabled;
-  final VoidCallback? onDateRangeTap;
+  final ValueChanged<AnalyticsDateRange>? onDateRangeChanged;
   final ValueChanged<AnalyticsDimension>? onDimensionSelected;
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
     final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.md,
@@ -274,34 +254,53 @@ class _FilterChrome extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // A real DropdownButton — matches Admin System Activity's own
+          // date-range control (_TimeRangeDropdown) — rather than a modal
+          // bottom sheet, so the same kind of filter opens the same way
+          // everywhere in the app.
           Material(
             color: colorScheme.surfaceContainer,
             borderRadius: AppComponentRadius.inputField,
-            child: InkWell(
-              borderRadius: AppComponentRadius.inputField,
-              onTap: onDateRangeTap,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.md,
-                  vertical: AppSpacing.sm,
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      AppIcons.calendar,
-                      size: AppIconSize.md,
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      child: Text(dateRangeLabel, style: textTheme.bodyLarge),
-                    ),
-                    Icon(
-                      AppIcons.chevronDown,
-                      size: AppIconSize.md,
-                      color: colorScheme.onSurfaceVariant,
-                    ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<AnalyticsDateRange>(
+                  value: dateRange,
+                  isExpanded: true,
+                  borderRadius: AppComponentRadius.inputField,
+                  icon: Icon(
+                    AppIcons.chevronDown,
+                    size: AppIconSize.md,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                  style: textTheme.bodyLarge?.copyWith(
+                    color: colorScheme.onSurface,
+                  ),
+                  selectedItemBuilder: (context) => [
+                    for (final range in AnalyticsDateRange.values)
+                      Row(
+                        children: [
+                          Icon(
+                            AppIcons.calendar,
+                            size: AppIconSize.md,
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                          const SizedBox(width: AppSpacing.sm),
+                          Text(range.label),
+                        ],
+                      ),
                   ],
+                  items: [
+                    for (final range in AnalyticsDateRange.values)
+                      DropdownMenuItem(value: range, child: Text(range.label)),
+                  ],
+                  onChanged: enabled
+                      ? (selected) {
+                          if (selected != null) {
+                            onDateRangeChanged?.call(selected);
+                          }
+                        }
+                      : null,
                 ),
               ),
             ),

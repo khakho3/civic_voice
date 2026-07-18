@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../widgets/evidence_image_viewer.dart';
 import '../widgets/civic_glass_card.dart';
 import '../models/civic_report.dart';
 import '../services/report_crud_service.dart';
@@ -63,8 +64,12 @@ class ReportTrackingScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final compact = MediaQuery.sizeOf(context).width < 360;
     final horizontalPadding = compact ? AppSpacing.sm : AppSpacing.md;
+    final keyboardVisible = MediaQuery.viewInsetsOf(context).bottom > 0;
 
     return Scaffold(
+      // See create_report_screen.dart's build() for why this is false and
+      // paired with the keyboardVisible-guarded nav below.
+      resizeToAvoidBottomInset: false,
       body: Stack(
         children: [
           Positioned.fill(
@@ -117,25 +122,26 @@ class ReportTrackingScreen extends StatelessWidget {
               onBack: () => Navigator.of(context).maybePop(),
             ),
           ),
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: CivicBottomNav(
-              selectedIndex: 1,
-              onDestinationSelected: (index) {
-                if (index == 0) {
-                  _openDashboard(context);
-                } else if (index == 1) {
-                  _openReports(context);
-                } else if (index == 2) {
-                  _openCreateReport(context);
-                } else if (index == 3) {
-                  _openAlerts(context);
-                } else if (index == 4) {
-                  _openProfile(context);
-                }
-              },
+          if (!keyboardVisible)
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: CivicBottomNav(
+                selectedIndex: 1,
+                onDestinationSelected: (index) {
+                  if (index == 0) {
+                    _openDashboard(context);
+                  } else if (index == 1) {
+                    _openReports(context);
+                  } else if (index == 2) {
+                    _openCreateReport(context);
+                  } else if (index == 3) {
+                    _openAlerts(context);
+                  } else if (index == 4) {
+                    _openProfile(context);
+                  }
+                },
+              ),
             ),
-          ),
         ],
       ),
     );
@@ -658,18 +664,22 @@ class _TrackingDetails extends StatelessWidget {
                           aspectRatio: 1,
                           child: ClipRRect(
                             borderRadius: AppRadius.allLg,
-                            child: Image.file(
-                              File(path),
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) =>
-                                  ColoredBox(
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.surfaceContainerLow,
-                                    child: const Center(
-                                      child: Icon(AppIcons.imageUnavailable),
+                            child: InkWell(
+                              onTap: () =>
+                                  EvidenceImageViewer.open(context, path),
+                              child: Image.file(
+                                File(path),
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) =>
+                                    ColoredBox(
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.surfaceContainerLow,
+                                      child: const Center(
+                                        child: Icon(AppIcons.imageUnavailable),
+                                      ),
                                     ),
-                                  ),
+                              ),
                             ),
                           ),
                         ),

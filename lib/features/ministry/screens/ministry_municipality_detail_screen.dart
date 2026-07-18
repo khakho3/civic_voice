@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../widgets/detail_header.dart';
 import '../../../widgets/glass_card.dart';
+import '../../admin/services/admin_user_directory.dart';
 import '../models/municipal_performance_data.dart';
 
 /// Drill-down opened from a Municipal Performance "Regional Leaders" row or
@@ -24,15 +25,11 @@ class MinistryMunicipalityDetailScreen extends StatelessWidget {
   final RegionalLeaderItem municipality;
   final VoidCallback? onBack;
 
-  Future<void> _call(BuildContext context) => _launch(
-    context,
-    Uri(scheme: 'tel', path: municipality.officerPhone.replaceAll(' ', '')),
-  );
+  Future<void> _call(BuildContext context, String phone) =>
+      _launch(context, Uri(scheme: 'tel', path: phone.replaceAll(' ', '')));
 
-  Future<void> _message(BuildContext context) => _launch(
-    context,
-    Uri(scheme: 'sms', path: municipality.officerPhone.replaceAll(' ', '')),
-  );
+  Future<void> _message(BuildContext context, String phone) =>
+      _launch(context, Uri(scheme: 'sms', path: phone.replaceAll(' ', '')));
 
   Future<void> _launch(BuildContext context, Uri uri) async {
     // A device/platform with no tel:/sms: handler (or, in tests, no plugin
@@ -56,6 +53,15 @@ class MinistryMunicipalityDetailScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final bottomInset = MediaQuery.paddingOf(context).bottom;
+    // Prefer a real provisioned officer account for this assembly (the
+    // earliest-created one — see [AdminUserDirectory.correspondentOfficerFor])
+    // over the static mock contact, once one exists.
+    final correspondent = AdminUserDirectory.instance.correspondentOfficerFor(
+      municipality.name,
+      municipality.region,
+    );
+    final officerName = correspondent?.name ?? municipality.officerName;
+    final officerPhone = correspondent?.phone ?? municipality.officerPhone;
 
     return Scaffold(
       body: Stack(
@@ -112,9 +118,10 @@ class MinistryMunicipalityDetailScreen extends StatelessWidget {
                 Text('Municipal Officer', style: textTheme.titleMedium),
                 const SizedBox(height: AppSpacing.sm),
                 _OfficerContactCard(
-                  municipality: municipality,
-                  onCall: () => _call(context),
-                  onMessage: () => _message(context),
+                  officerName: officerName,
+                  officerPhone: officerPhone,
+                  onCall: () => _call(context, officerPhone),
+                  onMessage: () => _message(context, officerPhone),
                 ),
               ],
             ),
@@ -201,12 +208,14 @@ class _StatCard extends StatelessWidget {
 /// actions front and center, not buried under analytics.
 class _OfficerContactCard extends StatelessWidget {
   const _OfficerContactCard({
-    required this.municipality,
+    required this.officerName,
+    required this.officerPhone,
     required this.onCall,
     required this.onMessage,
   });
 
-  final RegionalLeaderItem municipality;
+  final String officerName;
+  final String officerPhone;
   final VoidCallback onCall;
   final VoidCallback onMessage;
 
@@ -239,13 +248,13 @@ class _OfficerContactCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      municipality.officerName,
+                      officerName,
                       style: textTheme.titleSmall,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     Text(
-                      municipality.officerPhone,
+                      officerPhone,
                       style: textTheme.bodySmall?.copyWith(
                         color: colorScheme.onSurfaceVariant,
                       ),

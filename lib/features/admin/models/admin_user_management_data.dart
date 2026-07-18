@@ -58,7 +58,7 @@ enum AdminUserStatus {
 class AdminUserItem {
   const AdminUserItem({
     required this.name,
-    required this.email,
+    this.email,
     required this.phone,
     required this.role,
     required this.status,
@@ -71,7 +71,12 @@ class AdminUserItem {
   });
 
   final String name;
-  final String email;
+
+  /// Not collected on account creation yet — there's no SMTP integration to
+  /// send anything to it, so asking for it up front would just be data
+  /// collected for its own sake. Existing accounts created before this
+  /// still carry one; new ones simply have none until that changes.
+  final String? email;
   final String phone;
   final AppRole role;
   final AdminUserStatus status;
@@ -154,7 +159,9 @@ class AdminUserItem {
   bool matchesSearch(String query) {
     if (query.isEmpty) return true;
     final q = query.toLowerCase();
-    return name.toLowerCase().contains(q) || email.toLowerCase().contains(q);
+    return name.toLowerCase().contains(q) ||
+        phone.contains(q) ||
+        (email?.toLowerCase().contains(q) ?? false);
   }
 
   AdminUserItem copyWith({

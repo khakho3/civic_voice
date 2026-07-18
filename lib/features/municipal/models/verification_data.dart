@@ -1,4 +1,3 @@
-import '../../../models/report_severity.dart';
 import 'incoming_report.dart';
 
 /// A single item in the Verification Checklist — static content (label +
@@ -28,8 +27,9 @@ class VerificationData {
     required this.title,
     required this.locationSummary,
     required this.category,
-    required this.severity,
     required this.citizenName,
+    required this.officerName,
+    required this.officerPhone,
     required this.checklist,
   });
 
@@ -37,8 +37,11 @@ class VerificationData {
   final String title;
   final String locationSummary;
   final ReportCategory category;
-  final ReportSeverity severity;
   final String citizenName;
+
+  /// The Municipal Officer verifying this report — see [OfficerContactRow].
+  final String officerName;
+  final String officerPhone;
   final List<ChecklistItem> checklist;
 
   /// Placeholder content matching the approved MUN-004 design, used until
@@ -49,8 +52,9 @@ class VerificationData {
       title: 'Severe Pothole on Main St.',
       locationSummary: '1200 Block, Main St · Reported 2h ago',
       category: ReportCategory.infrastructure,
-      severity: ReportSeverity.high,
       citizenName: 'Eleanor Vance',
+      officerName: 'Alex Johnston',
+      officerPhone: '+233 24 555 0142',
       checklist: [
         ChecklistItem(
           label: 'Issue confirmed',

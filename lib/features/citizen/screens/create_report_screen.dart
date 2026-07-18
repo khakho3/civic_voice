@@ -321,7 +321,16 @@ class _CreateReportScreenState extends State<CreateReportScreen>
 
   @override
   Widget build(BuildContext context) {
+    final keyboardVisible = MediaQuery.viewInsetsOf(context).bottom > 0;
     return Scaffold(
+      // CivicTopBar/CivicBottomNav are Align-positioned in a Stack, not real
+      // Scaffold slots — the default (true) resize shrank the whole Stack
+      // as the keyboard opened, re-anchoring the bottom nav mid-screen
+      // above the keyboard instead of at the true bottom edge. False keeps
+      // header/nav pinned to the true screen edges always; civicContentPadding
+      // reserves the keyboard's own height instead so scrollable content
+      // still clears it.
+      resizeToAvoidBottomInset: false,
       body: Stack(
         children: [
           Positioned.fill(
@@ -415,32 +424,33 @@ class _CreateReportScreenState extends State<CreateReportScreen>
               onBack: () => Navigator.of(context).maybePop(),
             ),
           ),
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: CivicBottomNav(
-              selectedIndex: 2,
-              onDestinationSelected: (index) {
-                if (index == 0) {
-                  Navigator.of(context).maybePop();
-                } else if (index == 1) {
-                  Navigator.of(context).pushNamedAndRemoveUntil(
-                    CitizenReportsScreen.routeName,
-                    (route) => route.isFirst,
-                  );
-                } else if (index == 3) {
-                  Navigator.of(context).pushNamedAndRemoveUntil(
-                    CitizenAlertsScreen.routeName,
-                    (route) => route.isFirst,
-                  );
-                } else if (index == 4) {
-                  Navigator.of(context).pushNamedAndRemoveUntil(
-                    CitizenProfileScreen.routeName,
-                    (route) => route.isFirst,
-                  );
-                }
-              },
+          if (!keyboardVisible)
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: CivicBottomNav(
+                selectedIndex: 2,
+                onDestinationSelected: (index) {
+                  if (index == 0) {
+                    Navigator.of(context).maybePop();
+                  } else if (index == 1) {
+                    Navigator.of(context).pushNamedAndRemoveUntil(
+                      CitizenReportsScreen.routeName,
+                      (route) => route.isFirst,
+                    );
+                  } else if (index == 3) {
+                    Navigator.of(context).pushNamedAndRemoveUntil(
+                      CitizenAlertsScreen.routeName,
+                      (route) => route.isFirst,
+                    );
+                  } else if (index == 4) {
+                    Navigator.of(context).pushNamedAndRemoveUntil(
+                      CitizenProfileScreen.routeName,
+                      (route) => route.isFirst,
+                    );
+                  }
+                },
+              ),
             ),
-          ),
         ],
       ),
     );

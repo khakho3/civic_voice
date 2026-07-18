@@ -42,6 +42,21 @@ class _TestRoleSelectorScreenState extends State<TestRoleSelectorScreen> {
     AppRole.maintenanceTeam,
   ];
 
+  /// Resets the Admin Tier back to Super Admin whenever System Administrator
+  /// is freshly picked, so reselecting it doesn't silently carry over
+  /// whatever tier a previous test session (or an earlier toggle in this
+  /// same visit) left behind — easy to mistake for Super-Admin-only content
+  /// having broken, since Admin tier hides it by design.
+  void _selectRole(AppRole role) {
+    setState(() {
+      _selectedRole = role;
+      if (role == AppRole.systemAdministrator) {
+        _tier = AdminTier.superAdmin;
+        _assemblyError = null;
+      }
+    });
+  }
+
   Future<void> _continue() async {
     if (_saving) return;
     final needsAssembly =
@@ -115,7 +130,7 @@ class _TestRoleSelectorScreenState extends State<TestRoleSelectorScreen> {
                     groupValue: _selectedRole,
                     onChanged: (role) {
                       if (_saving || role == null) return;
-                      setState(() => _selectedRole = role);
+                      _selectRole(role);
                     },
                     child: DecoratedBox(
                       decoration: BoxDecoration(
@@ -128,10 +143,7 @@ class _TestRoleSelectorScreenState extends State<TestRoleSelectorScreen> {
                           for (final role in _roles)
                             _RoleOption(
                               role: role,
-                              onChanged: _saving
-                                  ? null
-                                  : (role) =>
-                                        setState(() => _selectedRole = role),
+                              onChanged: _saving ? null : _selectRole,
                             ),
                         ],
                       ),

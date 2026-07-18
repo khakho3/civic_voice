@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../models/report_status.dart';
 import '../models/verification_data.dart';
+import '../services/municipal_report_directory.dart';
 import '../../../widgets/glass_card.dart';
 import '../widgets/municipal_detail_header.dart';
+import '../widgets/officer_contact_row.dart';
 import '../../../widgets/app_state_message.dart';
 import '../../../widgets/status_badge.dart';
 
@@ -100,6 +102,7 @@ class _MunicipalVerificationScreenState
     setState(() => _state = MunicipalVerificationViewState.loading);
     Future.delayed(const Duration(milliseconds: 500), () {
       if (mounted) {
+        MunicipalReportDirectory.instance.verify(widget.referenceId);
         setState(() => _state = MunicipalVerificationViewState.verified);
       }
     });
@@ -110,6 +113,7 @@ class _MunicipalVerificationScreenState
     setState(() => _state = MunicipalVerificationViewState.loading);
     Future.delayed(const Duration(milliseconds: 500), () {
       if (mounted) {
+        MunicipalReportDirectory.instance.reject(widget.referenceId);
         setState(() => _state = MunicipalVerificationViewState.rejected);
       }
     });
@@ -189,67 +193,62 @@ class _MunicipalVerificationScreenState
                         disabledCaption:
                             'This report is no longer available for review.',
                       ),
-                      MunicipalVerificationViewState.verified =>
-                        AppStateMessage(
-                          icon: AppIcons.success,
-                          badgeColor: AppColors.success,
-                          title: 'Report Verified Successfully',
-                          message:
-                              'The report is now ready for maintenance assignment.',
-                          primaryActionLabel: 'Assign Maintenance Team',
-                          onPrimaryAction: widget.onAssignTeam,
-                          secondaryActionLabel: 'Back to Dashboard',
-                          onSecondaryAction: widget.onNavigateToDashboard,
-                          bordered: true,
+                      MunicipalVerificationViewState.verified => AppStateMessage(
+                        icon: AppIcons.success,
+                        badgeColor: AppColors.success,
+                        title: 'Report Verified Successfully',
+                        message:
+                            'The report is now ready for maintenance assignment.',
+                        primaryActionLabel: 'Assign Maintenance Team',
+                        onPrimaryAction: widget.onAssignTeam,
+                        secondaryActionLabel: 'Back to Dashboard',
+                        onSecondaryAction: widget.onNavigateToDashboard,
+                        bordered: true,
+                      ),
+                      MunicipalVerificationViewState.rejected => AppStateMessage(
+                        icon: AppIcons.success,
+                        badgeColor: AppColors.success,
+                        title: 'Report Rejected',
+                        message: _rejectedWithReason
+                            ? 'The citizen has been notified with the provided '
+                                  'reason.'
+                            : 'The citizen has been notified of the rejection.',
+                        primaryActionLabel: 'Back to Inbox',
+                        onPrimaryAction: widget.onBackToInbox,
+                        secondaryActionLabel: 'Return to Dashboard',
+                        onSecondaryAction: widget.onNavigateToDashboard,
+                        bordered: true,
+                      ),
+                      MunicipalVerificationViewState.failed => AppStateMessage(
+                        icon: AppIcons.warning,
+                        badgeColor: AppColors.error,
+                        primaryActionColor: AppColors.error,
+                        title: 'Verification Failed',
+                        message:
+                            'We couldn\'t submit the verification. Check your '
+                            'connection and try again.',
+                        primaryActionLabel: 'Try again',
+                        onPrimaryAction: _submitVerify,
+                        secondaryActionLabel: 'Back to Report',
+                        onSecondaryAction: () => setState(
+                          () => _state = MunicipalVerificationViewState.loaded,
                         ),
-                      MunicipalVerificationViewState.rejected =>
-                        AppStateMessage(
-                          icon: AppIcons.success,
-                          badgeColor: AppColors.success,
-                          title: 'Report Rejected',
-                          message: _rejectedWithReason
-                              ? 'The citizen has been notified with the provided '
-                                    'reason.'
-                              : 'The citizen has been notified of the rejection.',
-                          primaryActionLabel: 'Back to Inbox',
-                          onPrimaryAction: widget.onBackToInbox,
-                          secondaryActionLabel: 'Return to Dashboard',
-                          onSecondaryAction: widget.onNavigateToDashboard,
-                          bordered: true,
-                        ),
-                      MunicipalVerificationViewState.failed =>
-                        AppStateMessage(
-                          icon: AppIcons.warning,
-                          badgeColor: AppColors.error,
-                          primaryActionColor: AppColors.error,
-                          title: 'Verification Failed',
-                          message:
-                              'We couldn\'t submit the verification. Check your '
-                              'connection and try again.',
-                          primaryActionLabel: 'Try again',
-                          onPrimaryAction: _submitVerify,
-                          secondaryActionLabel: 'Back to Report',
-                          onSecondaryAction: () => setState(
-                            () =>
-                                _state = MunicipalVerificationViewState.loaded,
-                          ),
-                          bordered: true,
-                        ),
-                      MunicipalVerificationViewState.error =>
-                        AppStateMessage(
-                          icon: AppIcons.warning,
-                          badgeColor: AppColors.error,
-                          primaryActionColor: AppColors.error,
-                          title: 'Something went wrong',
-                          message:
-                              'We encountered a network issue while loading this '
-                              'report. Please try again.',
-                          primaryActionLabel: 'Try again',
-                          onPrimaryAction: _retryLoad,
-                          secondaryActionLabel: 'Return to Dashboard',
-                          onSecondaryAction: widget.onNavigateToDashboard,
-                          bordered: true,
-                        ),
+                        bordered: true,
+                      ),
+                      MunicipalVerificationViewState.error => AppStateMessage(
+                        icon: AppIcons.warning,
+                        badgeColor: AppColors.error,
+                        primaryActionColor: AppColors.error,
+                        title: 'Something went wrong',
+                        message:
+                            'We encountered a network issue while loading this '
+                            'report. Please try again.',
+                        primaryActionLabel: 'Try again',
+                        onPrimaryAction: _retryLoad,
+                        secondaryActionLabel: 'Return to Dashboard',
+                        onSecondaryAction: widget.onNavigateToDashboard,
+                        bordered: true,
+                      ),
                       MunicipalVerificationViewState.permissionDenied =>
                         AppStateMessage(
                           icon: AppIcons.permissionDenied,
@@ -373,42 +372,9 @@ class _VerificationForm extends StatelessWidget {
               const SizedBox(height: AppSpacing.xs),
               Text(data.locationSummary, style: textTheme.bodySmall),
               const SizedBox(height: AppSpacing.md),
-              Row(
-                children: [
-                  Expanded(
-                    child: _LabeledValue(
-                      label: 'CATEGORY',
-                      child: Text(
-                        data.category.label,
-                        style: textTheme.titleSmall,
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: _LabeledValue(
-                      label: 'PRIORITY',
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 6,
-                            height: 6,
-                            decoration: const BoxDecoration(
-                              color: AppColors.error,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: AppSpacing.xs),
-                          Text(
-                            data.severity.label,
-                            style: textTheme.titleSmall?.copyWith(
-                              color: AppColors.error,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
+              _LabeledValue(
+                label: 'CATEGORY',
+                child: Text(data.category.label, style: textTheme.titleSmall),
               ),
               const SizedBox(height: AppSpacing.md),
               _LabeledValue(
@@ -441,6 +407,11 @@ class _VerificationForm extends StatelessWidget {
                     Text(data.citizenName, style: textTheme.titleSmall),
                   ],
                 ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              OfficerContactRow(
+                officerName: data.officerName,
+                officerPhone: data.officerPhone,
               ),
             ],
           ),

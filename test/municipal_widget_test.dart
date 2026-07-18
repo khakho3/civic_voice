@@ -3,9 +3,11 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:civic_voice/main.dart' as app;
 import 'package:civic_voice/core/theme/app_theme.dart';
-import 'package:civic_voice/features/municipal/models/active_report.dart';
+import 'package:civic_voice/features/admin/models/admin_maintenance_team_data.dart';
+import 'package:civic_voice/features/admin/services/admin_maintenance_team_directory.dart';
 import 'package:civic_voice/features/municipal/models/incoming_report.dart';
 import 'package:civic_voice/features/municipal/models/resolved_report.dart';
+import 'package:civic_voice/features/municipal/services/municipal_report_directory.dart';
 import 'package:civic_voice/features/municipal/screens/municipal_active_reports_screen.dart';
 import 'package:civic_voice/features/municipal/screens/municipal_assign_team_screen.dart';
 import 'package:civic_voice/features/municipal/screens/municipal_dashboard_screen.dart';
@@ -16,7 +18,70 @@ import 'package:civic_voice/features/municipal/screens/municipal_report_review_s
 import 'package:civic_voice/features/municipal/screens/municipal_resolution_details_screen.dart';
 import 'package:civic_voice/features/municipal/screens/municipal_resolved_reports_screen.dart';
 import 'package:civic_voice/features/municipal/screens/municipal_verification_screen.dart';
+import 'package:civic_voice/models/ghana_assemblies_data.dart';
+import 'package:civic_voice/models/region.dart';
+import 'package:civic_voice/models/team_availability.dart';
 import 'package:civic_voice/widgets/collapsible_list_header.dart';
+
+/// Replaces the live `MaintenanceTeamDirectory` with 4 predictable teams for
+/// the Assign Team tests below, restoring the original directory state
+/// afterwards — these tests exercise Assign Team against the same real,
+/// shared directory Admin's own Maintenance Teams screen manages, not a
+/// separate Municipal-only mock, so they must clean up after themselves.
+List<MaintenanceTeam> _seedAssignTeamTestTeams() {
+  final original = MaintenanceTeamDirectory.instance.teams.value;
+  addTearDown(() => MaintenanceTeamDirectory.instance.teams.value = original);
+
+  final assembly = assemblyNamed(Region.ashanti, 'Kumasi');
+  final teams = [
+    MaintenanceTeam(
+      teamId: 'TEST-TEAM-ALPHA',
+      name: 'Unit Alpha',
+      region: Region.ashanti,
+      assembly: assembly,
+      memberUserIds: const [],
+      createdAt: DateTime(2025, 1, 1),
+    ),
+    MaintenanceTeam(
+      teamId: 'TEST-TEAM-BRAVO',
+      name: 'Unit Bravo',
+      region: Region.ashanti,
+      assembly: assembly,
+      memberUserIds: const [],
+      createdAt: DateTime(2025, 1, 1),
+    ),
+    MaintenanceTeam(
+      teamId: 'TEST-TEAM-CHARLIE',
+      name: 'Unit Charlie',
+      region: Region.ashanti,
+      assembly: assembly,
+      memberUserIds: const [],
+      createdAt: DateTime(2025, 1, 1),
+      availability: TeamAvailability.busy,
+    ),
+    MaintenanceTeam(
+      teamId: 'TEST-TEAM-DELTA',
+      name: 'Unit Delta',
+      region: Region.ashanti,
+      assembly: assembly,
+      memberUserIds: const [],
+      createdAt: DateTime(2025, 1, 1),
+      availability: TeamAvailability.offDuty,
+    ),
+  ];
+  MaintenanceTeamDirectory.instance.teams.value = teams;
+  return teams;
+}
+
+/// Snapshots the live `MunicipalReportDirectory` and restores it after the
+/// test — for tests that trigger a real verify/reject/assign-team action,
+/// which mutate this shared singleton the same way a Firestore write would.
+void _preserveMunicipalReportDirectory() {
+  final original = MunicipalReportDirectory.instance.reports.value;
+  addTearDown(
+    () => MunicipalReportDirectory.instance.reports.value = original,
+  );
+}
 
 void main() {
   testWidgets('Municipal Dashboard renders its loaded state', (
@@ -65,8 +130,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('MUNICIPALITY'), findsOneWidget);
-      expect(find.text('Assigned by your administrator'), findsOneWidget);
+      expect(find.text('Good Morning, Alex Johnston'), findsOneWidget);
+      expect(find.text('Springfield District'), findsOneWidget);
       // A chevron-down is the "tap to open a picker" affordance — it must
       // not be present now that officers can't self-select a municipality.
       expect(find.byIcon(AppIcons.chevronDown), findsNothing);
@@ -490,6 +555,7 @@ void main() {
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
+      _preserveMunicipalReportDirectory();
 
       await tester.pumpWidget(
         MaterialApp(
@@ -520,6 +586,7 @@ void main() {
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
+      _preserveMunicipalReportDirectory();
 
       await tester.pumpWidget(
         MaterialApp(
@@ -571,6 +638,7 @@ void main() {
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
+      _seedAssignTeamTestTeams();
 
       await tester.pumpWidget(
         MaterialApp(
@@ -590,10 +658,7 @@ void main() {
       expect(find.text('Unit Delta'), findsOneWidget);
       // Unit Alpha is pre-selected, matching every approved reference frame.
       expect(
-        find.text(
-          'Unit Alpha will be dispatched to this location — '
-          'estimated arrival in 12 min.',
-        ),
+        find.text('Unit Alpha is now assigned to this report.'),
         findsOneWidget,
       );
     },
@@ -606,6 +671,7 @@ void main() {
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
+      _seedAssignTeamTestTeams();
 
       await tester.pumpWidget(
         MaterialApp(
@@ -635,6 +701,7 @@ void main() {
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
+    _seedAssignTeamTestTeams();
 
     await tester.pumpWidget(
       MaterialApp(
@@ -660,6 +727,7 @@ void main() {
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
+      _seedAssignTeamTestTeams();
 
       await tester.pumpWidget(
         MaterialApp(
@@ -672,7 +740,7 @@ void main() {
       await tester.tap(find.text('Unit Bravo'));
       await tester.pumpAndSettle();
       expect(
-        find.textContaining('Unit Bravo will be dispatched'),
+        find.textContaining('Unit Bravo is now assigned'),
         findsOneWidget,
       );
 
@@ -680,13 +748,10 @@ void main() {
       await tester.tap(find.text('Unit Delta'));
       await tester.pumpAndSettle();
       expect(
-        find.textContaining('Unit Bravo will be dispatched'),
+        find.textContaining('Unit Bravo is now assigned'),
         findsOneWidget,
       );
-      expect(
-        find.textContaining('Unit Delta will be dispatched'),
-        findsNothing,
-      );
+      expect(find.textContaining('Unit Delta is now assigned'), findsNothing);
     },
   );
 
@@ -697,6 +762,8 @@ void main() {
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
+      _seedAssignTeamTestTeams();
+      _preserveMunicipalReportDirectory();
 
       await tester.pumpWidget(
         MaterialApp(
@@ -716,7 +783,7 @@ void main() {
 
       expect(find.text('Team Assigned'), findsOneWidget);
       expect(
-        find.text('Unit Alpha has been notified and will begin work shortly.'),
+        find.text('Unit Alpha is now assigned to this report.'),
         findsOneWidget,
       );
       // Regression check: the header status badge is a fixed widget.status
@@ -724,6 +791,61 @@ void main() {
       // would keep showing "Under Review" even after a team's been assigned.
       expect(find.text('Under Review'), findsNothing);
       expect(find.text('Assigned'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'Verifying then assigning a team moves a report out of Inbox and into '
+    'Active Reports — the real Inbox/Active split',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      _preserveMunicipalReportDirectory();
+
+      // Starts out submitted — shows in Inbox, not Active.
+      await tester.pumpWidget(
+        MaterialApp(theme: AppTheme.light, home: const MunicipalInboxScreen()),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Traffic Light Malfunction'), findsOneWidget);
+
+      // Verify it — moves submitted -> underReview. Still Inbox-visible:
+      // reviewed but no team assigned yet stays in Inbox per Francis's rule.
+      MunicipalReportDirectory.instance.verify('CV-1042');
+      await tester.pumpWidget(
+        MaterialApp(theme: AppTheme.light, home: const MunicipalInboxScreen()),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Traffic Light Malfunction'), findsOneWidget);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: const MunicipalActiveReportsScreen(),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Traffic Light Malfunction'), findsNothing);
+
+      // Assign a team — the real "moves from Inbox to Active" transition.
+      MunicipalReportDirectory.instance.assignTeam('CV-1042', 'Unit Alpha');
+
+      await tester.pumpWidget(
+        MaterialApp(theme: AppTheme.light, home: const MunicipalInboxScreen()),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Traffic Light Malfunction'), findsNothing);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: const MunicipalActiveReportsScreen(),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Traffic Light Malfunction'), findsOneWidget);
     },
   );
 
@@ -840,7 +962,7 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    ActiveReportItem? tapped;
+    IncomingReportItem? tapped;
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.light,
@@ -974,7 +1096,7 @@ void main() {
       expect(find.text('#REQ-8421'), findsOneWidget);
       expect(find.text('Main St. Pothole Repair'), findsOneWidget);
       expect(find.text('North District, Zone 4'), findsOneWidget);
-      expect(find.text('Officer J. Sterling'), findsOneWidget);
+      expect(find.text('Alex Johnston'), findsOneWidget);
       expect(find.text('65%'), findsOneWidget);
       expect(find.text('Unit Alpha'), findsOneWidget);
 
@@ -1169,39 +1291,6 @@ void main() {
       expect(find.text('Streetlight Outage — 4th Ave'), findsOneWidget);
       expect(find.text('Pothole Cluster — Elm Rd'), findsOneWidget);
       expect(find.text('Graffiti Removal — Bridge'), findsOneWidget);
-    },
-  );
-
-  testWidgets(
-    'Municipal Resolved Reports "Public Works" filter hides other departments',
-    (WidgetTester tester) async {
-      tester.view.physicalSize = const Size(428, 2600);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: AppTheme.light,
-          home: const MunicipalResolvedReportsScreen(),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      // 'Public Works' also appears as the department line on matching report
-      // cards further down — the filter chip is the first match, since the
-      // filter row renders above the report list. It's the last chip in a
-      // horizontally-scrolling row, so it needs scrolling into view before
-      // it can be tapped.
-      final publicWorksChip = find.text('Public Works').first;
-      await tester.ensureVisible(publicWorksChip);
-      await tester.pumpAndSettle();
-      await tester.tap(publicWorksChip);
-      await tester.pumpAndSettle();
-
-      expect(find.text('Streetlight Outage — 4th Ave'), findsOneWidget);
-      expect(find.text('Graffiti Removal — Bridge'), findsOneWidget);
-      expect(find.text('Pothole Cluster — Elm Rd'), findsNothing);
     },
   );
 
@@ -1629,7 +1718,7 @@ void main() {
     expect(find.text('Senior Municipal Coordinator'), findsOneWidget);
     expect(find.text('Verified Official'), findsOneWidget);
     expect(find.text('alex.johnston@city.gov'), findsOneWidget);
-    expect(find.text('(555) 128-4092'), findsOneWidget);
+    expect(find.text('+233 24 555 0142'), findsOneWidget);
     expect(find.text('Urban Planning & Dev'), findsOneWidget);
     expect(find.text('Director M. Chen'), findsOneWidget);
     expect(find.text('Change Password'), findsOneWidget);
@@ -1715,7 +1804,7 @@ void main() {
       // current value.
       expect(find.text('Alex Johnston'), findsNWidgets(2));
       expect(find.text('alex.johnston@city.gov'), findsOneWidget);
-      expect(find.text('(555) 128-4092'), findsOneWidget);
+      expect(find.text('+233 24 555 0142'), findsOneWidget);
       // Department is shown but locked, not part of the editable form.
       expect(find.text('Set by your administrator'), findsOneWidget);
     },

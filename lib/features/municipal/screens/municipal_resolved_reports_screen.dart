@@ -108,8 +108,6 @@ class _MunicipalResolvedReportsScreenState
         reports = reports
             .where((r) => now.difference(r.resolvedDate).inDays < 30)
             .toList();
-      case ResolvedReportFilter.publicWorks:
-        reports = reports.where((r) => r.department == 'Public Works').toList();
     }
     return reports;
   }
@@ -533,37 +531,18 @@ class _ResolvedReportCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: AppSpacing.xs),
-          Wrap(
-            spacing: AppSpacing.md,
-            runSpacing: 4,
-            crossAxisAlignment: WrapCrossAlignment.center,
+          Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    AppIcons.team,
-                    size: AppIconSize.sm,
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(report.department, style: textTheme.bodySmall),
-                ],
+              Icon(
+                AppIcons.calendar,
+                size: AppIconSize.sm,
+                color: colorScheme.onSurfaceVariant,
               ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    AppIcons.calendar,
-                    size: AppIconSize.sm,
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    formatResolvedDate(report.resolvedDate),
-                    style: textTheme.bodySmall,
-                  ),
-                ],
+              const SizedBox(width: 4),
+              Text(
+                formatResolvedDate(report.resolvedDate),
+                style: textTheme.bodySmall,
               ),
             ],
           ),

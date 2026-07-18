@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../models/resolved_report.dart';
@@ -21,7 +22,6 @@ class MunicipalResolutionDetailsScreen extends StatefulWidget {
     this.referenceId = 'REQ-8355',
     this.initialState = MunicipalResolutionDetailsViewState.loaded,
     this.onBack,
-    this.onShareSummary,
     this.onArchive,
   });
 
@@ -29,12 +29,10 @@ class MunicipalResolutionDetailsScreen extends StatefulWidget {
   final MunicipalResolutionDetailsViewState initialState;
   final VoidCallback? onBack;
 
-  /// No share integration is specified yet — placeholder the app shell can
-  /// wire up once one exists, same treatment as Report Progress's
-  /// "Share Summary".
-  final VoidCallback? onShareSummary;
-
-  /// No archive workflow is specified yet — same placeholder treatment.
+  /// No archive workflow is specified yet — there's no archived-reports
+  /// list screen for a report to move *to*, so this stays a placeholder
+  /// until that destination exists. "Share Summary" needed no such
+  /// destination (see [_ActionBar]'s own `_shareSummary`) and is real now.
   final VoidCallback? onArchive;
 
   @override
@@ -73,10 +71,7 @@ class _MunicipalResolutionDetailsScreenState
                     },
                   ),
                   if (_state == MunicipalResolutionDetailsViewState.loaded)
-                    _ActionBar(
-                      onShareSummary: widget.onShareSummary,
-                      onArchive: widget.onArchive,
-                    ),
+                    _ActionBar(data: _data, onArchive: widget.onArchive),
                 ],
               ),
             ),
@@ -169,22 +164,9 @@ class _SummaryCard extends StatelessWidget {
           const SizedBox(height: AppSpacing.md),
           // Duration deliberately not repeated here — it's the first stat
           // in the row directly below this card.
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: _LabeledValue(
-                  label: 'DEPARTMENT',
-                  value: data.department,
-                ),
-              ),
-              Expanded(
-                child: _LabeledValue(
-                  label: 'RESOLVED ON',
-                  value: formatResolvedDate(data.resolvedDate),
-                ),
-              ),
-            ],
+          _LabeledValue(
+            label: 'RESOLVED ON',
+            value: formatResolvedDate(data.resolvedDate),
           ),
         ],
       ),
@@ -537,10 +519,24 @@ class _LoadingSkeletonState extends State<_LoadingSkeleton>
 // ---------------------------------------------------------------------------
 
 class _ActionBar extends StatelessWidget {
-  const _ActionBar({this.onShareSummary, this.onArchive});
+  const _ActionBar({required this.data, this.onArchive});
 
-  final VoidCallback? onShareSummary;
+  final ResolvedReportItem data;
   final VoidCallback? onArchive;
+
+  Future<void> _shareSummary() {
+    return SharePlus.instance.share(
+      ShareParams(
+        text:
+            'Case ${data.referenceId} — ${data.title}\n'
+            'Location: ${data.locationLabel}\n'
+            'Resolved: ${data.resolvedDate.toLocal().toString().split(' ').first} '
+            '(${data.durationDays} days, SLA ${data.slaPercent}%)\n\n'
+            '${data.resolutionNote}',
+        subject: 'CivicVoice case ${data.referenceId} — resolved',
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -555,7 +551,7 @@ class _ActionBar extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             child: FilledButton.icon(
-              onPressed: onShareSummary,
+              onPressed: _shareSummary,
               icon: const Icon(AppIcons.share, size: AppIconSize.sm + 2),
               label: const Text('Share Summary'),
             ),

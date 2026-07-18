@@ -85,16 +85,7 @@ class _TaskDetailsContent extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Text(task.title, style: textTheme.headlineSmall),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              ReportSeverityBadge(severity: task.priority, suffix: ' Priority'),
-            ],
-          ),
+          Text(task.title, style: textTheme.headlineSmall),
           const SizedBox(height: AppSpacing.sm),
           Row(
             children: [

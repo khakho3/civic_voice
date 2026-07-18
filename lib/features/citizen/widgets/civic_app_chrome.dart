@@ -101,9 +101,14 @@ class CivicTopBar extends StatelessWidget {
 /// content actually scroll underneath the chrome.
 EdgeInsets civicContentPadding(BuildContext context) {
   final viewPadding = MediaQuery.paddingOf(context);
+  final viewInsets = MediaQuery.viewInsetsOf(context);
   return EdgeInsets.only(
     top: viewPadding.top + AppDimensions.headerHeight,
-    bottom: viewPadding.bottom + AppDimensions.bottomNavHeight,
+    bottom:
+        viewPadding.bottom +
+        (viewInsets.bottom > 0
+            ? viewInsets.bottom
+            : AppDimensions.bottomNavHeight),
   );
 }
 
