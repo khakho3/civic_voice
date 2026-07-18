@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1055672475314",
+    "project_id": "civic-voice-1cf5b",
+    "storage_bucket": "civic-voice-1cf5b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1055672475314:android:145b306c86d000f32b33ab",
+        "android_client_info": {
+          "package_name": "com.example.civic_voice"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBDWSkWbz9AkQFtWr91WXlB6_8O6DF0Z6s"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
