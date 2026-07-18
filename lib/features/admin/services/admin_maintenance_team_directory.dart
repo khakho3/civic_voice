@@ -60,6 +60,9 @@ class MaintenanceTeamDirectory {
           for (final memberId in team.memberUserIds)
             if (memberId != userId) memberId,
         ],
+        // A lead who's no longer a member can't stay the lead — leaves the
+        // team without one rather than pointing at someone who's left it.
+        leadUserId: team.leadUserId == userId ? null : team.leadUserId,
       ),
     );
   }

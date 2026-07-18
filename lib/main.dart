@@ -43,6 +43,7 @@ import 'features/ministry/screens/ministry_municipality_detail_screen.dart';
 import 'features/ministry/screens/ministry_profile_screen.dart' as ministry;
 import 'features/ministry/screens/ministry_report_insights_screen.dart';
 import 'features/ministry/screens/ministry_reports_screen.dart';
+import 'features/maintenance/models/maintenance_task.dart';
 import 'features/maintenance/screens/assigned_tasks_screen.dart'
     as maintenance_tasks;
 import 'features/maintenance/screens/dashboard_screen.dart'
@@ -55,8 +56,7 @@ import 'features/maintenance/screens/task_details_screen.dart'
     as maintenance_details;
 import 'features/maintenance/screens/update_progress_screen.dart'
     as maintenance_progress;
-import 'features/maintenance/screens/upload_evidence_screen.dart'
-    as maintenance_evidence;
+import 'features/maintenance/services/maintenance_task_directory.dart';
 import 'features/municipal/models/active_report.dart';
 import 'features/municipal/models/incoming_report.dart';
 import 'features/municipal/models/resolved_report.dart';
@@ -152,7 +152,6 @@ abstract final class AppRoutes {
   static const maintenanceAssignedTasks = '/maintenance/assigned-tasks';
   static const maintenanceTaskDetails = '/maintenance/task-details';
   static const maintenanceUpdateProgress = '/maintenance/update-progress';
-  static const maintenanceUploadEvidence = '/maintenance/upload-evidence';
   static const maintenanceTaskCompleted = '/maintenance/task-completed';
   static const maintenanceProfile = '/maintenance/profile';
 }
@@ -327,10 +326,21 @@ class CivicVoiceApp extends StatelessWidget {
             AppRoutes.municipalProfile: _municipalProfile,
             AppRoutes.maintenanceDashboard: _maintenanceDashboard,
             AppRoutes.maintenanceAssignedTasks: _maintenanceAssignedTasks,
-            AppRoutes.maintenanceTaskDetails: _maintenanceTaskDetails,
-            AppRoutes.maintenanceUpdateProgress: _maintenanceUpdateProgress,
-            AppRoutes.maintenanceUploadEvidence: _maintenanceUploadEvidence,
-            AppRoutes.maintenanceTaskCompleted: _maintenanceTaskCompleted,
+            AppRoutes.maintenanceTaskDetails: (context) =>
+                _maintenanceTaskDetails(
+                  context,
+                  _maintenanceTaskFromSettings(ModalRoute.of(context)?.settings),
+                ),
+            AppRoutes.maintenanceUpdateProgress: (context) =>
+                _maintenanceUpdateProgress(
+                  context,
+                  _maintenanceTaskFromSettings(ModalRoute.of(context)?.settings),
+                ),
+            AppRoutes.maintenanceTaskCompleted: (context) =>
+                _maintenanceTaskCompleted(
+                  context,
+                  _maintenanceTaskFromSettings(ModalRoute.of(context)?.settings),
+                ),
             AppRoutes.maintenanceProfile: _maintenanceProfile,
           },
           onGenerateRoute: (settings) {
@@ -410,6 +420,33 @@ class CivicVoiceApp extends StatelessWidget {
                 builder: (context) => _municipalResolutionDetails(
                   context,
                   _resolvedReportFromSettings(settings),
+                ),
+              );
+            }
+            if (uri?.path == AppRoutes.maintenanceTaskDetails) {
+              return MaterialPageRoute<void>(
+                settings: settings,
+                builder: (context) => _maintenanceTaskDetails(
+                  context,
+                  _maintenanceTaskFromSettings(settings),
+                ),
+              );
+            }
+            if (uri?.path == AppRoutes.maintenanceUpdateProgress) {
+              return MaterialPageRoute<void>(
+                settings: settings,
+                builder: (context) => _maintenanceUpdateProgress(
+                  context,
+                  _maintenanceTaskFromSettings(settings),
+                ),
+              );
+            }
+            if (uri?.path == AppRoutes.maintenanceTaskCompleted) {
+              return MaterialPageRoute<void>(
+                settings: settings,
+                builder: (context) => _maintenanceTaskCompleted(
+                  context,
+                  _maintenanceTaskFromSettings(settings),
                 ),
               );
             }
@@ -537,7 +574,10 @@ String _currentSessionPhoneNumber() {
     AppRole.systemAdministrator => '+233 24 111 2222',
     AppRole.ministrySupervisor => '+233 20 000 0000',
     AppRole.municipalOfficer => '+233 24 128 4092',
-    AppRole.maintenanceTeam => '+233 24 018 2940',
+    // Matches Yaw Asare (CV-USER-0104), the real Admin-provisioned
+    // Maintenance Team account MaintenanceTaskDirectory.currentUserId
+    // resolves to — the same phone Profile itself now displays.
+    AppRole.maintenanceTeam => '+233 27 777 8888',
     AppRole.citizen => '+233 24 555 0198',
     null => '+233 24 000 0000',
   };
@@ -1212,8 +1252,8 @@ Widget _maintenanceDashboard(BuildContext context) {
           _replaceWith(context, AppRoutes.maintenanceAssignedTasks),
       onNavigateToProfile: () =>
           Navigator.of(context).pushNamed(AppRoutes.maintenanceProfile),
-      onOpenTaskDetails: () =>
-          Navigator.of(context).pushNamed(AppRoutes.maintenanceTaskDetails),
+      onOpenTaskDetails: (taskId) =>
+          _pushMaintenanceTaskDetails(context, taskId),
     ),
   );
 }
@@ -1224,60 +1264,33 @@ Widget _maintenanceAssignedTasks(BuildContext context) {
         _replaceWith(context, AppRoutes.maintenanceDashboard),
     onNavigateToProfile: () =>
         Navigator.of(context).pushNamed(AppRoutes.maintenanceProfile),
-    onOpenTaskDetails: () =>
-        Navigator.of(context).pushNamed(AppRoutes.maintenanceTaskDetails),
+    onOpenTaskDetails: (taskId) =>
+        _pushMaintenanceTaskDetails(context, taskId),
   );
 }
 
-Widget _maintenanceTaskDetails(BuildContext context) {
+Widget _maintenanceTaskDetails(BuildContext context, MaintenanceTask task) {
   return maintenance_details.TaskDetailsScreen(
-    onNavigateToDashboard: () =>
-        _replaceWith(context, AppRoutes.maintenanceDashboard),
-    onNavigateToTasks: () =>
-        _replaceWith(context, AppRoutes.maintenanceAssignedTasks),
-    onNavigateToProfile: () =>
-        Navigator.of(context).pushNamed(AppRoutes.maintenanceProfile),
+    task: task,
+    onBack: () => Navigator.of(context).maybePop(),
     onUpdateProgress: () =>
-        Navigator.of(context).pushNamed(AppRoutes.maintenanceUpdateProgress),
+        _pushMaintenanceUpdateProgress(context, task.id),
   );
 }
 
-Widget _maintenanceUpdateProgress(BuildContext context) {
+Widget _maintenanceUpdateProgress(BuildContext context, MaintenanceTask task) {
   return maintenance_progress.UpdateProgressScreen(
-    onNavigateToDashboard: () =>
-        _replaceWith(context, AppRoutes.maintenanceDashboard),
-    onNavigateToTasks: () =>
-        _replaceWith(context, AppRoutes.maintenanceAssignedTasks),
-    onNavigateToProfile: () =>
-        Navigator.of(context).pushNamed(AppRoutes.maintenanceProfile),
-    onOpenEvidence: () =>
-        Navigator.of(context).pushNamed(AppRoutes.maintenanceUploadEvidence),
+    task: task,
+    onBack: () => Navigator.of(context).maybePop(),
+    onTaskCompleted: (taskId) =>
+        _pushMaintenanceTaskCompleted(context, taskId),
   );
 }
 
-Widget _maintenanceUploadEvidence(BuildContext context) {
-  return maintenance_evidence.UploadEvidenceScreen(
-    onNavigateToDashboard: () =>
-        _replaceWith(context, AppRoutes.maintenanceDashboard),
-    onNavigateToTasks: () =>
-        _replaceWith(context, AppRoutes.maintenanceAssignedTasks),
-    onNavigateToProfile: () =>
-        Navigator.of(context).pushNamed(AppRoutes.maintenanceProfile),
-    onTaskCompleted: () =>
-        Navigator.of(context).pushNamed(AppRoutes.maintenanceTaskCompleted),
-  );
-}
-
-Widget _maintenanceTaskCompleted(BuildContext context) {
+Widget _maintenanceTaskCompleted(BuildContext context, MaintenanceTask task) {
   return maintenance_completed.TaskCompletedScreen(
-    onNavigateToDashboard: () => Navigator.of(
-      context,
-    ).pushNamedAndRemoveUntil(AppRoutes.maintenanceDashboard, (_) => false),
-    onNavigateToTasks: () => Navigator.of(
-      context,
-    ).pushNamedAndRemoveUntil(AppRoutes.maintenanceAssignedTasks, (_) => false),
-    onNavigateToProfile: () =>
-        Navigator.of(context).pushNamed(AppRoutes.maintenanceProfile),
+    task: task,
+    onBack: () => Navigator.of(context).maybePop(),
   );
 }
 
@@ -1288,4 +1301,40 @@ Widget _maintenanceProfile(BuildContext context) {
     onNavigateToTasks: () =>
         _replaceWith(context, AppRoutes.maintenanceAssignedTasks),
   );
+}
+
+void _pushMaintenanceTaskDetails(BuildContext context, String taskId) {
+  final route = Uri(
+    path: AppRoutes.maintenanceTaskDetails,
+    queryParameters: {'taskId': taskId},
+  ).toString();
+  Navigator.of(context).pushNamed(route);
+}
+
+void _pushMaintenanceUpdateProgress(BuildContext context, String taskId) {
+  final route = Uri(
+    path: AppRoutes.maintenanceUpdateProgress,
+    queryParameters: {'taskId': taskId},
+  ).toString();
+  Navigator.of(context).pushNamed(route);
+}
+
+void _pushMaintenanceTaskCompleted(BuildContext context, String taskId) {
+  final route = Uri(
+    path: AppRoutes.maintenanceTaskCompleted,
+    queryParameters: {'taskId': taskId},
+  ).toString();
+  Navigator.of(context).pushNamed(route);
+}
+
+MaintenanceTask _maintenanceTaskFromSettings(RouteSettings? settings) {
+  final tasks = MaintenanceTaskDirectory.instance.tasks.value;
+  final uri = Uri.tryParse(settings?.name ?? '');
+  final taskId = uri?.queryParameters['taskId'];
+  if (taskId != null) {
+    for (final task in tasks) {
+      if (task.id == taskId) return task;
+    }
+  }
+  return tasks.first;
 }

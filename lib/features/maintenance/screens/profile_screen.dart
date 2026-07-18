@@ -1,7 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:civic_voice/core/theme/app_theme.dart';
 
+import '../../../widgets/glass_card.dart';
+import '../../admin/models/admin_maintenance_team_data.dart';
+import '../../admin/services/admin_maintenance_team_directory.dart';
+import '../../admin/services/admin_user_directory.dart';
+import '../services/maintenance_task_directory.dart';
+import '../widgets/maintenance_scaffold.dart';
+
 /// MNT-007 — Maintenance Profile.
+///
+/// Reads the same real Admin-provisioned account
+/// ([MaintenanceTaskDirectory.currentUserId], Yaw Asare) that Dashboard's
+/// greeting and every task's team lookup already use, rather than an
+/// unrelated made-up "Marcus Johnson" with no backing account, no real
+/// assembly, and no real team membership to show here.
+///
+/// View/Edit is a real toggle now (matching Ministry/Municipal's own
+/// profile screens) rather than an always-open Full Name field sitting next
+/// to an always-visible "Save Changes" button with nothing to actually
+/// enter edit mode through.
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({
     super.key,
@@ -19,62 +37,71 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   AppScreenState _state = AppScreenState.success;
 
-  final TextEditingController _nameController = TextEditingController(
-    text: 'Marcus Johnson',
-  );
+  late final _account = AdminUserDirectory.instance.userById(
+    MaintenanceTaskDirectory.currentUserId,
+  )!;
+  late final _nameController = TextEditingController(text: _account.name);
 
-  // Admin-set contact credentials — read-only here (see [_ProfileForm]'s
-  // own doc comment), so these are plain values, not editable controllers.
-  static const _email = 'marcus.johnson@civicvoice.gov';
-  static const _phone = '+1 (555) 018-2940';
+  // Always locked (see [_PersonalInfoForm]'s own doc comment) — still real,
+  // disposed controllers rather than ad-hoc ones rebuilt (and leaked) on
+  // every frame, matching Ministry's identical treatment of its own
+  // locked Email/Phone fields.
+  late final _emailController = TextEditingController(text: _account.email);
+  late final _phoneController = TextEditingController(text: _account.phone);
 
+  bool _isEditing = false;
   String? _nameError;
   bool _changesSaved = false;
 
   @override
   void dispose() {
     _nameController.dispose();
+    _emailController.dispose();
+    _phoneController.dispose();
     super.dispose();
+  }
+
+  void _startEditing() {
+    setState(() {
+      _isEditing = true;
+      _changesSaved = false;
+      _nameError = null;
+    });
+  }
+
+  void _cancelEditing() {
+    _nameController.text = _account.name;
+    setState(() {
+      _isEditing = false;
+      _nameError = null;
+    });
   }
 
   void _handleSave() {
     final name = _nameController.text.trim();
     if (name.isEmpty) {
-      setState(() {
-        _nameError = 'Full name is required.';
-        _changesSaved = false;
-      });
+      setState(() => _nameError = 'Full name is required.');
       return;
     }
     setState(() {
       _nameError = null;
+      _isEditing = false;
       _changesSaved = true;
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('CivicVoice')),
-      body: SafeArea(child: _buildBody(context)),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: 2,
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(AppIcons.dashboard),
-            label: 'Dashboard',
-          ),
-          NavigationDestination(icon: Icon(AppIcons.task), label: 'Tasks'),
-          NavigationDestination(icon: Icon(AppIcons.profile), label: 'Profile'),
-        ],
-        onDestinationSelected: (index) {
-          if (index == 0) {
-            widget.onNavigateToDashboard?.call();
-          } else if (index == 1) {
-            widget.onNavigateToTasks?.call();
-          }
-        },
-      ),
+    return MaintenanceScaffold(
+      selectedTab: MaintenanceTab.profile,
+      onNotificationsTap: () {},
+      onTabSelected: (tab) {
+        if (tab == MaintenanceTab.dashboard) {
+          widget.onNavigateToDashboard?.call();
+        }
+        if (tab == MaintenanceTab.tasks) widget.onNavigateToTasks?.call();
+      },
+      body: _buildBody(context),
     );
   }
 
@@ -106,68 +133,97 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildForm(BuildContext context, {bool disabled = false}) {
+    MaintenanceTeam? team;
+    for (final candidate in MaintenanceTeamDirectory.instance.teams.value) {
+      if (candidate.memberUserIds.contains(_account.userId)) {
+        team = candidate;
+        break;
+      }
+    }
+
     return _ProfileForm(
       disabled: disabled,
+      editing: _isEditing,
       nameController: _nameController,
-      email: _email,
-      phone: _phone,
+      emailController: _emailController,
+      phoneController: _phoneController,
+      employeeId: _account.userId,
+      district: _account.assembly?.fullName ?? 'Unassigned',
+      teamName: team?.name ?? 'Not yet assigned to a team',
+      isTeamLead: team != null && team.leadUserId == _account.userId,
       nameError: _nameError,
       changesSaved: _changesSaved,
       onFieldChanged: disabled
           ? null
           : (_) {
-              if (_changesSaved || _nameError != null) {
-                setState(() {
-                  _changesSaved = false;
-                  _nameError = null;
-                });
-              }
+              if (_nameError != null) setState(() => _nameError = null);
             },
+      onEdit: disabled ? null : _startEditing,
       onSave: disabled ? null : _handleSave,
+      onCancel: disabled ? null : _cancelEditing,
     );
   }
 }
 
-/// Email and Phone render as locked [_InfoTile]s, the same read-only
-/// treatment Department/District/Employee ID already get — an
-/// admin-provisioned account's contact credentials are set by whoever
-/// provisioned it, not self-editable (changing either means a real
-/// identity change: a different sign-in email, a different verified
-/// number). Full Name is the only field a maintenance technician can
-/// change here.
+/// Email and Phone are always locked — an admin-provisioned account's
+/// contact credentials are set by whoever provisioned it, not
+/// self-editable (changing either means a real identity change: a
+/// different sign-in email, a different verified number). Full Name is the
+/// only field a maintenance technician can change here, and only once
+/// [editing] is entered via the section's own Edit button.
 class _ProfileForm extends StatelessWidget {
   const _ProfileForm({
     required this.disabled,
+    required this.editing,
     required this.nameController,
-    required this.email,
-    required this.phone,
+    required this.emailController,
+    required this.phoneController,
+    required this.employeeId,
+    required this.district,
+    required this.teamName,
+    required this.isTeamLead,
     required this.nameError,
     required this.changesSaved,
     required this.onFieldChanged,
+    required this.onEdit,
     required this.onSave,
+    required this.onCancel,
   });
 
   final bool disabled;
+  final bool editing;
   final TextEditingController nameController;
-  final String email;
-  final String phone;
+  final TextEditingController emailController;
+  final TextEditingController phoneController;
+  final String employeeId;
+  final String district;
+  final String teamName;
+  final bool isTeamLead;
   final String? nameError;
   final bool changesSaved;
   final ValueChanged<String>? onFieldChanged;
+  final VoidCallback? onEdit;
   final VoidCallback? onSave;
+  final VoidCallback? onCancel;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final colorScheme = Theme.of(context).colorScheme;
     final semantic = Theme.of(context).extension<AppSemanticColors>()!;
+    final chromeInset = MaintenanceScaffold.contentPadding(context);
 
     return Opacity(
       opacity: disabled ? 0.5 : 1.0,
       child: IgnorePointer(
         ignoring: disabled,
         child: ListView(
-          padding: const EdgeInsets.all(AppSpacing.md),
+          padding: EdgeInsets.fromLTRB(
+            AppSpacing.md,
+            chromeInset.top + AppSpacing.md,
+            AppSpacing.md,
+            chromeInset.bottom + AppSpacing.xl,
+          ),
           children: [
             Text('My Profile', style: textTheme.headlineSmall),
             const SizedBox(height: AppSpacing.xs),
@@ -182,24 +238,9 @@ class _ProfileForm extends StatelessWidget {
               _SavedBanner(semantic: semantic),
               const SizedBox(height: AppSpacing.md),
             ],
-            Center(
-              child: Column(
-                children: [
-                  CircleAvatar(
-                    radius: 40,
-                    backgroundColor: colorScheme.primaryContainer,
-                    child: Icon(
-                      AppIcons.profile,
-                      size: AppIconSize.xl,
-                      color: colorScheme.primary,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  Text(nameController.text, style: textTheme.titleLarge),
-                  const SizedBox(height: AppSpacing.xs),
-                  Chip(label: const Text('Senior Technician')),
-                ],
-              ),
+            _ProfileHeaderBlock(
+              name: nameController.text,
+              isTeamLead: isTeamLead,
             ),
             const SizedBox(height: AppSpacing.lg),
             Row(
@@ -215,64 +256,157 @@ class _ProfileForm extends StatelessWidget {
                 Expanded(
                   child: _InfoTile(
                     icon: AppIcons.location,
-                    label: 'District',
-                    value: 'West District',
+                    label: 'Assembly',
+                    value: district,
                   ),
                 ),
               ],
             ),
             const SizedBox(height: AppSpacing.sm),
-            _InfoTile(
-              icon: AppIcons.idCard,
-              label: 'Employee ID',
-              value: 'CV-2940-MJ',
+            Row(
+              children: [
+                Expanded(
+                  child: _InfoTile(
+                    icon: AppIcons.team,
+                    label: 'Team',
+                    value: teamName,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: _InfoTile(
+                    icon: AppIcons.idCard,
+                    label: 'Employee ID',
+                    value: employeeId,
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: AppSpacing.lg),
-            Text('Personal Information', style: textTheme.titleSmall),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Personal Information',
+                    style: textTheme.titleMedium,
+                  ),
+                ),
+                if (!editing)
+                  SizedBox(
+                    width: AppDimensions.controlHeightStandard,
+                    height: AppDimensions.controlHeightStandard,
+                    child: Material(
+                      color: Colors.transparent,
+                      shape: const CircleBorder(),
+                      child: InkWell(
+                        customBorder: const CircleBorder(),
+                        onTap: onEdit,
+                        child: Icon(
+                          AppIcons.edit,
+                          size: AppIconSize.sm,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
             const SizedBox(height: AppSpacing.sm),
-            Text(
-              'Full Name',
-              style: textTheme.bodySmall?.copyWith(
-                color: colorScheme.onSurfaceVariant,
+            editing
+                ? _PersonalInfoForm(
+                    nameController: nameController,
+                    emailController: emailController,
+                    phoneController: phoneController,
+                    nameError: nameError,
+                    onFieldChanged: onFieldChanged,
+                  )
+                : _PersonalInfoDisplay(
+                    name: nameController.text,
+                    email: emailController.text,
+                    phone: phoneController.text,
+                  ),
+            if (editing) ...[
+              const SizedBox(height: AppSpacing.md),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: onCancel,
+                      child: const Text('Cancel'),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: onSave,
+                      child: const Text('Save Changes'),
+                    ),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            TextField(
-              controller: nameController,
-              onChanged: onFieldChanged,
-              enabled: !disabled,
-              decoration: InputDecoration(
-                hintText: 'Full Name',
-                prefixIcon: const Icon(AppIcons.profile),
-                errorText: nameError,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            Text('Contact Information', style: textTheme.titleSmall),
-            const SizedBox(height: AppSpacing.sm),
-            _InfoTile(
-              icon: AppIcons.email,
-              label: 'Email',
-              value: email,
-              caption: 'Contact your administrator to change this',
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            _InfoTile(
-              icon: AppIcons.phone,
-              label: 'Phone',
-              value: phone,
-              caption: 'Contact your administrator to change this',
-            ),
-            const SizedBox(height: AppSpacing.xl),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: onSave,
-                child: const Text('Save Changes'),
-              ),
-            ),
+            ],
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Matches Ministry/Municipal's own profile header shape — an initials
+/// avatar (not a generic profile-icon glyph) and a tinted role pill under
+/// the name, the same pattern those two modules already use rather than a
+/// one-off treatment invented just for this screen.
+class _ProfileHeaderBlock extends StatelessWidget {
+  const _ProfileHeaderBlock({required this.name, required this.isTeamLead});
+
+  final String name;
+  final bool isTeamLead;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final colorScheme = Theme.of(context).colorScheme;
+    final initials = name
+        .trim()
+        .split(RegExp(r'\s+'))
+        .map((part) => part.isEmpty ? '' : part[0])
+        .take(2)
+        .join()
+        .toUpperCase();
+
+    return Center(
+      child: Column(
+        children: [
+          CircleAvatar(
+            radius: 40,
+            backgroundColor: colorScheme.primaryContainer,
+            child: Text(
+              initials,
+              style: textTheme.headlineMedium?.copyWith(
+                color: colorScheme.primary,
+              ),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(name, style: textTheme.titleLarge),
+          const SizedBox(height: AppSpacing.xs),
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.xs,
+            ),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.12),
+              borderRadius: AppRadius.allXl,
+            ),
+            child: Text(
+              isTeamLead
+                  ? 'Maintenance Technician · Team Lead'
+                  : 'Maintenance Technician',
+              style: textTheme.labelMedium?.copyWith(color: AppColors.primary),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -326,51 +460,254 @@ class _InfoTile extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.value,
-    this.caption,
   });
   final IconData icon;
   final String label;
   final String value;
 
-  /// Shown under [value] to explain why this field is read-only, e.g.
-  /// "Contact your administrator to change this."
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final colorScheme = Theme.of(context).colorScheme;
+    return GlassCard(
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      child: Row(
+        children: [
+          Icon(icon, size: AppIconSize.md, color: colorScheme.primary),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                Text(
+                  value,
+                  style: textTheme.titleSmall,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Read-only display of Name/Email/Phone — the default state, tapping the
+/// section's Edit button (not this card) is how a technician gets into
+/// [_PersonalInfoForm] instead. A plain opaque surface, not [GlassCard] —
+/// matches Ministry's own `_PersonalInfoDisplay`: glass is prohibited on
+/// input-heavy sections (§19.10), and this becomes one once editing.
+class _PersonalInfoDisplay extends StatelessWidget {
+  const _PersonalInfoDisplay({
+    required this.name,
+    required this.email,
+    required this.phone,
+  });
+
+  final String name;
+  final String email;
+  final String phone;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: AppComponentRadius.card,
+        border: Border.all(color: colorScheme.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _ReadOnlyField(label: 'Full Name', value: name),
+          const SizedBox(height: AppSpacing.md),
+          _ReadOnlyField(label: 'Email', value: email),
+          const SizedBox(height: AppSpacing.md),
+          _ReadOnlyField(label: 'Phone', value: phone),
+        ],
+      ),
+    );
+  }
+}
+
+class _ReadOnlyField extends StatelessWidget {
+  const _ReadOnlyField({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final colorScheme = Theme.of(context).colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: textTheme.bodySmall),
+        const SizedBox(height: AppSpacing.xs),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.sm,
+          ),
+          decoration: BoxDecoration(
+            color: colorScheme.surfaceContainer,
+            borderRadius: AppComponentRadius.inputField,
+          ),
+          child: Text(
+            value,
+            style: textTheme.bodyLarge,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PersonalInfoForm extends StatelessWidget {
+  const _PersonalInfoForm({
+    required this.nameController,
+    required this.emailController,
+    required this.phoneController,
+    required this.nameError,
+    required this.onFieldChanged,
+  });
+
+  final TextEditingController nameController;
+  final TextEditingController emailController;
+  final TextEditingController phoneController;
+  final String? nameError;
+  final ValueChanged<String>? onFieldChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: AppComponentRadius.card,
+        border: Border.all(color: colorScheme.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _EditableField(
+            label: 'Full Name',
+            controller: nameController,
+            onChanged: onFieldChanged,
+            errorText: nameError,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          _EditableField(
+            label: 'Email',
+            controller: emailController,
+            enabled: false,
+            caption: 'Contact your administrator to change this',
+          ),
+          const SizedBox(height: AppSpacing.md),
+          _EditableField(
+            label: 'Phone',
+            controller: phoneController,
+            enabled: false,
+            caption: 'Contact your administrator to change this',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EditableField extends StatelessWidget {
+  const _EditableField({
+    required this.label,
+    required this.controller,
+    this.onChanged,
+    this.errorText,
+    this.enabled = true,
+    this.caption,
+  });
+
+  final String label;
+  final TextEditingController controller;
+  final ValueChanged<String>? onChanged;
+  final String? errorText;
+
+  /// False locks the field read-only — used for Email/Phone, which are
+  /// admin-set rather than self-editable (see [_PersonalInfoForm]'s own
+  /// doc comment).
+  final bool enabled;
+
+  /// Shown under a locked field to explain why it's disabled.
   final String? caption;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final colorScheme = Theme.of(context).colorScheme;
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.sm),
-        child: Row(
-          children: [
-            Icon(icon, size: AppIconSize.md, color: colorScheme.primary),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: textTheme.bodySmall?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  Text(value, style: textTheme.titleSmall),
-                  if (caption != null)
-                    Text(
-                      caption!,
-                      style: textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                ],
+    final hasError = errorText != null;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: textTheme.bodySmall),
+        const SizedBox(height: AppSpacing.xs),
+        Material(
+          color: colorScheme.surfaceContainer,
+          borderRadius: AppComponentRadius.inputField,
+          child: TextField(
+            controller: controller,
+            onChanged: onChanged,
+            enabled: enabled,
+            style: textTheme.bodyLarge,
+            decoration: InputDecoration(
+              border: hasError
+                  ? OutlineInputBorder(
+                      borderRadius: AppComponentRadius.inputField,
+                      borderSide: const BorderSide(color: AppColors.error),
+                    )
+                  : InputBorder.none,
+              enabledBorder: hasError
+                  ? OutlineInputBorder(
+                      borderRadius: AppComponentRadius.inputField,
+                      borderSide: const BorderSide(color: AppColors.error),
+                    )
+                  : InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: AppSpacing.sm,
               ),
             ),
-          ],
+          ),
         ),
-      ),
+        if (hasError) ...[
+          const SizedBox(height: 4),
+          Text(
+            errorText!,
+            style: textTheme.labelSmall?.copyWith(color: AppColors.error),
+          ),
+        ] else if (caption != null) ...[
+          const SizedBox(height: 4),
+          Text(
+            caption!,
+            style: textTheme.labelSmall?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ],
     );
   }
 }

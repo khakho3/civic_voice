@@ -239,7 +239,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(tester.takeException(), isNull);
-      expect(find.text('Dashboard'), findsNothing);
+      expect(find.text('Home'), findsNothing);
       expect(find.text('No reports match your filters'), findsOneWidget);
     },
   );
@@ -915,7 +915,7 @@ void main() {
 
       // The bottom nav — not a back arrow — is how this screen is reached
       // and left, matching every other list screen in the module.
-      expect(find.text('Dashboard'), findsOneWidget);
+      expect(find.text('Home'), findsOneWidget);
       expect(find.text('Inbox'), findsOneWidget);
       expect(find.text('Active'), findsOneWidget);
       expect(find.byType(BackButton), findsNothing);
@@ -926,7 +926,7 @@ void main() {
       expect(inboxTapped, isTrue);
       expect(dashboardTapped, isFalse);
 
-      await tester.tap(find.text('Dashboard'));
+      await tester.tap(find.text('Home'));
       await tester.pumpAndSettle();
       expect(dashboardTapped, isTrue);
     },
@@ -1278,7 +1278,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Dashboard'), findsOneWidget);
+      expect(find.text('Home'), findsOneWidget);
       expect(find.text('Inbox'), findsOneWidget);
       // 'Resolved' text also appears on every report card's status badge —
       // check the nav item's icon instead, which is distinct from the
@@ -1292,7 +1292,7 @@ void main() {
       expect(inboxTapped, isTrue);
       expect(dashboardTapped, isFalse);
 
-      await tester.tap(find.text('Dashboard'));
+      await tester.tap(find.text('Home'));
       await tester.pumpAndSettle();
       expect(dashboardTapped, isTrue);
     },

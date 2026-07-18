@@ -6,9 +6,14 @@ import '../models/report_status.dart';
 
 /// Shared tinted-pill badge shape for [ReportStatusBadge] and
 /// [ReportSeverityBadge] — promoted out of the Incoming Reports screen once
-/// Report Review needed the same components.
-class _TintedBadge extends StatelessWidget {
-  const _TintedBadge({
+/// Report Review needed the same components. Public (not module-private)
+/// since other modules' own status-like enums (e.g. Maintenance Team's
+/// `MaintenanceTaskStatus`) want this exact pill treatment — a tinted,
+/// bordered label with no icon mixed in — rather than each module building
+/// its own slightly-different badge shape.
+class TintedBadge extends StatelessWidget {
+  const TintedBadge({
+    super.key,
     required this.label,
     required this.color,
     required this.textColor,
@@ -46,7 +51,7 @@ class ReportStatusBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final brightness = Theme.of(context).brightness;
-    return _TintedBadge(
+    return TintedBadge(
       label: status.label,
       color: status.color,
       textColor: status.badgeTextColor(brightness),
@@ -66,7 +71,7 @@ class ReportSeverityBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final brightness = Theme.of(context).brightness;
-    return _TintedBadge(
+    return TintedBadge(
       label: suffix == null ? severity.label : '${severity.label}$suffix',
       color: severity.color,
       textColor: severity.badgeTextColor(brightness),

@@ -214,7 +214,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Dashboard'), findsOneWidget);
+      expect(find.text('Home'), findsOneWidget);
       expect(find.text('Analytics'), findsOneWidget);
       expect(find.text('Municipalities'), findsWidgets);
       expect(find.text('Reports'), findsOneWidget);
@@ -618,10 +618,10 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Dashboard'), findsOneWidget);
+      expect(find.text('Home'), findsOneWidget);
       expect(find.text('Reports'), findsOneWidget);
 
-      await tester.tap(find.text('Dashboard'));
+      await tester.tap(find.text('Home'));
       await tester.pumpAndSettle();
       expect(dashboardTapped, isTrue);
     },
@@ -1000,10 +1000,10 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Dashboard'), findsOneWidget);
+      expect(find.text('Home'), findsOneWidget);
       expect(find.text('Reports'), findsOneWidget);
 
-      await tester.tap(find.text('Dashboard'));
+      await tester.tap(find.text('Home'));
       await tester.pumpAndSettle();
       expect(dashboardTapped, isTrue);
 
@@ -1285,10 +1285,10 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Dashboard'), findsOneWidget);
+      expect(find.text('Home'), findsOneWidget);
       expect(find.text('Municipalities'), findsOneWidget);
 
-      await tester.tap(find.text('Dashboard'));
+      await tester.tap(find.text('Home'));
       await tester.pumpAndSettle();
       expect(dashboardTapped, isTrue);
 
@@ -1410,7 +1410,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Dashboard'), findsNothing);
+      expect(find.text('Home'), findsNothing);
       expect(find.text('Municipalities'), findsNothing);
     },
   );
@@ -1700,7 +1700,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Dashboard'), findsNothing);
+      expect(find.text('Home'), findsNothing);
       expect(find.text('Municipalities'), findsNothing);
     },
   );

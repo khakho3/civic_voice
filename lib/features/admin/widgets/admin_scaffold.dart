@@ -18,7 +18,7 @@ import '../services/admin_session.dart';
 /// ADM-003 User Details and ADM-005 Category Management remain drill-downs
 /// (not tabs), same as before.
 enum AdminTab {
-  dashboard(label: 'Dashboard', icon: AppIcons.home, headerTitle: 'CivicVoice'),
+  dashboard(label: 'Home', icon: AppIcons.home, headerTitle: 'CivicVoice'),
   users(label: 'Users', icon: AppIcons.team, headerTitle: 'User Management'),
   activity(
     label: 'Activity',

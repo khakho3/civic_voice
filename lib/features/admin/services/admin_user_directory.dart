@@ -68,6 +68,13 @@ class AdminUserDirectory {
     ];
   }
 
+  AdminUserItem? userById(String userId) {
+    for (final user in users.value) {
+      if (user.userId == userId) return user;
+    }
+    return null;
+  }
+
   void toggleActive(AdminUserItem user) {
     updateUser(
       user.copyWith(

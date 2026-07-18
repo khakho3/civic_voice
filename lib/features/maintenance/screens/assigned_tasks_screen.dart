@@ -1,6 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:civic_voice/core/theme/app_theme.dart';
 
+import '../../../models/report_severity.dart';
+import '../../../widgets/glass_card.dart';
+import '../../../widgets/status_badge.dart';
+import '../models/maintenance_task.dart';
+import '../services/maintenance_task_directory.dart';
+import '../widgets/maintenance_scaffold.dart';
+
 /// MNT-002 — Maintenance Team Assigned Tasks.
 class AssignedTasksScreen extends StatefulWidget {
   const AssignedTasksScreen({
@@ -12,7 +19,9 @@ class AssignedTasksScreen extends StatefulWidget {
 
   final VoidCallback? onNavigateToDashboard;
   final VoidCallback? onNavigateToProfile;
-  final VoidCallback? onOpenTaskDetails;
+
+  /// Opens Task Details for the tapped task, by [MaintenanceTask.id].
+  final ValueChanged<String>? onOpenTaskDetails;
 
   @override
   State<AssignedTasksScreen> createState() => _AssignedTasksScreenState();
@@ -21,61 +30,29 @@ class AssignedTasksScreen extends StatefulWidget {
 class _AssignedTasksScreenState extends State<AssignedTasksScreen> {
   AppScreenState _state = AppScreenState.success;
   String _query = '';
-  String _statusFilter = 'All';
-  String? _priorityFilter;
-
-  final List<_TaskItem> _tasks = const [
-    _TaskItem(
-      title: 'Broken Street Light at Main Ave',
-      location: '242 Main Avenue, Central District',
-      status: 'In Progress',
-      priority: 'High',
-      category: 'Street Lighting',
-      eta: 'On site',
-      distance: '1.2 km',
-      photoCount: 2,
-      teamNote: 'Team active - 2 members',
-    ),
-    _TaskItem(
-      title: 'Pothole Repair Request',
-      location: 'Elm Street & 4th Cross',
-      status: 'Assigned',
-      priority: 'Medium',
-      category: 'Road Repair',
-      eta: 'Today 2:30 PM',
-      distance: '3.8 km',
-      photoCount: 1,
-      teamNote: 'Today, 2:30 PM',
-    ),
-  ];
+  MaintenanceTaskStatus? _statusFilter;
+  ReportSeverity? _priorityFilter;
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('CivicVoice')),
-      body: SafeArea(child: _buildBody(context)),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: 1,
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(AppIcons.dashboard),
-            label: 'Dashboard',
-          ),
-          NavigationDestination(icon: Icon(AppIcons.task), label: 'Tasks'),
-          NavigationDestination(icon: Icon(AppIcons.profile), label: 'Profile'),
-        ],
-        onDestinationSelected: (index) {
-          if (index == 0) {
-            widget.onNavigateToDashboard?.call();
-          } else if (index == 2) {
-            widget.onNavigateToProfile?.call();
-          }
-        },
+    return MaintenanceScaffold(
+      selectedTab: MaintenanceTab.tasks,
+      onNotificationsTap: () {},
+      onProfileTap: widget.onNavigateToProfile,
+      onTabSelected: (tab) {
+        if (tab == MaintenanceTab.dashboard) {
+          widget.onNavigateToDashboard?.call();
+        }
+        if (tab == MaintenanceTab.profile) widget.onNavigateToProfile?.call();
+      },
+      body: ValueListenableBuilder<List<MaintenanceTask>>(
+        valueListenable: MaintenanceTaskDirectory.instance.tasks,
+        builder: (context, tasks, _) => _buildBody(context, tasks),
       ),
     );
   }
 
-  Widget _buildBody(BuildContext context) {
+  Widget _buildBody(BuildContext context, List<MaintenanceTask> tasks) {
     switch (_state) {
       case AppScreenState.loading:
         return const _LoadingView();
@@ -97,8 +74,18 @@ class _AssignedTasksScreenState extends State<AssignedTasksScreen> {
         );
       case AppScreenState.disabled:
       case AppScreenState.success:
+        // Open/active work only — completed and failed tasks have their own
+        // read-only record (Task Completed / the task's own status on
+        // Dashboard) rather than cluttering the working queue.
+        final openTasks = tasks
+            .where(
+              (task) =>
+                  task.status != MaintenanceTaskStatus.completed &&
+                  task.status != MaintenanceTaskStatus.failed,
+            )
+            .toList(growable: false);
         return _AssignedTasksContent(
-          tasks: _tasks,
+          tasks: openTasks,
           query: _query,
           statusFilter: _statusFilter,
           priorityFilter: _priorityFilter,
@@ -125,24 +112,25 @@ class _AssignedTasksContent extends StatelessWidget {
     required this.onOpenTaskDetails,
   });
 
-  final List<_TaskItem> tasks;
+  final List<MaintenanceTask> tasks;
   final String query;
-  final String statusFilter;
-  final String? priorityFilter;
+  final MaintenanceTaskStatus? statusFilter;
+  final ReportSeverity? priorityFilter;
   final bool disabled;
   final ValueChanged<String> onQueryChanged;
-  final ValueChanged<String> onStatusChanged;
-  final ValueChanged<String?> onPriorityChanged;
-  final VoidCallback? onOpenTaskDetails;
+  final ValueChanged<MaintenanceTaskStatus?> onStatusChanged;
+  final ValueChanged<ReportSeverity?> onPriorityChanged;
+  final ValueChanged<String>? onOpenTaskDetails;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final chromeInset = MaintenanceScaffold.contentPadding(context);
     final filteredTasks = tasks
         .where((task) {
           final queryMatch = query.trim().isEmpty || task.matches(query);
           final statusMatch =
-              statusFilter == 'All' || task.status == statusFilter;
+              statusFilter == null || task.status == statusFilter;
           final priorityMatch =
               priorityFilter == null || task.priority == priorityFilter;
           return queryMatch && statusMatch && priorityMatch;
@@ -154,7 +142,12 @@ class _AssignedTasksContent extends StatelessWidget {
       child: IgnorePointer(
         ignoring: disabled,
         child: ListView(
-          padding: const EdgeInsets.all(AppSpacing.md),
+          padding: EdgeInsets.fromLTRB(
+            AppSpacing.md,
+            chromeInset.top + AppSpacing.md,
+            AppSpacing.md,
+            chromeInset.bottom + AppSpacing.xl,
+          ),
           children: [
             TextField(
               onChanged: onQueryChanged,
@@ -188,7 +181,12 @@ class _AssignedTasksContent extends StatelessWidget {
             ...filteredTasks.map(
               (task) => Padding(
                 padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                child: _TaskCard(task: task, onOpenDetails: onOpenTaskDetails),
+                child: _TaskCard(
+                  task: task,
+                  onOpenDetails: onOpenTaskDetails == null
+                      ? null
+                      : () => onOpenTaskDetails!(task.id),
+                ),
               ),
             ),
             if (filteredTasks.isEmpty) const _NoMatchesCard(),
@@ -202,49 +200,46 @@ class _AssignedTasksContent extends StatelessWidget {
 class _QueueOverview extends StatelessWidget {
   const _QueueOverview({required this.tasks});
 
-  final List<_TaskItem> tasks;
+  final List<MaintenanceTask> tasks;
 
   @override
   Widget build(BuildContext context) {
     final semantic = Theme.of(context).extension<AppSemanticColors>()!;
     final activeCount = tasks
-        .where((task) => task.status == 'In Progress')
+        .where((task) => task.status == MaintenanceTaskStatus.inProgress)
         .length;
     final highPriorityCount = tasks
-        .where((task) => task.priority == 'High')
+        .where((task) => task.priority == ReportSeverity.high)
         .length;
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        child: Row(
-          children: [
-            Expanded(
-              child: _QueueMetric(
-                icon: AppIcons.task,
-                value: '${tasks.length}',
-                label: 'Open',
-                color: Theme.of(context).colorScheme.primary,
-              ),
+    return GlassCard(
+      child: Row(
+        children: [
+          Expanded(
+            child: _QueueMetric(
+              icon: AppIcons.task,
+              value: '${tasks.length}',
+              label: 'Open',
+              color: Theme.of(context).colorScheme.primary,
             ),
-            Expanded(
-              child: _QueueMetric(
-                icon: AppIcons.statusInProgress,
-                value: '$activeCount',
-                label: 'Active',
-                color: semantic.statusInProgress,
-              ),
+          ),
+          Expanded(
+            child: _QueueMetric(
+              icon: AppIcons.activityPulse,
+              value: '$activeCount',
+              label: 'Active',
+              color: semantic.statusInProgress,
             ),
-            Expanded(
-              child: _QueueMetric(
-                icon: AppIcons.criticalAlert,
-                value: '$highPriorityCount',
-                label: 'High',
-                color: semantic.error,
-              ),
+          ),
+          Expanded(
+            child: _QueueMetric(
+              icon: AppIcons.criticalAlert,
+              value: '$highPriorityCount',
+              label: 'High',
+              color: semantic.error,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -299,19 +294,19 @@ class _FilterRail extends StatelessWidget {
     required this.onPriorityChanged,
   });
 
-  final String statusFilter;
-  final String? priorityFilter;
-  final ValueChanged<String> onStatusChanged;
-  final ValueChanged<String?> onPriorityChanged;
+  final MaintenanceTaskStatus? statusFilter;
+  final ReportSeverity? priorityFilter;
+  final ValueChanged<MaintenanceTaskStatus?> onStatusChanged;
+  final ValueChanged<ReportSeverity?> onPriorityChanged;
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     final statusOptions = const [
-      ('All', 'All', AppIcons.filter),
-      ('Assigned', 'New', AppIcons.statusAssigned),
-      ('In Progress', 'Active', AppIcons.statusInProgress),
+      (null, 'All', AppIcons.filter),
+      (MaintenanceTaskStatus.assigned, 'New', AppIcons.statusAssigned),
+      (MaintenanceTaskStatus.inProgress, 'Active', AppIcons.activityPulse),
     ];
 
     return Container(
@@ -342,16 +337,18 @@ class _FilterRail extends StatelessWidget {
             ),
           ),
           const SizedBox(width: AppSpacing.xs),
-          PopupMenuButton<String>(
+          PopupMenuButton<ReportSeverity?>(
             tooltip: 'Priority filter',
-            initialValue: priorityFilter ?? 'Any',
-            onSelected: (value) =>
-                onPriorityChanged(value == 'Any' ? null : value),
+            initialValue: priorityFilter,
+            onSelected: onPriorityChanged,
             itemBuilder: (context) => const [
-              PopupMenuItem(value: 'Any', child: Text('Any priority')),
-              PopupMenuItem(value: 'High', child: Text('High')),
-              PopupMenuItem(value: 'Medium', child: Text('Medium')),
-              PopupMenuItem(value: 'Low', child: Text('Low')),
+              PopupMenuItem(value: null, child: Text('Any priority')),
+              PopupMenuItem(value: ReportSeverity.high, child: Text('High')),
+              PopupMenuItem(
+                value: ReportSeverity.medium,
+                child: Text('Medium'),
+              ),
+              PopupMenuItem(value: ReportSeverity.low, child: Text('Low')),
             ],
             child: Container(
               constraints: const BoxConstraints(maxWidth: 116),
@@ -378,7 +375,7 @@ class _FilterRail extends StatelessWidget {
                   const SizedBox(width: AppSpacing.xs),
                   Flexible(
                     child: Text(
-                      priorityFilter ?? 'Priority',
+                      priorityFilter?.label ?? 'Priority',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: textTheme.labelMedium?.copyWith(
@@ -488,251 +485,18 @@ class _NoMatchesCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Column(
-          children: [
-            Icon(
-              AppIcons.noFilterMatch,
-              size: AppIconSize.lg,
-              color: colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              'No matching tasks',
-              style: Theme.of(context).textTheme.titleSmall,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _TaskCard extends StatelessWidget {
-  const _TaskCard({required this.task, required this.onOpenDetails});
-
-  final _TaskItem task;
-  final VoidCallback? onOpenDetails;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final colorScheme = Theme.of(context).colorScheme;
-    final semantic = Theme.of(context).extension<AppSemanticColors>()!;
-
-    final Color priorityColor = switch (task.priority) {
-      'High' => semantic.error,
-      'Medium' => semantic.warning,
-      _ => colorScheme.outline,
-    };
-
-    final (Color statusColor, IconData statusIcon) = switch (task.status) {
-      'In Progress' => (AppColors.statusInProgress, AppIcons.statusInProgress),
-      _ => (AppColors.statusAssigned, AppIcons.statusAssigned),
-    };
-
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onOpenDetails,
-        child: Stack(
-          children: [
-            Positioned.fill(
-              right: null,
-              child: SizedBox(
-                width: AppSpacing.xs,
-                child: ColoredBox(color: priorityColor),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.md + AppSpacing.xs,
-                AppSpacing.md,
-                AppSpacing.md,
-                AppSpacing.md,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(AppSpacing.sm),
-                        decoration: BoxDecoration(
-                          color: priorityColor.withValues(alpha: 0.12),
-                          borderRadius: AppRadius.allSm,
-                        ),
-                        child: Icon(
-                          AppIcons.maintenanceTeam,
-                          size: AppIconSize.md,
-                          color: priorityColor,
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.sm),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              task.title,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: textTheme.titleMedium,
-                            ),
-                            const SizedBox(height: AppSpacing.xs),
-                            Text(
-                              task.category,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: textTheme.labelMedium?.copyWith(
-                                color: colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.sm),
-                      _StatusBadge(
-                        label: task.status,
-                        color: statusColor,
-                        icon: statusIcon,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  Wrap(
-                    spacing: AppSpacing.sm,
-                    runSpacing: AppSpacing.sm,
-                    children: [
-                      _MetaChip(
-                        icon: AppIcons.criticalAlert,
-                        label: task.priority,
-                        color: priorityColor,
-                      ),
-                      _MetaChip(
-                        icon: AppIcons.eta,
-                        label: task.eta,
-                        color: colorScheme.primary,
-                      ),
-                      _MetaChip(
-                        icon: AppIcons.camera,
-                        label: '${task.photoCount}',
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                      _MetaChip(
-                        icon: AppIcons.navigate,
-                        label: task.distance,
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  Row(
-                    children: [
-                      Icon(
-                        AppIcons.location,
-                        size: AppIconSize.sm,
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                      const SizedBox(width: AppSpacing.xs),
-                      Expanded(
-                        child: Text(
-                          task.location,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: textTheme.bodySmall?.copyWith(
-                            color: colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  LayoutBuilder(
-                    builder: (context, constraints) {
-                      final useStackedAction = constraints.maxWidth < 320;
-                      final note = Text(
-                        task.teamNote,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: textTheme.bodySmall?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                      );
-                      final action = FilledButton.tonalIcon(
-                        onPressed: onOpenDetails,
-                        icon: const Icon(AppIcons.chevronRight),
-                        label: const Text('View Task Details'),
-                      );
-
-                      if (useStackedAction) {
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            note,
-                            const SizedBox(height: AppSpacing.sm),
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: action,
-                            ),
-                          ],
-                        );
-                      }
-
-                      return Row(
-                        children: [
-                          Expanded(child: note),
-                          const SizedBox(width: AppSpacing.sm),
-                          action,
-                        ],
-                      );
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _MetaChip extends StatelessWidget {
-  const _MetaChip({
-    required this.icon,
-    required this.label,
-    required this.color,
-  });
-
-  final IconData icon;
-  final String label;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xs,
-      ),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(AppRadius.xl),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+    return GlassCard(
+      child: Column(
         children: [
-          Icon(icon, size: AppIconSize.sm, color: color),
-          const SizedBox(width: AppSpacing.xs),
+          Icon(
+            AppIcons.noFilterMatch,
+            size: AppIconSize.lg,
+            color: colorScheme.onSurfaceVariant,
+          ),
+          const SizedBox(height: AppSpacing.sm),
           Text(
-            label,
-            style: Theme.of(
-              context,
-            ).textTheme.labelMedium?.copyWith(color: color),
+            'No matching tasks',
+            style: Theme.of(context).textTheme.titleSmall,
           ),
         ],
       ),
@@ -740,37 +504,135 @@ class _MetaChip extends StatelessWidget {
   }
 }
 
-class _StatusBadge extends StatelessWidget {
-  const _StatusBadge({
-    required this.label,
-    required this.color,
-    required this.icon,
-  });
-  final String label;
-  final Color color;
-  final IconData icon;
+/// Matches Municipal Officer's own `_ActiveReportCard` shape (title/status
+/// row, location row, team+action row) instead of the boxed, multi-chip
+/// "web card" layout this replaced — a left color stripe plus a status
+/// badge plus a priority badge plus three more meta chips, none of them
+/// matching how any other module's report/task cards actually look.
+class _TaskCard extends StatelessWidget {
+  const _TaskCard({required this.task, required this.onOpenDetails});
+
+  final MaintenanceTask task;
+  final VoidCallback? onOpenDetails;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xs,
-      ),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(AppRadius.xl),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+    final textTheme = Theme.of(context).textTheme;
+    final colorScheme = Theme.of(context).colorScheme;
+    final brightness = Theme.of(context).brightness;
+    final team = MaintenanceTaskDirectory.instance.teamForTask(task);
+
+    return GlassCard(
+      onTap: onOpenDetails,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: AppIconSize.sm, color: color),
-          const SizedBox(width: AppSpacing.xs),
-          Text(
-            label,
-            style: Theme.of(
-              context,
-            ).textTheme.labelMedium?.copyWith(color: color),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      task.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      task.category,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: textTheme.labelMedium?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              TintedBadge(
+                label: task.status.label,
+                color: task.status.color,
+                textColor: task.status.badgeTextColor(brightness),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Row(
+            children: [
+              Icon(
+                AppIcons.location,
+                size: AppIconSize.sm,
+                color: colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  task.locationLabel,
+                  style: textTheme.bodySmall,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Row(
+            children: [
+              ReportSeverityBadge(severity: task.priority, suffix: ' Priority'),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  task.eta,
+                  style: textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 14,
+                backgroundColor: colorScheme.surfaceContainer,
+                child: Icon(
+                  AppIcons.team,
+                  size: AppIconSize.sm,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      team?.name ?? 'Unassigned team',
+                      style: textTheme.titleSmall,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      task.teamNote,
+                      style: textTheme.bodySmall,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              OutlinedButton(
+                onPressed: onOpenDetails,
+                child: const Text('View'),
+              ),
+            ],
           ),
         ],
       ),
@@ -943,44 +805,5 @@ class _PermissionView extends StatelessWidget {
         ),
       ),
     );
-  }
-}
-
-class _TaskItem {
-  const _TaskItem({
-    required this.title,
-    required this.location,
-    required this.status,
-    required this.priority,
-    required this.category,
-    required this.eta,
-    required this.distance,
-    required this.photoCount,
-    required this.teamNote,
-  });
-
-  final String title;
-  final String location;
-  final String status;
-  final String priority;
-  final String category;
-  final String eta;
-  final String distance;
-  final int photoCount;
-  final String teamNote;
-
-  bool matches(String query) {
-    final normalizedQuery = query.toLowerCase().trim();
-    if (normalizedQuery.isEmpty) return true;
-    return [
-      title,
-      location,
-      status,
-      priority,
-      category,
-      eta,
-      distance,
-      teamNote,
-    ].any((value) => value.toLowerCase().contains(normalizedQuery));
   }
 }

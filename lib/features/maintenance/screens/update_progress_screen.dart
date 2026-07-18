@@ -5,32 +5,49 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:civic_voice/core/theme/app_theme.dart';
 
-enum _TaskStatus { inProgress, completed, failed }
+import '../../../widgets/confirm_dialog.dart';
+import '../../../widgets/detail_header.dart';
+import '../../../widgets/glass_card.dart';
+import '../../admin/services/admin_user_directory.dart';
+import '../models/maintenance_task.dart';
+import '../services/maintenance_task_directory.dart';
 
 /// MNT-004 — Update Task Progress.
+///
+/// Marking a task Completed here *is* the completion submission — the
+/// required 3 evidence photos + work notes captured on this screen, via a
+/// real `image_picker` camera call, are what gets saved. There is no
+/// separate "Upload Evidence" step after this one anymore: that screen
+/// asked for photos a second time with Camera/Gallery buttons that only
+/// simulated a progress bar (no real capture), plus a second, duplicate
+/// notes field — pure friction with nothing behind it, removed rather than
+/// wired up twice.
 class UpdateProgressScreen extends StatefulWidget {
   const UpdateProgressScreen({
     super.key,
-    this.onNavigateToDashboard,
-    this.onNavigateToTasks,
-    this.onNavigateToProfile,
-    this.onOpenEvidence,
+    required this.task,
+    this.onBack,
+    this.onTaskCompleted,
   });
 
-  final VoidCallback? onNavigateToDashboard;
-  final VoidCallback? onNavigateToTasks;
-  final VoidCallback? onNavigateToProfile;
-  final VoidCallback? onOpenEvidence;
+  final MaintenanceTask task;
+  final VoidCallback? onBack;
+
+  /// Fired once a Completed save is written to
+  /// [MaintenanceTaskDirectory] — the caller re-reads the task by id so it
+  /// always shows the just-saved record, not a stale copy from before this
+  /// screen opened.
+  final ValueChanged<String>? onTaskCompleted;
 
   @override
   State<UpdateProgressScreen> createState() => _UpdateProgressScreenState();
 }
 
 class _UpdateProgressScreenState extends State<UpdateProgressScreen> {
-  AppScreenState _state = AppScreenState.success;
-
   final ImagePicker _imagePicker = ImagePicker();
-  _TaskStatus _selectedStatus = _TaskStatus.inProgress;
+  late MaintenanceTaskStatus _selectedStatus = widget.task.status == MaintenanceTaskStatus.assigned
+      ? MaintenanceTaskStatus.inProgress
+      : widget.task.status;
   final TextEditingController _notesController = TextEditingController();
   String? _validationError;
   String? _evidenceError;
@@ -116,7 +133,7 @@ class _UpdateProgressScreenState extends State<UpdateProgressScreen> {
 
   void _handleSave() {
     final notes = _notesController.text.trim();
-    if (_selectedStatus == _TaskStatus.failed &&
+    if (_selectedStatus == MaintenanceTaskStatus.failed &&
         notes.length < _minNotesLength) {
       setState(() {
         _validationError = 'Failure note must explain why the task failed.';
@@ -126,7 +143,17 @@ class _UpdateProgressScreenState extends State<UpdateProgressScreen> {
       return;
     }
 
-    if (_selectedStatus == _TaskStatus.completed &&
+    if (_selectedStatus == MaintenanceTaskStatus.completed &&
+        !MaintenanceTaskDirectory.instance.canSubmitEvidence(widget.task)) {
+      setState(() {
+        _validationError = null;
+        _evidenceError = _leadOnlyMessage(context);
+        _saved = false;
+      });
+      return;
+    }
+
+    if (_selectedStatus == MaintenanceTaskStatus.completed &&
         _evidencePhotos.length < _requiredEvidencePhotos) {
       setState(() {
         _validationError = null;
@@ -137,125 +164,149 @@ class _UpdateProgressScreenState extends State<UpdateProgressScreen> {
       return;
     }
 
+    final resolved =
+        _selectedStatus == MaintenanceTaskStatus.completed ||
+        _selectedStatus == MaintenanceTaskStatus.failed;
+    final updated = widget.task.copyWith(
+      status: _selectedStatus,
+      completionNotes: resolved && notes.isNotEmpty ? notes : null,
+      completedAtLabel: resolved ? _nowLabel() : null,
+      completedWeekday: _selectedStatus == MaintenanceTaskStatus.completed
+          ? DateTime.now().weekday - 1
+          : null,
+    );
+    MaintenanceTaskDirectory.instance.updateTask(updated);
+
     setState(() {
       _validationError = null;
       _evidenceError = null;
       _saved = true;
     });
-    if (_selectedStatus == _TaskStatus.completed) {
+    if (_selectedStatus == MaintenanceTaskStatus.completed) {
       Future.delayed(const Duration(milliseconds: 600), () {
-        if (mounted) {
-          widget.onOpenEvidence?.call();
-        }
+        if (mounted) widget.onTaskCompleted?.call(widget.task.id);
       });
     }
   }
 
+  /// The team's lead-only gate exists so a task doesn't get marked
+  /// Completed twice over by different members submitting separately —
+  /// see [MaintenanceTaskDirectory.canSubmitEvidence] for the full rule
+  /// (falls back to "anyone" once no lead is set).
+  String _leadOnlyMessage(BuildContext context) {
+    final team = MaintenanceTaskDirectory.instance.teamForTask(widget.task);
+    final leadName = team?.leadUserId == null
+        ? null
+        : AdminUserDirectory.instance.userById(team!.leadUserId!)?.name;
+    return leadName == null
+        ? 'Only your team lead can submit completion evidence for this task.'
+        : 'Only $leadName can submit completion evidence for this task.';
+  }
+
+  String _nowLabel() {
+    final now = DateTime.now();
+    final hour12 = now.hour % 12 == 0 ? 12 : now.hour % 12;
+    final minute = now.minute.toString().padLeft(2, '0');
+    final period = now.hour >= 12 ? 'PM' : 'AM';
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    return '${months[now.month - 1]} ${now.day}, $hour12:$minute $period';
+  }
+
+  Future<void> _handleDiscard() async {
+    final hasContent =
+        _notesController.text.trim().isNotEmpty || _evidencePhotos.isNotEmpty;
+    if (hasContent) {
+      final confirmed = await showConfirmDialog(
+        context,
+        title: 'Discard draft?',
+        message:
+            'Your work notes and any captured evidence photos for this '
+            'update will be lost.',
+        confirmLabel: 'Discard',
+        destructive: true,
+      );
+      if (!confirmed) return;
+    }
+    if (!mounted) return;
+    setState(() {
+      _notesController.clear();
+      _validationError = null;
+      _evidenceError = null;
+      _evidencePhotos.clear();
+      _saved = false;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    final task = widget.task;
+    final readOnly =
+        task.status == MaintenanceTaskStatus.completed ||
+        task.status == MaintenanceTaskStatus.failed;
+    final canSubmitEvidence = MaintenanceTaskDirectory.instance
+        .canSubmitEvidence(task);
+
     return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(AppIcons.back),
-          onPressed: () => Navigator.maybeOf(context)?.pop(),
-        ),
-        title: const Text('Update Task Progress'),
-      ),
-      body: SafeArea(child: _buildBody(context)),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: 1,
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(AppIcons.dashboard),
-            label: 'Dashboard',
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: _UpdateProgressForm(
+              task: task,
+              disabled: readOnly,
+              selectedStatus: _selectedStatus,
+              notesController: _notesController,
+              validationError: _validationError,
+              saved: _saved,
+              canSubmitEvidence: canSubmitEvidence,
+              leadOnlyMessage: _leadOnlyMessage(context),
+              onStatusChanged: readOnly
+                  ? null
+                  : (status) => setState(() {
+                      _selectedStatus = status;
+                      _validationError = null;
+                      _evidenceError = null;
+                      _saved = false;
+                    }),
+              onNotesChanged: readOnly
+                  ? null
+                  : (_) {
+                      if (_saved || _validationError != null) {
+                        setState(() {
+                          _saved = false;
+                          _validationError = null;
+                          _evidenceError = null;
+                        });
+                      }
+                    },
+              evidencePhotos: _evidencePhotos,
+              requiredEvidencePhotos: _requiredEvidencePhotos,
+              evidenceError: _evidenceError,
+              onAttachEvidence:
+                  readOnly || !canSubmitEvidence ? null : _captureEvidencePhoto,
+              onSave: readOnly ? null : _handleSave,
+              onDiscard: readOnly ? null : _handleDiscard,
+            ),
           ),
-          NavigationDestination(icon: Icon(AppIcons.task), label: 'Tasks'),
-          NavigationDestination(icon: Icon(AppIcons.profile), label: 'Profile'),
+          Align(
+            alignment: Alignment.topCenter,
+            child: DetailHeader(
+              title: 'Update Progress',
+              onBack: widget.onBack,
+              trailing: Chip(label: Text('#${task.id}')),
+            ),
+          ),
         ],
-        onDestinationSelected: (index) {
-          if (index == 0) {
-            widget.onNavigateToDashboard?.call();
-          } else if (index == 1) {
-            widget.onNavigateToTasks?.call();
-          } else if (index == 2) {
-            widget.onNavigateToProfile?.call();
-          }
-        },
       ),
-    );
-  }
-
-  Widget _buildBody(BuildContext context) {
-    switch (_state) {
-      case AppScreenState.loading:
-        return const _LoadingView();
-      case AppScreenState.empty:
-        return _buildForm(context);
-      case AppScreenState.error:
-        return _ErrorView(
-          onRetry: () => setState(() => _state = AppScreenState.success),
-        );
-      case AppScreenState.offline:
-        return _OfflineView(
-          onRetry: () => setState(() => _state = AppScreenState.success),
-        );
-      case AppScreenState.permission:
-        return _PermissionView(
-          onRetry: () => setState(() => _state = AppScreenState.success),
-        );
-      case AppScreenState.disabled:
-        return _buildForm(context, disabled: true);
-      case AppScreenState.success:
-        return _buildForm(context);
-    }
-  }
-
-  Widget _buildForm(BuildContext context, {bool disabled = false}) {
-    return _UpdateProgressForm(
-      disabled: disabled,
-      selectedStatus: _selectedStatus,
-      notesController: _notesController,
-      validationError: _validationError,
-      saved: _saved,
-      onStatusChanged: disabled
-          ? null
-          : (status) => setState(() {
-              _selectedStatus = status;
-              _validationError = null;
-              _evidenceError = null;
-              _saved = false;
-            }),
-      onNotesChanged: disabled
-          ? null
-          : (_) {
-              if (_saved || _validationError != null) {
-                setState(() {
-                  _saved = false;
-                  _validationError = null;
-                  _evidenceError = null;
-                });
-              }
-            },
-      evidencePhotos: _evidencePhotos,
-      requiredEvidencePhotos: _requiredEvidencePhotos,
-      evidenceError: _evidenceError,
-      onAttachEvidence: disabled ? null : _captureEvidencePhoto,
-      onSave: disabled ? null : _handleSave,
-      onDiscard: disabled
-          ? null
-          : () => setState(() {
-              _notesController.clear();
-              _validationError = null;
-              _evidenceError = null;
-              _evidencePhotos.clear();
-              _saved = false;
-            }),
     );
   }
 }
 
 class _UpdateProgressForm extends StatelessWidget {
   const _UpdateProgressForm({
+    required this.task,
     required this.disabled,
     required this.selectedStatus,
     required this.notesController,
@@ -264,6 +315,8 @@ class _UpdateProgressForm extends StatelessWidget {
     required this.requiredEvidencePhotos,
     required this.evidenceError,
     required this.saved,
+    required this.canSubmitEvidence,
+    required this.leadOnlyMessage,
     required this.onStatusChanged,
     required this.onNotesChanged,
     required this.onAttachEvidence,
@@ -271,15 +324,24 @@ class _UpdateProgressForm extends StatelessWidget {
     required this.onDiscard,
   });
 
+  final MaintenanceTask task;
   final bool disabled;
-  final _TaskStatus selectedStatus;
+
+  /// Whether the signed-in technician may submit completion evidence for
+  /// this task at all — false when the team has a lead and it isn't them.
+  final bool canSubmitEvidence;
+
+  /// Explains [canSubmitEvidence] being false, shown in place of the photo
+  /// capture grid rather than a silently-disabled one.
+  final String leadOnlyMessage;
+  final MaintenanceTaskStatus selectedStatus;
   final TextEditingController notesController;
   final String? validationError;
   final List<XFile> evidencePhotos;
   final int requiredEvidencePhotos;
   final String? evidenceError;
   final bool saved;
-  final ValueChanged<_TaskStatus>? onStatusChanged;
+  final ValueChanged<MaintenanceTaskStatus>? onStatusChanged;
   final ValueChanged<String>? onNotesChanged;
   final VoidCallback? onAttachEvidence;
   final VoidCallback? onSave;
@@ -290,6 +352,7 @@ class _UpdateProgressForm extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
     final colorScheme = Theme.of(context).colorScheme;
     final semantic = Theme.of(context).extension<AppSemanticColors>()!;
+    final bottomInset = MediaQuery.paddingOf(context).bottom;
     final evidencePhotoCount = evidencePhotos.length;
 
     return Opacity(
@@ -297,21 +360,23 @@ class _UpdateProgressForm extends StatelessWidget {
       child: IgnorePointer(
         ignoring: disabled,
         child: ListView(
-          padding: const EdgeInsets.all(AppSpacing.md),
+          padding: EdgeInsets.fromLTRB(
+            AppSpacing.md,
+            DetailHeader.topInset(context) + AppSpacing.md,
+            AppSpacing.md,
+            bottomInset + AppSpacing.xl,
+          ),
           children: [
             if (saved) ...[
               _SavedBanner(semantic: semantic),
               const SizedBox(height: AppSpacing.md),
             ],
-            Chip(label: const Text('Task ID: #CV-8842')),
+            Chip(label: Text('Task ID: #${task.id}')),
             const SizedBox(height: AppSpacing.sm),
-            Text(
-              'Street Light Repair - Sector 4',
-              style: textTheme.titleMedium,
-            ),
+            Text(task.title, style: textTheme.titleMedium),
             const SizedBox(height: AppSpacing.xs),
             Text(
-              'Update the current status of the maintenance operation for central lighting grid.',
+              task.description,
               style: textTheme.bodyMedium?.copyWith(
                 color: colorScheme.onSurfaceVariant,
               ),
@@ -320,40 +385,37 @@ class _UpdateProgressForm extends StatelessWidget {
             Text('Current Status', style: textTheme.titleSmall),
             const SizedBox(height: AppSpacing.sm),
             _StatusOption(
-              status: _TaskStatus.inProgress,
               label: 'In Progress',
-              icon: AppIcons.statusInProgress,
+              icon: AppIcons.activityPulse,
               color: AppColors.statusInProgress,
-              selected: selectedStatus == _TaskStatus.inProgress,
+              selected: selectedStatus == MaintenanceTaskStatus.inProgress,
               onTap: onStatusChanged == null
                   ? null
-                  : () => onStatusChanged!(_TaskStatus.inProgress),
+                  : () => onStatusChanged!(MaintenanceTaskStatus.inProgress),
             ),
             const SizedBox(height: AppSpacing.sm),
             _StatusOption(
-              status: _TaskStatus.completed,
               label: 'Completed',
               icon: AppIcons.statusResolved,
               color: semantic.success,
-              selected: selectedStatus == _TaskStatus.completed,
+              selected: selectedStatus == MaintenanceTaskStatus.completed,
               onTap: onStatusChanged == null
                   ? null
-                  : () => onStatusChanged!(_TaskStatus.completed),
+                  : () => onStatusChanged!(MaintenanceTaskStatus.completed),
             ),
             const SizedBox(height: AppSpacing.sm),
             _StatusOption(
-              status: _TaskStatus.failed,
               label: 'Failed',
               icon: AppIcons.statusRejected,
               color: semantic.error,
-              selected: selectedStatus == _TaskStatus.failed,
+              selected: selectedStatus == MaintenanceTaskStatus.failed,
               onTap: onStatusChanged == null
                   ? null
-                  : () => onStatusChanged!(_TaskStatus.failed),
+                  : () => onStatusChanged!(MaintenanceTaskStatus.failed),
             ),
             const SizedBox(height: AppSpacing.lg),
             Text(
-              selectedStatus == _TaskStatus.failed
+              selectedStatus == MaintenanceTaskStatus.failed
                   ? 'Failure Note'
                   : 'Work Notes',
               style: textTheme.titleSmall,
@@ -365,51 +427,60 @@ class _UpdateProgressForm extends StatelessWidget {
               maxLines: 4,
               enabled: !disabled,
               decoration: InputDecoration(
-                hintText: selectedStatus == _TaskStatus.failed
+                hintText: selectedStatus == MaintenanceTaskStatus.failed
                     ? 'Explain why the task failed and what is needed next...'
                     : 'Describe current progress, encountered issues, or required parts...',
                 errorText: validationError,
               ),
             ),
             const SizedBox(height: AppSpacing.xs),
-            if (validationError == null && selectedStatus == _TaskStatus.failed)
+            if (validationError == null &&
+                selectedStatus == MaintenanceTaskStatus.failed)
               Text(
                 'Required for failed tasks',
                 style: textTheme.bodySmall?.copyWith(
                   color: colorScheme.onSurfaceVariant,
                 ),
               ),
-            if (selectedStatus == _TaskStatus.completed) ...[
+            if (selectedStatus == MaintenanceTaskStatus.completed) ...[
               const SizedBox(height: AppSpacing.lg),
               Text('Completion Photo Evidence', style: textTheme.titleSmall),
               const SizedBox(height: AppSpacing.xs),
-              Text(
-                '$evidencePhotoCount of $requiredEvidencePhotos photos attached',
-                style: textTheme.bodySmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
+              if (!canSubmitEvidence)
+                _LeadOnlyNotice(message: leadOnlyMessage)
+              else ...[
+                Text(
+                  '$evidencePhotoCount of $requiredEvidencePhotos photos attached',
+                  style: textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
                 ),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              Wrap(
-                spacing: AppSpacing.sm,
-                runSpacing: AppSpacing.sm,
-                children: [
-                  for (var index = 0; index < requiredEvidencePhotos; index++)
-                    _EvidencePhotoSlot(
-                      index: index,
-                      photo: index < evidencePhotos.length
-                          ? evidencePhotos[index]
-                          : null,
-                      disabled:
-                          disabled ||
-                          index > evidencePhotoCount ||
-                          evidencePhotoCount >= requiredEvidencePhotos,
-                      onTap: index == evidencePhotoCount
-                          ? onAttachEvidence
-                          : null,
-                    ),
-                ],
-              ),
+                const SizedBox(height: AppSpacing.sm),
+                Wrap(
+                  spacing: AppSpacing.sm,
+                  runSpacing: AppSpacing.sm,
+                  children: [
+                    for (
+                      var index = 0;
+                      index < requiredEvidencePhotos;
+                      index++
+                    )
+                      _EvidencePhotoSlot(
+                        index: index,
+                        photo: index < evidencePhotos.length
+                            ? evidencePhotos[index]
+                            : null,
+                        disabled:
+                            disabled ||
+                            index > evidencePhotoCount ||
+                            evidencePhotoCount >= requiredEvidencePhotos,
+                        onTap: index == evidencePhotoCount
+                            ? onAttachEvidence
+                            : null,
+                      ),
+                  ],
+                ),
+              ],
               if (evidenceError != null) ...[
                 const SizedBox(height: AppSpacing.xs),
                 Text(
@@ -436,6 +507,39 @@ class _UpdateProgressForm extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _LeadOnlyNotice extends StatelessWidget {
+  const _LeadOnlyNotice({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    return GlassCard(
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      child: Row(
+        children: [
+          Icon(
+            AppIcons.permissionDenied,
+            size: AppIconSize.md,
+            color: colorScheme.onSurfaceVariant,
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              message,
+              style: textTheme.bodySmall?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -486,7 +590,6 @@ class _SavedBanner extends StatelessWidget {
 
 class _StatusOption extends StatelessWidget {
   const _StatusOption({
-    required this.status,
     required this.label,
     required this.icon,
     required this.color,
@@ -494,7 +597,6 @@ class _StatusOption extends StatelessWidget {
     required this.onTap,
   });
 
-  final _TaskStatus status;
   final String label;
   final IconData icon;
   final Color color;
@@ -647,156 +749,6 @@ class _EvidenceSlotLabel extends StatelessWidget {
           ).textTheme.labelMedium?.copyWith(color: color),
         ),
       ],
-    );
-  }
-}
-
-class _LoadingView extends StatelessWidget {
-  const _LoadingView();
-  @override
-  Widget build(BuildContext context) => Center(
-    child: Padding(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const CircularProgressIndicator(),
-          const SizedBox(height: AppSpacing.md),
-          Text(
-            'Loading update form',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            'Preparing status selector, notes, and evidence.',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ],
-      ),
-    ),
-  );
-}
-
-class _ErrorView extends StatelessWidget {
-  const _ErrorView({required this.onRetry});
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    final semantic = Theme.of(context).extension<AppSemanticColors>()!;
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(AppIcons.error, size: AppIconSize.xl, color: semantic.error),
-            const SizedBox(height: AppSpacing.md),
-            Text(
-              'Unable to save progress',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              'Try again without changing the maintenance workflow.',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: semantic.error),
-              onPressed: onRetry,
-              child: const Text('Retry'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _OfflineView extends StatelessWidget {
-  const _OfflineView({required this.onRetry});
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    final semantic = Theme.of(context).extension<AppSemanticColors>()!;
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              AppIcons.offline,
-              size: AppIconSize.xl,
-              color: semantic.warning,
-            ),
-            const SizedBox(height: AppSpacing.md),
-            Text('Offline', style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              'Reconnect before saving progress.',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: semantic.warning),
-              onPressed: onRetry,
-              child: const Text('Retry'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _PermissionView extends StatelessWidget {
-  const _PermissionView({required this.onRetry});
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              AppIcons.permissionDenied,
-              size: AppIconSize.xl,
-              color: colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(height: AppSpacing.md),
-            Text(
-              'Permission required',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              'Maintenance access is required to update this assigned task.',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            FilledButton(onPressed: onRetry, child: const Text('Retry')),
-          ],
-        ),
-      ),
     );
   }
 }

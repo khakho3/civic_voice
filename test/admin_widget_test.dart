@@ -142,7 +142,7 @@ void main() {
       );
       await tester.pump();
 
-      expect(find.text('Dashboard'), findsOneWidget);
+      expect(find.text('Home'), findsOneWidget);
       expect(find.text('Users'), findsOneWidget);
       expect(find.text('Activity'), findsOneWidget);
       // The bottom-nav tab's own label is "Settings" — shorter than the
@@ -542,9 +542,10 @@ void main() {
       // "System Administrator" labels both Ama Boateng's (Super Admin) and
       // Efua Darko's (Admin) role pills.
       expect(find.text('System Administrator'), findsNWidgets(2));
-      // "Active" labels four of the seven mock users' status pills (Kojo
-      // Mensah, Yaw Asare, Genevieve Amadapah, Efua Darko).
-      expect(find.text('Active'), findsNWidgets(4));
+      // "Active" labels five of the eight mock users' status pills (Kojo
+      // Mensah, Yaw Asare, Kojo Mensah-Boateng, Genevieve Amadapah, Efua
+      // Darko).
+      expect(find.text('Active'), findsNWidgets(5));
       expect(find.text('Kojo Mensah'), findsOneWidget);
       expect(find.text('Municipal Officer'), findsOneWidget);
       expect(find.text('Esi Owusu'), findsOneWidget);
@@ -552,7 +553,11 @@ void main() {
       // "Review" labels Esi Owusu's and Kwame Nyarko's status pills.
       expect(find.text('Review'), findsNWidgets(2));
       expect(find.text('Yaw Asare'), findsOneWidget);
-      expect(find.text('Maintenance Team'), findsOneWidget);
+      // "Maintenance Team" labels both Yaw Asare's and Kojo Mensah-Boateng's
+      // role pills — the second real technician added so the team-lead
+      // feature has more than one member to be meaningful for.
+      expect(find.text('Maintenance Team'), findsNWidgets(2));
+      expect(find.text('Kojo Mensah-Boateng'), findsOneWidget);
       expect(find.text('Kwame Nyarko'), findsOneWidget);
       expect(find.text('Genevieve Amadapah'), findsOneWidget);
       expect(find.text('Efua Darko'), findsOneWidget);
@@ -639,11 +644,11 @@ void main() {
       await tester.pumpAndSettle();
 
       // Ama Boateng and Kojo Mensah are now both "Inactive" (joining the
-      // filter chip of the same name) — Yaw Asare, Genevieve Amadapah, and
-      // Efua Darko are still "Active" (Esi Owusu and Kwame Nyarko remain
-      // "Review").
+      // filter chip of the same name) — Yaw Asare, Kojo Mensah-Boateng,
+      // Genevieve Amadapah, and Efua Darko are still "Active" (Esi Owusu
+      // and Kwame Nyarko remain "Review").
       expect(find.text('Inactive'), findsNWidgets(3));
-      expect(find.text('Active'), findsNWidgets(3));
+      expect(find.text('Active'), findsNWidgets(4));
 
       await tester.tap(find.text('Inactive').first);
       await tester.pumpAndSettle();
@@ -779,11 +784,11 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Dashboard'), findsOneWidget);
+      expect(find.text('Home'), findsOneWidget);
       expect(find.text('Activity'), findsOneWidget);
       expect(find.text('Settings'), findsOneWidget);
 
-      await tester.tap(find.text('Dashboard'));
+      await tester.tap(find.text('Home'));
       await tester.pumpAndSettle();
       expect(dashboardTapped, isTrue);
     },
@@ -892,7 +897,7 @@ void main() {
       );
       await tester.pump();
 
-      expect(find.text('Dashboard'), findsOneWidget);
+      expect(find.text('Home'), findsOneWidget);
       expect(find.text('Users'), findsOneWidget);
       expect(find.text('Settings'), findsOneWidget);
 
@@ -1242,7 +1247,7 @@ void main() {
       );
       await tester.pump();
 
-      await tester.tap(find.text('Dashboard'));
+      await tester.tap(find.text('Home'));
       await tester.pump();
       expect(dashboardTapped, isTrue);
     },
@@ -1924,7 +1929,7 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text('Dashboard'), findsOneWidget);
+    expect(find.text('Home'), findsOneWidget);
     expect(find.text('Users'), findsOneWidget);
     expect(find.text('Settings'), findsOneWidget);
 
@@ -2177,7 +2182,7 @@ void main() {
       );
       await tester.pump();
 
-      expect(find.text('Dashboard'), findsOneWidget);
+      expect(find.text('Home'), findsOneWidget);
 
       await tester.tap(find.byTooltip('Edit'));
       await tester.pump();
@@ -2191,7 +2196,7 @@ void main() {
       // directly on top of the sticky Save bar, and navigating away
       // mid-edit without going through Cancel/Save is more likely a
       // mistake than an intent.
-      expect(find.text('Dashboard'), findsNothing);
+      expect(find.text('Home'), findsNothing);
 
       await tester.enterText(
         find.widgetWithText(TextFormField, 'Platform Administration'),
@@ -2211,7 +2216,7 @@ void main() {
       expect(find.text('Save Changes'), findsNothing);
       expect(find.text('Platform Administration'), findsOneWidget);
       expect(find.text('Civic Operations'), findsNothing);
-      expect(find.text('Dashboard'), findsOneWidget);
+      expect(find.text('Home'), findsOneWidget);
     },
   );
 
@@ -2367,7 +2372,7 @@ void main() {
       );
       await tester.pump();
 
-      expect(find.text('Dashboard'), findsOneWidget);
+      expect(find.text('Home'), findsOneWidget);
       // "Users"/"Settings" also appear as Administrative Scope pills.
       expect(find.text('Users'), findsWidgets);
       expect(find.text('Settings'), findsWidgets);

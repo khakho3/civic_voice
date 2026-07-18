@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:civic_voice/core/theme/app_theme.dart';
 
+import '../../../widgets/glass_card.dart';
+import '../../../widgets/status_badge.dart';
+import '../models/maintenance_task.dart';
+import '../services/maintenance_task_directory.dart';
+import '../widgets/maintenance_scaffold.dart';
+
 /// MNT-001 — Maintenance Team Dashboard.
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({
@@ -12,7 +18,12 @@ class DashboardScreen extends StatefulWidget {
 
   final VoidCallback? onNavigateToTasks;
   final VoidCallback? onNavigateToProfile;
-  final VoidCallback? onOpenTaskDetails;
+
+  /// Opens Task Details for the tapped task, by [MaintenanceTask.id] — each
+  /// row now opens the specific task it represents, rather than every row
+  /// (and "View All") landing on the same static Task Details content
+  /// regardless of which task was tapped.
+  final ValueChanged<String>? onOpenTaskDetails;
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -21,86 +32,29 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   AppScreenState _state = AppScreenState.success;
 
-  final List<_TaskPreview> _tasks = const [
-    _TaskPreview(
-      title: 'Broken Street Light at Main Ave',
-      location: '242 Main Avenue, Central District',
-      status: _MaintenanceTaskStatus.inProgress,
-      evidenceRequired: true,
-      completedWeekday: null,
-      icon: AppIcons.location,
-    ),
-    _TaskPreview(
-      title: 'Pothole Repair Request',
-      location: 'Elm Street & 4th Cross',
-      status: _MaintenanceTaskStatus.assigned,
-      evidenceRequired: false,
-      completedWeekday: null,
-      icon: AppIcons.location,
-    ),
-    _TaskPreview(
-      title: 'Oak St Pothole',
-      location: '1242 Oak Street, Downtown',
-      status: _MaintenanceTaskStatus.assigned,
-      evidenceRequired: false,
-      completedWeekday: null,
-      icon: AppIcons.location,
-    ),
-    _TaskPreview(
-      title: 'Hydrant Maintenance',
-      location: 'West Park Perimeter',
-      status: _MaintenanceTaskStatus.completed,
-      evidenceRequired: false,
-      completedWeekday: 4,
-      icon: AppIcons.location,
-    ),
-    _TaskPreview(
-      title: 'Street Light Follow-up',
-      location: 'Maple Ave & 5th Crossing',
-      status: _MaintenanceTaskStatus.completed,
-      evidenceRequired: false,
-      completedWeekday: 2,
-      icon: AppIcons.location,
-    ),
-  ];
-
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('CivicVoice'),
-        actions: [
-          IconButton(
-            icon: const Icon(AppIcons.notifications),
-            tooltip: 'Notifications',
-            onPressed: widget.onNavigateToTasks,
-          ),
-          const SizedBox(width: AppSpacing.sm),
-        ],
-      ),
-      body: SafeArea(child: _buildBody(context)),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: 0,
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(AppIcons.dashboard),
-            label: 'Dashboard',
-          ),
-          NavigationDestination(icon: Icon(AppIcons.task), label: 'Tasks'),
-          NavigationDestination(icon: Icon(AppIcons.profile), label: 'Profile'),
-        ],
-        onDestinationSelected: (index) {
-          if (index == 1) {
-            widget.onNavigateToTasks?.call();
-          } else if (index == 2) {
-            widget.onNavigateToProfile?.call();
-          }
-        },
+    return MaintenanceScaffold(
+      selectedTab: MaintenanceTab.dashboard,
+      // Notifications isn't one of the seven approved MNT screens — left as
+      // a placeholder until that screen is specified, matching every other
+      // module's identical stub. Previously this wired straight to Assigned
+      // Tasks, which made a notification bell behave like a second "Tasks"
+      // tab button rather than its own affordance.
+      onNotificationsTap: () {},
+      onProfileTap: widget.onNavigateToProfile,
+      onTabSelected: (tab) {
+        if (tab == MaintenanceTab.tasks) widget.onNavigateToTasks?.call();
+        if (tab == MaintenanceTab.profile) widget.onNavigateToProfile?.call();
+      },
+      body: ValueListenableBuilder<List<MaintenanceTask>>(
+        valueListenable: MaintenanceTaskDirectory.instance.tasks,
+        builder: (context, tasks, _) => _buildBody(context, tasks),
       ),
     );
   }
 
-  Widget _buildBody(BuildContext context) {
+  Widget _buildBody(BuildContext context, List<MaintenanceTask> tasks) {
     switch (_state) {
       case AppScreenState.loading:
         return const _LoadingView();
@@ -120,7 +74,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         return const _PermissionView();
       case AppScreenState.disabled:
       case AppScreenState.success:
-        final dashboardData = _MaintenanceDashboardData.fromTasks(_tasks);
+        final dashboardData = _MaintenanceDashboardData.fromTasks(tasks);
         return _DashboardContent(
           data: dashboardData,
           disabled: _state == AppScreenState.disabled,
@@ -142,16 +96,22 @@ class _DashboardContent extends StatelessWidget {
   final _MaintenanceDashboardData data;
   final bool disabled;
   final VoidCallback? onViewAllTasks;
-  final VoidCallback? onOpenTaskDetails;
+  final ValueChanged<String>? onOpenTaskDetails;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final colorScheme = Theme.of(context).colorScheme;
     final semantic = Theme.of(context).extension<AppSemanticColors>()!;
+    final chromeInset = MaintenanceScaffold.contentPadding(context);
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        chromeInset.top + AppSpacing.md,
+        AppSpacing.md,
+        chromeInset.bottom + AppSpacing.xl,
+      ),
       child: Opacity(
         opacity: disabled ? 0.5 : 1.0,
         child: IgnorePointer(
@@ -163,7 +123,7 @@ class _DashboardContent extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      'Good Morning, Marcus',
+                      'Good Morning, Yaw',
                       style: textTheme.headlineSmall,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -198,28 +158,24 @@ class _DashboardContent extends StatelessWidget {
                     label: 'Assigned Tasks',
                     value: '${data.assignedCount}',
                     accentColor: colorScheme.primary,
-                    tag: 'Open',
                   ),
                   _StatCard(
-                    icon: AppIcons.statusInProgress,
+                    icon: AppIcons.activityPulse,
                     label: 'Active Work',
                     value: '${data.activeCount}',
                     accentColor: semantic.statusInProgress,
-                    tag: 'In Progress',
                   ),
                   _StatCard(
                     icon: AppIcons.statusResolved,
                     label: 'Completed',
                     value: '${data.completedCount}',
                     accentColor: semantic.success,
-                    tag: 'Resolved',
                   ),
                   _StatCard(
-                    icon: AppIcons.camera,
-                    label: 'Evidence Queue',
-                    value: '${data.evidenceQueueCount}',
-                    accentColor: semantic.warning,
-                    tag: 'Pending',
+                    icon: AppIcons.statusRejected,
+                    label: 'Needs Rework',
+                    value: '${data.failedCount}',
+                    accentColor: semantic.error,
                   ),
                 ],
               ),
@@ -246,7 +202,12 @@ class _DashboardContent extends StatelessWidget {
               ...data.scheduledTasks.map(
                 (task) => Padding(
                   padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                  child: _TaskListTile(task: task, onTap: onOpenTaskDetails),
+                  child: _TaskListTile(
+                    task: task,
+                    onTap: onOpenTaskDetails == null
+                        ? null
+                        : () => onOpenTaskDetails!(task.id),
+                  ),
                 ),
               ),
             ],
@@ -263,79 +224,48 @@ class _StatCard extends StatelessWidget {
     required this.label,
     required this.value,
     required this.accentColor,
-    this.tag,
   });
 
   final IconData icon;
   final String label;
   final String value;
   final Color accentColor;
-  final String? tag;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final colorScheme = Theme.of(context).colorScheme;
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.sm),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Wrap(
-              alignment: WrapAlignment.spaceBetween,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              spacing: AppSpacing.sm,
-              runSpacing: AppSpacing.xs,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(AppSpacing.xs),
-                  decoration: BoxDecoration(
-                    color: accentColor.withValues(alpha: 0.12),
-                    borderRadius: AppRadius.allXs,
-                  ),
-                  child: Icon(icon, size: AppIconSize.sm, color: accentColor),
-                ),
-                if (tag != null)
-                  Container(
-                    constraints: const BoxConstraints(
-                      maxWidth: AppSpacing.xxxxl + AppSpacing.xl,
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.xs,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: accentColor.withValues(alpha: 0.12),
-                      borderRadius: AppRadius.allXs,
-                    ),
-                    child: Text(
-                      tag!,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: textTheme.labelSmall?.copyWith(color: accentColor),
-                    ),
-                  ),
-              ],
+    return GlassCard(
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: AppIconSize.lg,
+            height: AppIconSize.lg,
+            decoration: BoxDecoration(
+              color: accentColor.withValues(alpha: 0.12),
+              borderRadius: AppRadius.allSm,
             ),
-            const Spacer(),
-            Text(
-              value,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: textTheme.headlineSmall,
+            child: Icon(icon, size: AppIconSize.sm + 2, color: accentColor),
+          ),
+          const Spacer(),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: textTheme.headlineSmall,
+          ),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: textTheme.bodySmall?.copyWith(
+              color: colorScheme.onSurfaceVariant,
             ),
-            Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: textTheme.bodySmall?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -477,81 +407,50 @@ class _DiscoveryBars extends StatelessWidget {
 class _TaskListTile extends StatelessWidget {
   const _TaskListTile({required this.task, required this.onTap});
 
-  final _TaskPreview task;
+  final MaintenanceTask task;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
     final colorScheme = Theme.of(context).colorScheme;
-    return Card(
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.sm,
-        ),
-        onTap: onTap,
-        leading: CircleAvatar(
-          backgroundColor: colorScheme.primaryContainer,
-          child: Icon(task.icon, color: colorScheme.primary),
-        ),
-        title: Text(task.title, maxLines: 1, overflow: TextOverflow.ellipsis),
-        subtitle: Text(
-          '${task.location} - ${task.status.label}',
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-        ),
-        trailing: SizedBox(
-          width: 104,
-          child: Align(
-            alignment: Alignment.centerRight,
-            child: _StatusBadge(
-              label: task.status.label,
-              color: task.status.color,
-              icon: task.status.icon,
+    final brightness = Theme.of(context).brightness;
+
+    return GlassCard(
+      onTap: onTap,
+      child: Row(
+        children: [
+          CircleAvatar(
+            backgroundColor: colorScheme.primaryContainer,
+            child: Icon(AppIcons.location, color: colorScheme.primary),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  task.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: textTheme.titleSmall,
+                ),
+                Text(
+                  task.locationLabel,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
             ),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _StatusBadge extends StatelessWidget {
-  const _StatusBadge({
-    required this.label,
-    required this.color,
-    required this.icon,
-  });
-
-  final String label;
-  final Color color;
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xs,
-      ),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(AppRadius.xl),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: AppIconSize.sm, color: color),
-          const SizedBox(width: AppSpacing.xs),
-          Flexible(
-            child: Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(
-                context,
-              ).textTheme.labelMedium?.copyWith(color: color),
-            ),
+          const SizedBox(width: AppSpacing.sm),
+          TintedBadge(
+            label: task.status.label,
+            color: task.status.color,
+            textColor: task.status.badgeTextColor(brightness),
           ),
         ],
       ),
@@ -720,51 +619,12 @@ class _PermissionView extends StatelessWidget {
   }
 }
 
-enum _MaintenanceTaskStatus {
-  assigned,
-  inProgress,
-  completed;
-
-  String get label {
-    switch (this) {
-      case _MaintenanceTaskStatus.assigned:
-        return 'Assigned';
-      case _MaintenanceTaskStatus.inProgress:
-        return 'In Progress';
-      case _MaintenanceTaskStatus.completed:
-        return 'Completed';
-    }
-  }
-
-  Color get color {
-    switch (this) {
-      case _MaintenanceTaskStatus.assigned:
-        return AppColors.statusAssigned;
-      case _MaintenanceTaskStatus.inProgress:
-        return AppColors.statusInProgress;
-      case _MaintenanceTaskStatus.completed:
-        return AppColors.statusResolved;
-    }
-  }
-
-  IconData get icon {
-    switch (this) {
-      case _MaintenanceTaskStatus.assigned:
-        return AppIcons.statusAssigned;
-      case _MaintenanceTaskStatus.inProgress:
-        return AppIcons.statusInProgress;
-      case _MaintenanceTaskStatus.completed:
-        return AppIcons.statusResolved;
-    }
-  }
-}
-
 class _MaintenanceDashboardData {
   const _MaintenanceDashboardData({
     required this.assignedCount,
     required this.activeCount,
     required this.completedCount,
-    required this.evidenceQueueCount,
+    required this.failedCount,
     required this.weeklyCompletionCounts,
     required this.scheduledTasks,
   });
@@ -772,18 +632,18 @@ class _MaintenanceDashboardData {
   final int assignedCount;
   final int activeCount;
   final int completedCount;
-  final int evidenceQueueCount;
+  final int failedCount;
   final List<int> weeklyCompletionCounts;
-  final List<_TaskPreview> scheduledTasks;
+  final List<MaintenanceTask> scheduledTasks;
 
   int get weeklyCompletedTotal =>
       weeklyCompletionCounts.fold<int>(0, (total, count) => total + count);
 
-  factory _MaintenanceDashboardData.fromTasks(List<_TaskPreview> tasks) {
+  factory _MaintenanceDashboardData.fromTasks(List<MaintenanceTask> tasks) {
     final weeklyCounts = List<int>.filled(7, 0);
     for (final task in tasks) {
       final weekday = task.completedWeekday;
-      if (task.status == _MaintenanceTaskStatus.completed &&
+      if (task.status == MaintenanceTaskStatus.completed &&
           weekday != null &&
           weekday >= 0 &&
           weekday < weeklyCounts.length) {
@@ -792,46 +652,33 @@ class _MaintenanceDashboardData {
     }
 
     final scheduledTasks = tasks
-        .where((task) => task.status != _MaintenanceTaskStatus.completed)
+        .where(
+          (task) =>
+              task.status != MaintenanceTaskStatus.completed &&
+              task.status != MaintenanceTaskStatus.failed,
+        )
         .take(3)
         .toList(growable: false);
 
     return _MaintenanceDashboardData(
       assignedCount: tasks
-          .where((task) => task.status != _MaintenanceTaskStatus.completed)
-          .length,
-      activeCount: tasks
-          .where((task) => task.status == _MaintenanceTaskStatus.inProgress)
-          .length,
-      completedCount: tasks
-          .where((task) => task.status == _MaintenanceTaskStatus.completed)
-          .length,
-      evidenceQueueCount: tasks
           .where(
             (task) =>
-                task.evidenceRequired &&
-                task.status != _MaintenanceTaskStatus.completed,
+                task.status != MaintenanceTaskStatus.completed &&
+                task.status != MaintenanceTaskStatus.failed,
           )
+          .length,
+      activeCount: tasks
+          .where((task) => task.status == MaintenanceTaskStatus.inProgress)
+          .length,
+      completedCount: tasks
+          .where((task) => task.status == MaintenanceTaskStatus.completed)
+          .length,
+      failedCount: tasks
+          .where((task) => task.status == MaintenanceTaskStatus.failed)
           .length,
       weeklyCompletionCounts: List<int>.unmodifiable(weeklyCounts),
       scheduledTasks: scheduledTasks,
     );
   }
-}
-
-class _TaskPreview {
-  const _TaskPreview({
-    required this.title,
-    required this.location,
-    required this.status,
-    required this.evidenceRequired,
-    required this.completedWeekday,
-    required this.icon,
-  });
-  final String title;
-  final String location;
-  final _MaintenanceTaskStatus status;
-  final bool evidenceRequired;
-  final int? completedWeekday;
-  final IconData icon;
 }

@@ -249,6 +249,18 @@ List<AdminUserItem> mockAdminUsers() {
       assembly: assemblyNamed(Region.ashanti, 'Kumasi'),
     ),
     AdminUserItem(
+      name: 'Kojo Mensah-Boateng',
+      email: 'kojo.mensahboateng@civicvoice.gov',
+      phone: '+233 27 444 5555',
+      role: AppRole.maintenanceTeam,
+      status: AdminUserStatus.active,
+      userId: 'CV-USER-0110',
+      lastSignIn: now.subtract(const Duration(hours: 3, minutes: 10)),
+      accountCreated: DateTime(2025, 4, 22),
+      region: Region.ashanti,
+      assembly: assemblyNamed(Region.ashanti, 'Kumasi'),
+    ),
+    AdminUserItem(
       name: 'Kwame Nyarko',
       email: 'kwame.nyarko@gmail.com',
       phone: '+233 54 999 0000',

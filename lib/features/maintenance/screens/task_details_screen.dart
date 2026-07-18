@@ -1,258 +1,289 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:civic_voice/core/theme/app_theme.dart';
 
+import '../../../widgets/detail_header.dart';
+import '../../../widgets/glass_card.dart';
+import '../../../widgets/status_badge.dart';
+import '../models/maintenance_task.dart';
+import '../services/maintenance_task_directory.dart';
+
 /// MNT-003 — Maintenance Team Task Details.
-class TaskDetailsScreen extends StatefulWidget {
+///
+/// A drill-down reached by tapping a task on Dashboard or Assigned Tasks —
+/// same shape as Municipal Officer's own report-handling screens
+/// (`MunicipalDetailHeader`, no persistent bottom nav) rather than the
+/// 3-tab `NavigationBar` this screen previously kept pinned on itself
+/// alongside every other screen in this flow (Update Progress, Task
+/// Completed), none of which are tab roots.
+class TaskDetailsScreen extends StatelessWidget {
   const TaskDetailsScreen({
     super.key,
-    this.onNavigateToDashboard,
-    this.onNavigateToTasks,
-    this.onNavigateToProfile,
+    required this.task,
+    this.onBack,
     this.onUpdateProgress,
   });
 
-  final VoidCallback? onNavigateToDashboard;
-  final VoidCallback? onNavigateToTasks;
-  final VoidCallback? onNavigateToProfile;
+  final MaintenanceTask task;
+  final VoidCallback? onBack;
   final VoidCallback? onUpdateProgress;
-
-  @override
-  State<TaskDetailsScreen> createState() => _TaskDetailsScreenState();
-}
-
-class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
-  AppScreenState _state = AppScreenState.success;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(AppIcons.back),
-          onPressed: () => Navigator.maybeOf(context)?.pop(),
-        ),
-        title: const Text('Task Details'),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-            child: Chip(label: const Text('#TASK-8821')),
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: _TaskDetailsContent(
+              task: task,
+              onUpdateProgress: onUpdateProgress,
+            ),
+          ),
+          Align(
+            alignment: Alignment.topCenter,
+            child: DetailHeader(
+              title: task.title,
+              onBack: onBack,
+              trailing: Chip(label: Text('#${task.id}')),
+            ),
           ),
         ],
-      ),
-      body: SafeArea(child: _buildBody(context)),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: 1,
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(AppIcons.dashboard),
-            label: 'Dashboard',
-          ),
-          NavigationDestination(icon: Icon(AppIcons.task), label: 'Tasks'),
-          NavigationDestination(icon: Icon(AppIcons.profile), label: 'Profile'),
-        ],
-        onDestinationSelected: (index) {
-          if (index == 0) {
-            widget.onNavigateToDashboard?.call();
-          } else if (index == 1) {
-            widget.onNavigateToTasks?.call();
-          } else if (index == 2) {
-            widget.onNavigateToProfile?.call();
-          }
-        },
       ),
     );
-  }
-
-  Widget _buildBody(BuildContext context) {
-    switch (_state) {
-      case AppScreenState.loading:
-        return const _LoadingView();
-      case AppScreenState.empty:
-        return _EmptyView(
-          onRetry: () => setState(() => _state = AppScreenState.success),
-        );
-      case AppScreenState.error:
-        return _ErrorView(
-          onRetry: () => setState(() => _state = AppScreenState.success),
-        );
-      case AppScreenState.offline:
-        return _OfflineView(
-          onRetry: () => setState(() => _state = AppScreenState.success),
-        );
-      case AppScreenState.permission:
-        return _PermissionView(
-          onRetry: () => setState(() => _state = AppScreenState.success),
-        );
-      case AppScreenState.disabled:
-      case AppScreenState.success:
-        return _TaskDetailsContent(
-          disabled: _state == AppScreenState.disabled,
-          onUpdateProgress: widget.onUpdateProgress,
-        );
-    }
   }
 }
 
 class _TaskDetailsContent extends StatelessWidget {
   const _TaskDetailsContent({
-    required this.disabled,
+    required this.task,
     required this.onUpdateProgress,
   });
 
-  final bool disabled;
+  final MaintenanceTask task;
   final VoidCallback? onUpdateProgress;
-
-  static const _TaskReportDetails _report = _TaskReportDetails(
-    title: 'Broken Street Light',
-    description:
-        'Light flickers and creates safety hazard for pedestrians and vehicles at night.',
-    locationLabel: '242 Main Avenue, Central District',
-    latitude: 6.5244,
-    longitude: 3.3792,
-    photoUrls: [],
-  );
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final colorScheme = Theme.of(context).colorScheme;
-    final semantic = Theme.of(context).extension<AppSemanticColors>()!;
-    final firstPhotoUrl = _report.photoUrls.isNotEmpty
-        ? _report.photoUrls[0]
-        : null;
-    final secondPhotoUrl = _report.photoUrls.length > 1
-        ? _report.photoUrls[1]
-        : null;
+    final brightness = Theme.of(context).brightness;
+    final bottomInset = MediaQuery.paddingOf(context).bottom;
+    final team = MaintenanceTaskDirectory.instance.teamForTask(task);
+    final canUpdate =
+        task.status != MaintenanceTaskStatus.completed &&
+        task.status != MaintenanceTaskStatus.failed;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      child: Opacity(
-        opacity: disabled ? 0.6 : 1.0,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Text(_report.title, style: textTheme.headlineSmall),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                _PriorityBadge(color: semantic.error),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            _StatusBadge(
-              label: 'Assigned',
-              color: AppColors.statusAssigned,
-              icon: AppIcons.statusAssigned,
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            Text('Problem Description', style: textTheme.titleSmall),
-            const SizedBox(height: AppSpacing.sm),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.md),
+      padding: EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        DetailHeader.topInset(context) + AppSpacing.md,
+        AppSpacing.md,
+        bottomInset + AppSpacing.xl,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(task.title, style: textTheme.headlineSmall),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              ReportSeverityBadge(severity: task.priority, suffix: ' Priority'),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Row(
+            children: [
+              TintedBadge(
+                label: task.status.label,
+                color: task.status.color,
+                textColor: task.status.badgeTextColor(brightness),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Icon(
+                AppIcons.team,
+                size: AppIconSize.sm,
+                color: colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 4),
+              Flexible(
                 child: Text(
-                  _report.description,
-                  style: textTheme.bodyMedium?.copyWith(
-                    color: colorScheme.onSurface,
-                    fontWeight: AppFontWeight.semiBold,
+                  team?.name ?? 'Unassigned team',
+                  style: textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          Text('Problem Description', style: textTheme.titleSmall),
+          const SizedBox(height: AppSpacing.sm),
+          GlassCard(
+            child: Text(
+              task.description,
+              style: textTheme.bodyMedium?.copyWith(
+                color: colorScheme.onSurface,
+                fontWeight: AppFontWeight.semiBold,
+              ),
             ),
-            const SizedBox(height: AppSpacing.lg),
-            Row(
-              children: [
-                Icon(
-                  AppIcons.camera,
-                  size: AppIconSize.sm,
-                  color: colorScheme.onSurfaceVariant,
-                ),
-                const SizedBox(width: AppSpacing.xs),
-                Text('Report Photos', style: textTheme.titleSmall),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Row(
-              children: [
-                Expanded(child: _ReportPhotoTile(imageUrl: firstPhotoUrl)),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(child: _ReportPhotoTile(imageUrl: secondPhotoUrl)),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            Row(
-              children: [
-                Icon(
-                  AppIcons.pinned,
-                  size: AppIconSize.sm,
-                  color: colorScheme.onSurfaceVariant,
-                ),
-                const SizedBox(width: AppSpacing.xs),
-                Text('Problem Location', style: textTheme.titleSmall),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            _ProblemLocationMap(report: _report),
-            const SizedBox(height: AppSpacing.lg),
-            Text('Task Timeline', style: textTheme.titleSmall),
-            const SizedBox(height: AppSpacing.sm),
-            const _StatusPipeline(),
-            const SizedBox(height: AppSpacing.lg),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          Row(
+            children: [
+              Icon(
+                AppIcons.camera,
+                size: AppIconSize.sm,
+                color: colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              Text(
+                'Report Photos (${task.reportPhotoCount})',
+                style: textTheme.titleSmall,
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          const Row(
+            children: [
+              Expanded(child: _ReportPhotoTile()),
+              SizedBox(width: AppSpacing.sm),
+              Expanded(child: _ReportPhotoTile()),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          Row(
+            children: [
+              Icon(
+                AppIcons.pinned,
+                size: AppIconSize.sm,
+                color: colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              Text('Problem Location', style: textTheme.titleSmall),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          _ProblemLocationMap(task: task),
+          const SizedBox(height: AppSpacing.lg),
+          Text('Task Timeline', style: textTheme.titleSmall),
+          const SizedBox(height: AppSpacing.sm),
+          _StatusPipeline(task: task),
+          const SizedBox(height: AppSpacing.lg),
+          if (canUpdate)
             SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
-                onPressed: disabled ? null : onUpdateProgress,
+                onPressed: onUpdateProgress,
                 icon: const Icon(AppIcons.edit),
                 label: const Text('Update Progress'),
               ),
+            )
+          else
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(AppSpacing.md),
+              decoration: BoxDecoration(
+                color: colorScheme.surfaceContainerLow,
+                borderRadius: AppComponentRadius.card,
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    AppIcons.permissionDenied,
+                    size: AppIconSize.md,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Text(
+                      task.status == MaintenanceTaskStatus.completed
+                          ? 'This task is completed and read-only.'
+                          : 'This task was marked failed and is read-only.',
+                      style: textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ],
-        ),
+        ],
       ),
     );
   }
 }
 
+/// Three steps derived from [MaintenanceTask.status] — replacing the
+/// previous hardcoded three-step pipeline with fixed fake timestamps that
+/// always showed "Work in progress" as the active step regardless of the
+/// task's real status (even for a completed or failed task).
 class _StatusPipeline extends StatelessWidget {
-  const _StatusPipeline();
+  const _StatusPipeline({required this.task});
+
+  final MaintenanceTask task;
 
   @override
   Widget build(BuildContext context) {
     final semantic = Theme.of(context).extension<AppSemanticColors>()!;
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+    final status = task.status;
+    final dispatched = status != MaintenanceTaskStatus.assigned;
+    final resolved =
+        status == MaintenanceTaskStatus.completed ||
+        status == MaintenanceTaskStatus.failed;
+
+    return GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _PipelineStep(
+            label: 'Assignment received by maintenance team',
+            timestamp: 'Logged',
+            color: semantic.success,
+            icon: AppIcons.statusResolved,
+            isActive: false,
+          ),
+          _PipelineStep(
+            label: 'Crew dispatched to site',
+            timestamp: dispatched ? 'Dispatched' : task.eta,
+            color: dispatched ? semantic.success : AppColors.statusAssigned,
+            icon: dispatched
+                ? AppIcons.statusResolved
+                : AppIcons.statusAssigned,
+            isActive: !dispatched,
+          ),
+          _PipelineStep(
+            label: status == MaintenanceTaskStatus.failed
+                ? 'Work attempted'
+                : 'Work in progress',
+            timestamp: resolved ? 'Complete' : 'Current field status',
+            color: resolved ? semantic.success : AppColors.statusInProgress,
+            icon: resolved ? AppIcons.statusResolved : AppIcons.activityPulse,
+            isActive: dispatched && !resolved,
+            isLast: !resolved,
+          ),
+          if (resolved)
             _PipelineStep(
-              label: 'Assignment received by maintenance team',
-              timestamp: 'Oct 12, 12:05 PM',
-              color: semantic.success,
-              icon: AppIcons.statusResolved,
-              isActive: false,
-            ),
-            _PipelineStep(
-              label: 'Crew dispatched to site',
-              timestamp: 'Oct 12, 12:30 PM',
-              color: semantic.success,
-              icon: AppIcons.statusResolved,
-              isActive: false,
-            ),
-            _PipelineStep(
-              label: 'Work in progress',
-              timestamp: 'Current field status',
-              color: AppColors.statusInProgress,
-              icon: AppIcons.statusInProgress,
+              label: status == MaintenanceTaskStatus.completed
+                  ? 'Task completed'
+                  : 'Task marked failed',
+              timestamp: task.completedAtLabel ?? 'Just now',
+              color: status == MaintenanceTaskStatus.completed
+                  ? semantic.success
+                  : semantic.error,
+              icon: status == MaintenanceTaskStatus.completed
+                  ? AppIcons.statusResolved
+                  : AppIcons.statusRejected,
               isActive: true,
               isLast: true,
             ),
-          ],
-        ),
+        ],
       ),
     );
   }
@@ -328,71 +359,8 @@ class _PipelineStep extends StatelessWidget {
   }
 }
 
-class _PriorityBadge extends StatelessWidget {
-  const _PriorityBadge({required this.color});
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xs,
-      ),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(AppRadius.xl),
-      ),
-      child: Text(
-        'High Priority',
-        style: Theme.of(context).textTheme.labelMedium?.copyWith(color: color),
-      ),
-    );
-  }
-}
-
-class _StatusBadge extends StatelessWidget {
-  const _StatusBadge({
-    required this.label,
-    required this.color,
-    required this.icon,
-  });
-  final String label;
-  final Color color;
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xs,
-      ),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(AppRadius.xl),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: AppIconSize.sm, color: color),
-          const SizedBox(width: AppSpacing.xs),
-          Text(
-            label,
-            style: Theme.of(
-              context,
-            ).textTheme.labelMedium?.copyWith(color: color),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _ReportPhotoTile extends StatelessWidget {
-  const _ReportPhotoTile({required this.imageUrl});
-
-  final String? imageUrl;
+  const _ReportPhotoTile();
 
   @override
   Widget build(BuildContext context) {
@@ -407,57 +375,74 @@ class _ReportPhotoTile extends StatelessWidget {
           color: colorScheme.surfaceContainerLow,
           borderRadius: AppComponentRadius.card,
         ),
-        child: imageUrl == null
-            ? Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(AppIcons.camera, color: colorScheme.onSurfaceVariant),
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(
-                    'Live report photo',
-                    style: textTheme.labelMedium?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              )
-            : Image.network(
-                imageUrl!,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      AppIcons.imageUnavailable,
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      'Photo unavailable',
-                      style: textTheme.labelMedium?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(AppIcons.camera, color: colorScheme.onSurfaceVariant),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              'Live report photo',
+              style: textTheme.labelMedium?.copyWith(
+                color: colorScheme.onSurfaceVariant,
               ),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
-class _ProblemLocationMap extends StatelessWidget {
-  const _ProblemLocationMap({required this.report});
+class _ProblemLocationMap extends StatefulWidget {
+  const _ProblemLocationMap({required this.task});
 
-  final _TaskReportDetails report;
+  final MaintenanceTask task;
+
+  @override
+  State<_ProblemLocationMap> createState() => _ProblemLocationMapState();
+}
+
+class _ProblemLocationMapState extends State<_ProblemLocationMap> {
+  /// Apple Maps' web URL doubles as a universal link — iOS offers its
+  /// native "Open in ..." chooser for it when other maps apps (Google
+  /// Maps, etc.) are installed and registered as handlers, rather than
+  /// forcing Apple Maps specifically. Android has no equivalent universal
+  /// link, but a bare `geo:` URI is handled the same way by whichever
+  /// map app(s) declare themselves a handler for it — straight to Google
+  /// Maps on the common case of just one being installed.
+  Future<void> _openInMaps(BuildContext context) async {
+    final task = widget.task;
+    final label = Uri.encodeComponent(task.locationLabel);
+    final uri = defaultTargetPlatform == TargetPlatform.iOS
+        ? Uri.parse(
+            'https://maps.apple.com/?ll=${task.latitude},${task.longitude}&q=$label',
+          )
+        : Uri.parse(
+            'geo:${task.latitude},${task.longitude}?q=${task.latitude},${task.longitude}($label)',
+          );
+
+    var launched = false;
+    try {
+      launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      launched = false;
+    }
+    if (!launched && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open a maps app on this device.')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final task = widget.task;
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-    final target = LatLng(report.latitude, report.longitude);
+    final target = LatLng(task.latitude, task.longitude);
 
-    return Card(
+    return GlassCard(
+      padding: EdgeInsets.zero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -465,11 +450,8 @@ class _ProblemLocationMap extends StatelessWidget {
             height: 176,
             width: double.infinity,
             clipBehavior: Clip.antiAlias,
-            decoration: BoxDecoration(
-              color: colorScheme.surfaceContainerLow,
-              borderRadius: const BorderRadius.vertical(
-                top: AppRadius.radiusMd,
-              ),
+            decoration: const BoxDecoration(
+              borderRadius: BorderRadius.vertical(top: AppRadius.radiusMd),
             ),
             child: Stack(
               children: [
@@ -482,7 +464,7 @@ class _ProblemLocationMap extends StatelessWidget {
                     Marker(
                       markerId: const MarkerId('maintenance-report-location'),
                       position: target,
-                      infoWindow: InfoWindow(title: report.locationLabel),
+                      infoWindow: InfoWindow(title: task.locationLabel),
                     ),
                   },
                   liteModeEnabled: true,
@@ -501,8 +483,7 @@ class _ProblemLocationMap extends StatelessWidget {
                   child: FilledButton.tonalIcon(
                     onPressed: () => Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (_) =>
-                            _ReportLocationMapScreen(report: report),
+                        builder: (_) => _ReportLocationMapScreen(task: task),
                       ),
                     ),
                     icon: const Icon(AppIcons.navigate),
@@ -514,33 +495,47 @@ class _ProblemLocationMap extends StatelessWidget {
           ),
           Padding(
             padding: const EdgeInsets.all(AppSpacing.md),
-            child: Row(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(
-                  AppIcons.location,
-                  size: AppIconSize.md,
-                  color: colorScheme.onSurfaceVariant,
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      AppIcons.location,
+                      size: AppIconSize.md,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            task.locationLabel,
+                            style: textTheme.bodyMedium?.copyWith(
+                              fontWeight: AppFontWeight.semiBold,
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.xs),
+                          Text(
+                            'Read-only report location from live report data.',
+                            style: textTheme.bodySmall?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        report.locationLabel,
-                        style: textTheme.bodyMedium?.copyWith(
-                          fontWeight: AppFontWeight.semiBold,
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.xs),
-                      Text(
-                        'Read-only report location from live report data.',
-                        style: textTheme.bodySmall?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
+                const SizedBox(height: AppSpacing.md),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => _openInMaps(context),
+                    icon: const Icon(AppIcons.navigate),
+                    label: const Text('Open in Maps'),
                   ),
                 ),
               ],
@@ -553,15 +548,15 @@ class _ProblemLocationMap extends StatelessWidget {
 }
 
 class _ReportLocationMapScreen extends StatelessWidget {
-  const _ReportLocationMapScreen({required this.report});
+  const _ReportLocationMapScreen({required this.task});
 
-  final _TaskReportDetails report;
+  final MaintenanceTask task;
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-    final target = LatLng(report.latitude, report.longitude);
+    final target = LatLng(task.latitude, task.longitude);
 
     return Scaffold(
       appBar: AppBar(
@@ -582,7 +577,7 @@ class _ReportLocationMapScreen extends StatelessWidget {
                 markerId: const MarkerId('maintenance-report-location-full'),
                 position: target,
                 infoWindow: InfoWindow(
-                  title: report.locationLabel,
+                  title: task.locationLabel,
                   snippet: 'Report pin',
                 ),
               ),
@@ -620,15 +615,15 @@ class _ReportLocationMapScreen extends StatelessWidget {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
-                              report.locationLabel,
+                              task.locationLabel,
                               style: textTheme.bodyMedium?.copyWith(
                                 fontWeight: AppFontWeight.semiBold,
                               ),
                             ),
                             const SizedBox(height: AppSpacing.xs),
                             Text(
-                              '${report.latitude.toStringAsFixed(5)}, '
-                              '${report.longitude.toStringAsFixed(5)}',
+                              '${task.latitude.toStringAsFixed(5)}, '
+                              '${task.longitude.toStringAsFixed(5)}',
                               style: textTheme.bodySmall?.copyWith(
                                 color: colorScheme.onSurfaceVariant,
                               ),
@@ -643,214 +638,6 @@ class _ReportLocationMapScreen extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _TaskReportDetails {
-  const _TaskReportDetails({
-    required this.title,
-    required this.description,
-    required this.locationLabel,
-    required this.latitude,
-    required this.longitude,
-    required this.photoUrls,
-  });
-
-  final String title;
-  final String description;
-  final String locationLabel;
-  final double latitude;
-  final double longitude;
-  final List<String> photoUrls;
-}
-
-class _LoadingView extends StatelessWidget {
-  const _LoadingView();
-  @override
-  Widget build(BuildContext context) => Center(
-    child: Padding(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const CircularProgressIndicator(),
-          const SizedBox(height: AppSpacing.md),
-          Text(
-            'Loading task details',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            'Syncing issue information, photos, map, and timeline.',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ],
-      ),
-    ),
-  );
-}
-
-class _ErrorView extends StatelessWidget {
-  const _ErrorView({required this.onRetry});
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    final semantic = Theme.of(context).extension<AppSemanticColors>()!;
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(AppIcons.error, size: AppIconSize.xl, color: semantic.error),
-            const SizedBox(height: AppSpacing.md),
-            Text(
-              'Unable to load task',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              'Try again without changing the maintenance workflow.',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: semantic.error),
-              onPressed: onRetry,
-              child: const Text('Retry'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _OfflineView extends StatelessWidget {
-  const _OfflineView({required this.onRetry});
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    final semantic = Theme.of(context).extension<AppSemanticColors>()!;
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              AppIcons.offline,
-              size: AppIconSize.xl,
-              color: semantic.warning,
-            ),
-            const SizedBox(height: AppSpacing.md),
-            Text('Offline', style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              'Reconnect to update progress or load evidence.',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: semantic.warning),
-              onPressed: onRetry,
-              child: const Text('Retry'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _PermissionView extends StatelessWidget {
-  const _PermissionView({required this.onRetry});
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              AppIcons.permissionDenied,
-              size: AppIconSize.xl,
-              color: colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(height: AppSpacing.md),
-            Text(
-              'Permission required',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              'Maintenance access is required to view this assigned task.',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            FilledButton(onPressed: onRetry, child: const Text('Retry')),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _EmptyView extends StatelessWidget {
-  const _EmptyView({required this.onRetry});
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              AppIcons.empty,
-              size: AppIconSize.xl,
-              color: colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(height: AppSpacing.md),
-            Text(
-              'No task details',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              'No assigned task information is available.',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            FilledButton(onPressed: onRetry, child: const Text('Retry')),
-          ],
-        ),
       ),
     );
   }

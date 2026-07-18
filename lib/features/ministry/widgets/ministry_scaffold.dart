@@ -20,7 +20,7 @@ import '../../../widgets/glass_bar.dart';
 /// (externally reviewed and confirmed correct) pattern rather than
 /// occupying a fifth tab slot.
 enum MinistryTab {
-  dashboard(label: 'Dashboard', icon: AppIcons.home, headerTitle: 'CivicVoice'),
+  dashboard(label: 'Home', icon: AppIcons.home, headerTitle: 'CivicVoice'),
   analytics(
     label: 'Analytics',
     icon: AppIcons.analytics,
