@@ -408,6 +408,17 @@ class ApiClient {
     return (result['users'] as List).cast<Map<String, dynamic>>();
   }
 
+  Future<List<Map<String, dynamic>>> listAdminActivity({
+    required String idToken,
+  }) async {
+    final result = await _get('/api/admin/activity', idToken: idToken);
+    return (result['activity'] as List).cast<Map<String, dynamic>>();
+  }
+
+  Future<Map<String, dynamic>> getAdminHealth({required String idToken}) async {
+    return _get('/api/admin/health', idToken: idToken);
+  }
+
   Future<List<Map<String, dynamic>>> listMinistryMunicipalContacts({
     required String idToken,
   }) async {

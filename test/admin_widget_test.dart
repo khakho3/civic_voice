@@ -96,6 +96,7 @@ void main() {
       // wordmark text — that now lives only in the drawer.
       expect(find.image(const AssetImage(AppAssets.logoApp)), findsOneWidget);
       expect(find.text('Platform Overview'), findsOneWidget);
+      expect(find.text('API: Online'), findsOneWidget);
 
       // "System Settings" labels only the Management row now — the top
       // CTA button was dropped as a redundant path to the same
@@ -367,6 +368,7 @@ void main() {
       // "Efua Darko" is the seeded Admin-tier account for Kumasi.
       expect(find.text('Good Morning, Efua Darko'), findsOneWidget);
       expect(find.text('Kumasi Metropolitan Assembly'), findsOneWidget);
+      expect(find.textContaining('API:'), findsNothing);
     },
   );
 
@@ -1489,7 +1491,7 @@ void main() {
       expect(find.text('DB Latency'), findsOneWidget);
       expect(find.text('42ms'), findsOneWidget);
       expect(find.text('Uptime'), findsOneWidget);
-      expect(find.text('99.98%'), findsOneWidget);
+      expect(find.text('4d 6h'), findsOneWidget);
       expect(find.text('All Events'), findsOneWidget);
       expect(find.text('System Updates'), findsOneWidget);
       // "User Modifications" — the third, widest chip — sits beyond the

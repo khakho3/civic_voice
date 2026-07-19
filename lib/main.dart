@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -23,6 +25,7 @@ import 'features/admin/screens/admin_user_management_screen.dart';
 import 'features/admin/services/admin_maintenance_team_directory.dart';
 import 'features/admin/services/admin_session.dart';
 import 'features/admin/services/admin_user_directory.dart';
+import 'features/admin/services/admin_system_activity_directory.dart';
 import 'features/authentication/screens/change_password_screen.dart';
 import 'features/authentication/screens/forgot_password_screen.dart';
 import 'features/authentication/screens/login_screen.dart';
@@ -93,6 +96,7 @@ import 'models/assembly.dart';
 import 'models/ghana_assemblies_data.dart';
 import 'models/region.dart';
 import 'services/api_client.dart';
+import 'services/app_cache_service.dart';
 import 'services/idle_session_timer.dart';
 import 'services/mock_auth_service.dart';
 import 'services/notification_directory.dart';
@@ -101,9 +105,14 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   await ThemeController.loadSavedTheme();
+  await AppCacheService.instance.initialize();
   await MockAuthService().initialize();
   await NotificationDirectory.instance.initialize();
   await _restorePersistedSession();
+  if (MockAuthService().getCurrentRole() != null &&
+      !AppCacheService.instance.onboardingComplete) {
+    await AppCacheService.instance.markOnboardingComplete();
+  }
   await _configurePushNotifications();
   runApp(const CivicVoiceApp());
 }
@@ -229,6 +238,7 @@ Future<void> _restorePersistedSession() async {
       AdminUserDirectory.instance.currentApiUserId = syncedUser.id;
       await AdminUserDirectory.instance.refresh();
       await MaintenanceTeamDirectory.instance.refreshForAdmin();
+      await AdminSystemActivityDirectory.instance.refresh();
     }
   } catch (_) {
     // Firebase keeps the credential. Preserve the last known role so a
@@ -444,6 +454,14 @@ class _CivicVoiceAppState extends State<CivicVoiceApp> {
             // and route table stay the same.
             routes: {
               AppRoutes.welcome: (context) => WelcomeScreen(
+                initialPage:
+                    widget.initialRoute == null &&
+                        AppCacheService.instance.onboardingComplete
+                    ? 2
+                    : 0,
+                onOnboardingCompleted: () => unawaited(
+                  AppCacheService.instance.markOnboardingComplete(),
+                ),
                 onGetStarted: () =>
                     Navigator.of(context).pushNamed(AppRoutes.registration),
                 onContinueAsGuest: () =>
@@ -868,6 +886,7 @@ class _LoginRouteState extends State<_LoginRoute> {
         AdminUserDirectory.instance.currentApiUserId = syncedUser.id;
         await AdminUserDirectory.instance.refresh();
         await MaintenanceTeamDirectory.instance.refreshForAdmin();
+        await AdminSystemActivityDirectory.instance.refresh();
       }
       if (!context.mounted) return;
       _completeSignIn(context);
@@ -1293,22 +1312,27 @@ MaintenanceTeam? _maintenanceTeamFromSettings(
 }
 
 Widget _adminDashboard(BuildContext context) {
-  return _withSwitchRoleButton(
-    context,
-    AdminDashboardScreen(
-      onNavigateToUsers: () =>
-          _replaceWith(context, AppRoutes.adminUserManagement),
-      onNavigateToRoles: () =>
-          Navigator.of(context).pushNamed(AppRoutes.adminRoleManagement),
-      onNavigateToSettings: () =>
-          _replaceWith(context, AppRoutes.adminSystemSettings),
-      onNavigateToActivity: () =>
-          _replaceWith(context, AppRoutes.adminSystemActivity),
-      onNavigateToMaintenanceTeams: () =>
-          Navigator.of(context).pushNamed(AppRoutes.adminMaintenanceTeams),
-      onOpenProfile: () =>
-          Navigator.of(context).pushNamed(AppRoutes.adminProfile),
-      onNotificationsTap: () => _openAdminNotifications(context),
+  return ValueListenableBuilder(
+    valueListenable: AdminSystemActivityDirectory.instance.health,
+    builder: (context, health, _) => _withSwitchRoleButton(
+      context,
+      AdminDashboardScreen(
+        healthStats: health,
+        onRefreshHealth: AdminSystemActivityDirectory.instance.refreshHealth,
+        onNavigateToUsers: () =>
+            _replaceWith(context, AppRoutes.adminUserManagement),
+        onNavigateToRoles: () =>
+            Navigator.of(context).pushNamed(AppRoutes.adminRoleManagement),
+        onNavigateToSettings: () =>
+            _replaceWith(context, AppRoutes.adminSystemSettings),
+        onNavigateToActivity: () =>
+            _replaceWith(context, AppRoutes.adminSystemActivity),
+        onNavigateToMaintenanceTeams: () =>
+            Navigator.of(context).pushNamed(AppRoutes.adminMaintenanceTeams),
+        onOpenProfile: () =>
+            Navigator.of(context).pushNamed(AppRoutes.adminProfile),
+        onNotificationsTap: () => _openAdminNotifications(context),
+      ),
     ),
   );
 }
@@ -1471,23 +1495,34 @@ Widget _adminRoleManagement(BuildContext context) {
 }
 
 Widget _adminSystemActivity(BuildContext context) {
-  return AdminSystemActivityScreen(
-    // Both tiers reach a real loaded feed — an assembly Admin's own is
-    // scoped down to their jurisdiction and drops the health stats, both
-    // handled inside the screen itself via AdminSession. See
-    // AdminSystemActivityScreen's own doc comment.
-    onNavigateToDashboard: () =>
-        _replaceWith(context, AppRoutes.adminDashboard),
-    onNavigateToUsers: () =>
-        _replaceWith(context, AppRoutes.adminUserManagement),
-    onNavigateToRoles: () =>
-        Navigator.of(context).pushNamed(AppRoutes.adminRoleManagement),
-    onNavigateToSettings: () =>
-        _replaceWith(context, AppRoutes.adminSystemSettings),
-    onNavigateToMaintenanceTeams: () =>
-        Navigator.of(context).pushNamed(AppRoutes.adminMaintenanceTeams),
-    onOpenProfile: () =>
-        Navigator.of(context).pushNamed(AppRoutes.adminProfile),
+  return AnimatedBuilder(
+    animation: Listenable.merge([
+      AdminSystemActivityDirectory.instance.items,
+      AdminSystemActivityDirectory.instance.health,
+    ]),
+    builder: (context, _) => AdminSystemActivityScreen(
+      items: AdminSystemActivityDirectory.instance.hasLiveSnapshot
+          ? AdminSystemActivityDirectory.instance.items.value
+          : null,
+      healthStats: AdminSystemActivityDirectory.instance.health.value,
+      onRefresh: AdminSystemActivityDirectory.instance.refresh,
+      // Both tiers reach a real loaded feed — an assembly Admin's own is
+      // scoped down to their jurisdiction and drops the health stats, both
+      // handled inside the screen itself via AdminSession. See
+      // AdminSystemActivityScreen's own doc comment.
+      onNavigateToDashboard: () =>
+          _replaceWith(context, AppRoutes.adminDashboard),
+      onNavigateToUsers: () =>
+          _replaceWith(context, AppRoutes.adminUserManagement),
+      onNavigateToRoles: () =>
+          Navigator.of(context).pushNamed(AppRoutes.adminRoleManagement),
+      onNavigateToSettings: () =>
+          _replaceWith(context, AppRoutes.adminSystemSettings),
+      onNavigateToMaintenanceTeams: () =>
+          Navigator.of(context).pushNamed(AppRoutes.adminMaintenanceTeams),
+      onOpenProfile: () =>
+          Navigator.of(context).pushNamed(AppRoutes.adminProfile),
+    ),
   );
 }
 

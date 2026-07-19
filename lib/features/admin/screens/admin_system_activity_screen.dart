@@ -112,6 +112,9 @@ class AdminSystemActivityScreen extends StatefulWidget {
     this.onNavigateToMaintenanceTeams,
     this.onOpenProfile,
     this.onNotificationsTap,
+    this.items,
+    this.healthStats,
+    this.onRefresh,
   });
 
   final AdminSystemActivityViewState initialState;
@@ -129,6 +132,9 @@ class AdminSystemActivityScreen extends StatefulWidget {
   final VoidCallback? onOpenProfile;
 
   final VoidCallback? onNotificationsTap;
+  final List<ActivityItem>? items;
+  final SystemHealthStats? healthStats;
+  final Future<void> Function()? onRefresh;
 
   @override
   State<AdminSystemActivityScreen> createState() =>
@@ -137,20 +143,41 @@ class AdminSystemActivityScreen extends StatefulWidget {
 
 class _AdminSystemActivityScreenState extends State<AdminSystemActivityScreen> {
   late AdminSystemActivityViewState _state = widget.initialState;
-  final SystemHealthStats _healthStats = mockSystemHealthStats();
-  final List<ActivityItem> _items = AdminSession.instance.visibleActivity(
-    mockActivityItems(),
-  );
+  SystemHealthStats? get _healthStats =>
+      widget.healthStats ??
+      (widget.items == null ? mockSystemHealthStats() : null);
+  List<ActivityItem> get _items =>
+      widget.items ??
+      AdminSession.instance.visibleActivity(mockActivityItems());
   ActivityFilter _filter = ActivityFilter.all;
   ActivityTimeRange _timeRange = ActivityTimeRange.last24Hours;
 
-  void _retry() {
+  @override
+  void initState() {
+    super.initState();
+    if (widget.onRefresh != null &&
+        widget.initialState == AdminSystemActivityViewState.loaded) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        try {
+          await widget.onRefresh?.call();
+        } catch (_) {
+          if (mounted) {
+            setState(() => _state = AdminSystemActivityViewState.error);
+          }
+        }
+      });
+    }
+  }
+
+  Future<void> _retry() async {
     setState(() => _state = AdminSystemActivityViewState.loading);
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (mounted) {
-        setState(() => _state = AdminSystemActivityViewState.loaded);
-      }
-    });
+    try {
+      await (widget.onRefresh?.call() ??
+          Future<void>.delayed(const Duration(milliseconds: 500)));
+      if (mounted) setState(() => _state = AdminSystemActivityViewState.loaded);
+    } catch (_) {
+      if (mounted) setState(() => _state = AdminSystemActivityViewState.error);
+    }
   }
 
   void _clearFilters() {
@@ -198,6 +225,7 @@ class _AdminSystemActivityScreenState extends State<AdminSystemActivityScreen> {
                 child: _ActivityList(
                   healthStats: _healthStats,
                   items: _items,
+                  liveAudit: widget.items != null,
                   filter: _filter,
                   timeRange: _timeRange,
                   onClearFilters: _clearFilters,
@@ -389,7 +417,12 @@ class _HealthStatsRow extends StatelessWidget {
             child: _HealthStatCard(
               icon: AppIcons.database,
               label: 'DB Latency',
-              value: '${stats.dbLatencyMs}ms',
+              value: stats.databaseOnline
+                  ? '${stats.dbLatencyMs}ms'
+                  : 'Offline',
+              valueColor: stats.databaseOnline
+                  ? AppColors.statusResolved
+                  : AppColors.error,
             ),
           ),
           const SizedBox(width: AppSpacing.sm),
@@ -397,7 +430,7 @@ class _HealthStatsRow extends StatelessWidget {
             child: _HealthStatCard(
               icon: AppIcons.resolutionGauge,
               label: 'Uptime',
-              value: '${stats.uptimePercent.toStringAsFixed(2)}%',
+              value: stats.uptimeLabel,
               valueColor: AppColors.statusResolved,
             ),
           ),
@@ -564,18 +597,21 @@ class _ActivityList extends StatelessWidget {
     required this.filter,
     required this.timeRange,
     required this.onClearFilters,
+    required this.liveAudit,
   });
 
-  final SystemHealthStats healthStats;
+  final SystemHealthStats? healthStats;
   final List<ActivityItem> items;
   final ActivityFilter filter;
   final ActivityTimeRange timeRange;
   final VoidCallback onClearFilters;
+  final bool liveAudit;
 
   @override
   Widget build(BuildContext context) {
     final bottomInset = AdminScaffold.contentPadding(context).bottom;
     final auditLoggingOn =
+        liveAudit ||
         AdminSystemSettingsDirectory.instance.settings.value.auditLogging;
     final filtered = items
         .where((i) => filter.matches(i) && i.matchesTimeRange(timeRange))
@@ -593,8 +629,8 @@ class _ActivityList extends StatelessWidget {
         bottomInset + AppSpacing.xl,
       ),
       children: [
-        if (AdminSession.instance.isSuperAdmin) ...[
-          _HealthStatsRow(stats: healthStats),
+        if (AdminSession.instance.isSuperAdmin && healthStats != null) ...[
+          _HealthStatsRow(stats: healthStats!),
           const SizedBox(height: AppSpacing.md),
         ],
         if (!auditLoggingOn)

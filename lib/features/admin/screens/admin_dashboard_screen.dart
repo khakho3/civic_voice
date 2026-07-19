@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
@@ -6,6 +8,7 @@ import '../../../widgets/app_state_message.dart';
 import '../../../widgets/glass_card.dart';
 import '../models/admin_dashboard_data.dart';
 import '../models/admin_profile_data.dart';
+import '../models/admin_system_activity_data.dart';
 import '../services/admin_session.dart';
 import '../services/admin_user_directory.dart';
 import '../widgets/admin_scaffold.dart';
@@ -62,6 +65,8 @@ class AdminDashboardScreen extends StatefulWidget {
     this.onNavigateToMaintenanceTeams,
     this.onOpenProfile,
     this.onNotificationsTap,
+    this.healthStats,
+    this.onRefreshHealth,
   });
 
   final AdminDashboardViewState initialState;
@@ -91,6 +96,8 @@ class AdminDashboardScreen extends StatefulWidget {
   final VoidCallback? onOpenProfile;
 
   final VoidCallback? onNotificationsTap;
+  final SystemHealthStats? healthStats;
+  final Future<void> Function()? onRefreshHealth;
 
   @override
   State<AdminDashboardScreen> createState() => _AdminDashboardScreenState();
@@ -99,6 +106,26 @@ class AdminDashboardScreen extends StatefulWidget {
 class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   late AdminDashboardViewState _state = widget.initialState;
   AdminDashboardData _data = AdminDashboardData.current();
+  Timer? _healthTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    if (AdminSession.instance.isSuperAdmin && widget.onRefreshHealth != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        widget.onRefreshHealth?.call();
+      });
+      _healthTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+        widget.onRefreshHealth?.call();
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _healthTimer?.cancel();
+    super.dispose();
+  }
 
   Future<void> _retry() async {
     setState(() => _state = AdminDashboardViewState.loading);
@@ -135,12 +162,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         AdminDashboardViewState.loading => const _LoadingSkeleton(),
         _ => _DashboardBody(
           state: _state,
-          data: _data,
+          data: _state == AdminDashboardViewState.loaded
+              ? AdminDashboardData.current()
+              : _data,
           onRetry: _retry,
           onNavigateToUsers: widget.onNavigateToUsers,
           onNavigateToRoles: widget.onNavigateToRoles,
           onNavigateToSettings: widget.onNavigateToSettings,
           onNavigateToActivity: widget.onNavigateToActivity,
+          healthStats: widget.healthStats,
         ),
       },
     );
@@ -160,6 +190,7 @@ class _DashboardBody extends StatelessWidget {
     this.onNavigateToRoles,
     this.onNavigateToSettings,
     this.onNavigateToActivity,
+    this.healthStats,
   });
 
   final AdminDashboardViewState state;
@@ -169,6 +200,7 @@ class _DashboardBody extends StatelessWidget {
   final VoidCallback? onNavigateToRoles;
   final VoidCallback? onNavigateToSettings;
   final VoidCallback? onNavigateToActivity;
+  final SystemHealthStats? healthStats;
 
   @override
   Widget build(BuildContext context) {
@@ -187,7 +219,20 @@ class _DashboardBody extends StatelessWidget {
         Opacity(
           opacity: loaded ? 1 : 0.5,
           child: AdminSession.instance.isSuperAdmin
-              ? Text('Platform Overview', style: textTheme.headlineSmall)
+              ? Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Platform Overview',
+                        style: textTheme.headlineSmall,
+                      ),
+                    ),
+                    _ApiStatusBadge(
+                      stats: healthStats ?? mockSystemHealthStats(),
+                      onTap: onNavigateToActivity,
+                    ),
+                  ],
+                )
               : _AdminGreeting(assembly: AdminSession.instance.assembly),
         ),
         const SizedBox(height: AppSpacing.xl),
@@ -239,6 +284,91 @@ class _DashboardBody extends StatelessWidget {
           ),
         },
       ],
+    );
+  }
+}
+
+class _ApiStatusBadge extends StatefulWidget {
+  const _ApiStatusBadge({required this.stats, this.onTap});
+
+  final SystemHealthStats stats;
+  final VoidCallback? onTap;
+
+  @override
+  State<_ApiStatusBadge> createState() => _ApiStatusBadgeState();
+}
+
+class _ApiStatusBadgeState extends State<_ApiStatusBadge>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1400),
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final online = widget.stats.apiOnline && widget.stats.databaseOnline;
+    final color = online ? AppColors.statusResolved : AppColors.error;
+    final reduceMotion =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    return Material(
+      color: color.withValues(alpha: 0.1),
+      shape: StadiumBorder(
+        side: BorderSide(color: color.withValues(alpha: 0.3)),
+      ),
+      child: InkWell(
+        customBorder: const StadiumBorder(),
+        onTap: widget.onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.sm,
+            vertical: AppSpacing.xs,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AnimatedBuilder(
+                animation: _controller,
+                builder: (context, _) => Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: color,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: color.withValues(
+                          alpha: reduceMotion
+                              ? 0.25
+                              : 0.15 + (_controller.value * 0.35),
+                        ),
+                        blurRadius: reduceMotion
+                            ? 4
+                            : 4 + (_controller.value * 6),
+                        spreadRadius: reduceMotion ? 0 : _controller.value * 2,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              Text(
+                'API: ${online ? 'Online' : 'Offline'}',
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: color,
+                  fontWeight: AppFontWeight.semiBold,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -418,40 +548,38 @@ class _LoadedContent extends StatelessWidget {
         // Admin-only for that reason, not because the destination itself
         // is gated anymore — see AdminSession.visibleActivity's own doc
         // comment for how an assembly Admin's own feed now works.
-        if (AdminSession.instance.isSuperAdmin) ...[
-          const SizedBox(height: AppSpacing.xl),
-          GlassCard(
-            onTap: onNavigateToActivity,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Activity Monitoring',
-                        style: textTheme.titleMedium,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+        const SizedBox(height: AppSpacing.xl),
+        GlassCard(
+          onTap: onNavigateToActivity,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Activity Monitoring',
+                      style: textTheme.titleMedium,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    Icon(
-                      AppIcons.activityLog,
-                      size: AppIconSize.md,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.md),
-                for (var i = 0; i < data.activity.length; i++) ...[
-                  _ActivityRow(index: i + 1, item: data.activity[i]),
-                  if (i != data.activity.length - 1)
-                    const SizedBox(height: AppSpacing.md),
+                  ),
+                  Icon(
+                    AppIcons.activityLog,
+                    size: AppIconSize.md,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ],
+              ),
+              const SizedBox(height: AppSpacing.md),
+              for (var i = 0; i < data.activity.length; i++) ...[
+                _ActivityRow(index: i + 1, item: data.activity[i]),
+                if (i != data.activity.length - 1)
+                  const SizedBox(height: AppSpacing.md),
               ],
-            ),
+            ],
           ),
-        ],
+        ),
       ],
     );
   }

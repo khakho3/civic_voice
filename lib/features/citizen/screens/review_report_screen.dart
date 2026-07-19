@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../models/region.dart';
+import '../../../services/app_cache_service.dart';
 import '../../../services/api_client.dart';
 import '../widgets/civic_glass_card.dart';
 import '../services/report_crud_service.dart';
@@ -59,6 +60,7 @@ class ReviewReportScreen extends StatelessWidget {
           photoPaths: [for (final photo in photos) photo.path],
         ),
       );
+      await AppCacheService.instance.clearReportDraft();
       if (!context.mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute<void>(

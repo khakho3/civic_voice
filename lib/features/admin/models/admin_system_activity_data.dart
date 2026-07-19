@@ -70,6 +70,7 @@ enum ActivitySeverity {
 /// One row in the "Recent Activity" audit feed.
 class ActivityItem {
   const ActivityItem({
+    this.id,
     required this.title,
     required this.description,
     required this.timestamp,
@@ -78,6 +79,8 @@ class ActivityItem {
     required this.tag,
     this.assembly,
   });
+
+  final String? id;
 
   final String title;
   final String description;
@@ -102,25 +105,85 @@ class ActivityItem {
   final Assembly? assembly;
 
   bool matchesTimeRange(ActivityTimeRange range) => range.includes(timestamp);
+
+  factory ActivityItem.fromApi(Map<String, dynamic> json) {
+    final regionName = json['region'] as String?;
+    final region = Region.values.cast<Region?>().firstWhere(
+      (item) => item?.name == regionName,
+      orElse: () => null,
+    );
+    final assemblyName = json['assembly'] as String?;
+    Assembly? assembly;
+    if (region != null && assemblyName != null) {
+      assembly = ghanaAssemblies[region]?.cast<Assembly?>().firstWhere(
+        (item) => item?.name == assemblyName,
+        orElse: () => null,
+      );
+    }
+    return ActivityItem(
+      id: json['id'] as String?,
+      title: json['title'] as String? ?? 'System activity',
+      description: json['description'] as String? ?? '',
+      timestamp:
+          DateTime.tryParse(json['createdAt'] as String? ?? '')?.toLocal() ??
+          DateTime.now(),
+      severity: switch (json['severity']) {
+        'CRITICAL' => ActivitySeverity.critical,
+        'ALERT' => ActivitySeverity.alert,
+        'STANDARD' => ActivitySeverity.standard,
+        _ => ActivitySeverity.info,
+      },
+      category: json['category'] == 'SYSTEM_UPDATE'
+          ? ActivityCategory.systemUpdate
+          : ActivityCategory.userModification,
+      tag: json['tag'] as String? ?? 'Administration',
+      assembly: assembly,
+    );
+  }
 }
 
 /// Live system-health readings at the top of the screen — API reachability,
 /// database latency, uptime. Distinct from the audit feed below it: these
 /// are infrastructure signals a Super Admin checks at a glance, not
 /// counts derived from [ActivityItem]s. Moved here from ADM-001 Admin
-/// Dashboard (which dropped its own "API Status" badge entirely) — a
-/// national-scope health readout belongs on the system-level screen, not
-/// the general overview every admin (including assembly-scoped ones) sees.
+/// Dashboard. The dashboard keeps only the compact online/offline badge;
+/// detailed latency and uptime belong on this system-level screen and remain
+/// restricted to Super Admins.
 class SystemHealthStats {
   const SystemHealthStats({
     required this.apiOnline,
     required this.dbLatencyMs,
-    required this.uptimePercent,
+    required this.databaseOnline,
+    required this.uptimeSeconds,
+    this.checkedAt,
   });
 
   final bool apiOnline;
   final int dbLatencyMs;
-  final double uptimePercent;
+  final bool databaseOnline;
+  final int uptimeSeconds;
+  final DateTime? checkedAt;
+
+  String get uptimeLabel {
+    final days = uptimeSeconds ~/ Duration.secondsPerDay;
+    final hours =
+        (uptimeSeconds % Duration.secondsPerDay) ~/ Duration.secondsPerHour;
+    final minutes =
+        (uptimeSeconds % Duration.secondsPerHour) ~/ Duration.secondsPerMinute;
+    if (days > 0) return '${days}d ${hours}h';
+    if (hours > 0) return '${hours}h ${minutes}m';
+    return '${minutes}m';
+  }
+
+  factory SystemHealthStats.fromApi(Map<String, dynamic> json) {
+    return SystemHealthStats(
+      apiOnline: json['apiOnline'] as bool? ?? false,
+      databaseOnline: json['databaseOnline'] as bool? ?? false,
+      dbLatencyMs: (json['dbLatencyMs'] as num?)?.round() ?? 0,
+      uptimeSeconds: (json['uptimeSeconds'] as num?)?.round() ?? 0,
+      checkedAt: DateTime.tryParse(json['checkedAt'] as String? ?? ''),
+    );
+  }
 }
 
 /// Placeholder content, used until a real health-check service is wired up.
@@ -128,7 +191,8 @@ SystemHealthStats mockSystemHealthStats() {
   return const SystemHealthStats(
     apiOnline: true,
     dbLatencyMs: 42,
-    uptimePercent: 99.98,
+    databaseOnline: true,
+    uptimeSeconds: 367200,
   );
 }
 

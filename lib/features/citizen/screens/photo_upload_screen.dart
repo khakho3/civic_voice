@@ -1,12 +1,16 @@
 import 'dart:io';
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../models/region.dart';
+import '../../../services/app_cache_service.dart';
 import '../widgets/civic_glass_card.dart';
+import '../models/report_draft.dart';
 import '../models/photo_upload_view_state.dart';
 import '../widgets/civic_app_chrome.dart';
 import 'citizen_alerts_screen.dart';
@@ -62,7 +66,10 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
   @override
   void initState() {
     super.initState();
-    _photos = List<XFile>.of(widget.initialPhotos);
+    final cachedPaths = AppCacheService.instance.reportDraft?.photoPaths;
+    _photos = widget.initialPhotos.isNotEmpty
+        ? List<XFile>.of(widget.initialPhotos)
+        : [for (final path in cachedPaths ?? const <String>[]) XFile(path)];
     _state = _photos.isEmpty ? PhotoUploadViewState.empty : widget.initialState;
     WidgetsBinding.instance.addPostFrameCallback((_) => _recoverLostData());
   }
@@ -88,6 +95,7 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
         _photos.addAll(recovered.take(remaining));
         _state = PhotoUploadViewState.uploadComplete;
       });
+      unawaited(_persistPhotos());
     } catch (_) {
       if (!mounted) return;
       setState(() => _state = PhotoUploadViewState.uploadFailed);
@@ -117,6 +125,7 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
         _photos.add(photo);
         _state = PhotoUploadViewState.uploadComplete;
       });
+      await _persistPhotos();
     } on PlatformException {
       if (!mounted) return;
       setState(() => _state = PhotoUploadViewState.cameraDenied);
@@ -149,6 +158,7 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
         _photos.addAll(selected.take(remaining));
         _state = PhotoUploadViewState.uploadComplete;
       });
+      await _persistPhotos();
     } on PlatformException {
       if (!mounted) return;
       setState(() => _state = PhotoUploadViewState.galleryDenied);
@@ -165,6 +175,27 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
           ? PhotoUploadViewState.empty
           : PhotoUploadViewState.uploadComplete;
     });
+    unawaited(_persistPhotos());
+  }
+
+  Future<void> _persistPhotos() async {
+    final cached = AppCacheService.instance.reportDraft;
+    final draft =
+        cached ??
+        ReportDraft(
+          title: widget.reportTitle ?? '',
+          description: widget.reportDescription ?? '',
+          category: widget.reportCategory ?? '',
+          location: widget.reportLocationLabel ?? '',
+          community: widget.reportCommunity ?? '',
+          latitude: widget.reportLatitude,
+          longitude: widget.reportLongitude,
+          region: widget.reportRegion,
+          assembly: widget.reportAssembly,
+        );
+    await AppCacheService.instance.saveReportPhotos(draft, [
+      for (final photo in _photos) photo.path,
+    ]);
   }
 
   void _openReview() {

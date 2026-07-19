@@ -150,6 +150,26 @@ void main() {
     expect(find.byType(CitizenDashboardScreen), findsOneWidget);
   });
 
+  testWidgets('completed onboarding opens directly on the action slide', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: WelcomeScreen(
+          initialPage: 2,
+          onGetStarted: () {},
+          onContinueAsGuest: () {},
+          onLogin: () {},
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Resolve.'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Get Started'), findsOneWidget);
+  });
+
   testWidgets('Login to Forgot Password flow', (WidgetTester tester) async {
     await tester.pumpWidget(const CivicVoiceApp(initialRoute: AppRoutes.login));
     await tester.pump();

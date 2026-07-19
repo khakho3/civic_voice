@@ -1,4 +1,6 @@
 import '../services/admin_user_directory.dart';
+import '../services/admin_system_activity_directory.dart';
+import 'admin_system_activity_data.dart';
 import 'admin_user_management_data.dart';
 
 /// The four Platform Overview stat cards.
@@ -78,22 +80,34 @@ class AdminDashboardData {
     final activeUsers = users
         .where((user) => user.status == AdminUserStatus.active)
         .toList();
+    final auditItems = AdminSystemActivityDirectory.instance.items.value;
+    final recentAuditItems = auditItems
+        .where(
+          (item) =>
+              DateTime.now().difference(item.timestamp) <=
+              const Duration(hours: 24),
+        )
+        .toList();
     return AdminDashboardData(
       stats: AdminDashboardStats(
         totalUsers: users.length,
         totalUsersChangePercent: 0,
         activeRoles: activeUsers.map((user) => user.role).toSet().length,
         activeRolesChangePercent: 0,
-        adminActionsLabel: '0',
-        openAlerts: users
-            .where((user) => user.status != AdminUserStatus.active)
+        adminActionsLabel: '${recentAuditItems.length}',
+        openAlerts: auditItems
+            .where(
+              (item) =>
+                  item.severity == ActivitySeverity.alert ||
+                  item.severity == ActivitySeverity.critical,
+            )
             .length,
       ),
       activity: [
-        for (final user in users.take(3))
+        for (final item in auditItems.take(3))
           AdminActivityItem(
-            title: '${user.name} · ${user.role.label}',
-            caption: 'Account created · ${user.status.label}',
+            title: item.title,
+            caption: '${item.tag} · ${item.severity.label}',
           ),
       ],
     );

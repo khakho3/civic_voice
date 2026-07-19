@@ -1,4 +1,5 @@
 import 'package:civic_voice/features/admin/models/admin_role_management_data.dart';
+import 'package:civic_voice/features/admin/models/admin_system_activity_data.dart';
 import 'package:civic_voice/features/admin/models/admin_user_management_data.dart';
 import 'package:civic_voice/models/app_role.dart';
 import 'package:civic_voice/models/region.dart';
@@ -43,5 +44,44 @@ void main() {
     });
 
     expect(user.adminTier, AdminTier.superAdmin);
+  });
+
+  test(
+    'maps a scoped audit event into its municipality and display values',
+    () {
+      final item = ActivityItem.fromApi({
+        'id': 'audit-1',
+        'title': 'Report status updated',
+        'description': 'A report was accepted for review.',
+        'severity': 'ALERT',
+        'category': 'SYSTEM_UPDATE',
+        'tag': 'Reports',
+        'region': 'greaterAccra',
+        'assembly': 'Accra',
+        'createdAt': '2026-07-19T10:15:00.000Z',
+      });
+
+      expect(item.id, 'audit-1');
+      expect(item.severity, ActivitySeverity.alert);
+      expect(item.category, ActivityCategory.systemUpdate);
+      expect(item.assembly?.name, 'Accra');
+      expect(item.tag, 'Reports');
+    },
+  );
+
+  test('maps live platform health and formats process uptime', () {
+    final health = SystemHealthStats.fromApi({
+      'apiOnline': true,
+      'databaseOnline': true,
+      'dbLatencyMs': 12.4,
+      'uptimeSeconds': 367200,
+      'checkedAt': '2026-07-19T10:15:00.000Z',
+    });
+
+    expect(health.apiOnline, isTrue);
+    expect(health.databaseOnline, isTrue);
+    expect(health.dbLatencyMs, 12);
+    expect(health.uptimeLabel, '4d 6h');
+    expect(health.checkedAt, isNotNull);
   });
 }

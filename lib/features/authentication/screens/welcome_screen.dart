@@ -9,11 +9,15 @@ class WelcomeScreen extends StatefulWidget {
     required this.onGetStarted,
     required this.onContinueAsGuest,
     required this.onLogin,
+    this.initialPage = 0,
+    this.onOnboardingCompleted,
   });
 
   final VoidCallback onGetStarted;
   final VoidCallback onContinueAsGuest;
   final VoidCallback onLogin;
+  final int initialPage;
+  final VoidCallback? onOnboardingCompleted;
 
   @override
   State<WelcomeScreen> createState() => _WelcomeScreenState();
@@ -42,8 +46,15 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     ),
   ];
 
-  final PageController _pageController = PageController();
-  int _currentPage = 0;
+  late final PageController _pageController;
+  late int _currentPage;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentPage = widget.initialPage.clamp(0, _slides.length - 1);
+    _pageController = PageController(initialPage: _currentPage);
+  }
 
   @override
   void dispose() {
@@ -80,8 +91,12 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                   child: PageView.builder(
                     controller: _pageController,
                     itemCount: _slides.length,
-                    onPageChanged: (page) =>
-                        setState(() => _currentPage = page),
+                    onPageChanged: (page) {
+                      setState(() => _currentPage = page);
+                      if (page == _slides.length - 1) {
+                        widget.onOnboardingCompleted?.call();
+                      }
+                    },
                     itemBuilder: (context, index) =>
                         _OnboardingSlide(content: _slides[index]),
                   ),

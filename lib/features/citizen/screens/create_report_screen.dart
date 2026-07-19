@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:geocoding/geocoding.dart' as geocoding;
 import 'package:geolocator/geolocator.dart';
@@ -7,7 +9,9 @@ import '../../../core/theme/app_theme.dart';
 import '../../../models/region.dart';
 import '../../../models/ghana_assemblies_data.dart';
 import '../../../models/report_category.dart';
+import '../../../services/app_cache_service.dart';
 import '../widgets/civic_glass_card.dart';
+import '../models/report_draft.dart';
 import '../models/create_report_view_state.dart';
 import '../models/location.dart';
 import '../services/location_service.dart';
@@ -50,6 +54,7 @@ class _CreateReportScreenState extends State<CreateReportScreen>
   String? _locationAssembly;
   String? _locationError;
   int _locationLookupId = 0;
+  Timer? _draftSaveTimer;
 
   ReportCategory get _classifiedCategory => ReportCategoryClassifier.classify(
     title: _titleController.text,
@@ -67,14 +72,37 @@ class _CreateReportScreenState extends State<CreateReportScreen>
   void initState() {
     super.initState();
     _state = widget.initialState;
-    _titleController = TextEditingController();
-    _descriptionController = TextEditingController();
+    final cached = AppCacheService.instance.reportDraft;
+    _titleController = TextEditingController(text: cached?.title ?? '');
+    _descriptionController = TextEditingController(
+      text: cached?.description ?? '',
+    );
+    if (cached?.latitude != null && cached?.longitude != null) {
+      _selectedLocation = Location(
+        formattedAddress: cached!.location,
+        latitude: cached.latitude!,
+        longitude: cached.longitude!,
+        locality: cached.community,
+        administrativeArea: cached.region?.name ?? '',
+        country: 'Ghana',
+      );
+      _locationAddress = cached.location;
+      _locationCommunity = cached.community;
+      _locationRegion = cached.region;
+      _locationAssembly = cached.assembly;
+      _locationLabel = cached.location;
+      _state = CreateReportViewState.ready;
+    } else if (cached != null && cached.title.trim().isNotEmpty) {
+      _state = CreateReportViewState.draft;
+    }
     WidgetsBinding.instance.addObserver(this);
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _draftSaveTimer?.cancel();
+    unawaited(_saveDraft());
     _titleController.dispose();
     _descriptionController.dispose();
     super.dispose();
@@ -86,6 +114,10 @@ class _CreateReportScreenState extends State<CreateReportScreen>
         _selectedLocation == null &&
         _capturedPosition == null) {
       _captureLocation();
+    } else if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      unawaited(_saveDraft());
     }
   }
 
@@ -115,6 +147,7 @@ class _CreateReportScreenState extends State<CreateReportScreen>
       _locationError = null;
       _locationLoading = false;
     });
+    _scheduleDraftSave();
   }
 
   Future<void> _captureLocation() async {
@@ -213,6 +246,7 @@ class _CreateReportScreenState extends State<CreateReportScreen>
         _locationAssembly = _matchAssembly(place, _locationRegion);
         _locationLabel = '$labelPrefix: $address';
       });
+      _scheduleDraftSave();
     } catch (error) {
       if (!mounted || lookupId != _locationLookupId) return;
       setState(() {
@@ -293,7 +327,7 @@ class _CreateReportScreenState extends State<CreateReportScreen>
     ).showSnackBar(SnackBar(content: Text(message)));
   }
 
-  void _continueToPhotos() {
+  Future<void> _continueToPhotos() async {
     if (!_hasRequiredFields) {
       setState(() => _state = CreateReportViewState.validationError);
       return;
@@ -308,6 +342,8 @@ class _CreateReportScreenState extends State<CreateReportScreen>
     }
 
     final selected = _selectedLocation;
+    await _saveDraft();
+    if (!mounted) return;
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => PhotoUploadScreen(
@@ -338,6 +374,38 @@ class _CreateReportScreenState extends State<CreateReportScreen>
             : CreateReportViewState.ready;
       }
     });
+    _scheduleDraftSave();
+  }
+
+  void _scheduleDraftSave() {
+    _draftSaveTimer?.cancel();
+    _draftSaveTimer = Timer(const Duration(milliseconds: 350), () {
+      unawaited(_saveDraft());
+    });
+  }
+
+  Future<void> _saveDraft() {
+    final selected = _selectedLocation;
+    final current = AppCacheService.instance.reportDraft;
+    return AppCacheService.instance.saveReportDraft(
+      ReportDraft(
+        title: _titleController.text,
+        description: _descriptionController.text,
+        category: _classifiedCategory.label,
+        location:
+            selected?.formattedAddress ?? _locationAddress ?? _locationLabel,
+        community:
+            selected?.locality ??
+            selected?.administrativeArea ??
+            _locationCommunity ??
+            '',
+        latitude: selected?.latitude ?? _capturedPosition?.latitude,
+        longitude: selected?.longitude ?? _capturedPosition?.longitude,
+        region: _locationRegion,
+        assembly: _locationAssembly,
+        photoPaths: current?.photoPaths ?? const <String>[],
+      ),
+    );
   }
 
   Future<void> _openLocationSettings() async {
