@@ -15,9 +15,8 @@ class ApiClient {
 
   static final ApiClient instance = ApiClient._();
 
-  /// LAN IP of the machine running civic_voice_api during local dev — a
-  /// physical device can't reach "localhost" (that resolves to itself).
-  /// Swap this for a real deployed URL once the backend has one.
+  /// Public HTTPS endpoint used by release builds. Local development can
+  /// override it with `--dart-define=API_BASE_URL=http://<host>:<port>`.
   ///
   /// Deliberately mutable (not const): widget tests override this to a
   /// guaranteed-unreachable address in setUp() so they never make live
@@ -26,7 +25,7 @@ class ApiClient {
   /// on (it usually is, since that's the same machine).
   static String baseUrl = const String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://192.168.100.8:4000',
+    defaultValue: 'https://api.civicvoice.eraaxis.com',
   );
 
   static String assetUrl(String value) {

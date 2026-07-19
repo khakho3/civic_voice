@@ -1,11 +1,13 @@
 # CivicVoice
 
-![Status](https://img.shields.io/badge/Status-In%20Development-2563EB)
+![Status](https://img.shields.io/badge/Status-Release%20Ready-16A34A)
 ![Platform](https://img.shields.io/badge/Platform-Android-3DDC84)
 ![Flutter](https://img.shields.io/badge/Flutter-3.x-54C5F8)
-![Firebase](https://img.shields.io/badge/Backend-Firebase-FFCA28)
+![API](https://img.shields.io/badge/API-Production-16A34A)
 
 CivicVoice is a Flutter-based civic issue reporting platform for Ghana. It connects citizens, municipal authorities, maintenance teams, and government agencies through a transparent, accountable digital pipeline — from issue submission to resolution.
+
+The integrated Android application is complete and connected to the production API at [`https://api.civicvoice.eraaxis.com`](https://api.civicvoice.eraaxis.com). The API is hosted on AWS and all application traffic uses HTTPS.
 
 ---
 
@@ -40,8 +42,10 @@ Each report captures location (GPS), photographic evidence, a description, and a
 |---|---|
 | UI Framework | Flutter 3.x (Dart) |
 | Authentication | Firebase Authentication |
-| Database | Cloud Firestore |
-| File Storage | Firebase Storage |
+| Backend API | Node.js / Express |
+| Database | PostgreSQL / Prisma |
+| API Hosting | AWS VM (`api.civicvoice.eraaxis.com`) |
+| File Uploads | Backend-managed report and profile uploads |
 | Push Notifications | Firebase Cloud Messaging |
 | Location Services | Geolocator |
 | Maps | Google Maps Flutter |
@@ -74,7 +78,7 @@ The application is built on the **Civic Glass** design language — a custom sys
 
 ## Modules
 
-Each module maps to a dedicated feature branch and contributor.
+All six modules have been integrated into the release application.
 
 ### Issue 01 — Authentication & Profile
 Splash, Welcome, Login, Registration, Forgot Password, and Profile screens. Only Citizens self-register; all other roles are provisioned by an Admin.
@@ -160,7 +164,7 @@ civic_voice/
 | `test` | Integration and QA testing |
 | `feature/*` | Individual feature development |
 
-**Workflow:** All feature work is developed on a `feature/*` branch, merged into `test` for integration testing, then promoted to `main` via a reviewed pull request. Direct commits to `main` are not permitted.
+**Workflow:** Feature work is developed on a `feature/*` branch, merged into `test` for integration testing, then promoted to `main` after review and successful automated checks. Release APKs are built from `main`.
 
 ---
 
@@ -170,7 +174,7 @@ civic_voice/
 
 - Flutter SDK 3.x ([install guide](https://docs.flutter.dev/get-started/install))
 - Android Studio or VS Code with Flutter extension
-- A Firebase project with Authentication, Firestore, Storage, and Messaging enabled
+- Access to the configured Firebase project
 - Google Maps API key
 
 ### Setup
@@ -189,12 +193,32 @@ civic_voice/
 3. Add your Firebase configuration file:
    - `android/app/google-services.json`
 
-4. Add your Google Maps API key to `android/app/src/main/AndroidManifest.xml`.
+4. Add `GOOGLE_MAPS_API_KEY=<key>` to `android/local.properties`, export it as an environment variable, or pass it with `--dart-define`.
 
 5. Run the application:
    ```bash
    flutter run
    ```
+
+The production API URL is built in. To target another backend during development, override it explicitly:
+
+```bash
+flutter run --dart-define=API_BASE_URL=http://<host>:<port>
+```
+
+### Build the Android APK
+
+Build release artifacts from `main` only:
+
+```bash
+git switch main
+flutter pub get
+flutter analyze
+flutter test
+flutter build apk --release
+```
+
+The generated APK is written to `build/app/outputs/flutter-apk/app-release.apk`.
 
 ---
 
