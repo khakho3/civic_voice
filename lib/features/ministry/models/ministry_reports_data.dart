@@ -1,35 +1,12 @@
-import 'package:flutter/material.dart';
-
-import '../../../core/theme/app_theme.dart';
 import '../../../models/region.dart';
+import '../../../models/report_status.dart';
+
+export '../../../models/report_status.dart';
 
 /// Report status — the full canonical six-value taxonomy (shared with
 /// MIN-002 Analytics' "Status Distribution" breakdown), reusing the same
 /// [AppColors]/[AppIcons] status tokens so a given status reads identically
 /// everywhere it appears across the Ministry module.
-enum ReportStatus {
-  submitted('Submitted', AppColors.statusSubmitted, AppIcons.statusSubmitted),
-  underReview(
-    'Under Review',
-    AppColors.statusUnderReview,
-    AppIcons.statusUnderReview,
-  ),
-  assigned('Assigned', AppColors.statusAssigned, AppIcons.statusAssigned),
-  inProgress(
-    'In Progress',
-    AppColors.statusInProgress,
-    AppIcons.statusInProgress,
-  ),
-  resolved('Resolved', AppColors.statusResolved, AppIcons.statusResolved),
-  rejected('Rejected', AppColors.statusRejected, AppIcons.statusRejected);
-
-  const ReportStatus(this.label, this.color, this.icon);
-
-  final String label;
-  final Color color;
-  final IconData icon;
-}
-
 /// Status filter chips — a coarser 4-way bucket ("All/Submitted/Review/
 /// Resolved") than the full six-value [ReportStatus] taxonomy, matching the
 /// approved MIN-004 frame's chip row exactly. [review] maps only to
@@ -73,7 +50,7 @@ class ReportSummaryItem {
   /// the region filter chip narrows by, separate from the free-text
   /// [matchesSearch] (which still matches on the municipality's own name,
   /// for someone who already knows exactly which one they want).
-  final Region region;
+  final Region? region;
   final String category;
   final ReportStatus status;
 

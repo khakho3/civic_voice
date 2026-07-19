@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../services/notification_directory.dart';
+import '../../../models/notification_item.dart';
 import '../../../widgets/detail_header.dart';
 import '../../../widgets/notification_list_view.dart';
 import '../../municipal/services/municipal_report_directory.dart';
@@ -12,9 +13,14 @@ import '../../municipal/services/municipal_report_directory.dart';
 /// `NotificationDirectory.forMinistry`) — opening this screen marks them
 /// all read.
 class MinistryNotificationsScreen extends StatefulWidget {
-  const MinistryNotificationsScreen({super.key, this.onBack});
+  const MinistryNotificationsScreen({
+    super.key,
+    this.onBack,
+    this.onNotificationTap,
+  });
 
   final VoidCallback? onBack;
+  final ValueChanged<NotificationItem>? onNotificationTap;
 
   @override
   State<MinistryNotificationsScreen> createState() =>
@@ -48,8 +54,10 @@ class _MinistryNotificationsScreenState
                 return NotificationListView(
                   notifications: notifications,
                   emptyTitle: 'No notifications yet',
-                  emptyMessage: 'Nationally resolved reports will appear '
+                  emptyMessage:
+                      'Nationally resolved reports will appear '
                       'here.',
+                  onTap: widget.onNotificationTap,
                   padding: EdgeInsets.fromLTRB(
                     AppSpacing.md,
                     DetailHeader.topInset(context) + AppSpacing.md,

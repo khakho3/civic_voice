@@ -55,6 +55,7 @@ class MinistryReportsScreen extends StatefulWidget {
     this.onProfileTap,
     this.onNotificationsTap,
     this.onViewReportInsights,
+    this.data,
   });
 
   final MinistryReportsViewState initialState;
@@ -74,6 +75,7 @@ class MinistryReportsScreen extends StatefulWidget {
   /// screen's "View Report Insights" action. Nullable: MIN-005 isn't built
   /// yet, matching this module's other unwired forward-references.
   final VoidCallback? onViewReportInsights;
+  final MinistryReportsData? data;
 
   @override
   State<MinistryReportsScreen> createState() => _MinistryReportsScreenState();
@@ -81,7 +83,7 @@ class MinistryReportsScreen extends StatefulWidget {
 
 class _MinistryReportsScreenState extends State<MinistryReportsScreen> {
   late MinistryReportsViewState _state = widget.initialState;
-  final MinistryReportsData _data = MinistryReportsData.mock();
+  MinistryReportsData get _data => widget.data ?? MinistryReportsData.mock();
   final TextEditingController _searchController = TextEditingController();
   ReportStatusFilter _filter = ReportStatusFilter.all;
   String _query = '';

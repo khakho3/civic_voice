@@ -16,7 +16,8 @@ class SimpleBarChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final maxValue = values.reduce((a, b) => a > b ? a : b);
+    final calculatedMax = values.fold<int>(0, (a, b) => a > b ? a : b);
+    final maxValue = calculatedMax <= 0 ? 1 : calculatedMax;
     return SizedBox(
       height: 120,
       child: Row(

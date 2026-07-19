@@ -49,6 +49,7 @@ class MinistryMunicipalPerformanceScreen extends StatefulWidget {
     this.onProfileTap,
     this.onNotificationsTap,
     this.onOpenMunicipality,
+    this.data,
   });
 
   final MinistryMunicipalPerformanceViewState initialState;
@@ -67,6 +68,7 @@ class MinistryMunicipalPerformanceScreen extends StatefulWidget {
   /// Opens the Municipal Officer contact detail screen for the tapped
   /// Regional Leaders row.
   final ValueChanged<RegionalLeaderItem>? onOpenMunicipality;
+  final MunicipalPerformanceData? data;
 
   @override
   State<MinistryMunicipalPerformanceScreen> createState() =>
@@ -76,7 +78,8 @@ class MinistryMunicipalPerformanceScreen extends StatefulWidget {
 class _MinistryMunicipalPerformanceScreenState
     extends State<MinistryMunicipalPerformanceScreen> {
   late MinistryMunicipalPerformanceViewState _state = widget.initialState;
-  final MunicipalPerformanceData _data = MunicipalPerformanceData.mock();
+  MunicipalPerformanceData get _data =>
+      widget.data ?? MunicipalPerformanceData.mock();
   PerformanceFilter _filter = PerformanceFilter.all;
   EfficiencyMetric _metric = EfficiencyMetric.response;
 
@@ -406,9 +409,8 @@ class _PerformanceContent extends StatelessWidget {
           if (leader.needsAttention) leader,
       ],
       PerformanceFilter.top10 =>
-        (List<RegionalLeaderItem>.of(
-          scoped,
-        )..sort((a, b) => b.resolvedPercent.compareTo(a.resolvedPercent)))
+        (List<RegionalLeaderItem>.of(scoped)
+              ..sort((a, b) => b.resolvedPercent.compareTo(a.resolvedPercent)))
             .take(10)
             .toList(),
     };

@@ -43,6 +43,7 @@ class MinistryDashboardScreen extends StatefulWidget {
     this.onProfileTap,
     this.onNotificationsTap,
     this.onOpenMunicipality,
+    this.data,
   });
 
   /// Testing hook: defaults to the normal loaded view. Pass a different
@@ -70,6 +71,7 @@ class MinistryDashboardScreen extends StatefulWidget {
   /// "Municipality Performance" row — each row is its own destination now,
   /// distinct from the section's "View All" (still [onNavigateToMunicipalities]).
   final ValueChanged<RegionalLeaderItem>? onOpenMunicipality;
+  final MinistryDashboardData? data;
 
   @override
   State<MinistryDashboardScreen> createState() =>
@@ -78,7 +80,8 @@ class MinistryDashboardScreen extends StatefulWidget {
 
 class _MinistryDashboardScreenState extends State<MinistryDashboardScreen> {
   late MinistryDashboardViewState _state = widget.initialState;
-  final MinistryDashboardData _data = MinistryDashboardData.mock();
+  MinistryDashboardData get _data =>
+      widget.data ?? MinistryDashboardData.mock();
 
   void _retry() {
     setState(() => _state = MinistryDashboardViewState.loading);
@@ -389,9 +392,10 @@ class _ReportStatisticsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final colorScheme = Theme.of(context).colorScheme;
-    final maxValue = reportStatistics.monthlyValues.reduce(
+    final calculatedMax = reportStatistics.monthlyValues.reduce(
       (a, b) => a > b ? a : b,
     );
+    final maxValue = calculatedMax <= 0 ? 1 : calculatedMax;
     return GlassCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

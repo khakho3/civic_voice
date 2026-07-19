@@ -43,6 +43,8 @@ class MinistryAnalyticsScreen extends StatefulWidget {
     this.onProfileTap,
     this.onNotificationsTap,
     this.onViewReportInsights,
+    this.data,
+    this.dataForRange,
   });
 
   final MinistryAnalyticsViewState initialState;
@@ -62,6 +64,8 @@ class MinistryAnalyticsScreen extends StatefulWidget {
   /// one of that screen's two spec'd entry points (the other is MIN-004
   /// Reports Overview's own "Report Insights" card).
   final VoidCallback? onViewReportInsights;
+  final MinistryAnalyticsData? data;
+  final MinistryAnalyticsData Function(AnalyticsDateRange range)? dataForRange;
 
   @override
   State<MinistryAnalyticsScreen> createState() =>
@@ -70,7 +74,10 @@ class MinistryAnalyticsScreen extends StatefulWidget {
 
 class _MinistryAnalyticsScreenState extends State<MinistryAnalyticsScreen> {
   late MinistryAnalyticsViewState _state = widget.initialState;
-  final MinistryAnalyticsData _data = MinistryAnalyticsData.mock();
+  MinistryAnalyticsData get _data =>
+      widget.dataForRange?.call(_dateRange) ??
+      widget.data ??
+      MinistryAnalyticsData.mock();
   AnalyticsDimension _dimension = AnalyticsDimension.category;
   AnalyticsDateRange _dateRange = AnalyticsDateRange.last30Days;
 

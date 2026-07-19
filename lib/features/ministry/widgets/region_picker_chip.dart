@@ -88,7 +88,11 @@ class RegionPickerChip extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(AppIcons.municipality, size: AppIconSize.sm, color: foreground),
+              Icon(
+                AppIcons.municipality,
+                size: AppIconSize.sm,
+                color: foreground,
+              ),
               const SizedBox(width: AppSpacing.xs),
               Text(
                 label,
@@ -97,7 +101,11 @@ class RegionPickerChip extends StatelessWidget {
                 ).textTheme.labelLarge?.copyWith(color: foreground),
               ),
               const SizedBox(width: 2),
-              Icon(AppIcons.chevronDown, size: AppIconSize.sm, color: foreground),
+              Icon(
+                AppIcons.chevronDown,
+                size: AppIconSize.sm,
+                color: foreground,
+              ),
             ],
           ),
         ),

@@ -62,6 +62,7 @@ class RegionalLeaderItem {
     required this.responseTimeLabel,
     required this.officerName,
     required this.officerPhone,
+    this.officers = const [],
   });
 
   final String name;
@@ -82,6 +83,7 @@ class RegionalLeaderItem {
   /// format `tel:`/`sms:` URIs expect, so [officerPhone] can be handed
   /// straight to `url_launcher` with no reformatting.
   final String officerPhone;
+  final List<MinistryOfficerContact> officers;
 
   /// Derived from [resolvedPercent] rather than stored — one fewer place
   /// for the color and the number it represents to drift out of sync.
@@ -92,6 +94,20 @@ class RegionalLeaderItem {
   }
 
   bool get needsAttention => resolvedPercent < 75;
+}
+
+class MinistryOfficerContact {
+  const MinistryOfficerContact({
+    required this.publicId,
+    required this.name,
+    required this.phone,
+    this.avatarUrl,
+  });
+
+  final String publicId;
+  final String name;
+  final String phone;
+  final String? avatarUrl;
 }
 
 /// Data backing MIN-003 Municipal Performance's loaded state.

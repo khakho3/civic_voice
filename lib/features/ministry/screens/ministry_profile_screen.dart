@@ -70,6 +70,8 @@ class MinistryProfileScreen extends StatefulWidget {
     this.onNotificationsTap,
     this.onChangePassword,
     this.onLogOut,
+    this.profile,
+    this.onSaveProfile,
   });
 
   final MinistryProfileViewState initialState;
@@ -88,6 +90,8 @@ class MinistryProfileScreen extends StatefulWidget {
   /// Fired after the log-out confirmation dialog is accepted. Nullable:
   /// there's no real authentication flow to sign out of yet.
   final VoidCallback? onLogOut;
+  final MinistryProfileData? profile;
+  final Future<bool> Function(String fullName)? onSaveProfile;
 
   @override
   State<MinistryProfileScreen> createState() => _MinistryProfileScreenState();
@@ -95,21 +99,17 @@ class MinistryProfileScreen extends StatefulWidget {
 
 class _MinistryProfileScreenState extends State<MinistryProfileScreen> {
   late MinistryProfileViewState _state = widget.initialState;
-  MinistryProfileData _profile = MinistryProfileData.mock();
-  late final TextEditingController _nameController = TextEditingController(
-    text: _profile.name,
-  );
-  late final TextEditingController _emailController = TextEditingController(
-    text: _profile.email,
-  );
-  late final TextEditingController _phoneController = TextEditingController(
-    text: _profile.phone,
-  );
+  late MinistryProfileData _profile;
+  late final TextEditingController _nameController;
+  late final TextEditingController _phoneController;
   Map<String, String> _fieldErrors = {};
 
   @override
   void initState() {
     super.initState();
+    _profile = widget.profile ?? MinistryProfileData.mock();
+    _nameController = TextEditingController(text: _profile.name);
+    _phoneController = TextEditingController(text: _profile.phone);
     // The approved Validation frame shows a specific pre-filled failure
     // (an empty Full Name) rather than a blank-slate form — reproduce it so
     // `initialState: .validation` previews the actual frame.
@@ -122,7 +122,6 @@ class _MinistryProfileScreenState extends State<MinistryProfileScreen> {
   @override
   void dispose() {
     _nameController.dispose();
-    _emailController.dispose();
     _phoneController.dispose();
     super.dispose();
   }
@@ -136,7 +135,6 @@ class _MinistryProfileScreenState extends State<MinistryProfileScreen> {
 
   void _cancelEdit() {
     _nameController.text = _profile.name;
-    _emailController.text = _profile.email;
     _phoneController.text = _profile.phone;
     setState(() {
       _fieldErrors = {};
@@ -144,7 +142,7 @@ class _MinistryProfileScreenState extends State<MinistryProfileScreen> {
     });
   }
 
-  void _save() {
+  Future<void> _save() async {
     final name = _nameController.text.trim();
 
     final errors = <String, String>{};
@@ -157,17 +155,21 @@ class _MinistryProfileScreenState extends State<MinistryProfileScreen> {
     if (errors.isNotEmpty) return;
 
     setState(() => _state = MinistryProfileViewState.loading);
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (!mounted) return;
-      setState(() {
-        _profile = _profile.copyWith(name: name);
-        _state = MinistryProfileViewState.success;
-      });
-      Future.delayed(const Duration(seconds: 3), () {
-        if (mounted && _state == MinistryProfileViewState.success) {
-          setState(() => _state = MinistryProfileViewState.view);
-        }
-      });
+    final saved =
+        await (widget.onSaveProfile?.call(name) ?? Future<bool>.value(true));
+    if (!mounted) return;
+    if (!saved) {
+      setState(() => _state = MinistryProfileViewState.error);
+      return;
+    }
+    setState(() {
+      _profile = _profile.copyWith(name: name);
+      _state = MinistryProfileViewState.success;
+    });
+    Future.delayed(const Duration(seconds: 3), () {
+      if (mounted && _state == MinistryProfileViewState.success) {
+        setState(() => _state = MinistryProfileViewState.view);
+      }
     });
   }
 
@@ -222,7 +224,6 @@ class _MinistryProfileScreenState extends State<MinistryProfileScreen> {
                                 showSuccessBanner:
                                     _state == MinistryProfileViewState.success,
                                 nameController: _nameController,
-                                emailController: _emailController,
                                 phoneController: _phoneController,
                                 fieldErrors: _fieldErrors,
                                 onChangePassword: widget.onChangePassword,
@@ -353,7 +354,6 @@ class _ProfileBody extends StatelessWidget {
     required this.editing,
     this.showSuccessBanner = false,
     required this.nameController,
-    required this.emailController,
     required this.phoneController,
     this.fieldErrors = const {},
     this.onChangePassword,
@@ -363,7 +363,6 @@ class _ProfileBody extends StatelessWidget {
   final bool editing;
   final bool showSuccessBanner;
   final TextEditingController nameController;
-  final TextEditingController emailController;
   final TextEditingController phoneController;
   final Map<String, String> fieldErrors;
   final VoidCallback? onChangePassword;
@@ -383,7 +382,10 @@ class _ProfileBody extends StatelessWidget {
         ProfileHeaderCard(
           name: profile.name,
           subtitle: profile.ministry,
-          pills: [_Pill(label: profile.role)],
+          pills: [
+            _Pill(label: profile.role),
+            _Pill(label: 'ID ${profile.publicId}'),
+          ],
           editing: editing,
         ),
         if (showSuccessBanner) ...[
@@ -400,14 +402,6 @@ class _ProfileBody extends StatelessWidget {
               controller: nameController,
               editable: editing,
               errorText: fieldErrors['name'],
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            ProfileFieldRow(
-              label: 'Email',
-              controller: emailController,
-              caption: editing
-                  ? 'Contact your administrator to change this'
-                  : null,
             ),
             const SizedBox(height: AppSpacing.sm),
             ProfileFieldRow(

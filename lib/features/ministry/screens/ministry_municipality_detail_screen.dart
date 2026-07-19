@@ -4,7 +4,6 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../widgets/detail_header.dart';
 import '../../../widgets/glass_card.dart';
-import '../../admin/services/admin_user_directory.dart';
 import '../models/municipal_performance_data.dart';
 
 /// Drill-down opened from a Municipal Performance "Regional Leaders" row or
@@ -53,15 +52,17 @@ class MinistryMunicipalityDetailScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final bottomInset = MediaQuery.paddingOf(context).bottom;
-    // Prefer a real provisioned officer account for this assembly (the
-    // earliest-created one — see [AdminUserDirectory.correspondentOfficerFor])
-    // over the static mock contact, once one exists.
-    final correspondent = AdminUserDirectory.instance.correspondentOfficerFor(
-      municipality.name,
-      municipality.region,
-    );
-    final officerName = correspondent?.name ?? municipality.officerName;
-    final officerPhone = correspondent?.phone ?? municipality.officerPhone;
+    final officers = municipality.officers.isNotEmpty
+        ? municipality.officers
+        : municipality.officerPhone.isEmpty
+        ? const <MinistryOfficerContact>[]
+        : [
+            MinistryOfficerContact(
+              publicId: 'Municipal Officer',
+              name: municipality.officerName,
+              phone: municipality.officerPhone,
+            ),
+          ];
 
     return Scaffold(
       body: Stack(
@@ -115,14 +116,26 @@ class MinistryMunicipalityDetailScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: AppSpacing.xl),
-                Text('Municipal Officer', style: textTheme.titleMedium),
+                Text('Municipal Officers', style: textTheme.titleMedium),
                 const SizedBox(height: AppSpacing.sm),
-                _OfficerContactCard(
-                  officerName: officerName,
-                  officerPhone: officerPhone,
-                  onCall: () => _call(context, officerPhone),
-                  onMessage: () => _message(context, officerPhone),
-                ),
+                if (officers.isEmpty)
+                  const GlassCard(
+                    child: Text(
+                      'No active Municipal Officer contact is assigned to '
+                      'this assembly yet.',
+                    ),
+                  )
+                else
+                  for (var index = 0; index < officers.length; index++) ...[
+                    _OfficerContactCard(
+                      officer: officers[index],
+                      primary: index == 0,
+                      onCall: () => _call(context, officers[index].phone),
+                      onMessage: () => _message(context, officers[index].phone),
+                    ),
+                    if (index < officers.length - 1)
+                      const SizedBox(height: AppSpacing.sm),
+                  ],
               ],
             ),
           ),
@@ -208,14 +221,14 @@ class _StatCard extends StatelessWidget {
 /// actions front and center, not buried under analytics.
 class _OfficerContactCard extends StatelessWidget {
   const _OfficerContactCard({
-    required this.officerName,
-    required this.officerPhone,
+    required this.officer,
+    required this.primary,
     required this.onCall,
     required this.onMessage,
   });
 
-  final String officerName;
-  final String officerPhone;
+  final MinistryOfficerContact officer;
+  final bool primary;
   final VoidCallback onCall;
   final VoidCallback onMessage;
 
@@ -248,13 +261,13 @@ class _OfficerContactCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      officerName,
+                      officer.name,
                       style: textTheme.titleSmall,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     Text(
-                      officerPhone,
+                      '${primary ? 'Primary contact' : 'Municipal Officer'} · ${officer.publicId}\n${officer.phone}',
                       style: textTheme.bodySmall?.copyWith(
                         color: colorScheme.onSurfaceVariant,
                       ),

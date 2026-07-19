@@ -53,6 +53,8 @@ import 'features/ministry/screens/ministry_profile_screen.dart' as ministry;
 import 'features/ministry/screens/ministry_notifications_screen.dart';
 import 'features/ministry/screens/ministry_report_insights_screen.dart';
 import 'features/ministry/screens/ministry_reports_screen.dart';
+import 'features/ministry/services/ministry_data_directory.dart';
+import 'features/ministry/services/ministry_session.dart';
 import 'features/maintenance/models/maintenance_task.dart';
 import 'features/maintenance/screens/assigned_tasks_screen.dart'
     as maintenance_tasks;
@@ -221,6 +223,8 @@ Future<void> _restorePersistedSession() async {
       await MaintenanceTeamDirectory.instance.refreshForMunicipal();
     } else if (role == AppRole.maintenanceTeam) {
       await MaintenanceTaskDirectory.instance.refresh();
+    } else if (role == AppRole.ministrySupervisor) {
+      await MinistryDataDirectory.instance.refresh();
     } else if (role == AppRole.systemAdministrator) {
       AdminUserDirectory.instance.currentApiUserId = syncedUser.id;
       await AdminUserDirectory.instance.refresh();
@@ -796,6 +800,14 @@ Future<void> _selectSyncedRole(
       avatarUrl: user.avatarUrl,
     );
   }
+  if (role == AppRole.ministrySupervisor) {
+    MinistrySession.instance.setAuthenticatedUser(
+      publicId: user.publicId,
+      fullName: user.fullName,
+      phone: user.phone ?? 'Phone unavailable',
+      avatarUrl: user.avatarUrl,
+    );
+  }
   await auth.selectRole(
     role,
     adminTier: tier,
@@ -850,6 +862,8 @@ class _LoginRouteState extends State<_LoginRoute> {
         await MaintenanceTeamDirectory.instance.refreshForMunicipal();
       } else if (appRole == AppRole.maintenanceTeam) {
         await MaintenanceTaskDirectory.instance.refresh();
+      } else if (appRole == AppRole.ministrySupervisor) {
+        await MinistryDataDirectory.instance.refresh();
       } else if (appRole == AppRole.systemAdministrator) {
         AdminUserDirectory.instance.currentApiUserId = syncedUser.id;
         await AdminUserDirectory.instance.refresh();
@@ -1553,13 +1567,69 @@ Widget _adminProfile(BuildContext context) {
 }
 
 Widget _ministryDashboard(BuildContext context) {
-  return _withSwitchRoleButton(
-    context,
-    MinistryDashboardScreen(
-      onNavigateToAnalytics: () =>
-          _replaceWith(context, AppRoutes.ministryAnalytics),
+  return ValueListenableBuilder<List<IncomingReportItem>>(
+    valueListenable: MunicipalReportDirectory.instance.reports,
+    builder: (context, _, _) => _withSwitchRoleButton(
+      context,
+      MinistryDashboardScreen(
+        data: Firebase.apps.isEmpty || FirebaseAuth.instance.currentUser == null
+            ? null
+            : MinistryDataDirectory.instance.dashboard,
+        onNavigateToAnalytics: () =>
+            _replaceWith(context, AppRoutes.ministryAnalytics),
+        onNavigateToMunicipalities: () =>
+            _replaceWith(context, AppRoutes.ministryMunicipalPerformance),
+        onNavigateToReports: () =>
+            _replaceWith(context, AppRoutes.ministryReports),
+        onProfileTap: () =>
+            Navigator.of(context).pushNamed(AppRoutes.ministryProfile),
+        onNotificationsTap: () =>
+            Navigator.of(context).pushNamed(AppRoutes.ministryNotifications),
+        onOpenMunicipality: (municipality) =>
+            _pushMinistryMunicipalityDetail(context, municipality),
+      ),
+    ),
+  );
+}
+
+Widget _ministryAnalytics(BuildContext context) {
+  return ValueListenableBuilder<List<IncomingReportItem>>(
+    valueListenable: MunicipalReportDirectory.instance.reports,
+    builder: (context, _, _) => MinistryAnalyticsScreen(
+      data: Firebase.apps.isEmpty || FirebaseAuth.instance.currentUser == null
+          ? null
+          : MinistryDataDirectory.instance.analytics,
+      dataForRange:
+          Firebase.apps.isEmpty || FirebaseAuth.instance.currentUser == null
+          ? null
+          : MinistryDataDirectory.instance.analyticsFor,
+      onNavigateToDashboard: () =>
+          _replaceWith(context, AppRoutes.ministryDashboard),
       onNavigateToMunicipalities: () =>
           _replaceWith(context, AppRoutes.ministryMunicipalPerformance),
+      onNavigateToReports: () =>
+          _replaceWith(context, AppRoutes.ministryReports),
+      onProfileTap: () =>
+          Navigator.of(context).pushNamed(AppRoutes.ministryProfile),
+      onNotificationsTap: () =>
+          Navigator.of(context).pushNamed(AppRoutes.ministryNotifications),
+      onViewReportInsights: () =>
+          Navigator.of(context).pushNamed(AppRoutes.ministryReportInsights),
+    ),
+  );
+}
+
+Widget _ministryMunicipalPerformance(BuildContext context) {
+  return ValueListenableBuilder<List<IncomingReportItem>>(
+    valueListenable: MunicipalReportDirectory.instance.reports,
+    builder: (context, _, _) => MinistryMunicipalPerformanceScreen(
+      data: Firebase.apps.isEmpty || FirebaseAuth.instance.currentUser == null
+          ? null
+          : MinistryDataDirectory.instance.performance,
+      onNavigateToDashboard: () =>
+          _replaceWith(context, AppRoutes.ministryDashboard),
+      onNavigateToAnalytics: () =>
+          _replaceWith(context, AppRoutes.ministryAnalytics),
       onNavigateToReports: () =>
           _replaceWith(context, AppRoutes.ministryReports),
       onProfileTap: () =>
@@ -1569,38 +1639,6 @@ Widget _ministryDashboard(BuildContext context) {
       onOpenMunicipality: (municipality) =>
           _pushMinistryMunicipalityDetail(context, municipality),
     ),
-  );
-}
-
-Widget _ministryAnalytics(BuildContext context) {
-  return MinistryAnalyticsScreen(
-    onNavigateToDashboard: () =>
-        _replaceWith(context, AppRoutes.ministryDashboard),
-    onNavigateToMunicipalities: () =>
-        _replaceWith(context, AppRoutes.ministryMunicipalPerformance),
-    onNavigateToReports: () => _replaceWith(context, AppRoutes.ministryReports),
-    onProfileTap: () =>
-        Navigator.of(context).pushNamed(AppRoutes.ministryProfile),
-    onNotificationsTap: () =>
-        Navigator.of(context).pushNamed(AppRoutes.ministryNotifications),
-    onViewReportInsights: () =>
-        Navigator.of(context).pushNamed(AppRoutes.ministryReportInsights),
-  );
-}
-
-Widget _ministryMunicipalPerformance(BuildContext context) {
-  return MinistryMunicipalPerformanceScreen(
-    onNavigateToDashboard: () =>
-        _replaceWith(context, AppRoutes.ministryDashboard),
-    onNavigateToAnalytics: () =>
-        _replaceWith(context, AppRoutes.ministryAnalytics),
-    onNavigateToReports: () => _replaceWith(context, AppRoutes.ministryReports),
-    onProfileTap: () =>
-        Navigator.of(context).pushNamed(AppRoutes.ministryProfile),
-    onNotificationsTap: () =>
-        Navigator.of(context).pushNamed(AppRoutes.ministryNotifications),
-    onOpenMunicipality: (municipality) =>
-        _pushMinistryMunicipalityDetail(context, municipality),
   );
 }
 
@@ -1615,42 +1653,87 @@ Widget _ministryMunicipalityDetail(
 }
 
 Widget _ministryReports(BuildContext context) {
-  return MinistryReportsScreen(
-    onNavigateToDashboard: () =>
-        _replaceWith(context, AppRoutes.ministryDashboard),
-    onNavigateToAnalytics: () =>
-        _replaceWith(context, AppRoutes.ministryAnalytics),
-    onNavigateToMunicipalities: () =>
-        _replaceWith(context, AppRoutes.ministryMunicipalPerformance),
-    onProfileTap: () =>
-        Navigator.of(context).pushNamed(AppRoutes.ministryProfile),
-    onNotificationsTap: () =>
-        Navigator.of(context).pushNamed(AppRoutes.ministryNotifications),
-    onViewReportInsights: () =>
-        Navigator.of(context).pushNamed(AppRoutes.ministryReportInsights),
+  return ValueListenableBuilder<List<IncomingReportItem>>(
+    valueListenable: MunicipalReportDirectory.instance.reports,
+    builder: (context, _, _) => MinistryReportsScreen(
+      data: Firebase.apps.isEmpty || FirebaseAuth.instance.currentUser == null
+          ? null
+          : MinistryDataDirectory.instance.reportOverview,
+      onNavigateToDashboard: () =>
+          _replaceWith(context, AppRoutes.ministryDashboard),
+      onNavigateToAnalytics: () =>
+          _replaceWith(context, AppRoutes.ministryAnalytics),
+      onNavigateToMunicipalities: () =>
+          _replaceWith(context, AppRoutes.ministryMunicipalPerformance),
+      onProfileTap: () =>
+          Navigator.of(context).pushNamed(AppRoutes.ministryProfile),
+      onNotificationsTap: () =>
+          Navigator.of(context).pushNamed(AppRoutes.ministryNotifications),
+      onViewReportInsights: () =>
+          Navigator.of(context).pushNamed(AppRoutes.ministryReportInsights),
+    ),
   );
 }
 
 Widget _ministryReportInsights(BuildContext context) {
-  return MinistryReportInsightsScreen(
-    onBack: () => _popOrReplaceWith(context, AppRoutes.ministryDashboard),
+  return ValueListenableBuilder<List<IncomingReportItem>>(
+    valueListenable: MunicipalReportDirectory.instance.reports,
+    builder: (context, _, _) => MinistryReportInsightsScreen(
+      data: Firebase.apps.isEmpty || FirebaseAuth.instance.currentUser == null
+          ? null
+          : MinistryDataDirectory.instance.insights,
+      dataForFilters:
+          Firebase.apps.isEmpty || FirebaseAuth.instance.currentUser == null
+          ? null
+          : (dateRange, category, status) =>
+                MinistryDataDirectory.instance.insightsFor(
+                  dateRange: dateRange,
+                  category: category,
+                  status: status,
+                ),
+      onBack: () => _popOrReplaceWith(context, AppRoutes.ministryDashboard),
+      onViewFocusSummary: () =>
+          _replaceWith(context, AppRoutes.ministryMunicipalPerformance),
+    ),
   );
 }
 
 Widget _ministryProfile(BuildContext context) {
-  return ministry.MinistryProfileScreen(
-    onBack: () => _popOrReplaceWith(context, AppRoutes.ministryDashboard),
-    onChangePassword: () =>
-        Navigator.of(context).pushNamed(AppRoutes.changePassword),
-    onNotificationsTap: () =>
-        Navigator.of(context).pushNamed(AppRoutes.ministryNotifications),
-    onLogOut: () => _signOut(context),
+  return ValueListenableBuilder(
+    valueListenable: MinistrySession.instance.profile,
+    builder: (context, profile, _) => ministry.MinistryProfileScreen(
+      profile: profile,
+      onBack: () => _popOrReplaceWith(context, AppRoutes.ministryDashboard),
+      onChangePassword: () =>
+          Navigator.of(context).pushNamed(AppRoutes.changePassword),
+      onNotificationsTap: () =>
+          Navigator.of(context).pushNamed(AppRoutes.ministryNotifications),
+      onLogOut: () => _signOut(context),
+      onSaveProfile: (fullName) async {
+        try {
+          final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+          if (token == null) return false;
+          final json = await ApiClient.instance.updateProfile(
+            idToken: token,
+            fullName: fullName,
+          );
+          MinistrySession.instance.updateProfile(
+            fullName: json['fullName'] as String? ?? fullName,
+            avatarUrl: json['avatarUrl'] as String?,
+          );
+          return true;
+        } catch (_) {
+          return false;
+        }
+      },
+    ),
   );
 }
 
 Widget _ministryNotifications(BuildContext context) {
   return MinistryNotificationsScreen(
     onBack: () => Navigator.of(context).maybePop(),
+    onNotificationTap: (_) => _replaceWith(context, AppRoutes.ministryReports),
   );
 }
 

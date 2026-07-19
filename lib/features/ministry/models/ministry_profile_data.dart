@@ -7,6 +7,8 @@ class MinistryProfileData {
     required this.email,
     required this.phone,
     required this.metadataBadges,
+    this.publicId = 'MIN-000001',
+    this.avatarUrl,
   });
 
   final String name;
@@ -20,6 +22,8 @@ class MinistryProfileData {
   /// "Supervisor" / "Read-only module" / "Analytics access" — read-only
   /// tags in the Account Metadata card, not user-editable.
   final List<String> metadataBadges;
+  final String publicId;
+  final String? avatarUrl;
 
   MinistryProfileData copyWith({String? name, String? email, String? phone}) {
     return MinistryProfileData(
@@ -29,6 +33,8 @@ class MinistryProfileData {
       email: email ?? this.email,
       phone: phone ?? this.phone,
       metadataBadges: metadataBadges,
+      publicId: publicId,
+      avatarUrl: avatarUrl,
     );
   }
 

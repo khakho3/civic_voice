@@ -1,5 +1,6 @@
 import '../../../models/report_category.dart';
 import '../../../models/report_status.dart';
+import '../../../models/region.dart';
 import '../../../services/api_client.dart';
 
 export '../../../models/report_category.dart';
@@ -38,6 +39,7 @@ class IncomingReportItem {
     this.maintenanceFailureNotes,
     this.maintenanceFailedAt,
     this.assembly,
+    this.region,
     this.reviewerName,
     this.reviewerPhone,
     this.reviewerPublicId,
@@ -87,6 +89,7 @@ class IncomingReportItem {
   final String? maintenanceFailureNotes;
   final DateTime? maintenanceFailedAt;
   final String? assembly;
+  final Region? region;
   final String? reviewerName;
   final String? reviewerPhone;
   final String? reviewerPublicId;
@@ -139,6 +142,10 @@ class IncomingReportItem {
         json['maintenanceFailedAt'] as String? ?? '',
       ),
       assembly: json['assembly'] as String?,
+      region: Region.values.cast<Region?>().firstWhere(
+        (item) => item?.name == json['region'],
+        orElse: () => null,
+      ),
       reviewerName:
           (json['reviewer'] as Map<String, dynamic>?)?['fullName'] as String?,
       reviewerPhone:
@@ -185,6 +192,7 @@ class IncomingReportItem {
       maintenanceFailureNotes: maintenanceFailureNotes,
       maintenanceFailedAt: maintenanceFailedAt,
       assembly: assembly,
+      region: region,
       reviewerName: reviewerName,
       reviewerPhone: reviewerPhone,
       reviewerPublicId: reviewerPublicId,

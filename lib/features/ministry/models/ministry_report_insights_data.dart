@@ -20,10 +20,10 @@ enum InsightsDateRange {
 /// a specific category swaps the chip's own label to that category's name.
 enum InsightsCategoryFilter {
   all('Category'),
-  roadInfrastructure('Road Infrastructure'),
+  infrastructure('Infrastructure'),
+  safety('Safety'),
   sanitation('Sanitation'),
-  waterServices('Water Services'),
-  publicOrder('Public Order');
+  other('Other');
 
   const InsightsCategoryFilter(this.label);
 
@@ -36,7 +36,10 @@ enum InsightsStatusFilter {
   all('Status'),
   submitted('Submitted'),
   underReview('Under Review'),
-  resolved('Resolved');
+  assigned('Assigned'),
+  inProgress('In Progress'),
+  resolved('Resolved'),
+  rejected('Rejected');
 
   const InsightsStatusFilter(this.label);
 

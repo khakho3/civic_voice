@@ -305,12 +305,8 @@ void main() {
     await tester.tap(find.text('Accra Metropolitan'));
     await advanceRoute();
 
-    expect(find.text('Municipal Officer'), findsOneWidget);
-    // Accra Metropolitan already has a real provisioned Municipal Officer
-    // (Kojo Mensah) in AdminUserDirectory's own mock data — that wins over
-    // Municipal Performance's own static officerName ("Kwame Owusu"). See
-    // AdminUserDirectory.correspondentOfficerFor.
-    expect(find.text('Kojo Mensah'), findsOneWidget);
+    expect(find.text('Municipal Officers'), findsOneWidget);
+    expect(find.text('Kwame Owusu'), findsOneWidget);
 
     await tester.tap(find.byIcon(AppIcons.back));
     await advanceRoute();
@@ -820,69 +816,65 @@ void main() {
     },
   );
 
-  testWidgets(
-    'Ministry Municipal Performance region picker scrolls instead of '
-    'overflowing on a realistic phone height, and narrows the list',
-    (WidgetTester tester) async {
-      // A real phone height, not the artificially tall 2600px viewport
-      // most tests here use — the region picker's 17 rows (All Regions +
-      // 16 regions) only overflowed a plain Column on an actual device
-      // height, which none of the taller-viewport tests would have caught.
-      tester.view.physicalSize = const Size(375, 812);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
+  testWidgets('Ministry Municipal Performance region picker scrolls instead of '
+      'overflowing on a realistic phone height, and narrows the list', (
+    WidgetTester tester,
+  ) async {
+    // A real phone height, not the artificially tall 2600px viewport
+    // most tests here use — the region picker's 17 rows (All Regions +
+    // 16 regions) only overflowed a plain Column on an actual device
+    // height, which none of the taller-viewport tests would have caught.
+    tester.view.physicalSize = const Size(375, 812);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
 
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: AppTheme.light,
-          home: const MinistryMunicipalPerformanceScreen(),
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: const MinistryMunicipalPerformanceScreen(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('All Regions'));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Ashanti'), findsOneWidget);
+
+    await tester.tap(find.text('Ashanti'));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Ashanti'), findsOneWidget);
+    expect(find.text('Accra Metropolitan'), findsNothing);
+    expect(find.text('Kumasi Metropolitan'), findsOneWidget);
+  });
+
+  testWidgets('Ministry Municipal Performance Regional Leaders row opens the '
+      'Municipal Officer contact detail screen', (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    String? openedMunicipality;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: MinistryMunicipalPerformanceScreen(
+          onOpenMunicipality: (item) => openedMunicipality = item.name,
         ),
-      );
-      await tester.pumpAndSettle();
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      await tester.tap(find.text('All Regions'));
-      await tester.pumpAndSettle();
+    await tester.tap(find.text('Accra Metropolitan'));
+    await tester.pumpAndSettle();
 
-      expect(tester.takeException(), isNull);
-      expect(find.text('Ashanti'), findsOneWidget);
-
-      await tester.tap(find.text('Ashanti'));
-      await tester.pumpAndSettle();
-
-      expect(tester.takeException(), isNull);
-      expect(find.text('Ashanti'), findsOneWidget);
-      expect(find.text('Accra Metropolitan'), findsNothing);
-      expect(find.text('Kumasi Metropolitan'), findsOneWidget);
-    },
-  );
-
-  testWidgets(
-    'Ministry Municipal Performance Regional Leaders row opens the '
-    'Municipal Officer contact detail screen',
-    (WidgetTester tester) async {
-      tester.view.physicalSize = const Size(428, 2600);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-
-      String? openedMunicipality;
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: AppTheme.light,
-          home: MinistryMunicipalPerformanceScreen(
-            onOpenMunicipality: (item) => openedMunicipality = item.name,
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Accra Metropolitan'));
-      await tester.pumpAndSettle();
-
-      expect(openedMunicipality, 'Accra Metropolitan');
-    },
-  );
+    expect(openedMunicipality, 'Accra Metropolitan');
+  });
 
   Future<void> pumpMinistryMunicipalPerformance(
     WidgetTester tester,
@@ -1729,7 +1721,8 @@ void main() {
     expect(find.text('Ministry Supervisor'), findsNWidgets(2));
     expect(find.text('Public Works Ministry'), findsOneWidget);
     expect(find.text('Read-only supervisor'), findsOneWidget);
-    expect(find.text('supervisor@ministry.gov'), findsOneWidget);
+    expect(find.text('supervisor@ministry.gov'), findsNothing);
+    expect(find.text('ID MIN-000001'), findsOneWidget);
     expect(find.text('+233 20 000 0000'), findsOneWidget);
 
     expect(find.text('Personal Information'), findsOneWidget);
@@ -1755,34 +1748,33 @@ void main() {
     expect(find.text('Save'), findsNothing);
   });
 
-  testWidgets(
-    'Ministry Profile kebab menu Edit Profile enters edit mode',
-    (WidgetTester tester) async {
-      tester.view.physicalSize = const Size(428, 2600);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
+  testWidgets('Ministry Profile kebab menu Edit Profile enters edit mode', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
 
-      await tester.pumpWidget(
-        MaterialApp(theme: AppTheme.light, home: const MinistryProfileScreen()),
-      );
-      await tester.pumpAndSettle();
+    await tester.pumpWidget(
+      MaterialApp(theme: AppTheme.light, home: const MinistryProfileScreen()),
+    );
+    await tester.pumpAndSettle();
 
-      await tester.tap(find.byIcon(AppIcons.more));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Edit Profile'));
-      await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(AppIcons.more));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Edit Profile'));
+    await tester.pumpAndSettle();
 
-      expect(find.text('Save'), findsOneWidget);
-      expect(find.text('Save Changes'), findsOneWidget);
-      expect(find.text('Cancel'), findsOneWidget);
-      // Only Full Name is actually editable — Email/Phone render as plain
-      // captioned text (admin-provisioned, not self-service), matching
-      // Admin/Municipal Officer's own profile forms.
-      expect(find.byType(TextField), findsNWidgets(1));
-      expect(find.byIcon(AppIcons.close), findsOneWidget);
-    },
-  );
+    expect(find.text('Save'), findsOneWidget);
+    expect(find.text('Save Changes'), findsOneWidget);
+    expect(find.text('Cancel'), findsOneWidget);
+    // Only Full Name is actually editable — Email/Phone render as plain
+    // captioned text (admin-provisioned, not self-service), matching
+    // Admin/Municipal Officer's own profile forms.
+    expect(find.byType(TextField), findsNWidgets(1));
+    expect(find.byIcon(AppIcons.close), findsOneWidget);
+  });
 
   testWidgets(
     'Ministry Profile Save with an empty name shows a validation error and '
@@ -2172,13 +2164,9 @@ void main() {
       expect(find.text('Avg Response'), findsOneWidget);
       expect(find.text('14h'), findsOneWidget);
 
-      expect(find.text('Municipal Officer'), findsOneWidget);
-      // A real Municipal Officer account (Kojo Mensah) is already
-      // provisioned for Accra Metropolitan in AdminUserDirectory's own mock
-      // data — AdminUserDirectory.correspondentOfficerFor prefers that real
-      // account over testMunicipality's own static officerName/officerPhone.
-      expect(find.text('Kojo Mensah'), findsOneWidget);
-      expect(find.text('+233 24 333 4444'), findsOneWidget);
+      expect(find.text('Municipal Officers'), findsOneWidget);
+      expect(find.text('Kwame Owusu'), findsOneWidget);
+      expect(find.textContaining('+233 24 555 0101'), findsOneWidget);
       expect(find.text('Call'), findsOneWidget);
       expect(find.text('Message'), findsOneWidget);
 
@@ -2288,16 +2276,14 @@ void main() {
 
       expect(tester.takeException(), isNull);
       expect(find.textContaining('Could not open'), findsNothing);
-      // Real provisioned officer (Kojo Mensah) wins over testMunicipality's
-      // own static officerPhone — see the test above.
-      expect(fake.lastLaunchedUri.toString(), 'tel:+233243334444');
+      expect(fake.lastLaunchedUri.toString(), 'tel:+233245550101');
 
       await tester.ensureVisible(find.text('Message'));
       await tester.tap(find.text('Message'));
       await tester.pumpAndSettle();
 
       expect(tester.takeException(), isNull);
-      expect(fake.lastLaunchedUri.toString(), 'sms:+233243334444');
+      expect(fake.lastLaunchedUri.toString(), 'sms:+233245550101');
     },
   );
 
@@ -2345,10 +2331,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Report resolved'), findsWidgets);
-      expect(
-        find.text('Sidewalk Crack was marked resolved.'),
-        findsOneWidget,
-      );
+      expect(find.text('Sidewalk Crack was marked resolved.'), findsOneWidget);
     },
   );
 }

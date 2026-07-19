@@ -56,6 +56,8 @@ class MinistryReportInsightsScreen extends StatefulWidget {
     this.initialState = MinistryReportInsightsViewState.loaded,
     this.onBack,
     this.onViewFocusSummary,
+    this.data,
+    this.dataForFilters,
   });
 
   final MinistryReportInsightsViewState initialState;
@@ -68,6 +70,13 @@ class MinistryReportInsightsScreen extends StatefulWidget {
   /// app shell can wire up once one exists, matching this module's other
   /// unwired forward-references (e.g. Municipal Performance's "View all").
   final VoidCallback? onViewFocusSummary;
+  final MinistryReportInsightsData? data;
+  final MinistryReportInsightsData Function(
+    InsightsDateRange dateRange,
+    InsightsCategoryFilter category,
+    InsightsStatusFilter status,
+  )?
+  dataForFilters;
 
   @override
   State<MinistryReportInsightsScreen> createState() =>
@@ -77,7 +86,10 @@ class MinistryReportInsightsScreen extends StatefulWidget {
 class _MinistryReportInsightsScreenState
     extends State<MinistryReportInsightsScreen> {
   late MinistryReportInsightsViewState _state = widget.initialState;
-  final MinistryReportInsightsData _data = MinistryReportInsightsData.mock();
+  MinistryReportInsightsData get _data =>
+      widget.dataForFilters?.call(_dateRange, _category, _status) ??
+      widget.data ??
+      MinistryReportInsightsData.mock();
   InsightsDateRange _dateRange = InsightsDateRange.last30Days;
   InsightsCategoryFilter _category = InsightsCategoryFilter.all;
   InsightsStatusFilter _status = InsightsStatusFilter.all;
