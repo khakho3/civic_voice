@@ -253,7 +253,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
 
       expect(find.text('User Details'), findsOneWidget);
-      expect(find.text('CV-USER-0102'), findsOneWidget);
+      expect(find.text('MUN-000002'), findsOneWidget);
 
       // User Management's own route is still mounted underneath (kept
       // alive by the pushed route), so it has its own hamburger icon too
@@ -1140,7 +1140,7 @@ void main() {
     // read-only "User Information" field.
     expect(find.text('Yaw Asare'), findsWidgets);
     expect(find.text('yaw.asare@civicvoice.gov'), findsWidgets);
-    expect(find.text('CV-USER-0104'), findsOneWidget);
+    expect(find.text('MNT-000004'), findsOneWidget);
     expect(find.text('User Information'), findsOneWidget);
     expect(find.text('Access Management'), findsOneWidget);
     expect(find.text('Permissions Summary'), findsOneWidget);
@@ -2286,7 +2286,7 @@ void main() {
       expect(find.text('Email'), findsNothing);
       expect(find.text('admin@civicvoice.gov'), findsNothing);
       expect(find.text('Platform Administration'), findsOneWidget);
-      expect(find.text('ADM-001'), findsOneWidget);
+      expect(find.text('ADM-000001'), findsOneWidget);
       expect(find.text('Access Summary'), findsOneWidget);
       expect(find.text('92% governance checklist complete'), findsOneWidget);
       expect(find.text('System Preferences'), findsOneWidget);

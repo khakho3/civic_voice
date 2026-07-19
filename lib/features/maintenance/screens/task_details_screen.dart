@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:civic_voice/core/theme/app_theme.dart';
 
 import '../../../widgets/detail_header.dart';
+import '../../../widgets/evidence_image_viewer.dart';
 import '../../../widgets/glass_card.dart';
 import '../../../widgets/status_badge.dart';
 import '../models/maintenance_task.dart';
@@ -103,7 +104,7 @@ class _TaskDetailsContent extends StatelessWidget {
               const SizedBox(width: 4),
               Flexible(
                 child: Text(
-                  team?.name ?? 'Unassigned team',
+                  task.teamName ?? team?.name ?? 'Unassigned team',
                   style: textTheme.bodySmall?.copyWith(
                     color: colorScheme.onSurfaceVariant,
                   ),
@@ -118,10 +119,16 @@ class _TaskDetailsContent extends StatelessWidget {
           const SizedBox(height: AppSpacing.sm),
           GlassCard(
             child: Text(
-              task.description,
+              task.description.trim().isEmpty
+                  ? 'No additional description was provided by the reporter.'
+                  : task.description,
               style: textTheme.bodyMedium?.copyWith(
-                color: colorScheme.onSurface,
-                fontWeight: AppFontWeight.semiBold,
+                color: task.description.trim().isEmpty
+                    ? colorScheme.onSurfaceVariant
+                    : colorScheme.onSurface,
+                fontWeight: task.description.trim().isEmpty
+                    ? AppFontWeight.regular
+                    : AppFontWeight.semiBold,
               ),
             ),
           ),
@@ -141,13 +148,22 @@ class _TaskDetailsContent extends StatelessWidget {
             ],
           ),
           const SizedBox(height: AppSpacing.sm),
-          const Row(
-            children: [
-              Expanded(child: _ReportPhotoTile()),
-              SizedBox(width: AppSpacing.sm),
-              Expanded(child: _ReportPhotoTile()),
-            ],
-          ),
+          if (task.reportPhotoUrls.isEmpty)
+            const _NoReportPhotos()
+          else
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: AppSpacing.sm,
+                mainAxisSpacing: AppSpacing.sm,
+                childAspectRatio: 4 / 3,
+              ),
+              itemCount: task.reportPhotoUrls.length,
+              itemBuilder: (_, index) =>
+                  _ReportPhotoTile(url: task.reportPhotoUrls[index]),
+            ),
           const SizedBox(height: AppSpacing.lg),
           Row(
             children: [
@@ -351,34 +367,69 @@ class _PipelineStep extends StatelessWidget {
 }
 
 class _ReportPhotoTile extends StatelessWidget {
-  const _ReportPhotoTile();
+  const _ReportPhotoTile({required this.url});
+
+  final String url;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return AspectRatio(
+      aspectRatio: 4 / 3,
+      child: Material(
+        color: colorScheme.surfaceContainerLow,
+        borderRadius: AppComponentRadius.card,
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          key: ValueKey('maintenance-report-photo-$url'),
+          onTap: () => EvidenceImageViewer.open(context, url),
+          child: Image.network(
+            url,
+            fit: BoxFit.cover,
+            loadingBuilder: (context, child, progress) => progress == null
+                ? child
+                : Center(
+                    child: CircularProgressIndicator(
+                      value: progress.expectedTotalBytes == null
+                          ? null
+                          : progress.cumulativeBytesLoaded /
+                                progress.expectedTotalBytes!,
+                    ),
+                  ),
+            errorBuilder: (_, _, _) => Center(
+              child: Icon(
+                AppIcons.imageUnavailable,
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _NoReportPhotos extends StatelessWidget {
+  const _NoReportPhotos();
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-
-    return AspectRatio(
-      aspectRatio: 4 / 3,
-      child: Container(
-        clipBehavior: Clip.antiAlias,
-        decoration: BoxDecoration(
-          color: colorScheme.surfaceContainerLow,
-          borderRadius: AppComponentRadius.card,
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(AppIcons.camera, color: colorScheme.onSurfaceVariant),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              'Live report photo',
-              style: textTheme.labelMedium?.copyWith(
+    return GlassCard(
+      child: Row(
+        children: [
+          Icon(AppIcons.imageUnavailable, color: colorScheme.onSurfaceVariant),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              'The reporter did not attach any photos.',
+              style: textTheme.bodyMedium?.copyWith(
                 color: colorScheme.onSurfaceVariant,
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -420,7 +471,9 @@ class _ProblemLocationMapState extends State<_ProblemLocationMap> {
     }
     if (!launched && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open a maps app on this device.')),
+        const SnackBar(
+          content: Text('Could not open a maps app on this device.'),
+        ),
       );
     }
   }

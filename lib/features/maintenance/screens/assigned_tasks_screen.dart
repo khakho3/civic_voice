@@ -279,7 +279,10 @@ class _QueueMetric extends StatelessWidget {
 }
 
 class _FilterRail extends StatelessWidget {
-  const _FilterRail({required this.statusFilter, required this.onStatusChanged});
+  const _FilterRail({
+    required this.statusFilter,
+    required this.onStatusChanged,
+  });
 
   final MaintenanceTaskStatus? statusFilter;
   final ValueChanged<MaintenanceTaskStatus?> onStatusChanged;
@@ -531,7 +534,7 @@ class _TaskCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      team?.name ?? 'Unassigned team',
+                      task.teamName ?? team?.name ?? 'Unassigned team',
                       style: textTheme.titleSmall,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,

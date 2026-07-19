@@ -5,6 +5,7 @@ import '../../../widgets/glass_card.dart';
 import '../../../widgets/status_badge.dart';
 import '../models/maintenance_task.dart';
 import '../services/maintenance_task_directory.dart';
+import '../services/maintenance_session.dart';
 import '../widgets/maintenance_scaffold.dart';
 
 /// MNT-001 — Maintenance Team Dashboard.
@@ -122,7 +123,8 @@ class _DashboardContent extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      'Good Morning, Yaw',
+                      'Good Morning, '
+                      '${MaintenanceSession.instance.profile.value.firstName}',
                       style: textTheme.headlineSmall,
                       overflow: TextOverflow.ellipsis,
                     ),

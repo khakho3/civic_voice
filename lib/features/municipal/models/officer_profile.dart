@@ -44,7 +44,7 @@ class OfficerProfile {
     return const OfficerProfile(
       name: 'Alex Johnston',
       role: 'Senior Municipal Coordinator',
-      employeeId: 'MC-4092',
+      employeeId: 'MUN-000002',
       verifiedOfficial: true,
       phone: '+233 24 555 0142',
       department: 'Springfield District',

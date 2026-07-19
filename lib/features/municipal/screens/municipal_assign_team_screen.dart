@@ -137,6 +137,7 @@ class _MunicipalAssignTeamScreenState extends State<MunicipalAssignTeamScreen> {
     try {
       await MunicipalReportDirectory.instance.assignTeamOnServer(
         widget.referenceId,
+        team.teamId,
         team.name,
       );
       if (mounted) {

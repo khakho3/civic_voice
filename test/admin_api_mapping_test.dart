@@ -8,7 +8,7 @@ void main() {
   test('maps a scoped backend Admin account into the live directory model', () {
     final user = AdminUserItem.fromApi({
       'id': 'admin-cuid',
-      'publicId': '3b76382f-a077-4731-84b9-c92a9d45df86',
+      'publicId': 'ADM-000021',
       'fullName': 'Assembly Administrator',
       'phone': '+233500000000',
       'email': null,
@@ -22,7 +22,7 @@ void main() {
     });
 
     expect(user.apiRecordId, 'admin-cuid');
-    expect(user.userId, '3b76382f-a077-4731-84b9-c92a9d45df86');
+    expect(user.userId, 'ADM-000021');
     expect(user.role, AppRole.systemAdministrator);
     expect(user.adminTier, AdminTier.admin);
     expect(user.region, Region.greaterAccra);

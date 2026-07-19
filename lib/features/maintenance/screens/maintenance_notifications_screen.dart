@@ -7,12 +7,8 @@ import '../../../widgets/notification_list_view.dart';
 import '../../admin/services/admin_maintenance_team_directory.dart';
 import '../services/maintenance_task_directory.dart';
 
-/// Maintenance Team's Notifications — reached via the bell icon on every
-/// Maintenance screen. New task assignments to the signed-in technician's
-/// own team are the only notification type this module currently generates
-/// (see `NotificationDirectory.forMaintenance`) — opening this screen marks
-/// them all read, which is also what clears the Tasks tab's own "new stuff"
-/// dot (the same underlying signal, just filtered per surface).
+/// Maintenance notifications for assignments and task-state changes within
+/// the signed-in technician's exact team.
 class MaintenanceNotificationsScreen extends StatefulWidget {
   const MaintenanceNotificationsScreen({
     super.key,
@@ -58,7 +54,7 @@ class _MaintenanceNotificationsScreenState
                 return NotificationListView(
                   notifications: notifications,
                   emptyTitle: 'No notifications yet',
-                  emptyMessage: 'New task assignments will appear here.',
+                  emptyMessage: 'Team task updates will appear here.',
                   padding: EdgeInsets.fromLTRB(
                     AppSpacing.md,
                     DetailHeader.topInset(context) + AppSpacing.md,

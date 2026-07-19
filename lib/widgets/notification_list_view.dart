@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../core/theme/app_theme.dart';
 import '../models/notification_item.dart';
 import '../services/notification_directory.dart';
+import '../features/citizen/services/notification_permission_service.dart';
 import 'glass_card.dart';
 
 /// Shared notification list content for Municipal, Maintenance, and
@@ -10,7 +12,7 @@ import 'glass_card.dart';
 /// design-system-specific card (a deliberate split, not an oversight; see
 /// `citizen_alerts_screen.dart`). Tapping a card marks it read and, if
 /// [onTap] is given, navigates to whatever it's about.
-class NotificationListView extends StatelessWidget {
+class NotificationListView extends StatefulWidget {
   const NotificationListView({
     super.key,
     required this.notifications,
@@ -27,27 +29,115 @@ class NotificationListView extends StatelessWidget {
   final EdgeInsets? padding;
 
   @override
-  Widget build(BuildContext context) {
-    if (notifications.isEmpty) {
-      return _EmptyState(title: emptyTitle, message: emptyMessage);
+  State<NotificationListView> createState() => _NotificationListViewState();
+}
+
+class _NotificationListViewState extends State<NotificationListView>
+    with WidgetsBindingObserver {
+  final _permissionService = const NotificationPermissionService();
+  PermissionStatus? _permissionStatus;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _refreshPermission();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _refreshPermission();
+  }
+
+  Future<void> _refreshPermission() async {
+    try {
+      final status = await _permissionService.currentStatus();
+      if (mounted) setState(() => _permissionStatus = status);
+    } catch (_) {}
+  }
+
+  Future<void> _enableNotifications() async {
+    final current = _permissionStatus;
+    if (current?.isPermanentlyDenied == true) {
+      await _permissionService.openSettings();
+    } else {
+      await _permissionService.requestOnce();
     }
-    return ListView.separated(
+    await _refreshPermission();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final notifications = widget.notifications;
+    final padding = widget.padding ?? const EdgeInsets.all(AppSpacing.md);
+    return ListView(
       // Stays draggable even when a short list fits the viewport — same
       // fix already applied to every other list screen in this app.
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: padding ?? const EdgeInsets.all(AppSpacing.md),
-      itemCount: notifications.length,
-      separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
-      itemBuilder: (context, index) {
-        final notification = notifications[index];
-        return _NotificationCard(
-          notification: notification,
-          onTap: () {
-            NotificationDirectory.instance.markRead(notification.id);
-            onTap?.call(notification);
-          },
-        );
-      },
+      padding: padding,
+      children: [
+        if (_permissionStatus != null && !_permissionStatus!.isGranted) ...[
+          _PermissionBanner(
+            settingsRequired: _permissionStatus!.isPermanentlyDenied,
+            onPressed: _enableNotifications,
+          ),
+          const SizedBox(height: AppSpacing.md),
+        ],
+        if (notifications.isEmpty)
+          _EmptyState(title: widget.emptyTitle, message: widget.emptyMessage)
+        else
+          for (var index = 0; index < notifications.length; index++) ...[
+            _NotificationCard(
+              notification: notifications[index],
+              onTap: () {
+                final notification = notifications[index];
+                NotificationDirectory.instance.markRead(notification.id);
+                widget.onTap?.call(notification);
+              },
+            ),
+            if (index != notifications.length - 1)
+              const SizedBox(height: AppSpacing.sm),
+          ],
+      ],
+    );
+  }
+}
+
+class _PermissionBanner extends StatelessWidget {
+  const _PermissionBanner({
+    required this.settingsRequired,
+    required this.onPressed,
+  });
+
+  final bool settingsRequired;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassCard(
+      child: Row(
+        children: [
+          const Icon(AppIcons.notifications, color: AppColors.warning),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              'OS notifications are off. Enable them to receive updates '
+              'when CivicVoice is closed.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ),
+          TextButton(
+            onPressed: onPressed,
+            child: Text(settingsRequired ? 'Settings' : 'Enable'),
+          ),
+        ],
+      ),
     );
   }
 }

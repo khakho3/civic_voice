@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/theme/app_theme.dart';
-import '../features/admin/services/admin_maintenance_team_directory.dart';
 import '../features/admin/services/admin_user_directory.dart';
 import '../features/admin/models/admin_user_management_data.dart';
 import '../features/citizen/services/report_crud_service.dart';
@@ -12,6 +11,7 @@ import '../features/maintenance/models/maintenance_task.dart';
 import '../features/maintenance/services/maintenance_task_directory.dart';
 import '../features/municipal/services/municipal_report_directory.dart';
 import '../features/municipal/services/municipal_session.dart';
+import '../features/maintenance/services/maintenance_session.dart';
 import '../models/notification_item.dart';
 import '../models/report_status.dart';
 
@@ -175,6 +175,46 @@ class NotificationDirectory {
           color: AppColors.primary,
           referenceId: report.referenceId,
         ),
+      for (final report in MunicipalReportDirectory.instance.reports.value)
+        if (report.status == ReportStatus.inProgress)
+          _build(
+            id: 'municipal-$officerId-report-${report.referenceId}-in-progress',
+            type: NotificationType.municipalMaintenanceStarted,
+            title: 'Maintenance work started',
+            message:
+                '${report.teamName ?? 'The assigned team'} started work on ${report.referenceId}.',
+            category: 'Progress',
+            timeLabel: report.updatedLabel ?? 'Recently',
+            icon: AppIcons.statusInProgress,
+            color: ReportStatus.inProgress.color,
+            referenceId: report.referenceId,
+          )
+        else if (report.status == ReportStatus.resolved)
+          _build(
+            id: 'municipal-$officerId-report-${report.referenceId}-resolved',
+            type: NotificationType.municipalReportResolved,
+            title: 'Report resolved',
+            message:
+                '${report.teamName ?? 'The assigned team'} completed ${report.referenceId}.',
+            category: 'Resolved',
+            timeLabel: report.updatedLabel ?? 'Recently',
+            icon: AppIcons.statusResolved,
+            color: ReportStatus.resolved.color,
+            referenceId: report.referenceId,
+          ),
+      for (final report in MunicipalReportDirectory.instance.reports.value)
+        if (report.maintenanceFailureNotes?.trim().isNotEmpty == true)
+          _build(
+            id: 'municipal-$officerId-maintenance-${report.referenceId}',
+            type: NotificationType.municipalMaintenanceEscalation,
+            title: 'Maintenance needs attention',
+            message: '${report.referenceId}: ${report.maintenanceFailureNotes}',
+            category: 'Escalation',
+            timeLabel: report.updatedLabel ?? 'Recently',
+            icon: AppIcons.warning,
+            color: AppColors.warning,
+            referenceId: report.referenceId,
+          ),
     ];
   }
 
@@ -211,30 +251,53 @@ class NotificationDirectory {
     ];
   }
 
-  /// Tasks newly assigned to the signed-in technician's own team.
+  /// Current task events for the signed-in technician's exact team.
   List<NotificationItem> forMaintenance() {
-    final currentUserId = MaintenanceTaskDirectory.currentUserId;
-    String? myTeamId;
-    for (final team in MaintenanceTeamDirectory.instance.teams.value) {
-      if (team.memberUserIds.contains(currentUserId)) {
-        myTeamId = team.teamId;
-        break;
-      }
-    }
-    final tasks = MaintenanceTaskDirectory.instance.tasks.value.where(
-      (t) => t.status == MaintenanceTaskStatus.assigned && t.teamId == myTeamId,
-    );
+    final tasks = MaintenanceTaskDirectory.instance.tasks.value;
     return [
       for (final task in tasks)
         _build(
-          id: 'maintenance-task-${task.id}',
-          type: NotificationType.maintenanceTaskAssigned,
-          title: 'New task assigned',
-          message: '${task.title} was just assigned to your team.',
-          category: 'New',
-          timeLabel: 'Just now',
-          icon: AppIcons.task,
-          color: MaintenanceTaskStatus.assigned.color,
+          id:
+              'maintenance-${MaintenanceSession.instance.profile.value.publicId}'
+              '-task-${task.id}-${task.status.name}',
+          type: switch (task.status) {
+            MaintenanceTaskStatus.assigned =>
+              NotificationType.maintenanceTaskAssigned,
+            MaintenanceTaskStatus.inProgress =>
+              NotificationType.maintenanceTaskInProgress,
+            MaintenanceTaskStatus.completed || MaintenanceTaskStatus.failed =>
+              NotificationType.maintenanceTaskCompleted,
+          },
+          title: switch (task.status) {
+            MaintenanceTaskStatus.assigned => 'New task assigned',
+            MaintenanceTaskStatus.inProgress => 'Team task in progress',
+            MaintenanceTaskStatus.completed => 'Team task completed',
+            MaintenanceTaskStatus.failed => 'Team task needs attention',
+          },
+          message: switch (task.status) {
+            MaintenanceTaskStatus.assigned =>
+              '${task.title} was assigned to your team.',
+            MaintenanceTaskStatus.inProgress =>
+              'Your team has started work on ${task.id}.',
+            MaintenanceTaskStatus.completed =>
+              '${task.id} was marked completed.',
+            MaintenanceTaskStatus.failed =>
+              '${task.id} could not be completed and needs attention.',
+          },
+          category: switch (task.status) {
+            MaintenanceTaskStatus.assigned => 'New',
+            MaintenanceTaskStatus.inProgress => 'Progress',
+            MaintenanceTaskStatus.completed => 'Completed',
+            MaintenanceTaskStatus.failed => 'Attention',
+          },
+          timeLabel: task.teamNote,
+          icon: switch (task.status) {
+            MaintenanceTaskStatus.assigned => AppIcons.statusAssigned,
+            MaintenanceTaskStatus.inProgress => AppIcons.statusInProgress,
+            MaintenanceTaskStatus.completed => AppIcons.statusResolved,
+            MaintenanceTaskStatus.failed => AppIcons.statusRejected,
+          },
+          color: task.status.color,
           referenceId: task.id,
         ),
     ];

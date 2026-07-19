@@ -1,21 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:civic_voice/core/theme/app_theme.dart';
 
-import '../../../models/team_availability.dart';
 import '../../../widgets/confirm_dialog.dart';
-import '../../../widgets/glass_card.dart';
 import '../../../widgets/language_preference_row.dart';
 import '../../../widgets/profile_action_row.dart';
 import '../../../widgets/profile_edit_action_bar.dart';
 import '../../../widgets/profile_field_row.dart';
 import '../../../widgets/profile_header_card.dart';
 import '../../../widgets/profile_section.dart';
-import '../../../widgets/status_badge.dart';
 import '../../../widgets/theme_preference_row.dart';
-import '../../admin/models/admin_maintenance_team_data.dart';
-import '../../admin/services/admin_maintenance_team_directory.dart';
-import '../../admin/services/admin_user_directory.dart';
-import '../services/maintenance_task_directory.dart';
+import '../models/maintenance_profile.dart';
+import '../services/maintenance_session.dart';
 import '../widgets/maintenance_scaffold.dart';
 
 /// MNT-007 — Maintenance Profile.
@@ -42,6 +37,7 @@ class ProfileScreen extends StatefulWidget {
     this.onNotificationsTap,
     this.onChangePassword,
     this.onLogOut,
+    this.onSaveProfile,
   });
 
   final VoidCallback? onNavigateToDashboard;
@@ -56,6 +52,7 @@ class ProfileScreen extends StatefulWidget {
   /// Fired after the log-out confirmation dialog is accepted. Nullable:
   /// there's no real authentication flow to sign out of yet.
   final VoidCallback? onLogOut;
+  final Future<bool> Function(String fullName)? onSaveProfile;
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -64,17 +61,15 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   AppScreenState _state = AppScreenState.success;
 
-  late final _account = AdminUserDirectory.instance.userById(
-    MaintenanceTaskDirectory.currentUserId,
-  )!;
-  late final _nameController = TextEditingController(text: _account.name);
+  late final MaintenanceProfile _profile =
+      MaintenanceSession.instance.profile.value;
+  late final _nameController = TextEditingController(text: _profile.fullName);
 
   // Always locked (see [_PersonalInfoForm]'s own doc comment) — still real,
   // disposed controllers rather than ad-hoc ones rebuilt (and leaked) on
   // every frame, matching Ministry's identical treatment of its own
   // locked Email/Phone fields.
-  late final _emailController = TextEditingController(text: _account.email);
-  late final _phoneController = TextEditingController(text: _account.phone);
+  late final _phoneController = TextEditingController(text: _profile.phone);
 
   bool _isEditing = false;
   String? _nameError;
@@ -83,7 +78,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void dispose() {
     _nameController.dispose();
-    _emailController.dispose();
     _phoneController.dispose();
     super.dispose();
   }
@@ -97,26 +91,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _cancelEditing() {
-    _nameController.text = _account.name;
+    _nameController.text = _profile.fullName;
     setState(() {
       _isEditing = false;
       _nameError = null;
     });
   }
 
-  void _changeAvailability(MaintenanceTeam team, TeamAvailability value) {
-    MaintenanceTeamDirectory.instance.updateTeam(
-      team.copyWith(availability: value),
-    );
-    setState(() {});
-  }
-
-  void _handleSave() {
+  Future<void> _handleSave() async {
     final name = _nameController.text.trim();
     if (name.isEmpty) {
       setState(() => _nameError = 'Full name is required.');
       return;
     }
+    final saved = await widget.onSaveProfile?.call(name) ?? true;
+    if (!mounted) return;
+    if (!saved) {
+      setState(() => _nameError = 'Could not save changes. Try again.');
+      return;
+    }
+    MaintenanceSession.instance.updateProfile(fullName: name);
     setState(() {
       _nameError = null;
       _isEditing = false;
@@ -128,8 +122,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final confirmed = await showConfirmDialog(
       context,
       title: 'Log out?',
-      message:
-          "You'll need to sign back in to access the maintenance console.",
+      message: "You'll need to sign back in to access the maintenance console.",
       confirmLabel: 'Log Out',
       destructive: true,
     );
@@ -180,29 +173,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildForm(BuildContext context, {bool disabled = false}) {
-    MaintenanceTeam? team;
-    for (final candidate in MaintenanceTeamDirectory.instance.teams.value) {
-      if (candidate.memberUserIds.contains(_account.userId)) {
-        team = candidate;
-        break;
-      }
-    }
-
-    final isTeamLead = team != null && team.leadUserId == _account.userId;
     return _ProfileForm(
       disabled: disabled,
       editing: _isEditing,
       nameController: _nameController,
-      emailController: _emailController,
       phoneController: _phoneController,
-      employeeId: _account.userId,
-      district: _account.assembly?.fullName ?? 'Unassigned',
-      teamName: team?.name ?? 'Not yet assigned to a team',
-      isTeamLead: isTeamLead,
-      availability: team?.availability,
-      onAvailabilityChanged: disabled || !isTeamLead
-          ? null
-          : (value) => _changeAvailability(team!, value),
+      employeeId: _profile.publicId,
+      region: _profile.region,
+      district: _profile.assembly,
+      teamName: _profile.teamName ?? 'Not assigned to a team',
       nameError: _nameError,
       changesSaved: _changesSaved,
       onFieldChanged: disabled
@@ -230,14 +209,11 @@ class _ProfileForm extends StatelessWidget {
     required this.disabled,
     required this.editing,
     required this.nameController,
-    required this.emailController,
     required this.phoneController,
     required this.employeeId,
+    required this.region,
     required this.district,
     required this.teamName,
-    required this.isTeamLead,
-    required this.availability,
-    required this.onAvailabilityChanged,
     required this.nameError,
     required this.changesSaved,
     required this.onFieldChanged,
@@ -251,18 +227,11 @@ class _ProfileForm extends StatelessWidget {
   final bool disabled;
   final bool editing;
   final TextEditingController nameController;
-  final TextEditingController emailController;
   final TextEditingController phoneController;
   final String employeeId;
+  final String region;
   final String district;
   final String teamName;
-  final bool isTeamLead;
-
-  /// Null when the technician isn't on a team yet — no status to show.
-  final TeamAvailability? availability;
-
-  /// Null unless [isTeamLead] — only the lead sets their team's status.
-  final ValueChanged<TeamAvailability>? onAvailabilityChanged;
   final String? nameError;
   final bool changesSaved;
   final ValueChanged<String>? onFieldChanged;
@@ -291,9 +260,7 @@ class _ProfileForm extends StatelessWidget {
                   AppSpacing.md,
                   chromeInset.top + AppSpacing.md,
                   AppSpacing.md,
-                  editing
-                      ? AppSpacing.md
-                      : chromeInset.bottom + AppSpacing.xl,
+                  editing ? AppSpacing.md : chromeInset.bottom + AppSpacing.xl,
                 ),
                 children: [
                   Text('My Profile', style: textTheme.headlineSmall),
@@ -311,13 +278,7 @@ class _ProfileForm extends StatelessWidget {
                   ],
                   ProfileHeaderCard(
                     name: nameController.text,
-                    pills: [
-                      _Pill(
-                        label: isTeamLead
-                            ? 'Maintenance Technician · Team Lead'
-                            : 'Maintenance Technician',
-                      ),
-                    ],
+                    pills: [_Pill(label: 'Maintenance Technician')],
                     editing: editing,
                   ),
                   const SizedBox(height: AppSpacing.lg),
@@ -328,6 +289,12 @@ class _ProfileForm extends StatelessWidget {
                       const ProfileFieldRow(
                         label: 'Department',
                         value: 'Maintenance',
+                        locked: true,
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      ProfileFieldRow(
+                        label: 'Region',
+                        value: region,
                         locked: true,
                       ),
                       const SizedBox(height: AppSpacing.sm),
@@ -350,17 +317,6 @@ class _ProfileForm extends StatelessWidget {
                       ),
                     ],
                   ),
-                  if (availability != null) ...[
-                    const SizedBox(height: AppSpacing.md),
-                    _TeamStatusRow(
-                      availability: availability!,
-                      // Only the team lead sets this — everyone else on the
-                      // team sees it read-only, matching the "lead does the
-                      // one high-impact team action" rule already used for
-                      // evidence submission.
-                      onChanged: onAvailabilityChanged,
-                    ),
-                  ],
                   const SizedBox(height: AppSpacing.lg),
                   ProfileSection(
                     icon: AppIcons.profile,
@@ -382,14 +338,6 @@ class _ProfileForm extends StatelessWidget {
                         editable: editing,
                         onChanged: onFieldChanged,
                         errorText: nameError,
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
-                      ProfileFieldRow(
-                        label: 'Email',
-                        controller: emailController,
-                        caption: editing
-                            ? 'Contact your administrator to change this'
-                            : null,
                       ),
                       const SizedBox(height: AppSpacing.sm),
                       ProfileFieldRow(
@@ -525,99 +473,6 @@ class _SavedBanner extends StatelessWidget {
 /// [MaintenanceTeamDirectory.updateTeam] at the call site). This is what
 /// Municipal's Assign Team actually reads now, so changing it here is a
 /// real action, not a cosmetic toggle.
-class _TeamStatusRow extends StatelessWidget {
-  const _TeamStatusRow({required this.availability, this.onChanged});
-
-  final TeamAvailability availability;
-  final ValueChanged<TeamAvailability>? onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final colorScheme = Theme.of(context).colorScheme;
-    return GlassCard(
-      padding: const EdgeInsets.all(AppSpacing.sm),
-      child: Row(
-        children: [
-          Icon(
-            AppIcons.activityPulse,
-            size: AppIconSize.md,
-            color: colorScheme.primary,
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Text(
-              onChanged == null ? 'Team Status' : 'Team Status (you set this)',
-              style: textTheme.bodySmall?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          if (onChanged == null)
-            TintedBadge(
-              label: availability.label,
-              color: availability.color ?? colorScheme.onSurfaceVariant,
-              textColor: availability.color ?? colorScheme.onSurfaceVariant,
-            )
-          else
-            for (final option in TeamAvailability.values) ...[
-              _AvailabilityChip(
-                option: option,
-                selected: option == availability,
-                onTap: () => onChanged!(option),
-              ),
-              if (option != TeamAvailability.values.last)
-                const SizedBox(width: AppSpacing.xs),
-            ],
-        ],
-      ),
-    );
-  }
-}
-
-class _AvailabilityChip extends StatelessWidget {
-  const _AvailabilityChip({
-    required this.option,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final TeamAvailability option;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final color = option.color ?? colorScheme.onSurfaceVariant;
-    return Material(
-      color: selected ? color.withValues(alpha: 0.12) : Colors.transparent,
-      shape: StadiumBorder(
-        side: BorderSide(color: selected ? color : colorScheme.outline),
-      ),
-      child: InkWell(
-        customBorder: const StadiumBorder(),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.sm,
-            vertical: 6,
-          ),
-          child: Text(
-            option.label,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: selected ? color : colorScheme.onSurfaceVariant,
-              fontWeight: selected ? AppFontWeight.semiBold : null,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _LoadingView extends StatelessWidget {
   const _LoadingView();
   @override

@@ -1709,7 +1709,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Municipal Profile'), findsOneWidget);
-    expect(find.text('ID MC-4092'), findsOneWidget);
+    expect(find.text('ID MUN-000002'), findsOneWidget);
     expect(find.text('Alex Johnston'), findsOneWidget);
     expect(find.text('Senior Municipal Coordinator'), findsOneWidget);
     expect(find.text('Verified Official'), findsOneWidget);
@@ -2005,6 +2005,9 @@ void main() {
         find.text('Traffic Light Malfunction was just submitted.'),
         findsOneWidget,
       );
+      expect(find.text('Maintenance work started'), findsNWidgets(2));
+      expect(find.text('Report resolved'), findsOneWidget);
+      expect(find.text('Unit Alpha completed REQ-8189.'), findsOneWidget);
       // Opening the screen marks every visible notification read — the
       // same signal that clears both the bell and the Inbox tab dot.
       expect(

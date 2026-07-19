@@ -303,6 +303,53 @@ class ApiClient {
     return (result['teams'] as List).cast<Map<String, dynamic>>();
   }
 
+  Future<List<Map<String, dynamic>>> listMaintenanceTeams({
+    required String idToken,
+  }) async {
+    final result = await _get('/api/admin/maintenance-teams', idToken: idToken);
+    return (result['teams'] as List).cast<Map<String, dynamic>>();
+  }
+
+  Future<Map<String, dynamic>> createMaintenanceTeam({
+    required String idToken,
+    required Map<String, dynamic> fields,
+  }) async {
+    final result = await _post(
+      '/api/admin/maintenance-teams',
+      fields,
+      idToken: idToken,
+    );
+    return result['team'] as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> updateMaintenanceTeam(
+    String teamId, {
+    required String idToken,
+    required Map<String, dynamic> fields,
+  }) async {
+    final response = await http.patch(
+      Uri.parse('$baseUrl/api/admin/maintenance-teams/$teamId'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $idToken',
+      },
+      body: jsonEncode(fields),
+    );
+    return _decode(response)['team'] as Map<String, dynamic>;
+  }
+
+  Future<void> deleteMaintenanceTeam(
+    String teamId, {
+    required String idToken,
+  }) async {
+    _decode(
+      await http.delete(
+        Uri.parse('$baseUrl/api/admin/maintenance-teams/$teamId'),
+        headers: {'Authorization': 'Bearer $idToken'},
+      ),
+    );
+  }
+
   Future<Map<String, dynamic>> getReport(
     String id, {
     required String idToken,
@@ -420,6 +467,9 @@ class SyncedUser {
     required this.adminTier,
     required this.region,
     required this.assembly,
+    required this.maintenanceTeamId,
+    required this.maintenanceTeamName,
+    required this.maintenanceTeamLeadUserId,
   });
 
   final String id;
@@ -432,6 +482,9 @@ class SyncedUser {
   final String? adminTier;
   final String? region;
   final String? assembly;
+  final String? maintenanceTeamId;
+  final String? maintenanceTeamName;
+  final String? maintenanceTeamLeadUserId;
 
   factory SyncedUser.fromJson(Map<String, dynamic> json) {
     return SyncedUser(
@@ -445,6 +498,9 @@ class SyncedUser {
       adminTier: json['adminTier'] as String?,
       region: json['region'] as String?,
       assembly: json['assembly'] as String?,
+      maintenanceTeamId: json['maintenanceTeamId'] as String?,
+      maintenanceTeamName: json['maintenanceTeamName'] as String?,
+      maintenanceTeamLeadUserId: json['maintenanceTeamLeadUserId'] as String?,
     );
   }
 }

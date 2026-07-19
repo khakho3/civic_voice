@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_controller.dart';
@@ -42,6 +43,7 @@ import 'features/citizen/screens/report_tracking_screen.dart';
 import 'features/citizen/screens/review_report_screen.dart';
 import 'features/citizen/services/report_crud_service.dart';
 import 'features/citizen/services/profile_crud_service.dart';
+import 'features/citizen/services/notification_permission_service.dart';
 import 'features/ministry/models/municipal_performance_data.dart';
 import 'features/ministry/screens/ministry_analytics_screen.dart';
 import 'features/ministry/screens/ministry_dashboard_screen.dart';
@@ -66,6 +68,7 @@ import 'features/maintenance/screens/task_details_screen.dart'
 import 'features/maintenance/screens/update_progress_screen.dart'
     as maintenance_progress;
 import 'features/maintenance/services/maintenance_task_directory.dart';
+import 'features/maintenance/services/maintenance_session.dart';
 import 'features/municipal/models/incoming_report.dart';
 import 'features/municipal/models/resolved_report.dart';
 import 'features/municipal/services/municipal_report_directory.dart';
@@ -103,6 +106,8 @@ Future<void> main() async {
   runApp(const CivicVoiceApp());
 }
 
+bool _pushListenersConfigured = false;
+
 Future<void> _configurePushNotifications() async {
   final user = FirebaseAuth.instance.currentUser;
   if (user == null) return;
@@ -117,12 +122,22 @@ Future<void> _configurePushNotifications() async {
         platform: 'android',
       );
     }
+    if (_pushListenersConfigured) return;
+    _pushListenersConfigured = true;
     FirebaseMessaging.onMessage.listen((message) async {
-      if (message.data['type'] == 'report-status') {
-        try {
-          await ReportCrudService.instance.refresh();
-        } catch (_) {}
-      }
+      try {
+        switch (message.data['type']) {
+          case 'report-status':
+            await ReportCrudService.instance.refresh();
+          case 'municipal-report':
+          case 'municipal-report-status':
+          case 'ministry-resolution':
+            await MunicipalReportDirectory.instance.refresh();
+          case 'maintenance-task':
+          case 'maintenance-task-status':
+            await MaintenanceTaskDirectory.instance.refresh();
+        }
+      } catch (_) {}
     });
     messaging.onTokenRefresh.listen((token) async {
       final refreshedIdToken = await FirebaseAuth.instance.currentUser
@@ -137,6 +152,49 @@ Future<void> _configurePushNotifications() async {
     });
   } catch (_) {
     // Notifications never block sign-in or application startup.
+  }
+}
+
+Future<void> _offerNotificationPermissionAfterLogin(
+  BuildContext context,
+) async {
+  final service = const NotificationPermissionService();
+  try {
+    if (await service.hasAskedBefore()) return;
+  } catch (_) {
+    return;
+  }
+  if (!context.mounted) return;
+  final allow = await showDialog<bool>(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) => AlertDialog(
+      icon: const Icon(AppIcons.notifications, color: AppColors.primary),
+      title: const Text('Stay Updated'),
+      content: const Text(
+        'Allow notifications so CivicVoice can alert you about new tasks, '
+        'report decisions, and status changes even when the app is closed.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: const Text('Not Now'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(true),
+          child: const Text('Allow'),
+        ),
+      ],
+    ),
+  );
+  if (allow == true) {
+    try {
+      await service.requestOnce();
+    } catch (_) {
+      // Permission plugins must never turn a valid sign-in into an error.
+    }
+  } else {
+    await service.markAsked();
   }
 }
 
@@ -161,9 +219,12 @@ Future<void> _restorePersistedSession() async {
     } else if (role == AppRole.municipalOfficer) {
       await MunicipalReportDirectory.instance.refresh();
       await MaintenanceTeamDirectory.instance.refreshForMunicipal();
+    } else if (role == AppRole.maintenanceTeam) {
+      await MaintenanceTaskDirectory.instance.refresh();
     } else if (role == AppRole.systemAdministrator) {
       AdminUserDirectory.instance.currentApiUserId = syncedUser.id;
       await AdminUserDirectory.instance.refresh();
+      await MaintenanceTeamDirectory.instance.refreshForAdmin();
     }
   } catch (_) {
     // Firebase keeps the credential. Preserve the last known role so a
@@ -266,6 +327,67 @@ class _CivicVoiceAppState extends State<CivicVoiceApp> {
   void initState() {
     super.initState();
     IdleSessionTimer.instance.onExpire = _handleIdleTimeout;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _promptForNotificationPermission();
+    });
+  }
+
+  Future<void> _promptForNotificationPermission() async {
+    // Citizen's dashboard may be presenting the required location flow on
+    // its first frame. New sign-ins are prompted before routing, and the
+    // Alerts page always exposes the OS state, so avoid stacked dialogs on
+    // a restored citizen session.
+    if (MockAuthService().getCurrentRole() == AppRole.citizen) return;
+    final service = const NotificationPermissionService();
+    try {
+      if (FirebaseAuth.instance.currentUser == null ||
+          await service.hasAskedBefore()) {
+        return;
+      }
+      final status = await service.currentStatus();
+      if (status.isGranted) {
+        await service.markAsked();
+        await _configurePushNotifications();
+        return;
+      }
+    } catch (_) {
+      return;
+    }
+    final context = _navigatorKey.currentContext;
+    if (context == null || !context.mounted) return;
+    final allow = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        icon: const Icon(AppIcons.notifications, color: AppColors.primary),
+        title: const Text('Stay Updated'),
+        content: const Text(
+          'Allow notifications so CivicVoice can alert you about new tasks, '
+          'report decisions, and status changes even when the app is closed.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Not Now'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Allow'),
+          ),
+        ],
+      ),
+    );
+    if (allow == true) {
+      try {
+        await service.requestOnce();
+        await _configurePushNotifications();
+      } catch (_) {
+        // Permission/plugins are optional; the notification page exposes a
+        // retry/settings action without blocking the signed-in session.
+      }
+    } else {
+      await service.markAsked();
+    }
   }
 
   @override
@@ -661,6 +783,19 @@ Future<void> _selectSyncedRole(
       avatarUrl: user.avatarUrl,
     );
   }
+  if (role == AppRole.maintenanceTeam) {
+    MaintenanceSession.instance.setAuthenticatedUser(
+      publicId: user.publicId,
+      fullName: user.fullName,
+      phone: user.phone ?? 'Phone unavailable',
+      region: region?.label ?? user.region ?? 'Region not assigned',
+      assembly: assembly?.fullName ?? user.assembly ?? 'Assembly not assigned',
+      teamId: user.maintenanceTeamId,
+      teamName: user.maintenanceTeamName,
+      teamLeadUserId: user.maintenanceTeamLeadUserId,
+      avatarUrl: user.avatarUrl,
+    );
+  }
   await auth.selectRole(
     role,
     adminTier: tier,
@@ -703,6 +838,9 @@ class _LoginRouteState extends State<_LoginRoute> {
       final appRole = _appRoleForBackendRole(syncedUser.role);
       if (appRole == null) throw Exception('Unknown role: ${syncedUser.role}');
       await _selectSyncedRole(MockAuthService(), appRole, syncedUser);
+      if (context.mounted) {
+        await _offerNotificationPermissionAfterLogin(context);
+      }
       await _configurePushNotifications();
       if (appRole == AppRole.citizen) {
         ProfileCrudService.instance.loadSignedInUser(syncedUser);
@@ -710,9 +848,12 @@ class _LoginRouteState extends State<_LoginRoute> {
       } else if (appRole == AppRole.municipalOfficer) {
         await MunicipalReportDirectory.instance.refresh();
         await MaintenanceTeamDirectory.instance.refreshForMunicipal();
+      } else if (appRole == AppRole.maintenanceTeam) {
+        await MaintenanceTaskDirectory.instance.refresh();
       } else if (appRole == AppRole.systemAdministrator) {
         AdminUserDirectory.instance.currentApiUserId = syncedUser.id;
         await AdminUserDirectory.instance.refresh();
+        await MaintenanceTeamDirectory.instance.refreshForAdmin();
       }
       if (!context.mounted) return;
       _completeSignIn(context);
@@ -1765,7 +1906,18 @@ Widget _municipalNotifications(BuildContext context) {
       final report = MunicipalReportDirectory.instance.byReferenceId(
         referenceId,
       );
-      if (report != null) _pushMunicipalReportReview(context, report);
+      if (report == null) return;
+      switch (report.status) {
+        case ReportStatus.resolved || ReportStatus.rejected:
+          _pushMunicipalResolutionDetails(
+            context,
+            ResolvedReportItem.fromReport(report),
+          );
+        case ReportStatus.assigned || ReportStatus.inProgress:
+          _pushMunicipalReportProgress(context, report);
+        case ReportStatus.submitted || ReportStatus.underReview:
+          _pushMunicipalReportReview(context, report);
+      }
     },
   );
 }
@@ -1817,7 +1969,9 @@ Widget _maintenanceUpdateProgress(BuildContext context, MaintenanceTask task) {
 Widget _maintenanceTaskCompleted(BuildContext context, MaintenanceTask task) {
   return maintenance_completed.TaskCompletedScreen(
     task: task,
-    onBack: () => Navigator.of(context).maybePop(),
+    onNavigateToDashboard: () => Navigator.of(
+      context,
+    ).pushNamedAndRemoveUntil(AppRoutes.maintenanceDashboard, (_) => false),
   );
 }
 
@@ -1829,6 +1983,26 @@ Widget _maintenanceProfile(BuildContext context) {
         _replaceWith(context, AppRoutes.maintenanceAssignedTasks),
     onNotificationsTap: () =>
         Navigator.of(context).pushNamed(AppRoutes.maintenanceNotifications),
+    onChangePassword: () =>
+        Navigator.of(context).pushNamed(AppRoutes.changePassword),
+    onLogOut: () => _signOut(context),
+    onSaveProfile: (fullName) async {
+      try {
+        final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+        if (token == null) return false;
+        final json = await ApiClient.instance.updateProfile(
+          idToken: token,
+          fullName: fullName,
+        );
+        MaintenanceSession.instance.updateProfile(
+          fullName: json['fullName'] as String? ?? fullName,
+          avatarUrl: json['avatarUrl'] as String?,
+        );
+        return true;
+      } catch (_) {
+        return false;
+      }
+    },
   );
 }
 
@@ -1860,7 +2034,7 @@ void _pushMaintenanceTaskCompleted(BuildContext context, String taskId) {
     path: AppRoutes.maintenanceTaskCompleted,
     queryParameters: {'taskId': taskId},
   ).toString();
-  Navigator.of(context).pushNamed(route);
+  Navigator.of(context).pushReplacementNamed(route);
 }
 
 MaintenanceTask _maintenanceTaskFromSettings(RouteSettings? settings) {

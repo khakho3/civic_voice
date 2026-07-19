@@ -45,7 +45,8 @@ class UpdateProgressScreen extends StatefulWidget {
 
 class _UpdateProgressScreenState extends State<UpdateProgressScreen> {
   final ImagePicker _imagePicker = ImagePicker();
-  late MaintenanceTaskStatus _selectedStatus = widget.task.status == MaintenanceTaskStatus.assigned
+  late MaintenanceTaskStatus _selectedStatus =
+      widget.task.status == MaintenanceTaskStatus.assigned
       ? MaintenanceTaskStatus.inProgress
       : widget.task.status;
   final TextEditingController _notesController = TextEditingController();
@@ -54,6 +55,7 @@ class _UpdateProgressScreenState extends State<UpdateProgressScreen> {
   final List<XFile> _evidencePhotos = [];
   bool _cameraPermissionExplained = false;
   bool _saved = false;
+  bool _submitting = false;
 
   static const int _minNotesLength = 10;
   static const int _requiredEvidencePhotos = 3;
@@ -131,8 +133,18 @@ class _UpdateProgressScreenState extends State<UpdateProgressScreen> {
     });
   }
 
-  void _handleSave() {
+  Future<void> _handleSave() async {
     final notes = _notesController.text.trim();
+    if (_selectedStatus == MaintenanceTaskStatus.completed &&
+        notes.length < _minNotesLength) {
+      setState(() {
+        _validationError =
+            'Completion notes are required. Describe the work completed in at least $_minNotesLength characters.';
+        _evidenceError = null;
+        _saved = false;
+      });
+      return;
+    }
     if (_selectedStatus == MaintenanceTaskStatus.failed &&
         notes.length < _minNotesLength) {
       setState(() {
@@ -164,24 +176,30 @@ class _UpdateProgressScreenState extends State<UpdateProgressScreen> {
       return;
     }
 
-    final resolved =
-        _selectedStatus == MaintenanceTaskStatus.completed ||
-        _selectedStatus == MaintenanceTaskStatus.failed;
-    final updated = widget.task.copyWith(
-      status: _selectedStatus,
-      completionNotes: resolved && notes.isNotEmpty ? notes : null,
-      completedAtLabel: resolved ? _nowLabel() : null,
-      completedWeekday: _selectedStatus == MaintenanceTaskStatus.completed
-          ? DateTime.now().weekday - 1
-          : null,
-    );
-    MaintenanceTaskDirectory.instance.updateTask(updated);
-
-    setState(() {
-      _validationError = null;
-      _evidenceError = null;
-      _saved = true;
-    });
+    setState(() => _submitting = true);
+    try {
+      await MaintenanceTaskDirectory.instance.updateTaskOnServer(
+        widget.task,
+        status: _selectedStatus,
+        notes: notes,
+        evidencePhotoPaths: _evidencePhotos.map((photo) => photo.path).toList(),
+      );
+      if (!mounted) return;
+      setState(() {
+        _validationError = null;
+        _evidenceError = null;
+        _saved = true;
+        _submitting = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _validationError = 'Could not save this update. Please try again.';
+        _saved = false;
+        _submitting = false;
+      });
+      return;
+    }
     if (_selectedStatus == MaintenanceTaskStatus.completed) {
       Future.delayed(const Duration(milliseconds: 600), () {
         if (mounted) widget.onTaskCompleted?.call(widget.task.id);
@@ -201,18 +219,6 @@ class _UpdateProgressScreenState extends State<UpdateProgressScreen> {
     return leadName == null
         ? 'Only your team lead can submit completion evidence for this task.'
         : 'Only $leadName can submit completion evidence for this task.';
-  }
-
-  String _nowLabel() {
-    final now = DateTime.now();
-    final hour12 = now.hour % 12 == 0 ? 12 : now.hour % 12;
-    final minute = now.minute.toString().padLeft(2, '0');
-    final period = now.hour >= 12 ? 'PM' : 'AM';
-    const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-    ];
-    return '${months[now.month - 1]} ${now.day}, $hour12:$minute $period';
   }
 
   Future<void> _handleDiscard() async {
@@ -260,6 +266,7 @@ class _UpdateProgressScreenState extends State<UpdateProgressScreen> {
               notesController: _notesController,
               validationError: _validationError,
               saved: _saved,
+              submitting: _submitting,
               canSubmitEvidence: canSubmitEvidence,
               leadOnlyMessage: _leadOnlyMessage(context),
               onStatusChanged: readOnly
@@ -284,8 +291,9 @@ class _UpdateProgressScreenState extends State<UpdateProgressScreen> {
               evidencePhotos: _evidencePhotos,
               requiredEvidencePhotos: _requiredEvidencePhotos,
               evidenceError: _evidenceError,
-              onAttachEvidence:
-                  readOnly || !canSubmitEvidence ? null : _captureEvidencePhoto,
+              onAttachEvidence: readOnly || !canSubmitEvidence
+                  ? null
+                  : _captureEvidencePhoto,
               onSave: readOnly ? null : _handleSave,
               onDiscard: readOnly ? null : _handleDiscard,
             ),
@@ -315,6 +323,7 @@ class _UpdateProgressForm extends StatelessWidget {
     required this.requiredEvidencePhotos,
     required this.evidenceError,
     required this.saved,
+    required this.submitting,
     required this.canSubmitEvidence,
     required this.leadOnlyMessage,
     required this.onStatusChanged,
@@ -341,6 +350,7 @@ class _UpdateProgressForm extends StatelessWidget {
   final int requiredEvidencePhotos;
   final String? evidenceError;
   final bool saved;
+  final bool submitting;
   final ValueChanged<MaintenanceTaskStatus>? onStatusChanged;
   final ValueChanged<String>? onNotesChanged;
   final VoidCallback? onAttachEvidence;
@@ -417,6 +427,8 @@ class _UpdateProgressForm extends StatelessWidget {
             Text(
               selectedStatus == MaintenanceTaskStatus.failed
                   ? 'Failure Note'
+                  : selectedStatus == MaintenanceTaskStatus.completed
+                  ? 'Completion Notes'
                   : 'Work Notes',
               style: textTheme.titleSmall,
             ),
@@ -429,15 +441,20 @@ class _UpdateProgressForm extends StatelessWidget {
               decoration: InputDecoration(
                 hintText: selectedStatus == MaintenanceTaskStatus.failed
                     ? 'Explain why the task failed and what is needed next...'
+                    : selectedStatus == MaintenanceTaskStatus.completed
+                    ? 'Describe the work completed and the final outcome...'
                     : 'Describe current progress, encountered issues, or required parts...',
                 errorText: validationError,
               ),
             ),
             const SizedBox(height: AppSpacing.xs),
             if (validationError == null &&
-                selectedStatus == MaintenanceTaskStatus.failed)
+                (selectedStatus == MaintenanceTaskStatus.failed ||
+                    selectedStatus == MaintenanceTaskStatus.completed))
               Text(
-                'Required for failed tasks',
+                selectedStatus == MaintenanceTaskStatus.failed
+                    ? 'Required for failed tasks — minimum 10 characters'
+                    : 'Required for completion — minimum 10 characters',
                 style: textTheme.bodySmall?.copyWith(
                   color: colorScheme.onSurfaceVariant,
                 ),
@@ -460,11 +477,7 @@ class _UpdateProgressForm extends StatelessWidget {
                   spacing: AppSpacing.sm,
                   runSpacing: AppSpacing.sm,
                   children: [
-                    for (
-                      var index = 0;
-                      index < requiredEvidencePhotos;
-                      index++
-                    )
+                    for (var index = 0; index < requiredEvidencePhotos; index++)
                       _EvidencePhotoSlot(
                         index: index,
                         photo: index < evidencePhotos.length
@@ -493,8 +506,8 @@ class _UpdateProgressForm extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child: FilledButton(
-                onPressed: onSave,
-                child: const Text('Save Update'),
+                onPressed: submitting ? null : onSave,
+                child: Text(submitting ? 'Saving...' : 'Save Update'),
               ),
             ),
             const SizedBox(height: AppSpacing.sm),

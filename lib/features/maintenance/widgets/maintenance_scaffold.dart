@@ -108,7 +108,6 @@ class MaintenanceScaffold extends StatelessWidget {
               child: _Header(
                 tab: selectedTab,
                 onNotificationsTap: onNotificationsTap,
-                onProfileTap: onProfileTap,
               ),
             ),
             if (!keyboardVisible && !hideBottomNav)
@@ -127,15 +126,10 @@ class MaintenanceScaffold extends StatelessWidget {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({
-    required this.tab,
-    this.onNotificationsTap,
-    this.onProfileTap,
-  });
+  const _Header({required this.tab, this.onNotificationsTap});
 
   final MaintenanceTab tab;
   final VoidCallback? onNotificationsTap;
-  final VoidCallback? onProfileTap;
 
   @override
   Widget build(BuildContext context) {
@@ -197,47 +191,7 @@ class _Header extends StatelessWidget {
                     ),
                   ),
                 ),
-                // Omitted on the Profile tab itself — showing a "go to
-                // profile" shortcut while already there duplicated the
-                // Profile body's own identity block right below it.
-                if (tab != MaintenanceTab.profile) ...[
-                  const SizedBox(width: AppSpacing.xs),
-                  _ProfileButton(onTap: onProfileTap),
-                ],
               ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ProfileButton extends StatelessWidget {
-  const _ProfileButton({this.onTap});
-
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: AppDimensions.controlHeightStandard,
-      height: AppDimensions.controlHeightStandard,
-      child: Material(
-        color: Colors.transparent,
-        shape: const CircleBorder(),
-        child: InkWell(
-          customBorder: const CircleBorder(),
-          onTap: onTap,
-          child: Center(
-            child: CircleAvatar(
-              radius: AppIconSize.md / 2 + 2,
-              backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-              child: Icon(
-                AppIcons.profile,
-                size: AppIconSize.sm,
-                color: AppColors.primary,
-              ),
             ),
           ),
         ),
@@ -355,7 +309,11 @@ class _NavItem extends StatelessWidget {
                   show: NotificationDirectory.instance.hasUnread(
                     NotificationDirectory.instance.forMaintenance(),
                   ),
-                  child: Icon(tab.icon, size: AppIconSize.md, color: foreground),
+                  child: Icon(
+                    tab.icon,
+                    size: AppIconSize.md,
+                    color: foreground,
+                  ),
                 ),
               )
             else

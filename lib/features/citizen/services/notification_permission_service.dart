@@ -3,14 +3,17 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 /// Requests the OS notification permission at most once per install.
 ///
-/// There's no push backend yet (no Firebase Cloud Messaging), so this only
-/// gets the permission in place ahead of that work — it doesn't send
-/// anything. Persisting "asked" locally means we never re-prompt after the
-/// first decision, matching the location flow's "ask, don't nag" pattern.
+/// Firebase Cloud Messaging registration is handled centrally after this
+/// permission decision. Persisting "asked" locally means the explanatory
+/// prompt is shown once, while every notification screen still exposes the
+/// current OS state and a direct Enable/Settings action.
 class NotificationPermissionService {
   const NotificationPermissionService();
 
-  static const _askedKey = 'notification_permission_asked';
+  // Versioned because the original citizen-only prompt could mark itself
+  // asked without ever reaching the OS dialog. V2 is the first app-wide,
+  // post-login permission explanation for every authenticated role.
+  static const _askedKey = 'notification_permission_prompted_v2';
 
   Future<bool> hasAskedBefore() async {
     final prefs = await SharedPreferences.getInstance();
@@ -18,10 +21,9 @@ class NotificationPermissionService {
   }
 
   Future<PermissionStatus> requestOnce() async {
-    final status = await Permission.notification.request();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_askedKey, true);
-    return status;
+    return Permission.notification.request();
   }
 
   Future<void> markAsked() async {

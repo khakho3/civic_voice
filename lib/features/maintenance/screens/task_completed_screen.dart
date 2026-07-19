@@ -14,52 +14,72 @@ import '../services/maintenance_task_directory.dart';
 /// Sector 4" summary this screen showed for every task before, regardless
 /// of which one was actually completed.
 class TaskCompletedScreen extends StatelessWidget {
-  const TaskCompletedScreen({super.key, required this.task, this.onBack});
+  const TaskCompletedScreen({
+    super.key,
+    required this.task,
+    required this.onNavigateToDashboard,
+  });
 
   final MaintenanceTask task;
-  final VoidCallback? onBack;
+  final VoidCallback onNavigateToDashboard;
 
   @override
   Widget build(BuildContext context) {
     final semantic = Theme.of(context).extension<AppSemanticColors>()!;
-    return Scaffold(
-      body: Stack(
-        children: [
-          Positioned.fill(child: _TaskCompletedContent(task: task)),
-          Align(
-            alignment: Alignment.topCenter,
-            child: DetailHeader(
-              title: 'Task Completed',
-              onBack: onBack,
-              trailing: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.sm,
-                  vertical: AppSpacing.xs,
-                ),
-                decoration: BoxDecoration(
-                  color: semantic.success.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(AppRadius.xl),
-                ),
-                child: Text(
-                  'READ ONLY',
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: semantic.success,
-                    fontWeight: AppFontWeight.semiBold,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) onNavigateToDashboard();
+      },
+      child: Scaffold(
+        body: Stack(
+          children: [
+            Positioned.fill(
+              child: _TaskCompletedContent(
+                task: task,
+                onNavigateToDashboard: onNavigateToDashboard,
+              ),
+            ),
+            Align(
+              alignment: Alignment.topCenter,
+              child: DetailHeader(
+                title: 'Task Completed',
+                leadingIcon: AppIcons.home,
+                onBack: onNavigateToDashboard,
+                trailing: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.sm,
+                    vertical: AppSpacing.xs,
+                  ),
+                  decoration: BoxDecoration(
+                    color: semantic.success.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(AppRadius.xl),
+                  ),
+                  child: Text(
+                    'READ ONLY',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: semantic.success,
+                      fontWeight: AppFontWeight.semiBold,
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 }
 
 class _TaskCompletedContent extends StatelessWidget {
-  const _TaskCompletedContent({required this.task});
+  const _TaskCompletedContent({
+    required this.task,
+    required this.onNavigateToDashboard,
+  });
 
   final MaintenanceTask task;
+  final VoidCallback onNavigateToDashboard;
 
   @override
   Widget build(BuildContext context) {
@@ -85,7 +105,11 @@ class _TaskCompletedContent extends StatelessWidget {
           Center(
             child: Column(
               children: [
-                Icon(statusIcon, size: AppIconSize.xl, color: task.status.color),
+                Icon(
+                  statusIcon,
+                  size: AppIconSize.xl,
+                  color: task.status.color,
+                ),
                 const SizedBox(height: AppSpacing.md),
                 Text(
                   resolvedAsFailed ? 'Task Marked Failed' : 'Task Completed',
@@ -125,7 +149,7 @@ class _TaskCompletedContent extends StatelessWidget {
                 _SummaryRow(
                   icon: AppIcons.team,
                   label: 'Team',
-                  value: team?.name ?? 'Unassigned team',
+                  value: task.teamName ?? team?.name ?? 'Unassigned team',
                 ),
                 const Divider(height: AppSpacing.lg),
                 _SummaryRow(
@@ -154,6 +178,15 @@ class _TaskCompletedContent extends StatelessWidget {
               style: textTheme.bodyMedium?.copyWith(
                 color: colorScheme.onSurfaceVariant,
               ),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xl),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: onNavigateToDashboard,
+              icon: const Icon(AppIcons.home),
+              label: const Text('Go to Dashboard'),
             ),
           ),
         ],

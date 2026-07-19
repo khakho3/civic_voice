@@ -6,6 +6,8 @@ import 'package:url_launcher_platform_interface/url_launcher_platform_interface.
 
 import 'package:civic_voice/core/theme/app_theme.dart';
 import 'package:civic_voice/features/admin/services/admin_maintenance_team_directory.dart';
+import 'package:civic_voice/features/maintenance/models/maintenance_task.dart';
+import 'package:civic_voice/features/maintenance/screens/task_details_screen.dart';
 import 'package:civic_voice/features/maintenance/services/maintenance_task_directory.dart';
 import 'package:civic_voice/main.dart' as app;
 
@@ -50,9 +52,7 @@ class _FakeUrlLauncherPlatform extends UrlLauncherPlatform {
 /// `assigned`).
 void _preserveMaintenanceTaskDirectory() {
   final original = MaintenanceTaskDirectory.instance.tasks.value;
-  addTearDown(
-    () => MaintenanceTaskDirectory.instance.tasks.value = original,
-  );
+  addTearDown(() => MaintenanceTaskDirectory.instance.tasks.value = original);
 }
 
 Future<void> _attachThreeEvidencePhotos(WidgetTester tester) async {
@@ -71,6 +71,51 @@ void main() {
   setUpAll(() {
     ImagePickerPlatform.instance = _FakeImagePickerPlatform();
   });
+
+  testWidgets(
+    'Maintenance task details explains an omitted description and previews report photos',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final task = MaintenanceTask.fromApi({
+        'id': 'report-with-photo',
+        'publicReference': 'CV-2026-PHOTO01',
+        'title': 'Broken traffic light',
+        'description': '',
+        'location': 'Chantan Junction',
+        'status': 'ASSIGNED',
+        'photoUrls': <String>['http://example.invalid/report-photo.jpg'],
+      });
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: TaskDetailsScreen(task: task),
+        ),
+      );
+      await tester.pump();
+
+      expect(
+        find.text('No additional description was provided by the reporter.'),
+        findsOneWidget,
+      );
+      expect(find.text('Report Photos (1)'), findsOneWidget);
+      final thumbnail = find.byKey(
+        const ValueKey(
+          'maintenance-report-photo-http://example.invalid/report-photo.jpg',
+        ),
+      );
+      expect(thumbnail, findsOneWidget);
+
+      await tester.tap(thumbnail);
+      await tester.pumpAndSettle();
+
+      expect(find.byTooltip('Close'), findsOneWidget);
+      expect(find.byTooltip('Share'), findsOneWidget);
+    },
+  );
 
   testWidgets('Maintenance dashboard fits narrow phones without overflow', (
     WidgetTester tester,
@@ -142,44 +187,59 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets(
-    'Maintenance progress status rules require evidence and notes',
-    (WidgetTester tester) async {
-      tester.view.physicalSize = const Size(428, 1800);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
+  testWidgets('Maintenance progress status rules require evidence and notes', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(428, 1800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
 
-      await tester.pumpWidget(
-        const app.CivicVoiceApp(
-          initialRoute: app.AppRoutes.maintenanceUpdateProgress,
-        ),
-      );
-      await tester.pumpAndSettle();
+    await tester.pumpWidget(
+      const app.CivicVoiceApp(
+        initialRoute: app.AppRoutes.maintenanceUpdateProgress,
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Completed'));
-      await tester.pumpAndSettle();
-      await tester.ensureVisible(find.text('Save Update'));
-      await tester.tap(find.text('Save Update'));
-      await tester.pumpAndSettle();
+    await tester.tap(find.text('Completed'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Save Update'));
+    await tester.tap(find.text('Save Update'));
+    await tester.pumpAndSettle();
 
-      expect(
-        find.text('Attach 3 photos to mark this completed.'),
-        findsOneWidget,
-      );
+    expect(
+      find.text(
+        'Completion notes are required. Describe the work completed in at least 10 characters.',
+      ),
+      findsOneWidget,
+    );
 
-      await tester.tap(find.text('Failed'));
-      await tester.pumpAndSettle();
-      await tester.ensureVisible(find.text('Save Update'));
-      await tester.tap(find.text('Save Update'));
-      await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byType(EditableText).first,
+      'Completed the required repair.',
+    );
+    await tester.ensureVisible(find.text('Save Update'));
+    await tester.tap(find.text('Save Update'));
+    await tester.pumpAndSettle();
 
-      expect(
-        find.text('Failure note must explain why the task failed.'),
-        findsOneWidget,
-      );
-    },
-  );
+    expect(
+      find.text('Attach 3 photos to mark this completed.'),
+      findsOneWidget,
+    );
+
+    await tester.enterText(find.byType(EditableText).first, '');
+    await tester.tap(find.text('Failed'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Save Update'));
+    await tester.tap(find.text('Save Update'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Failure note must explain why the task failed.'),
+      findsOneWidget,
+    );
+  });
 
   testWidgets(
     'Maintenance Discard Draft asks for confirmation before clearing entered '
@@ -289,103 +349,109 @@ void main() {
     },
   );
 
-  testWidgets(
-    'Maintenance routes connect dashboard, tasks, details, progress, '
-    'completion, and profile — merged evidence flow, no separate Upload '
-    'Evidence step',
-    (WidgetTester tester) async {
-      tester.view.physicalSize = const Size(428, 2600);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
+  testWidgets('Maintenance routes connect dashboard, tasks, details, progress, '
+      'completion, and profile — merged evidence flow, no separate Upload '
+      'Evidence step', (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
 
-      await tester.pumpWidget(
-        const app.CivicVoiceApp(
-          initialRoute: app.AppRoutes.maintenanceDashboard,
-        ),
-      );
-      await tester.pumpAndSettle();
+    await tester.pumpWidget(
+      const app.CivicVoiceApp(initialRoute: app.AppRoutes.maintenanceDashboard),
+    );
+    await tester.pumpAndSettle();
 
-      expect(find.text('Good Morning, Yaw'), findsOneWidget);
-      expect(find.text('Scheduled Work'), findsOneWidget);
+    expect(find.text('Good Morning, Yaw'), findsOneWidget);
+    expect(find.text('Scheduled Work'), findsOneWidget);
 
-      await tester.tap(find.text('Tasks'));
-      await tester.pumpAndSettle();
+    await tester.tap(find.text('Tasks'));
+    await tester.pumpAndSettle();
 
-      expect(find.text('Search assigned tasks...'), findsOneWidget);
-      expect(find.text('Broken Street Light at Main Ave'), findsOneWidget);
+    expect(find.text('Search assigned tasks...'), findsOneWidget);
+    expect(find.text('Broken Street Light at Main Ave'), findsOneWidget);
 
-      await tester.tap(find.text('Broken Street Light at Main Ave'));
-      await tester.pumpAndSettle();
+    await tester.tap(find.text('Broken Street Light at Main Ave'));
+    await tester.pumpAndSettle();
 
-      expect(find.text('Problem Description', skipOffstage: false), findsOneWidget);
-      expect(find.text('Report Photos (2)'), findsOneWidget);
-      expect(find.text('Problem Location'), findsOneWidget);
-      expect(
-        find.text('Assignment received by maintenance team'),
-        findsOneWidget,
-      );
+    expect(
+      find.text('Problem Description', skipOffstage: false),
+      findsOneWidget,
+    );
+    expect(find.text('Report Photos (2)'), findsOneWidget);
+    expect(find.text('Problem Location'), findsOneWidget);
+    expect(
+      find.text('Assignment received by maintenance team'),
+      findsOneWidget,
+    );
 
-      await tester.ensureVisible(find.text('View Map'));
-      await tester.tap(find.text('View Map'));
-      await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('View Map'));
+    await tester.tap(find.text('View Map'));
+    await tester.pumpAndSettle();
 
-      expect(find.text('Report Location'), findsOneWidget);
-      expect(find.text('Read only'), findsOneWidget);
+    expect(find.text('Report Location'), findsOneWidget);
+    expect(find.text('Read only'), findsOneWidget);
 
-      await tester.pageBack();
-      await tester.pumpAndSettle();
+    await tester.pageBack();
+    await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.text('Update Progress'));
-      await tester.tap(find.text('Update Progress'));
-      await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Update Progress'));
+    await tester.tap(find.text('Update Progress'));
+    await tester.pumpAndSettle();
 
-      expect(find.text('Update Progress'), findsWidgets);
-      expect(find.text('Work Notes'), findsOneWidget);
-      expect(find.text('#MNT-1001'), findsWidgets);
+    expect(find.text('Update Progress'), findsWidgets);
+    expect(find.text('Work Notes'), findsOneWidget);
+    expect(find.text('#MNT-1001'), findsWidgets);
 
-      await tester.ensureVisible(find.text('Completed'));
-      await tester.tap(find.text('Completed'));
-      await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Completed'));
+    await tester.tap(find.text('Completed'));
+    await tester.pumpAndSettle();
 
-      await _attachThreeEvidencePhotos(tester);
+    await _attachThreeEvidencePhotos(tester);
 
-      await tester.enterText(
-        find.byType(EditableText).first,
+    await tester.enterText(
+      find.byType(EditableText).first,
+      'Replaced the damaged wiring and verified the light is working.',
+    );
+    await tester.ensureVisible(find.text('Save Update'));
+    await tester.tap(find.text('Save Update'));
+    await tester.pump(const Duration(milliseconds: 700));
+    await tester.pumpAndSettle();
+
+    // No separate evidence-upload step — saving a Completed update lands
+    // straight on Task Completed with the real task's own data.
+    expect(find.text('Task Completed'), findsWidgets);
+    expect(find.text('Task Summary'), findsOneWidget);
+    expect(find.text('Broken Street Light at Main Ave'), findsOneWidget);
+    expect(
+      find.text(
         'Replaced the damaged wiring and verified the light is working.',
-      );
-      await tester.ensureVisible(find.text('Save Update'));
-      await tester.tap(find.text('Save Update'));
-      await tester.pump(const Duration(milliseconds: 700));
-      await tester.pumpAndSettle();
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Go to Dashboard'), findsOneWidget);
 
-      // No separate evidence-upload step — saving a Completed update lands
-      // straight on Task Completed with the real task's own data.
-      expect(find.text('Task Completed'), findsWidgets);
-      expect(find.text('Task Summary'), findsOneWidget);
-      expect(find.text('Broken Street Light at Main Ave'), findsOneWidget);
-      expect(
-        find.text(
-          'Replaced the damaged wiring and verified the light is working.',
-        ),
-        findsOneWidget,
-      );
+    await tester.ensureVisible(find.text('Go to Dashboard'));
+    await tester.tap(find.text('Go to Dashboard'));
+    await tester.pumpAndSettle();
 
-      await tester.pumpWidget(const SizedBox.shrink());
-      await tester.pumpAndSettle();
+    expect(find.text('Scheduled Work'), findsOneWidget);
+    expect(find.text('Update Progress'), findsNothing);
 
-      await tester.pumpWidget(
-        const app.CivicVoiceApp(initialRoute: app.AppRoutes.maintenanceProfile),
-      );
-      await tester.pumpAndSettle();
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpAndSettle();
 
-      expect(find.text('My Profile'), findsOneWidget);
-      // Matches both the header's name display and the now-editable Full
-      // Name field's current value — the real Admin-provisioned account
-      // (Yaw Asare, CV-USER-0104) this screen now reads from.
-      expect(find.text('Yaw Asare'), findsNWidgets(2));
-    },
-  );
+    await tester.pumpWidget(
+      const app.CivicVoiceApp(initialRoute: app.AppRoutes.maintenanceProfile),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('My Profile'), findsOneWidget);
+    // Matches both the header's name display and the now-editable Full
+    // Name field's current value — the real Admin-provisioned account
+    // (Yaw Asare, MNT-000004) this screen now reads from.
+    expect(find.text('Yaw Asare'), findsNWidgets(2));
+  });
 
   testWidgets(
     'Maintenance a task marked Completed updates Dashboard and Assigned '
@@ -513,47 +579,44 @@ void main() {
     },
   );
 
-  testWidgets(
-    'Maintenance Update Progress blocks evidence submission when the '
-    'signed-in technician is not the team lead',
-    (WidgetTester tester) async {
-      tester.view.physicalSize = const Size(428, 1800);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
+  testWidgets('Maintenance Update Progress blocks evidence submission when the '
+      'signed-in technician is not the team lead', (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(428, 1800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
 
-      // Team-lead gating: swap the lead away from the signed-in account
-      // (Yaw Asare) so this exercises the "not the lead" branch, then
-      // restore it — other tests in this file rely on Yaw Asare being the
-      // lead of the one mock team.
-      final team = MaintenanceTeamDirectory.instance.teamById('TEAM-0001')!;
-      MaintenanceTeamDirectory.instance.updateTeam(
-        team.copyWith(leadUserId: 'CV-USER-0110'),
-      );
-      addTearDown(
-        () => MaintenanceTeamDirectory.instance.updateTeam(
-          team.copyWith(leadUserId: 'CV-USER-0104'),
-        ),
-      );
+    // Team-lead gating: swap the lead away from the signed-in account
+    // (Yaw Asare) so this exercises the "not the lead" branch, then
+    // restore it — other tests in this file rely on Yaw Asare being the
+    // lead of the one mock team.
+    final team = MaintenanceTeamDirectory.instance.teamById('TEAM-0001')!;
+    MaintenanceTeamDirectory.instance.updateTeam(
+      team.copyWith(leadUserId: 'MNT-000010'),
+    );
+    addTearDown(
+      () => MaintenanceTeamDirectory.instance.updateTeam(
+        team.copyWith(leadUserId: 'MNT-000004'),
+      ),
+    );
 
-      await tester.pumpWidget(
-        const app.CivicVoiceApp(
-          initialRoute: app.AppRoutes.maintenanceUpdateProgress,
-        ),
-      );
-      await tester.pumpAndSettle();
+    await tester.pumpWidget(
+      const app.CivicVoiceApp(
+        initialRoute: app.AppRoutes.maintenanceUpdateProgress,
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.text('Completed'));
-      await tester.tap(find.text('Completed'));
-      await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Completed'));
+    await tester.tap(find.text('Completed'));
+    await tester.pumpAndSettle();
 
-      expect(
-        find.textContaining('Only Kojo Mensah-Boateng can submit'),
-        findsOneWidget,
-      );
-      expect(find.text('Add 1'), findsNothing);
-    },
-  );
+    expect(
+      find.textContaining('Only Kojo Mensah-Boateng can submit'),
+      findsOneWidget,
+    );
+    expect(find.text('Add 1'), findsNothing);
+  });
 
   testWidgets(
     'Maintenance Profile has a real Edit toggle — Save/Cancel only appear '
@@ -595,27 +658,30 @@ void main() {
     },
   );
 
-  testWidgets(
-    'Maintenance Notifications shows new task assignments for the '
-    "technician's own team and marks them read on open",
-    (WidgetTester tester) async {
-      tester.view.physicalSize = const Size(428, 2600);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
+  testWidgets('Maintenance Notifications shows new task assignments for the '
+      "technician's own team and marks them read on open", (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    _preserveMaintenanceTaskDirectory();
+    MaintenanceTaskDirectory.instance.tasks.value = mockMaintenanceTasks();
 
-      await tester.pumpWidget(
-        const app.CivicVoiceApp(
-          initialRoute: app.AppRoutes.maintenanceNotifications,
-        ),
-      );
-      await tester.pumpAndSettle();
+    await tester.pumpWidget(
+      const app.CivicVoiceApp(
+        initialRoute: app.AppRoutes.maintenanceNotifications,
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      expect(find.text('New task assigned'), findsWidgets);
-      expect(
-        find.text('Pothole Repair Request was just assigned to your team.'),
-        findsOneWidget,
-      );
-    },
-  );
+    expect(find.text('New task assigned'), findsWidgets);
+    expect(
+      find.text('Pothole Repair Request was assigned to your team.'),
+      findsOneWidget,
+    );
+    expect(find.text('Team task in progress'), findsWidgets);
+    expect(find.text('Team task completed'), findsWidgets);
+  });
 }

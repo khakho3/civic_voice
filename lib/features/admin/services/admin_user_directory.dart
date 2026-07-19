@@ -131,7 +131,8 @@ class AdminUserDirectory {
       phone: phone,
       role: role,
       status: AdminUserStatus.active,
-      userId: 'CV-USER-${(_nextUserNumber++).toString().padLeft(4, '0')}',
+      userId:
+          '${_publicIdPrefix(role)}-${(_nextUserNumber++).toString().padLeft(6, '0')}',
       lastSignIn: now,
       accountCreated: now,
       adminTier: effectiveTier,
@@ -143,6 +144,14 @@ class AdminUserDirectory {
     users.value = [newUser, ...users.value];
     return newUser;
   }
+
+  static String _publicIdPrefix(AppRole role) => switch (role) {
+    AppRole.citizen => 'CIT',
+    AppRole.municipalOfficer => 'MUN',
+    AppRole.maintenanceTeam => 'MNT',
+    AppRole.ministrySupervisor => 'MIN',
+    AppRole.systemAdministrator => 'ADM',
+  };
 
   void updateUser(AdminUserItem updated) {
     users.value = [

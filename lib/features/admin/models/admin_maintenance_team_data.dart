@@ -36,6 +36,35 @@ class MaintenanceTeam {
   /// instead of a fixed-forever mock value.
   final TeamAvailability availability;
 
+  factory MaintenanceTeam.fromApi(Map<String, dynamic> json) {
+    final region = Region.values.firstWhere(
+      (item) => item.name == json['region'],
+    );
+    final assembly = assemblyNamed(region, json['assembly'] as String);
+    final availability = switch (json['availability']) {
+      'BUSY' => TeamAvailability.busy,
+      'OFF_DUTY' => TeamAvailability.offDuty,
+      _ => TeamAvailability.available,
+    };
+    return MaintenanceTeam(
+      teamId: json['id'] as String,
+      name: json['name'] as String,
+      region: region,
+      assembly: assembly,
+      memberUserIds:
+          (json['memberUserIds'] as List?)?.whereType<String>().toList() ??
+          (json['members'] as List? ?? const <dynamic>[])
+              .whereType<Map<String, dynamic>>()
+              .map((member) => member['publicId'] as String)
+              .toList(),
+      leadUserId: json['leadUserId'] as String?,
+      availability: availability,
+      createdAt:
+          DateTime.tryParse(json['createdAt'] as String? ?? '') ??
+          DateTime.now(),
+    );
+  }
+
   static const _unset = Object();
 
   /// [leadUserId] takes `_unset` (via the default) to mean "leave
@@ -80,9 +109,9 @@ List<MaintenanceTeam> mockMaintenanceTeams() {
       name: 'Kumasi Central Crew',
       region: Region.ashanti,
       assembly: assemblyNamed(Region.ashanti, 'Kumasi'),
-      memberUserIds: const ['CV-USER-0104', 'CV-USER-0110'],
+      memberUserIds: const ['MNT-000004', 'MNT-000010'],
       createdAt: DateTime(2025, 7, 4),
-      leadUserId: 'CV-USER-0104',
+      leadUserId: 'MNT-000004',
     ),
   ];
 }

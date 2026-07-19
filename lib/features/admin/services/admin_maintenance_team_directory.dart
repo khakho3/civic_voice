@@ -5,6 +5,7 @@ import '../../../models/ghana_assemblies_data.dart';
 import '../../../models/region.dart';
 import '../../../services/api_client.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import '../models/admin_maintenance_team_data.dart';
 
 class MaintenanceTeamDirectory {
@@ -18,6 +19,13 @@ class MaintenanceTeamDirectory {
 
   int _nextTeamNumber = 2;
 
+  Future<void> refreshForAdmin() async {
+    final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+    if (token == null) throw StateError('A signed-in Admin is required');
+    final rows = await ApiClient.instance.listMaintenanceTeams(idToken: token);
+    teams.value = rows.map(MaintenanceTeam.fromApi).toList();
+  }
+
   Future<void> refreshForMunicipal() async {
     final token = await FirebaseAuth.instance.currentUser?.getIdToken();
     if (token == null) throw StateError('A signed-in officer is required');
@@ -26,18 +34,7 @@ class MaintenanceTeamDirectory {
     );
     teams.value = [
       for (final row in rows)
-        if (_assemblyFromApi(row) case final assembly?)
-          MaintenanceTeam(
-            teamId: row['id'] as String,
-            name: row['name'] as String,
-            region: assembly.region,
-            assembly: assembly,
-            memberUserIds: (row['members'] as List? ?? const [])
-                .whereType<Map<String, dynamic>>()
-                .map((member) => member['publicId'] as String)
-                .toList(),
-            createdAt: DateTime.now(),
-          ),
+        if (_assemblyFromApi(row) != null) MaintenanceTeam.fromApi(row),
     ];
   }
 
@@ -77,6 +74,37 @@ class MaintenanceTeamDirectory {
     return team;
   }
 
+  Future<MaintenanceTeam> createTeamOnServer({
+    required String name,
+    required Assembly assembly,
+    List<String> memberUserIds = const [],
+    String? leadUserId,
+  }) async {
+    if (Firebase.apps.isEmpty) {
+      return createTeam(
+        name: name,
+        assembly: assembly,
+        memberUserIds: memberUserIds,
+        leadUserId: leadUserId,
+      );
+    }
+    final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+    if (token == null) throw StateError('A signed-in Admin is required');
+    final row = await ApiClient.instance.createMaintenanceTeam(
+      idToken: token,
+      fields: {
+        'name': name,
+        'region': assembly.region.name,
+        'assembly': assembly.name,
+        'memberUserIds': memberUserIds,
+        'leadUserId': leadUserId,
+      },
+    );
+    final team = MaintenanceTeam.fromApi(row);
+    teams.value = [team, ...teams.value];
+    return team;
+  }
+
   void updateTeam(MaintenanceTeam updated) {
     final cleaned = _withoutMembersAlreadyAssigned(updated);
     teams.value = [
@@ -86,6 +114,27 @@ class MaintenanceTeamDirectory {
       ))
         if (team.teamId == cleaned.teamId) cleaned else team,
     ];
+  }
+
+  Future<void> updateTeamOnServer(MaintenanceTeam updated) async {
+    if (Firebase.apps.isEmpty) {
+      updateTeam(updated);
+      return;
+    }
+    final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+    if (token == null) throw StateError('A signed-in Admin is required');
+    final row = await ApiClient.instance.updateMaintenanceTeam(
+      updated.teamId,
+      idToken: token,
+      fields: {
+        'name': updated.name,
+        'region': updated.region.name,
+        'assembly': updated.assembly.name,
+        'memberUserIds': updated.memberUserIds,
+        'leadUserId': updated.leadUserId,
+      },
+    );
+    updateTeam(MaintenanceTeam.fromApi(row));
   }
 
   void addMember(MaintenanceTeam team, String userId) {
@@ -115,6 +164,18 @@ class MaintenanceTeamDirectory {
       for (final current in teams.value)
         if (current.teamId != team.teamId) current,
     ];
+  }
+
+  Future<void> deleteTeamOnServer(MaintenanceTeam team) async {
+    if (Firebase.apps.isNotEmpty) {
+      final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+      if (token == null) throw StateError('A signed-in Admin is required');
+      await ApiClient.instance.deleteMaintenanceTeam(
+        team.teamId,
+        idToken: token,
+      );
+    }
+    deleteTeam(team);
   }
 
   MaintenanceTeam? teamById(String teamId) {

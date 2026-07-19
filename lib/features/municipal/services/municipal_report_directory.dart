@@ -104,12 +104,16 @@ class MunicipalReportDirectory {
     return updated;
   }
 
-  Future<void> assignTeamOnServer(String referenceId, String teamName) =>
-      _updateOnServer(referenceId, {
-        'status': 'ASSIGNED',
-        'assignedTeamName': teamName,
-        'progressPercent': '0',
-      });
+  Future<void> assignTeamOnServer(
+    String referenceId,
+    String teamId,
+    String teamName,
+  ) => _updateOnServer(referenceId, {
+    'status': 'ASSIGNED',
+    'assignedTeamId': teamId,
+    'assignedTeamName': teamName,
+    'progressPercent': '0',
+  });
 
   Future<void> _updateOnServer(
     String referenceId,

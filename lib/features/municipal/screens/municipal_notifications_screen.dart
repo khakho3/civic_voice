@@ -6,12 +6,8 @@ import '../../../widgets/detail_header.dart';
 import '../../../widgets/notification_list_view.dart';
 import '../services/municipal_report_directory.dart';
 
-/// Municipal Officer's Notifications — reached via the bell icon on every
-/// Municipal screen. New incoming reports are the only notification type
-/// this module currently generates (see
-/// `NotificationDirectory.forMunicipal`) — opening this screen marks them
-/// all read, which is also what clears the Inbox tab's own "new stuff" dot
-/// (the same underlying signal, just filtered per surface).
+/// Municipal Officer notifications for new reports, maintenance progress,
+/// resolutions, and field escalations within the officer's assembly.
 class MunicipalNotificationsScreen extends StatefulWidget {
   const MunicipalNotificationsScreen({
     super.key,
@@ -56,7 +52,8 @@ class _MunicipalNotificationsScreenState
                 return NotificationListView(
                   notifications: notifications,
                   emptyTitle: 'No notifications yet',
-                  emptyMessage: 'New incoming reports will appear here.',
+                  emptyMessage:
+                      'Report and maintenance updates will appear here.',
                   padding: EdgeInsets.fromLTRB(
                     AppSpacing.md,
                     DetailHeader.topInset(context) + AppSpacing.md,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../services/api_client.dart';
 
 /// A maintenance task's lifecycle state — what Dashboard/Assigned Tasks list
 /// by, what Update Progress writes to, and what Task Details/Task Completed
@@ -67,13 +68,18 @@ class MaintenanceTask {
     required this.distanceLabel,
     required this.teamNote,
     required this.teamId,
+    this.apiId,
+    this.teamName,
     this.reportPhotoCount = 0,
+    this.reportPhotoUrls = const [],
+    this.resolutionPhotoUrls = const [],
     this.completionNotes,
     this.completedAtLabel,
     this.completedWeekday,
   });
 
   final String id;
+  final String? apiId;
   final String title;
   final String description;
   final String category;
@@ -88,6 +94,7 @@ class MaintenanceTask {
   /// Municipal Officer assigns a report to a whole team, not individual
   /// technicians, so every member of that team sees this same task.
   final String teamId;
+  final String? teamName;
 
   /// Short field-facing label — e.g. "On site", "Today 2:30 PM".
   final String eta;
@@ -103,6 +110,8 @@ class MaintenanceTask {
   /// storage/CDN yet), distinct from the completion evidence a technician
   /// captures in Update Progress.
   final int reportPhotoCount;
+  final List<String> reportPhotoUrls;
+  final List<String> resolutionPhotoUrls;
 
   /// Set once [status] reaches [MaintenanceTaskStatus.completed] or
   /// [MaintenanceTaskStatus.failed] — the work notes entered on Update
@@ -146,6 +155,7 @@ class MaintenanceTask {
   }) {
     return MaintenanceTask(
       id: id,
+      apiId: apiId,
       title: title,
       description: description,
       category: category,
@@ -157,11 +167,81 @@ class MaintenanceTask {
       distanceLabel: distanceLabel,
       teamNote: teamNote,
       teamId: teamId,
+      teamName: teamName,
       reportPhotoCount: reportPhotoCount,
+      reportPhotoUrls: reportPhotoUrls,
+      resolutionPhotoUrls: resolutionPhotoUrls,
       completionNotes: completionNotes ?? this.completionNotes,
       completedAtLabel: completedAtLabel ?? this.completedAtLabel,
       completedWeekday: completedWeekday ?? this.completedWeekday,
     );
+  }
+
+  factory MaintenanceTask.fromApi(Map<String, dynamic> json) {
+    final status = json['status'] as String?;
+    final failed = (json['maintenanceFailureNotes'] as String?)?.trim();
+    final createdAt = DateTime.tryParse(json['createdAt'] as String? ?? '');
+    final updatedAt = DateTime.tryParse(json['updatedAt'] as String? ?? '');
+    final photos = (json['photoUrls'] as List? ?? const <dynamic>[])
+        .whereType<String>()
+        .map(ApiClient.assetUrl)
+        .toList();
+    final resolutionPhotos =
+        (json['resolutionPhotoUrls'] as List? ?? const <dynamic>[])
+            .whereType<String>()
+            .map(ApiClient.assetUrl)
+            .toList();
+    return MaintenanceTask(
+      apiId: json['id'] as String?,
+      id: json['publicReference'] as String? ?? json['id'] as String,
+      title: json['title'] as String? ?? 'Untitled task',
+      description: (json['description'] as String?)?.trim() ?? '',
+      category: json['category'] as String? ?? 'General',
+      locationLabel: json['location'] as String? ?? 'Location unavailable',
+      latitude: (json['latitude'] as num?)?.toDouble() ?? 0,
+      longitude: (json['longitude'] as num?)?.toDouble() ?? 0,
+      status: failed?.isNotEmpty == true
+          ? MaintenanceTaskStatus.failed
+          : switch (status) {
+              'RESOLVED' => MaintenanceTaskStatus.completed,
+              'IN_PROGRESS' => MaintenanceTaskStatus.inProgress,
+              _ => MaintenanceTaskStatus.assigned,
+            },
+      eta: status == 'ASSIGNED' ? 'Awaiting dispatch' : 'Work underway',
+      distanceLabel: 'Open map for directions',
+      teamNote: _relativeTime(updatedAt ?? createdAt),
+      teamId: json['assignedTeamId'] as String? ?? 'unassigned-team',
+      teamName: json['assignedTeamName'] as String?,
+      reportPhotoCount: photos.length,
+      reportPhotoUrls: photos,
+      resolutionPhotoUrls: resolutionPhotos,
+      completionNotes: failed?.isNotEmpty == true
+          ? failed
+          : json['resolutionNotes'] as String?,
+      completedAtLabel: updatedAt == null ? null : _dateLabel(updatedAt),
+      completedWeekday: status == 'RESOLVED'
+          ? (updatedAt ?? DateTime.now()).weekday - 1
+          : null,
+    );
+  }
+
+  static String _relativeTime(DateTime? value) {
+    if (value == null) return 'Recently updated';
+    final difference = DateTime.now().difference(value.toLocal());
+    if (difference.inMinutes < 1) return 'Updated just now';
+    if (difference.inHours < 1) {
+      return 'Updated ${difference.inMinutes} min ago';
+    }
+    if (difference.inDays < 1) return 'Updated ${difference.inHours} hrs ago';
+    return 'Updated ${difference.inDays} days ago';
+  }
+
+  static String _dateLabel(DateTime value) {
+    final local = value.toLocal();
+    return '${local.year}-${local.month.toString().padLeft(2, '0')}-'
+        '${local.day.toString().padLeft(2, '0')} '
+        '${local.hour.toString().padLeft(2, '0')}:'
+        '${local.minute.toString().padLeft(2, '0')}';
   }
 }
 

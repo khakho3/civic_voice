@@ -35,6 +35,8 @@ class IncomingReportItem {
     this.resolutionNotes,
     this.rejectionReason,
     this.rejectedAt,
+    this.maintenanceFailureNotes,
+    this.maintenanceFailedAt,
     this.assembly,
     this.reviewerName,
     this.reviewerPhone,
@@ -82,6 +84,8 @@ class IncomingReportItem {
   final String? resolutionNotes;
   final String? rejectionReason;
   final DateTime? rejectedAt;
+  final String? maintenanceFailureNotes;
+  final DateTime? maintenanceFailedAt;
   final String? assembly;
   final String? reviewerName;
   final String? reviewerPhone;
@@ -130,6 +134,10 @@ class IncomingReportItem {
       resolutionNotes: json['resolutionNotes'] as String?,
       rejectionReason: json['rejectionReason'] as String?,
       rejectedAt: DateTime.tryParse(json['rejectedAt'] as String? ?? ''),
+      maintenanceFailureNotes: json['maintenanceFailureNotes'] as String?,
+      maintenanceFailedAt: DateTime.tryParse(
+        json['maintenanceFailedAt'] as String? ?? '',
+      ),
       assembly: json['assembly'] as String?,
       reviewerName:
           (json['reviewer'] as Map<String, dynamic>?)?['fullName'] as String?,
@@ -174,6 +182,8 @@ class IncomingReportItem {
       resolutionNotes: resolutionNotes,
       rejectionReason: rejectionReason ?? this.rejectionReason,
       rejectedAt: rejectedAt ?? this.rejectedAt,
+      maintenanceFailureNotes: maintenanceFailureNotes,
+      maintenanceFailedAt: maintenanceFailedAt,
       assembly: assembly,
       reviewerName: reviewerName,
       reviewerPhone: reviewerPhone,

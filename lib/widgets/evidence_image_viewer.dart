@@ -10,14 +10,7 @@ import '../core/theme/app_theme.dart';
 /// close button top-left, and a real Share action top-right (the OS share
 /// sheet, via `share_plus`).
 ///
-/// Local-file only for now: the only evidence photo currently backed by a
-/// real image anywhere in the app is a citizen's own on-device submission
-/// (`ReportTrackingScreen`). Every other evidence spot (Municipal Report
-/// Review/Progress/Resolution Details, Maintenance Task Details) still
-/// shows an honest "no photo yet" placeholder pending real Firebase
-/// Storage URLs — see those screens' own placeholder widgets — so there's
-/// nothing real to view/share there yet. Wiring a network-image variant in
-/// here is a one-line addition once that data exists.
+/// Supports both an on-device image path and a server-backed HTTP image URL.
 class EvidenceImageViewer extends StatelessWidget {
   const EvidenceImageViewer({super.key, required this.imagePath});
 
@@ -56,8 +49,16 @@ class EvidenceImageViewer extends StatelessWidget {
               maxScale: 4,
               child: Center(
                 child: imagePath.startsWith('http')
-                    ? Image.network(imagePath, fit: BoxFit.contain)
-                    : Image.file(File(imagePath), fit: BoxFit.contain),
+                    ? Image.network(
+                        imagePath,
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, _, _) => const _ImageLoadFailure(),
+                      )
+                    : Image.file(
+                        File(imagePath),
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, _, _) => const _ImageLoadFailure(),
+                      ),
               ),
             ),
           ),
@@ -85,6 +86,22 @@ class EvidenceImageViewer extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _ImageLoadFailure extends StatelessWidget {
+  const _ImageLoadFailure();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(AppIcons.imageUnavailable, color: Colors.white70),
+        SizedBox(height: AppSpacing.sm),
+        Text('Image unavailable', style: TextStyle(color: Colors.white70)),
+      ],
     );
   }
 }

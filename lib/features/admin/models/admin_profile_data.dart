@@ -82,7 +82,7 @@ AdminProfileData mockAdminProfile() {
     email: 'admin@civicvoice.gov',
     phone: '+233 24 111 2222',
     department: 'Platform Administration',
-    adminId: 'ADM-001',
+    adminId: 'ADM-000001',
     lastActivity: DateTime.now().subtract(const Duration(hours: 1)),
     governanceChecklistPercent: 92,
     administrativeScope: const ['Users', 'Roles', 'Settings'],

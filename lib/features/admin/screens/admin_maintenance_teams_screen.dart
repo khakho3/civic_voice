@@ -302,22 +302,30 @@ class _AdminMaintenanceTeamFormScreenState
     );
     if (!confirmed || !mounted) return;
 
-    if (_editing) {
-      MaintenanceTeamDirectory.instance.updateTeam(
-        widget.team!.copyWith(
+    try {
+      if (_editing) {
+        await MaintenanceTeamDirectory.instance.updateTeamOnServer(
+          widget.team!.copyWith(
+            name: name,
+            assembly: _assembly,
+            memberUserIds: _selectedMemberIds.toList(),
+            leadUserId: _leadUserId,
+          ),
+        );
+      } else {
+        await MaintenanceTeamDirectory.instance.createTeamOnServer(
           name: name,
-          assembly: _assembly,
+          assembly: _assembly!,
           memberUserIds: _selectedMemberIds.toList(),
           leadUserId: _leadUserId,
-        ),
+        );
+      }
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.toString())),
       );
-    } else {
-      MaintenanceTeamDirectory.instance.createTeam(
-        name: name,
-        assembly: _assembly!,
-        memberUserIds: _selectedMemberIds.toList(),
-        leadUserId: _leadUserId,
-      );
+      return;
     }
     widget.onClose?.call();
   }
@@ -829,7 +837,16 @@ class _TeamDetailsBody extends StatelessWidget {
                       destructive: true,
                     );
                     if (!confirmed || !context.mounted) return;
-                    MaintenanceTeamDirectory.instance.deleteTeam(team);
+                    try {
+                      await MaintenanceTeamDirectory.instance
+                          .deleteTeamOnServer(team);
+                    } catch (error) {
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(error.toString())),
+                      );
+                      return;
+                    }
                     onBackToTeams?.call();
                   }
                 },
@@ -896,7 +913,20 @@ class _TeamDetailsBody extends StatelessWidget {
       destructive: true,
     );
     if (!confirmed) return;
-    MaintenanceTeamDirectory.instance.removeMember(team, member.userId);
+    final updated = team.copyWith(
+      memberUserIds: team.memberUserIds
+          .where((id) => id != member.userId)
+          .toList(),
+      leadUserId: team.leadUserId == member.userId ? null : team.leadUserId,
+    );
+    try {
+      await MaintenanceTeamDirectory.instance.updateTeamOnServer(updated);
+    } catch (error) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
+    }
   }
 }
 

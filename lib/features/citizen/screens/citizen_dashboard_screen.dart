@@ -8,7 +8,6 @@ import '../models/civic_report.dart';
 import '../models/dashboard_view_state.dart';
 import '../services/dashboard_state_service.dart';
 import '../services/location_service.dart';
-import '../services/notification_permission_service.dart';
 import '../services/profile_crud_service.dart';
 import '../services/report_crud_service.dart';
 import '../widgets/civic_app_chrome.dart';
@@ -41,8 +40,6 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen>
   final ReportCrudService _reportCrudService = ReportCrudService.instance;
   final ProfileCrudService _profileCrudService = ProfileCrudService.instance;
   final LocationService _locationService = const LocationService();
-  final NotificationPermissionService _notificationPermissionService =
-      const NotificationPermissionService();
 
   @override
   void initState() {
@@ -51,8 +48,6 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen>
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await _checkLocationAccess(requestPermission: true);
-      if (!mounted) return;
-      await _checkNotificationAccess();
     });
   }
 
@@ -161,55 +156,6 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen>
     );
 
     _locationDialogVisible = false;
-  }
-
-  Future<void> _checkNotificationAccess() async {
-    try {
-      if (await _notificationPermissionService.hasAskedBefore()) return;
-    } catch (_) {
-      // In tests or unsupported platforms the plugin can be unavailable;
-      // skip the prompt instead of blocking the app.
-      return;
-    }
-    if (!mounted) return;
-
-    await showDialog<void>(
-      context: context,
-      barrierDismissible: true,
-      builder: (context) {
-        return AlertDialog(
-          icon: const Icon(AppIcons.notifications, color: AppColors.primary),
-          title: const Text('Stay Updated'),
-          content: const Text(
-            'Allow notifications so CivicVoice can let you know when your '
-            'report status changes.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () async {
-                Navigator.of(context).pop();
-                await _notificationPermissionService.markAsked();
-              },
-              child: const Text('Not Now'),
-            ),
-            FilledButton(
-              onPressed: () async {
-                Navigator.of(context).pop();
-                try {
-                  await _notificationPermissionService.requestOnce();
-                } catch (_) {
-                  // Plugin unavailable on this platform/build — nothing
-                  // further to do; the "asked" flag write inside
-                  // requestOnce() may not have landed, but we won't nag
-                  // again this session either way.
-                }
-              },
-              child: const Text('Allow'),
-            ),
-          ],
-        );
-      },
-    );
   }
 
   @override
