@@ -314,39 +314,45 @@ class _StatsGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: AppSpacing.sm,
-      crossAxisSpacing: AppSpacing.sm,
-      childAspectRatio: 189 / 128,
-      children: [
-        _StatCard(
-          label: 'New Reports',
-          value: stats.newReports,
-          icon: AppIcons.report,
-          isLoading: isLoading,
-        ),
-        _StatCard(
-          label: 'Under Review',
-          value: stats.underReview,
-          icon: AppIcons.statusUnderReview,
-          isLoading: isLoading,
-        ),
-        _StatCard(
-          label: 'Assigned',
-          value: stats.assigned,
-          icon: AppIcons.statusAssigned,
-          isLoading: isLoading,
-        ),
-        _StatCard(
-          label: 'Resolved',
-          value: stats.resolved,
-          icon: AppIcons.statusResolved,
-          isLoading: isLoading,
-        ),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isTablet = constraints.maxWidth >= 720;
+        final isNarrow = constraints.maxWidth < 360;
+        return GridView.count(
+          crossAxisCount: isTablet ? 4 : 2,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          mainAxisSpacing: AppSpacing.sm,
+          crossAxisSpacing: AppSpacing.sm,
+          mainAxisExtent: isNarrow ? 144 : 132,
+          children: [
+            _StatCard(
+              label: 'New Reports',
+              value: stats.newReports,
+              icon: AppIcons.report,
+              isLoading: isLoading,
+            ),
+            _StatCard(
+              label: 'Under Review',
+              value: stats.underReview,
+              icon: AppIcons.statusUnderReview,
+              isLoading: isLoading,
+            ),
+            _StatCard(
+              label: 'Assigned',
+              value: stats.assigned,
+              icon: AppIcons.statusAssigned,
+              isLoading: isLoading,
+            ),
+            _StatCard(
+              label: 'Resolved',
+              value: stats.resolved,
+              icon: AppIcons.statusResolved,
+              isLoading: isLoading,
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -438,7 +444,15 @@ class _RecentReportsCard extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Recent Reports', style: textTheme.titleMedium),
+                Expanded(
+                  child: Text(
+                    'Recent Reports',
+                    style: textTheme.titleMedium,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.xs),
                 TextButton(onPressed: onViewAll, child: const Text('View all')),
               ],
             ),

@@ -29,6 +29,20 @@ class ApiClient {
     defaultValue: 'http://192.168.100.8:4000',
   );
 
+  static String assetUrl(String value) {
+    final uri = Uri.tryParse(value);
+    if (uri == null || !uri.hasScheme) return '$baseUrl$value';
+    if (uri.host == 'localhost' ||
+        uri.host == '127.0.0.1' ||
+        uri.host == '10.0.2.2') {
+      final api = Uri.parse(baseUrl);
+      return uri
+          .replace(scheme: api.scheme, host: api.host, port: api.port)
+          .toString();
+    }
+    return value;
+  }
+
   Map<String, dynamic> _decode(http.Response response) {
     final decoded = response.body.isEmpty
         ? <String, dynamic>{}
@@ -209,6 +223,17 @@ class ApiClient {
 
   Future<void> sendForgotPasswordOtp(String phone) async {
     await _post('/api/auth/forgot-password-otp', {'phone': phone});
+  }
+
+  Future<void> registerPushToken({
+    required String idToken,
+    required String token,
+    required String platform,
+  }) async {
+    await _post('/api/auth/push-token', {
+      'token': token,
+      'platform': platform,
+    }, idToken: idToken);
   }
 
   Future<void> resetPassword({

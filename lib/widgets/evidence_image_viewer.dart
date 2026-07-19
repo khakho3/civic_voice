@@ -37,7 +37,11 @@ class EvidenceImageViewer extends StatelessWidget {
   }
 
   Future<void> _share() {
-    return SharePlus.instance.share(ShareParams(files: [XFile(imagePath)]));
+    return SharePlus.instance.share(
+      imagePath.startsWith('http')
+          ? ShareParams(text: imagePath)
+          : ShareParams(files: [XFile(imagePath)]),
+    );
   }
 
   @override
@@ -51,7 +55,9 @@ class EvidenceImageViewer extends StatelessWidget {
               minScale: 1,
               maxScale: 4,
               child: Center(
-                child: Image.file(File(imagePath), fit: BoxFit.contain),
+                child: imagePath.startsWith('http')
+                    ? Image.network(imagePath, fit: BoxFit.contain)
+                    : Image.file(File(imagePath), fit: BoxFit.contain),
               ),
             ),
           ),

@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 
 import 'core/theme/app_theme.dart';
@@ -81,14 +82,54 @@ import 'models/app_role.dart';
 import 'services/api_client.dart';
 import 'services/idle_session_timer.dart';
 import 'services/mock_auth_service.dart';
+import 'services/notification_directory.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   await ThemeController.loadSavedTheme();
   await MockAuthService().initialize();
+  await NotificationDirectory.instance.initialize();
   await _restorePersistedSession();
+  await _configurePushNotifications();
   runApp(const CivicVoiceApp());
+}
+
+Future<void> _configurePushNotifications() async {
+  final user = FirebaseAuth.instance.currentUser;
+  if (user == null) return;
+  try {
+    final messaging = FirebaseMessaging.instance;
+    final token = await messaging.getToken();
+    final idToken = await user.getIdToken();
+    if (token != null && idToken != null) {
+      await ApiClient.instance.registerPushToken(
+        idToken: idToken,
+        token: token,
+        platform: 'android',
+      );
+    }
+    FirebaseMessaging.onMessage.listen((message) async {
+      if (message.data['type'] == 'report-status') {
+        try {
+          await ReportCrudService.instance.refresh();
+        } catch (_) {}
+      }
+    });
+    messaging.onTokenRefresh.listen((token) async {
+      final refreshedIdToken = await FirebaseAuth.instance.currentUser
+          ?.getIdToken();
+      if (refreshedIdToken != null) {
+        await ApiClient.instance.registerPushToken(
+          idToken: refreshedIdToken,
+          token: token,
+          platform: 'android',
+        );
+      }
+    });
+  } catch (_) {
+    // Notifications never block sign-in or application startup.
+  }
 }
 
 Future<void> _restorePersistedSession() async {
@@ -612,6 +653,7 @@ class _LoginRouteState extends State<_LoginRoute> {
         appRole,
         mustChangePasswordOnFirstLogin: syncedUser.mustChangePassword,
       );
+      await _configurePushNotifications();
       if (appRole == AppRole.citizen) {
         ProfileCrudService.instance.loadSignedInUser(syncedUser);
         await ReportCrudService.instance.refresh();
@@ -741,6 +783,7 @@ class _RegistrationOtpRouteState extends State<_RegistrationOtpRoute> {
       final syncedUser = await ApiClient.instance.syncUser(idToken: idToken);
       ProfileCrudService.instance.loadSignedInUser(syncedUser);
       await MockAuthService().selectRole(AppRole.citizen);
+      await _configurePushNotifications();
       await ReportCrudService.instance.refresh();
       if (!context.mounted) return true;
       Navigator.of(

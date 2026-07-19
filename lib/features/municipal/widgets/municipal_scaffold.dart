@@ -195,10 +195,14 @@ class _Header extends StatelessWidget {
                               height: AppIconSize.xl,
                             ),
                             const SizedBox(width: AppSpacing.sm),
-                            Text(
-                              'CivicVoice',
-                              style: textTheme.titleLarge?.copyWith(
-                                color: AppColors.primary,
+                            Expanded(
+                              child: Text(
+                                'CivicVoice',
+                                style: textTheme.titleLarge?.copyWith(
+                                  color: AppColors.primary,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                           ],
@@ -395,7 +399,11 @@ class _NavItem extends StatelessWidget {
                   show: NotificationDirectory.instance.hasUnread(
                     NotificationDirectory.instance.forMunicipal(),
                   ),
-                  child: Icon(tab.icon, size: AppIconSize.md, color: foreground),
+                  child: Icon(
+                    tab.icon,
+                    size: AppIconSize.md,
+                    color: foreground,
+                  ),
                 ),
               )
             else

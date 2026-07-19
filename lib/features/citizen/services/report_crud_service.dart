@@ -182,6 +182,8 @@ class ReportCrudService implements ReportsRepository {
     final urls = (json['photoUrls'] as List? ?? const []).cast<String>();
     return CivicReport(
       id: json['id'] as String,
+      referenceNumber:
+          json['publicReference'] as String? ?? json['id'] as String,
       title: json['title'] as String? ?? '',
       description: json['description'] as String? ?? '',
       category: json['category'] as String? ?? 'General',
@@ -191,11 +193,7 @@ class ReportCrudService implements ReportsRepository {
       longitude: (json['longitude'] as num?)?.toDouble(),
       region: _region(json['region'] as String?),
       photoCount: urls.length,
-      photoPaths: urls
-          .map(
-            (url) => url.startsWith('http') ? url : '${ApiClient.baseUrl}$url',
-          )
-          .toList(),
+      photoPaths: urls.map(ApiClient.assetUrl).toList(),
       submittedAt: created,
       timeLabel: created == null ? '' : _relative(created),
       status: _statusFromApi(json['status'] as String?),

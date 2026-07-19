@@ -397,9 +397,16 @@ class _ReportStatisticsCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Report Statistics', style: textTheme.titleMedium),
+              Expanded(
+                child: Text(
+                  'Report Statistics',
+                  style: textTheme.titleMedium,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
               Icon(
                 AppIcons.chartBreakdown,
                 size: AppIconSize.md,

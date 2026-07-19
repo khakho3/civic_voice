@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/theme/app_theme.dart';
 import '../features/admin/services/admin_maintenance_team_directory.dart';
@@ -25,16 +28,44 @@ class NotificationDirectory {
   static final NotificationDirectory instance = NotificationDirectory._();
 
   final ValueNotifier<Set<String>> readIds = ValueNotifier(<String>{});
+  static const _readIdsKey = 'notification_read_ids';
+  SharedPreferences? _preferences;
+
+  Future<void> initialize() async {
+    final preferences = await SharedPreferences.getInstance();
+    _preferences = preferences;
+    readIds.value = (preferences.getStringList(_readIdsKey) ?? const <String>[])
+        .toSet();
+  }
 
   bool isRead(String id) => readIds.value.contains(id);
 
   void markRead(String id) {
     if (readIds.value.contains(id)) return;
     readIds.value = {...readIds.value, id};
+    _persistReadIds();
   }
 
   void markAllRead(Iterable<String> ids) {
-    readIds.value = {...readIds.value, ...ids};
+    final updated = {...readIds.value, ...ids};
+    if (updated.length == readIds.value.length) return;
+    readIds.value = updated;
+    _persistReadIds();
+  }
+
+  void _persistReadIds() {
+    final values = readIds.value.toList()..sort();
+    final preferences = _preferences;
+    if (preferences != null) {
+      unawaited(preferences.setStringList(_readIdsKey, values));
+      return;
+    }
+    unawaited(
+      SharedPreferences.getInstance().then((instance) {
+        _preferences = instance;
+        instance.setStringList(_readIdsKey, values);
+      }),
+    );
   }
 
   /// The one signal every bell/tab dot badge reads — just handed a
@@ -79,8 +110,7 @@ class NotificationDirectory {
             ReportStatus.underReview =>
               NotificationType.citizenReportUnderReview,
             ReportStatus.assigned => NotificationType.citizenReportAssigned,
-            ReportStatus.inProgress =>
-              NotificationType.citizenReportInProgress,
+            ReportStatus.inProgress => NotificationType.citizenReportInProgress,
             ReportStatus.resolved => NotificationType.citizenReportResolved,
             ReportStatus.rejected => NotificationType.citizenReportRejected,
           },

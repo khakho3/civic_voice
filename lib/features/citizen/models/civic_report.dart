@@ -6,6 +6,7 @@ export '../../../models/report_status.dart';
 class CivicReport {
   const CivicReport({
     this.id = '',
+    this.referenceNumber = '',
     required this.title,
     this.description = '',
     this.category = '',
@@ -22,6 +23,7 @@ class CivicReport {
   });
 
   final String id;
+  final String referenceNumber;
   final String title;
   final String description;
   final String category;
@@ -51,6 +53,7 @@ class CivicReport {
 
     return CivicReport(
       id: map['id'] as String? ?? '',
+      referenceNumber: map['referenceNumber'] as String? ?? '',
       title: map['title'] as String? ?? '',
       description: map['description'] as String? ?? '',
       category: map['category'] as String? ?? '',
@@ -77,6 +80,7 @@ class CivicReport {
   Map<String, Object?> toMap() {
     return <String, Object?>{
       'id': id,
+      'referenceNumber': referenceNumber,
       'title': title,
       'description': description,
       'category': category,
@@ -95,6 +99,7 @@ class CivicReport {
 
   CivicReport copyWith({
     String? id,
+    String? referenceNumber,
     String? title,
     String? description,
     String? category,
@@ -111,6 +116,7 @@ class CivicReport {
   }) {
     return CivicReport(
       id: id ?? this.id,
+      referenceNumber: referenceNumber ?? this.referenceNumber,
       title: title ?? this.title,
       description: description ?? this.description,
       category: category ?? this.category,

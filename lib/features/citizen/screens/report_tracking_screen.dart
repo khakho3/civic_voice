@@ -198,7 +198,7 @@ class _ReportSummaryCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  report.id,
+                  report.referenceNumber,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.labelMedium?.copyWith(
@@ -427,7 +427,7 @@ class _TimelineStep extends StatelessWidget {
   String get _message {
     return switch (status) {
       ReportStatus.submitted =>
-        'Reference ${report.id} was received by CivicVoice.',
+        'Reference ${report.referenceNumber} was received by CivicVoice.',
       ReportStatus.underReview =>
         'The municipality confirmed the report details and location.',
       ReportStatus.assigned => 'Field team assignment created for repair work.',
@@ -668,19 +668,17 @@ class _TrackingDetails extends StatelessWidget {
                               key: ValueKey('evidence-photo-$path'),
                               onTap: () =>
                                   EvidenceImageViewer.open(context, path),
-                              child: Image.file(
-                                File(path),
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) =>
-                                    ColoredBox(
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.surfaceContainerLow,
-                                      child: const Center(
-                                        child: Icon(AppIcons.imageUnavailable),
-                                      ),
+                              child: path.startsWith('http')
+                                  ? Image.network(
+                                      path,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: _evidenceError,
+                                    )
+                                  : Image.file(
+                                      File(path),
+                                      fit: BoxFit.cover,
+                                      errorBuilder: _evidenceError,
                                     ),
-                              ),
                             ),
                           ),
                         ),
@@ -701,6 +699,15 @@ class _TrackingDetails extends StatelessWidget {
     );
   }
 }
+
+Widget _evidenceError(
+  BuildContext context,
+  Object error,
+  StackTrace? stackTrace,
+) => ColoredBox(
+  color: Theme.of(context).colorScheme.surfaceContainerLow,
+  child: const Center(child: Icon(AppIcons.imageUnavailable)),
+);
 
 class _TrackingLocation extends StatelessWidget {
   const _TrackingLocation({required this.report});

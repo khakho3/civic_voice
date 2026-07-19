@@ -60,7 +60,8 @@ class ReviewReportScreen extends StatelessWidget {
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute<void>(
           builder: (_) => ReportSubmittedScreen(
-            referenceNumber: report.id,
+            referenceNumber: report.referenceNumber,
+            reportId: report.id,
             reportTitle: reportTitle,
             reportCategory: reportCategory,
             reportLocationLabel: reportLocationLabel,

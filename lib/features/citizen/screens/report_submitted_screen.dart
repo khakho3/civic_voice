@@ -13,6 +13,7 @@ class ReportSubmittedScreen extends StatefulWidget {
   const ReportSubmittedScreen({
     super.key,
     this.referenceNumber,
+    this.reportId,
     this.reportTitle,
     this.reportCategory,
     this.reportLocationLabel,
@@ -22,6 +23,7 @@ class ReportSubmittedScreen extends StatefulWidget {
   static const String routeName = '/citizen/report-submitted';
 
   final String? referenceNumber;
+  final String? reportId;
   final String? reportTitle;
   final String? reportCategory;
   final String? reportLocationLabel;
@@ -70,8 +72,9 @@ class _ReportSubmittedScreenState extends State<ReportSubmittedScreen> {
                   onTrack: () {
                     Navigator.of(context).pushReplacement(
                       MaterialPageRoute<void>(
-                        builder: (_) =>
-                            ReportTrackingScreen(reportId: referenceNumber),
+                        builder: (_) => ReportTrackingScreen(
+                          reportId: widget.reportId ?? '',
+                        ),
                       ),
                     );
                   },
@@ -89,15 +92,7 @@ class _ReportSubmittedScreenState extends State<ReportSubmittedScreen> {
           ),
           Align(
             alignment: Alignment.topCenter,
-            child: CivicTopBar(
-              title: 'Submitted',
-              showNotifications: true,
-              onNotificationsTap: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => const CitizenAlertsScreen(),
-                ),
-              ),
-            ),
+            child: CivicTopBar(title: 'Submitted', showNotifications: false),
           ),
           if (!keyboardVisible)
             Align(

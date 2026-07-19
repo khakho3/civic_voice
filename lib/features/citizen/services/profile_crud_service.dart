@@ -49,9 +49,7 @@ class ProfileCrudService implements ProfileRepository {
         primaryLocation: '',
         photoPath: user.avatarUrl == null
             ? null
-            : user.avatarUrl!.startsWith('http')
-            ? user.avatarUrl
-            : '${ApiClient.baseUrl}${user.avatarUrl}',
+            : ApiClient.assetUrl(user.avatarUrl!),
         twoStepEnabled: false,
       ),
     );

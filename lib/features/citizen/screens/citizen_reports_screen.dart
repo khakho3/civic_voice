@@ -66,7 +66,7 @@ class _CitizenReportsScreenState extends State<CitizenReportsScreen> {
       return report.title.toLowerCase().contains(query) ||
           report.location.toLowerCase().contains(query) ||
           report.category.toLowerCase().contains(query) ||
-          report.id.toLowerCase().contains(query);
+          report.referenceNumber.toLowerCase().contains(query);
     }).toList();
   }
 
@@ -296,7 +296,9 @@ class _ReportHistoryCard extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  report.id.isEmpty ? 'CV-2026-000000' : report.id,
+                  report.referenceNumber.isEmpty
+                      ? 'Reference pending'
+                      : report.referenceNumber,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.labelSmall?.copyWith(
