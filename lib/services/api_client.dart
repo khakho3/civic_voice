@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 
 /// Thin wrapper around civic_voice_api (c:\Projects\mobile\servers\civic_voice_api).
 /// Only covers the calls the real auth flow needs right now — registration,
@@ -98,13 +99,28 @@ class ApiClient {
       for (final filePath in entry.value) {
         if (await File(filePath).exists()) {
           request.files.add(
-            await http.MultipartFile.fromPath(entry.key, filePath),
+            await http.MultipartFile.fromPath(
+              entry.key,
+              filePath,
+              contentType: _imageMediaType(filePath),
+            ),
           );
         }
       }
     }
     final streamed = await request.send();
     return _decode(await http.Response.fromStream(streamed));
+  }
+
+  MediaType _imageMediaType(String path) {
+    final extension = path.toLowerCase().split('.').last;
+    return switch (extension) {
+      'png' => MediaType('image', 'png'),
+      'webp' => MediaType('image', 'webp'),
+      'heic' => MediaType('image', 'heic'),
+      'heif' => MediaType('image', 'heif'),
+      _ => MediaType('image', 'jpeg'),
+    };
   }
 
   /// Sends a real SMS verification code to confirm the citizen owns this
