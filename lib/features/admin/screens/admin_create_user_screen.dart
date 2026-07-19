@@ -1,9 +1,11 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../models/app_role.dart';
 import '../../../models/assembly.dart';
 import '../../../models/region.dart';
+import '../../../services/api_client.dart';
 import '../../../widgets/confirm_dialog.dart';
 import '../models/admin_role_management_data.dart';
 import '../models/admin_user_management_data.dart';
@@ -12,6 +14,20 @@ import '../services/admin_system_settings_directory.dart';
 import '../services/admin_user_directory.dart';
 import '../widgets/admin_scaffold.dart';
 import '../widgets/region_assembly_picker.dart';
+
+/// civic_voice_api's UserRole string for each provisionable [AppRole] —
+/// the inverse of main.dart's _appRoleForBackendRole. System
+/// Administrator always maps to 'ADMIN' regardless of [AdminTier]: the
+/// backend has no tier concept yet (see the class doc comment below).
+String _backendRoleFor(AppRole role) {
+  return switch (role) {
+    AppRole.municipalOfficer => 'MUNICIPAL',
+    AppRole.maintenanceTeam => 'MAINTENANCE',
+    AppRole.ministrySupervisor => 'MINISTRY',
+    AppRole.systemAdministrator => 'ADMIN',
+    AppRole.citizen => throw ArgumentError('Citizens self-register, not admin-provisioned'),
+  };
+}
 
 /// Admin's missing account-creation surface — User Management and User
 /// Details only ever let an admin list/edit/deactivate accounts that
@@ -37,9 +53,14 @@ import '../widgets/region_assembly_picker.dart';
 /// Officer/Maintenance Team need, since an assembly-scoped Admin account is
 /// just as jurisdiction-bound as the staff it manages.
 ///
-/// Creates through [AdminUserDirectory], the same shared in-memory list
-/// [AdminUserManagementScreen] reads from — the new account shows back up
-/// in that list immediately, not into an unwired callback.
+/// Creates for real against civic_voice_api (see [ApiClient.createStaffUser])
+/// — a real Firebase account, mirrored Postgres row, and a real WittyFlow
+/// temp-password SMS. Also mirrors the new account into [AdminUserDirectory]
+/// so it shows back up in [AdminUserManagementScreen]'s list immediately,
+/// since there's no "list all users" backend endpoint yet — that list is
+/// still local/mock. Admin-tier and Region/Assembly scoping are real on
+/// this screen but have no backend model yet, so they're only reflected in
+/// that local mirror, not sent to or enforced by the server.
 class AdminCreateUserScreen extends StatefulWidget {
   const AdminCreateUserScreen({
     super.key,
@@ -86,6 +107,7 @@ class _AdminCreateUserScreenState extends State<AdminCreateUserScreen> {
   Region? _region = AdminSession.instance.region;
   Assembly? _assembly = AdminSession.instance.assembly;
   Map<String, String> _fieldErrors = const {};
+  bool _isSubmitting = false;
 
   @override
   void dispose() {
@@ -123,6 +145,41 @@ class _AdminCreateUserScreenState extends State<AdminCreateUserScreen> {
     );
     if (!confirmed || !mounted) return;
 
+    setState(() => _isSubmitting = true);
+    try {
+      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
+      if (idToken == null) {
+        throw Exception('Not signed in — sign in again and retry.');
+      }
+      await ApiClient.instance.createStaffUser(
+        idToken: idToken,
+        fullName: name,
+        phone: phone,
+        role: _backendRoleFor(_role),
+      );
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      setState(() => _isSubmitting = false);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+      return;
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isSubmitting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not create account. Try again.')),
+      );
+      return;
+    }
+    if (!mounted) return;
+    setState(() => _isSubmitting = false);
+
+    // The real account now exists in Firebase/Postgres and the temp
+    // password SMS is already sent — this local mirror is only so the
+    // new account shows up in User Management's list right away, which
+    // still reads from AdminUserDirectory (there's no "list all users"
+    // backend endpoint yet).
     final created = AdminUserDirectory.instance.createUser(
       name: name,
       phone: phone,
@@ -136,7 +193,6 @@ class _AdminCreateUserScreenState extends State<AdminCreateUserScreen> {
           : null,
     );
     widget.onUserCreated?.call(created);
-    // TODO(auth): send temp password via WittiFlow once the backend exists.
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -314,15 +370,25 @@ class _AdminCreateUserScreenState extends State<AdminCreateUserScreen> {
             children: [
               Expanded(
                 child: OutlinedButton(
-                  onPressed: _handleCancel,
+                  onPressed: _isSubmitting ? null : _handleCancel,
                   child: const Text('Cancel'),
                 ),
               ),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: FilledButton(
-                  onPressed: creationDisabled ? null : _submit,
-                  child: const Text('Create User'),
+                  onPressed: (creationDisabled || _isSubmitting)
+                      ? null
+                      : _submit,
+                  child: _isSubmitting
+                      ? const SizedBox(
+                          width: AppIconSize.md,
+                          height: AppIconSize.md,
+                          child: CircularProgressIndicator(
+                            strokeWidth: AppSpacing.xs / 2,
+                          ),
+                        )
+                      : const Text('Create User'),
                 ),
               ),
             ],

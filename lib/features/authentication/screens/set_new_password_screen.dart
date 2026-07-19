@@ -15,7 +15,7 @@ class SetNewPasswordScreen extends StatelessWidget {
   });
 
   final SetNewPasswordPurpose purpose;
-  final VoidCallback onSaved;
+  final Future<bool> Function(String newPassword) onSaved;
   final VoidCallback? onBack;
 
   @override

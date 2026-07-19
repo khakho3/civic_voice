@@ -1,8 +1,10 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import 'package:civic_voice/features/authentication/screens/otp_verification_screen.dart';
 import 'package:civic_voice/features/authentication/widgets/auth_presentation.dart';
 import 'package:civic_voice/features/authentication/widgets/set_new_password_form.dart';
+import 'package:civic_voice/services/api_client.dart';
 
 class ChangePasswordScreen extends StatefulWidget {
   const ChangePasswordScreen({
@@ -13,6 +15,7 @@ class ChangePasswordScreen extends StatefulWidget {
   });
 
   final String phoneNumber;
+  /// Fires only after the password has actually been changed for real.
   final VoidCallback onSaved;
   final VoidCallback? onBack;
 
@@ -23,6 +26,21 @@ class ChangePasswordScreen extends StatefulWidget {
 class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   bool _verified = false;
 
+  Future<bool> _handleSave(String newPassword) async {
+    final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
+    if (idToken == null) return false;
+    try {
+      await ApiClient.instance.changePassword(
+        idToken: idToken,
+        newPassword: newPassword,
+      );
+    } on ApiException {
+      return false;
+    }
+    widget.onSaved();
+    return true;
+  }
+
   @override
   Widget build(BuildContext context) {
     if (!_verified) {
@@ -31,7 +49,10 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
         phoneNumber: widget.phoneNumber,
         purpose: OtpPurpose.changePassword,
         onBack: widget.onBack,
-        onVerify: () => setState(() => _verified = true),
+        onVerify: (_) async {
+          setState(() => _verified = true);
+          return true;
+        },
       );
     }
 
@@ -43,10 +64,10 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
         supportingText: 'Choose a new password for future sign-ins.',
         form: SetNewPasswordForm(
           submitLabel: 'Save Password',
-          onSaved: widget.onSaved,
+          onSaved: _handleSave,
         ),
         footer: Text(
-          'Your password will update after backend auth is connected.',
+          'Use at least 8 characters.',
           textAlign: TextAlign.center,
           style: theme.textTheme.bodySmall?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,

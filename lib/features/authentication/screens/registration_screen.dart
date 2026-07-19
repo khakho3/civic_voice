@@ -29,7 +29,7 @@ class RegistrationScreen extends StatefulWidget {
 
   final RegistrationViewState state;
   final VoidCallback? onBack;
-  final ValueChanged<String>? onCreateAccount;
+  final void Function(String fullName, String phone, String password)? onCreateAccount;
   final VoidCallback? onLogin;
 
   @override
@@ -97,7 +97,11 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     }
 
     if (formIsValid) {
-      widget.onCreateAccount?.call(_phoneController.text.trim());
+      widget.onCreateAccount?.call(
+        _fullNameController.text.trim(),
+        _phoneController.text.trim(),
+        _passwordController.text,
+      );
     }
   }
 

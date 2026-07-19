@@ -27,7 +27,7 @@ class LoginScreen extends StatefulWidget {
 
   final LoginViewState state;
   final VoidCallback? onBack;
-  final VoidCallback? onSignIn;
+  final void Function(String phone, String password)? onSignIn;
   final VoidCallback? onForgotPassword;
   final VoidCallback? onRegister;
 
@@ -64,7 +64,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final isValid = _formKey.currentState?.validate() ?? false;
 
     if (isValid) {
-      widget.onSignIn?.call();
+      widget.onSignIn?.call(_phoneController.text.trim(), _passwordController.text);
     }
   }
 

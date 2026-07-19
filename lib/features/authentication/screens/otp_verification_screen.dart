@@ -25,8 +25,11 @@ class OtpVerificationScreen extends StatefulWidget {
 
   final String phoneNumber;
   final OtpPurpose purpose;
-  final VoidCallback onVerify;
-  final VoidCallback? onResend;
+  /// Returns true on a correct code, false on a wrong/expired one — the
+  /// screen shows an inline error for false rather than the caller
+  /// silently proceeding.
+  final Future<bool> Function(String code) onVerify;
+  final Future<void> Function()? onResend;
   final VoidCallback? onBack;
   final Duration codeExpiryDuration;
   final Duration resendCooldownDuration;
@@ -42,6 +45,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
   late Duration _resendCooldown = widget.resendCooldownDuration;
   bool _verifying = false;
   bool _resent = false;
+  bool _invalidCode = false;
 
   bool get _expired => _timeToExpiry.inSeconds <= 0;
   bool get _canResend => _resendCooldown.inSeconds <= 0;
@@ -74,12 +78,13 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
     });
   }
 
-  void _resend() {
+  Future<void> _resend() async {
     if (!_canResend) return;
-    // TODO(auth): request a new OTP via WittiFlow/backend once it exists.
-    widget.onResend?.call();
+    await widget.onResend?.call();
+    if (!mounted) return;
     setState(() {
       _resent = true;
+      _invalidCode = false;
       _codeController.clear();
       _timeToExpiry = widget.codeExpiryDuration;
       _resendCooldown = widget.resendCooldownDuration;
@@ -88,12 +93,16 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
 
   Future<void> _verify() async {
     if (!_canVerify) return;
-    setState(() => _verifying = true);
-    // TODO(auth): verify OTP against WittiFlow/backend once it exists.
-    await Future<void>.delayed(AppMotionDuration.moderate);
+    setState(() {
+      _verifying = true;
+      _invalidCode = false;
+    });
+    final verified = await widget.onVerify(_codeController.text.trim());
     if (!mounted) return;
-    setState(() => _verifying = false);
-    widget.onVerify();
+    setState(() {
+      _verifying = false;
+      _invalidCode = !verified;
+    });
   }
 
   @override
@@ -153,6 +162,13 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                 icon: AppIcons.warning,
                 statusColor: semantic.warning,
               )
+            else if (_invalidCode)
+              AuthStatusAlert(
+                title: 'Incorrect Code',
+                message: 'That code is wrong or has expired. Try again.',
+                icon: AppIcons.error,
+                statusColor: semantic.error,
+              )
             else if (_resent)
               AuthStatusAlert(
                 title: 'Code Resent',
@@ -160,7 +176,8 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                 icon: AppIcons.success,
                 statusColor: semantic.success,
               ),
-            if (_expired || _resent) const SizedBox(height: AppSpacing.md),
+            if (_expired || _invalidCode || _resent)
+              const SizedBox(height: AppSpacing.md),
             SizedBox(
               width: double.infinity,
               child: FilledButton(

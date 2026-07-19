@@ -12,7 +12,10 @@ class SetNewPasswordForm extends StatefulWidget {
   });
 
   final String submitLabel;
-  final VoidCallback onSaved;
+  /// Returns true on success. On false, the form shows a generic inline
+  /// error — callers that need a specific message should show their own
+  /// SnackBar/dialog before returning false.
+  final Future<bool> Function(String newPassword) onSaved;
   final bool disabled;
 
   @override
@@ -26,6 +29,7 @@ class _SetNewPasswordFormState extends State<SetNewPasswordForm> {
   bool _hidePassword = true;
   bool _hideConfirmPassword = true;
   bool _saving = false;
+  bool _saveFailed = false;
 
   @override
   void dispose() {
@@ -39,11 +43,16 @@ class _SetNewPasswordFormState extends State<SetNewPasswordForm> {
     final valid = _formKey.currentState?.validate() ?? false;
     if (!valid) return;
 
-    setState(() => _saving = true);
-    await Future<void>.delayed(AppMotionDuration.moderate);
+    setState(() {
+      _saving = true;
+      _saveFailed = false;
+    });
+    final succeeded = await widget.onSaved(_passwordController.text);
     if (!mounted) return;
-    setState(() => _saving = false);
-    widget.onSaved();
+    setState(() {
+      _saving = false;
+      _saveFailed = !succeeded;
+    });
   }
 
   @override
@@ -115,6 +124,17 @@ class _SetNewPasswordFormState extends State<SetNewPasswordForm> {
             validator: (value) =>
                 validateConfirmPassword(value, _passwordController.text),
           ),
+          if (_saveFailed) ...[
+            const SizedBox(height: AppSpacing.md),
+            AuthStatusAlert(
+              title: 'Could Not Save',
+              message: 'Something went wrong. Please try again.',
+              icon: AppIcons.error,
+              statusColor:
+                  theme.extension<AppSemanticColors>()?.error ??
+                  AppColors.error,
+            ),
+          ],
           const SizedBox(height: AppSpacing.lg),
           SizedBox(
             width: double.infinity,

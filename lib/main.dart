@@ -1,3 +1,5 @@
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 
 import 'core/theme/app_theme.dart';
@@ -72,12 +74,15 @@ import 'features/municipal/screens/municipal_resolution_details_screen.dart';
 import 'features/municipal/screens/municipal_notifications_screen.dart';
 import 'features/municipal/screens/municipal_resolved_reports_screen.dart';
 import 'features/municipal/screens/municipal_verification_screen.dart';
+import 'firebase_options.dart';
 import 'models/app_role.dart';
+import 'services/api_client.dart';
 import 'services/idle_session_timer.dart';
 import 'services/mock_auth_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   await ThemeController.loadSavedTheme();
   await MockAuthService().initialize();
   runApp(const CivicVoiceApp());
@@ -246,24 +251,8 @@ class _CivicVoiceAppState extends State<CivicVoiceApp> {
                 context,
               ).pushNamedAndRemoveUntil(AppRoutes.welcome, (_) => false),
             ),
-            AppRoutes.login: (context) => LoginScreen(
-              state: LoginViewState.ready,
-              onBack: () => Navigator.of(context).maybePop(),
-              onSignIn: () => _completeSignIn(context),
-              onForgotPassword: () =>
-                  Navigator.of(context).pushNamed(AppRoutes.forgotPassword),
-              onRegister: () => Navigator.of(
-                context,
-              ).pushReplacementNamed(AppRoutes.registration),
-            ),
-            AppRoutes.registration: (context) => RegistrationScreen(
-              state: RegistrationViewState.ready,
-              onBack: () => Navigator.of(context).maybePop(),
-              onCreateAccount: (phoneNumber) =>
-                  _startRegistrationOtp(context, phoneNumber),
-              onLogin: () =>
-                  Navigator.of(context).pushReplacementNamed(AppRoutes.login),
-            ),
+            AppRoutes.login: (context) => const _LoginRoute(),
+            AppRoutes.registration: (context) => const _RegistrationRoute(),
             AppRoutes.forgotPassword: (context) => ForgotPasswordScreen(
               state: ForgotPasswordViewState.ready,
               onBack: () => Navigator.of(context).maybePop(),
@@ -541,6 +530,224 @@ String? _routeForRole(AppRole? role) {
   };
 }
 
+/// Maps civic_voice_api's Postgres `UserRole` string onto the Flutter
+/// side's [AppRole] — the one place a real signed-in session's role gets
+/// translated into the mock-era routing/session cache every other module
+/// still reads via [MockAuthService].
+AppRole? _appRoleForBackendRole(String role) {
+  return switch (role) {
+    'CITIZEN' => AppRole.citizen,
+    'MUNICIPAL' => AppRole.municipalOfficer,
+    'MAINTENANCE' => AppRole.maintenanceTeam,
+    'MINISTRY' => AppRole.ministrySupervisor,
+    'ADMIN' => AppRole.systemAdministrator,
+    _ => null,
+  };
+}
+
+/// Real Firebase + civic_voice_api sign-in, landing in the same
+/// [MockAuthService] session cache every other module already reads —
+/// see the NOTE above the `routes` map. Kept as a private route widget
+/// (not inline in the route table) because it needs to hold its own
+/// [LoginViewState] across the async round trip.
+class _LoginRoute extends StatefulWidget {
+  const _LoginRoute();
+
+  @override
+  State<_LoginRoute> createState() => _LoginRouteState();
+}
+
+class _LoginRouteState extends State<_LoginRoute> {
+  LoginViewState _state = LoginViewState.ready;
+
+  Future<void> _handleSignIn(
+    BuildContext context,
+    String phone,
+    String password,
+  ) async {
+    setState(() => _state = LoginViewState.loading);
+    try {
+      final email = await ApiClient.instance.resolveLoginEmail(phone);
+      final credential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      final idToken = await credential.user?.getIdToken();
+      if (idToken == null) throw Exception('No ID token after sign-in');
+      final syncedUser = await ApiClient.instance.syncUser(idToken: idToken);
+      final appRole = _appRoleForBackendRole(syncedUser.role);
+      if (appRole == null) throw Exception('Unknown role: ${syncedUser.role}');
+      await MockAuthService().selectRole(
+        appRole,
+        mustChangePasswordOnFirstLogin: syncedUser.mustChangePassword,
+      );
+      if (!context.mounted) return;
+      _completeSignIn(context);
+    } on FirebaseAuthException {
+      if (!mounted) return;
+      setState(() => _state = LoginViewState.invalidCredentials);
+    } on ApiException {
+      if (!mounted) return;
+      setState(() => _state = LoginViewState.invalidCredentials);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _state = LoginViewState.error);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LoginScreen(
+      state: _state,
+      onBack: () => Navigator.of(context).maybePop(),
+      onSignIn: (phone, password) => _handleSignIn(context, phone, password),
+      onForgotPassword: () =>
+          Navigator.of(context).pushNamed(AppRoutes.forgotPassword),
+      onRegister: () =>
+          Navigator.of(context).pushReplacementNamed(AppRoutes.registration),
+    );
+  }
+}
+
+/// Real Firebase + civic_voice_api Citizen self-registration. Form submit
+/// only sends a real SMS verification code — the account itself isn't
+/// created until that code is confirmed on [_RegistrationOtpRoute], so a
+/// phone number never gets an account made against it without proving
+/// ownership first.
+class _RegistrationRoute extends StatefulWidget {
+  const _RegistrationRoute();
+
+  @override
+  State<_RegistrationRoute> createState() => _RegistrationRouteState();
+}
+
+class _RegistrationRouteState extends State<_RegistrationRoute> {
+  RegistrationViewState _state = RegistrationViewState.ready;
+
+  Future<void> _handleCreateAccount(
+    BuildContext context,
+    String fullName,
+    String phone,
+    String password,
+  ) async {
+    setState(() => _state = RegistrationViewState.loading);
+    try {
+      await ApiClient.instance.sendRegistrationOtp(phone);
+      if (!context.mounted) return;
+      setState(() => _state = RegistrationViewState.ready);
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => _RegistrationOtpRoute(
+            fullName: fullName,
+            phone: phone,
+            password: password,
+          ),
+        ),
+      );
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _state = error.statusCode == 409
+            ? RegistrationViewState.phoneAlreadyRegistered
+            : RegistrationViewState.error;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _state = RegistrationViewState.error);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return RegistrationScreen(
+      state: _state,
+      onBack: () => Navigator.of(context).maybePop(),
+      onCreateAccount: (fullName, phone, password) =>
+          _handleCreateAccount(context, fullName, phone, password),
+      onLogin: () =>
+          Navigator.of(context).pushReplacementNamed(AppRoutes.login),
+    );
+  }
+}
+
+/// Real OTP verification for Citizen registration — the account is only
+/// created here, on a correct code, using the fullName/phone/password
+/// collected on the previous screen.
+class _RegistrationOtpRoute extends StatefulWidget {
+  const _RegistrationOtpRoute({
+    required this.fullName,
+    required this.phone,
+    required this.password,
+  });
+
+  final String fullName;
+  final String phone;
+  final String password;
+
+  @override
+  State<_RegistrationOtpRoute> createState() => _RegistrationOtpRouteState();
+}
+
+class _RegistrationOtpRouteState extends State<_RegistrationOtpRoute> {
+  Future<bool> _handleVerify(BuildContext context, String code) async {
+    try {
+      final email = await ApiClient.instance.registerCitizen(
+        fullName: widget.fullName,
+        phone: widget.phone,
+        password: widget.password,
+        otp: code,
+      );
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email,
+        password: widget.password,
+      );
+      await MockAuthService().selectRole(AppRole.citizen);
+      if (!context.mounted) return true;
+      Navigator.of(
+        context,
+      ).pushNamedAndRemoveUntil(AppRoutes.citizenDashboard, (_) => false);
+      return true;
+    } on ApiException catch (error) {
+      if (error.statusCode == 409) {
+        // The OTP itself was correct — this phone number already has an
+        // account (e.g. it was provisioned as staff, or registered
+        // earlier). No amount of retrying the code can ever succeed here,
+        // so send the user back to fix the phone number instead of
+        // leaving them stuck on a misleading "Incorrect Code" retry loop.
+        if (context.mounted) {
+          Navigator.of(context).pop();
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(error.message)));
+        }
+        return true;
+      }
+      // A real wrong/expired code — the screen's own inline error covers it.
+      return false;
+    }
+  }
+
+  Future<void> _handleResend() async {
+    try {
+      await ApiClient.instance.sendRegistrationOtp(widget.phone);
+    } on ApiException {
+      // The screen's own resend-cooldown UI already covers the retry —
+      // nothing else actionable to surface here.
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return OtpVerificationScreen(
+      phoneNumber: widget.phone,
+      purpose: OtpPurpose.registration,
+      onBack: () => Navigator.of(context).maybePop(),
+      onVerify: (code) => _handleVerify(context, code),
+      onResend: _handleResend,
+    );
+  }
+}
+
 void _completeSignIn(BuildContext context) {
   final auth = MockAuthService();
   final routeName = _routeForRole(auth.getCurrentRole());
@@ -559,46 +766,31 @@ void _completeSignIn(BuildContext context) {
   Navigator.of(context).pushNamedAndRemoveUntil(routeName, (_) => false);
 }
 
-void _startRegistrationOtp(BuildContext context, String phoneNumber) {
-  // TODO(auth): send registration OTP via WittiFlow once the backend exists.
-  Navigator.of(context).push(
-    MaterialPageRoute<void>(
-      builder: (context) => OtpVerificationScreen(
-        phoneNumber: phoneNumber,
-        purpose: OtpPurpose.registration,
-        onBack: () => Navigator.of(context).maybePop(),
-        onVerify: () async {
-          await MockAuthService().selectRole(AppRole.citizen);
-          if (!context.mounted) return;
-          Navigator.of(
-            context,
-          ).pushNamedAndRemoveUntil(AppRoutes.citizenDashboard, (_) => false);
-        },
-      ),
-    ),
-  );
-}
-
 void _startForgotPasswordOtp(BuildContext context, String phoneNumber) {
-  // TODO(auth): send forgot-password OTP via WittiFlow once the backend exists.
+  // TODO(auth): send forgot-password OTP via WittiFlow once the backend
+  // exists — unlike registration, this one is still a UI-only pass-through.
   Navigator.of(context).push(
     MaterialPageRoute<void>(
       builder: (context) => OtpVerificationScreen(
         phoneNumber: phoneNumber,
         purpose: OtpPurpose.forgotPassword,
         onBack: () => Navigator.of(context).maybePop(),
-        onVerify: () {
+        onVerify: (_) async {
           Navigator.of(context).pushReplacement(
             MaterialPageRoute<void>(
               builder: (context) => SetNewPasswordScreen(
                 purpose: SetNewPasswordPurpose.forgotPassword,
                 onBack: () => Navigator.of(context).maybePop(),
-                onSaved: () => Navigator.of(
-                  context,
-                ).pushNamedAndRemoveUntil(AppRoutes.login, (_) => false),
+                onSaved: (_) async {
+                  Navigator.of(
+                    context,
+                  ).pushNamedAndRemoveUntil(AppRoutes.login, (_) => false);
+                  return true;
+                },
               ),
             ),
           );
+          return true;
         },
       ),
     ),
@@ -608,14 +800,25 @@ void _startForgotPasswordOtp(BuildContext context, String phoneNumber) {
 Widget _forcedPasswordReset(BuildContext context) {
   return SetNewPasswordScreen(
     purpose: SetNewPasswordPurpose.firstLogin,
-    onSaved: () async {
+    onSaved: (newPassword) async {
+      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
+      if (idToken == null) return false;
+      try {
+        await ApiClient.instance.changePassword(
+          idToken: idToken,
+          newPassword: newPassword,
+        );
+      } on ApiException {
+        return false;
+      }
       final auth = MockAuthService();
       await auth.clearMustChangePasswordOnFirstLogin();
-      if (!context.mounted) return;
+      if (!context.mounted) return true;
       Navigator.of(context).pushNamedAndRemoveUntil(
         _routeForRole(auth.getCurrentRole()) ?? AppRoutes.testRoleSelector,
         (_) => false,
       );
+      return true;
     },
   );
 }

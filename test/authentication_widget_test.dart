@@ -16,6 +16,7 @@ import 'package:civic_voice/main.dart';
 import 'package:civic_voice/models/app_role.dart';
 import 'package:civic_voice/models/ghana_assemblies_data.dart';
 import 'package:civic_voice/models/region.dart';
+import 'package:civic_voice/services/api_client.dart';
 import 'package:civic_voice/services/mock_auth_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -24,6 +25,12 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     await MockAuthService().initialize();
     await MockAuthService().clearUser();
+    // Widget tests must never hit the real dev backend — point at an
+    // address nothing listens on so the real network calls main.dart's
+    // auth routes now make fail fast and deterministically, rather than
+    // depending on whether civic_voice_api happens to be running on
+    // whatever machine runs this test suite (it usually is).
+    ApiClient.baseUrl = 'http://127.0.0.1:1';
   });
 
   Future<void> tapVisible(WidgetTester tester, Finder finder) async {
@@ -159,28 +166,52 @@ void main() {
     expect(find.byType(ForgotPasswordScreen), findsOneWidget);
   });
 
-  testWidgets('Login Sign In flow opens Citizen Dashboard', (
-    WidgetTester tester,
-  ) async {
-    await MockAuthService().selectRole(AppRole.citizen);
-    await tester.pumpWidget(const CivicVoiceApp(initialRoute: AppRoutes.login));
-    await tester.pump();
+  testWidgets(
+    'Login Sign In submits to the real auth flow and recovers from a '
+    'failed request',
+    (WidgetTester tester) async {
+      // Sign-in now calls the real backend + Firebase Auth (see
+      // main.dart's _LoginRouteState) instead of the old MockAuthService
+      // shortcut, so a widget test can no longer assert it lands on the
+      // real Citizen Dashboard without a live backend and Firebase — that
+      // path is covered by manual device testing instead. What's still
+      // verifiable here, against the deliberately-unreachable baseUrl set
+      // in setUp(): a failed request is handled cleanly — no crash, no
+      // hang, no accidental navigation — rather than the flow silently
+      // breaking. (Not asserting on the loading spinner mid-flight: the
+      // flutter_test HTTP fake resolves fast enough that it can come and
+      // go within a single pump, making that assertion racy.)
+      await tester.pumpWidget(
+        const CivicVoiceApp(initialRoute: AppRoutes.login),
+      );
+      await tester.pump();
 
-    final fields = find.byType(TextFormField);
-    await tester.enterText(fields.at(0), '0245550198');
-    await tester.enterText(fields.at(1), 'password');
+      final fields = find.byType(TextFormField);
+      await tester.enterText(fields.at(0), '0245550198');
+      await tester.enterText(fields.at(1), 'password');
 
-    final signIn = find.widgetWithText(FilledButton, 'Sign In');
-    await tester.ensureVisible(signIn);
-    await tester.tap(signIn);
-    await tester.pumpAndSettle();
+      final signIn = find.widgetWithText(FilledButton, 'Sign In');
+      await tester.ensureVisible(signIn);
+      await tester.tap(signIn);
+      await tester.pumpAndSettle();
 
-    expect(find.byType(CitizenDashboardScreen), findsOneWidget);
-  });
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.byType(LoginScreen), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets(
-    'Registration Create Account flow verifies OTP then opens Citizen Dashboard',
+    'Registration Create Account submits to the real auth flow and '
+    'recovers from a failed request',
     (WidgetTester tester) async {
+      // Same reasoning as the Login test above — account creation now
+      // requires a real SMS OTP round trip through the backend before the
+      // OTP screen even appears (see main.dart's _RegistrationRouteState),
+      // so the full flow through to the Citizen Dashboard is covered by
+      // manual device testing, not this widget test suite. Not asserting
+      // on the loading spinner mid-flight for the same racy-timing reason
+      // as the Login test above.
       await tester.pumpWidget(
         const CivicVoiceApp(initialRoute: AppRoutes.registration),
       );
@@ -197,34 +228,14 @@ void main() {
       await tester.tap(policy);
       await tester.pump();
 
-      // Two pumps for each Navigator transition below: the first lets the
-      // tap's synchronous onPressed (which calls Navigator.push/
-      // pushNamedAndRemoveUntil) actually run, the second advances the
-      // route's transition animation to completion.
       final createAccount = find.widgetWithText(FilledButton, 'Create Account');
       await tester.ensureVisible(createAccount);
       await tester.tap(createAccount);
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pumpAndSettle();
 
-      expect(find.byType(OtpVerificationScreen), findsOneWidget);
-
-      // The Registration route stays mounted underneath the pushed OTP
-      // route (Navigator.push doesn't pop it), so a bare find.byType(TextField)
-      // would also match its own fields — scope to the OTP screen's subtree.
-      await tester.enterText(
-        find.descendant(
-          of: find.byType(OtpVerificationScreen),
-          matching: find.byType(TextField),
-        ),
-        '123456',
-      );
-      await tester.pump();
-      await tester.tap(find.widgetWithText(FilledButton, 'Verify Code'));
-      await tester.pump(const Duration(seconds: 1));
-      await tester.pump();
-
-      expect(find.byType(CitizenDashboardScreen), findsOneWidget);
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.byType(RegistrationScreen), findsOneWidget);
+      expect(tester.takeException(), isNull);
     },
   );
 
@@ -348,7 +359,7 @@ void main() {
           purpose: OtpPurpose.registration,
           codeExpiryDuration: const Duration(seconds: 1),
           resendCooldownDuration: const Duration(seconds: 3),
-          onVerify: () {},
+          onVerify: (_) async => true,
         ),
       ),
     );
@@ -377,8 +388,10 @@ void main() {
           purpose: OtpPurpose.forgotPassword,
           codeExpiryDuration: const Duration(seconds: 10),
           resendCooldownDuration: const Duration(seconds: 1),
-          onVerify: () {},
-          onResend: () => resendCount++,
+          onVerify: (_) async => true,
+          onResend: () async {
+            resendCount++;
+          },
         ),
       ),
     );
@@ -400,7 +413,10 @@ void main() {
         theme: AppTheme.light,
         home: SetNewPasswordScreen(
           purpose: SetNewPasswordPurpose.forgotPassword,
-          onSaved: () => saved = true,
+          onSaved: (_) async {
+            saved = true;
+            return true;
+          },
         ),
       ),
     );
