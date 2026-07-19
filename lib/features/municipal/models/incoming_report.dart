@@ -1,5 +1,6 @@
 import '../../../models/report_category.dart';
 import '../../../models/report_status.dart';
+import '../../../services/api_client.dart';
 
 export '../../../models/report_category.dart';
 
@@ -11,6 +12,7 @@ export '../../../models/report_category.dart';
 /// than each screen showing its own disconnected snapshot.
 class IncomingReportItem {
   const IncomingReportItem({
+    this.apiId,
     required this.referenceId,
     required this.title,
     required this.description,
@@ -22,7 +24,20 @@ class IncomingReportItem {
     this.progressPercent,
     this.updatedLabel,
     this.photoUrl,
+    this.photoUrls = const [],
+    this.citizenName,
+    this.citizenPhone,
+    this.latitude,
+    this.longitude,
+    this.createdAt,
+    this.updatedAt,
+    this.resolutionPhotoUrls = const [],
+    this.resolutionNotes,
   });
+
+  /// Internal database identifier used for API calls. [referenceId] remains
+  /// the citizen-facing CV reference shown throughout the UI.
+  final String? apiId;
 
   final String referenceId;
   final String title;
@@ -48,6 +63,54 @@ class IncomingReportItem {
   /// Null until Firebase Storage is wired up (Issue 03 dependency) — the
   /// leading avatar falls back to a placeholder icon when absent.
   final String? photoUrl;
+  final List<String> photoUrls;
+  final String? citizenName;
+  final String? citizenPhone;
+  final double? latitude;
+  final double? longitude;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+  final List<String> resolutionPhotoUrls;
+  final String? resolutionNotes;
+
+  String get apiRecordId => apiId ?? referenceId;
+
+  factory IncomingReportItem.fromApi(Map<String, dynamic> json) {
+    final createdAt = DateTime.tryParse(json['createdAt'] as String? ?? '');
+    final updatedAt = DateTime.tryParse(json['updatedAt'] as String? ?? '');
+    final photos = (json['photoUrls'] as List? ?? const <dynamic>[])
+        .whereType<String>()
+        .toList();
+    return IncomingReportItem(
+      apiId: json['id'] as String,
+      referenceId: json['publicReference'] as String? ?? json['id'] as String,
+      title: json['title'] as String? ?? 'Untitled report',
+      description: json['description'] as String? ?? '',
+      locationLabel: json['location'] as String? ?? 'Location unavailable',
+      category: _categoryFromApi(json['category'] as String?),
+      status: _statusFromApi(json['status'] as String?),
+      timeAgo: _relativeTime(createdAt),
+      teamName: json['assignedTeamName'] as String?,
+      progressPercent: (json['progressPercent'] as num?)?.round(),
+      updatedLabel: updatedAt == null ? null : _relativeTime(updatedAt),
+      photoUrl: photos.isEmpty ? null : ApiClient.assetUrl(photos.first),
+      photoUrls: photos.map(ApiClient.assetUrl).toList(),
+      citizenName:
+          (json['citizen'] as Map<String, dynamic>?)?['fullName'] as String?,
+      citizenPhone:
+          (json['citizen'] as Map<String, dynamic>?)?['phone'] as String?,
+      latitude: (json['latitude'] as num?)?.toDouble(),
+      longitude: (json['longitude'] as num?)?.toDouble(),
+      createdAt: createdAt,
+      updatedAt: updatedAt,
+      resolutionPhotoUrls:
+          (json['resolutionPhotoUrls'] as List? ?? const <dynamic>[])
+              .whereType<String>()
+              .map(ApiClient.assetUrl)
+              .toList(),
+      resolutionNotes: json['resolutionNotes'] as String?,
+    );
+  }
 
   IncomingReportItem copyWith({
     ReportStatus? status,
@@ -56,6 +119,7 @@ class IncomingReportItem {
     String? updatedLabel,
   }) {
     return IncomingReportItem(
+      apiId: apiId,
       referenceId: referenceId,
       title: title,
       description: description,
@@ -67,7 +131,44 @@ class IncomingReportItem {
       progressPercent: progressPercent ?? this.progressPercent,
       updatedLabel: updatedLabel ?? this.updatedLabel,
       photoUrl: photoUrl,
+      photoUrls: photoUrls,
+      citizenName: citizenName,
+      citizenPhone: citizenPhone,
+      latitude: latitude,
+      longitude: longitude,
+      createdAt: createdAt,
+      updatedAt: updatedAt,
+      resolutionPhotoUrls: resolutionPhotoUrls,
+      resolutionNotes: resolutionNotes,
     );
+  }
+
+  static ReportCategory _categoryFromApi(String? value) {
+    final normalized = value?.toLowerCase() ?? '';
+    return ReportCategory.values.firstWhere(
+      (category) =>
+          category.name.toLowerCase() == normalized ||
+          category.label.toLowerCase() == normalized,
+      orElse: () => ReportCategory.other,
+    );
+  }
+
+  static ReportStatus _statusFromApi(String? value) => switch (value) {
+    'UNDER_REVIEW' => ReportStatus.underReview,
+    'ASSIGNED' => ReportStatus.assigned,
+    'IN_PROGRESS' => ReportStatus.inProgress,
+    'RESOLVED' => ReportStatus.resolved,
+    'REJECTED' => ReportStatus.rejected,
+    _ => ReportStatus.submitted,
+  };
+
+  static String _relativeTime(DateTime? value) {
+    if (value == null) return 'Recently';
+    final difference = DateTime.now().difference(value.toLocal());
+    if (difference.inMinutes < 1) return 'Just now';
+    if (difference.inMinutes < 60) return '${difference.inMinutes} min ago';
+    if (difference.inHours < 24) return '${difference.inHours} hrs ago';
+    return '${difference.inDays} days ago';
   }
 
   /// Placeholder content matching the approved MUN-002/MUN-006 designs, used

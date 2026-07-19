@@ -5,6 +5,7 @@ import 'package:civic_voice/core/theme/app_theme.dart';
 import 'package:civic_voice/features/admin/models/admin_role_management_data.dart';
 import 'package:civic_voice/features/admin/screens/admin_dashboard_screen.dart';
 import 'package:civic_voice/features/authentication/screens/forgot_password_screen.dart';
+import 'package:civic_voice/features/authentication/screens/change_password_screen.dart';
 import 'package:civic_voice/features/authentication/screens/login_screen.dart';
 import 'package:civic_voice/features/authentication/screens/otp_verification_screen.dart';
 import 'package:civic_voice/features/authentication/screens/registration_screen.dart';
@@ -369,6 +370,30 @@ void main() {
     expect(button.onPressed, isNull);
   });
 
+  testWidgets('Change Password asks for a phone before sending an OTP', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: ChangePasswordScreen(onSaved: () async {}),
+      ),
+    );
+
+    expect(
+      find.text(
+        'Enter your account phone number and we will send a verification code.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Send Code'), findsOneWidget);
+    expect(find.byType(OtpVerificationScreen), findsNothing);
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Send Code'));
+    await tester.pump();
+    expect(find.text('Please enter your phone number.'), findsOneWidget);
+  });
+
   testWidgets('OTP resend cooldown elapses independently', (
     WidgetTester tester,
   ) async {
@@ -395,6 +420,38 @@ void main() {
     await tester.pump();
     expect(resendCount, 1);
     expect(find.text('Code Resent'), findsOneWidget);
+  });
+
+  testWidgets('invalid OTP remains on verification and shows an error', (
+    WidgetTester tester,
+  ) async {
+    var verificationAttempts = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: OtpVerificationScreen(
+          phoneNumber: '+233 24 555 0100',
+          purpose: OtpPurpose.forgotPassword,
+          onVerify: (_) async {
+            verificationAttempts++;
+            return false;
+          },
+        ),
+      ),
+    );
+
+    await tester.enterText(find.byType(TextField), '000000');
+    await tester.pump();
+    await tester.tap(find.widgetWithText(FilledButton, 'Verify Code'));
+    await tester.pump();
+
+    expect(verificationAttempts, 1);
+    expect(find.byType(OtpVerificationScreen), findsOneWidget);
+    expect(find.text('Incorrect Code'), findsOneWidget);
+    expect(
+      find.text('That code is wrong or has expired. Try again.'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('Set new password validates both fields', (

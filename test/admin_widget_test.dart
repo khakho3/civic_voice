@@ -179,29 +179,26 @@ void main() {
     },
   );
 
-  testWidgets(
-    'Admin Dashboard Management row System Settings entry fires the '
-    'callback',
-    (WidgetTester tester) async {
-      tester.view.physicalSize = const Size(428, 2600);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
+  testWidgets('Admin Dashboard Management row System Settings entry fires the '
+      'callback', (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
 
-      var tapCount = 0;
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: AppTheme.light,
-          home: AdminDashboardScreen(onNavigateToSettings: () => tapCount++),
-        ),
-      );
-      await tester.pump();
+    var tapCount = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: AdminDashboardScreen(onNavigateToSettings: () => tapCount++),
+      ),
+    );
+    await tester.pump();
 
-      await tester.tap(find.text('System Settings'));
-      await tester.pump();
-      expect(tapCount, 1);
-    },
-  );
+    await tester.tap(find.text('System Settings'));
+    await tester.pump();
+    expect(tapCount, 1);
+  });
 
   testWidgets(
     'Admin Dashboard Activity Monitoring card opens System Activity',
@@ -1274,6 +1271,37 @@ void main() {
   });
 
   testWidgets(
+    'Admin User Details Save returns to User Management with confirmation',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      var returnedToUsers = false;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: AdminUserDetailsScreen(
+            user: findMockUser('Yaw Asare'),
+            onNavigateToUsers: () => returnedToUsers = true,
+          ),
+        ),
+      );
+      await tester.pump();
+
+      await tester.tap(find.text('Save Changes'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Save Changes').last);
+      await tester.pumpAndSettle();
+
+      expect(returnedToUsers, isTrue);
+      expect(find.text('Changes to Yaw Asare were saved.'), findsOneWidget);
+      expect(find.text('Changes saved'), findsNothing);
+    },
+  );
+
+  testWidgets(
     'Admin User Details is a tab-shell screen: bottom nav stays visible '
     'and switches tabs',
     (WidgetTester tester) async {
@@ -1798,7 +1826,10 @@ void main() {
           );
 
       await tester.pumpWidget(
-        MaterialApp(theme: AppTheme.light, home: const AdminSystemActivityScreen()),
+        MaterialApp(
+          theme: AppTheme.light,
+          home: const AdminSystemActivityScreen(),
+        ),
       );
       await tester.pump();
 
@@ -1894,35 +1925,34 @@ void main() {
     },
   );
 
-  testWidgets(
-    'Admin System Settings Maintenance Mode and Public status page '
-    'switches are genuinely disabled, not just badged',
-    (WidgetTester tester) async {
-      tester.view.physicalSize = const Size(428, 2600);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
+  testWidgets('Admin System Settings Maintenance Mode and Public status page '
+      'switches are genuinely disabled, not just badged', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
 
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: AppTheme.light,
-          home: const AdminSystemSettingsScreen(),
-        ),
-      );
-      await tester.pump();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: const AdminSystemSettingsScreen(),
+      ),
+    );
+    await tester.pump();
 
-      final switches = tester.widgetList<Switch>(find.byType(Switch)).toList();
-      // Maintenance Mode (index 0) and Public status page (last) both have
-      // no onChanged at all — a disabled-looking Switch that's still live
-      // was the original bug.
-      expect(switches.first.onChanged, isNull);
-      expect(switches.last.onChanged, isNull);
+    final switches = tester.widgetList<Switch>(find.byType(Switch)).toList();
+    // Maintenance Mode (index 0) and Public status page (last) both have
+    // no onChanged at all — a disabled-looking Switch that's still live
+    // was the original bug.
+    expect(switches.first.onChanged, isNull);
+    expect(switches.last.onChanged, isNull);
 
-      await tester.tap(find.byType(Switch).first, warnIfMissed: false);
-      await tester.pump();
-      expect(find.text('Save Changes'), findsNothing);
-    },
-  );
+    await tester.tap(find.byType(Switch).first, warnIfMissed: false);
+    await tester.pump();
+    expect(find.text('Save Changes'), findsNothing);
+  });
 
   testWidgets('Admin System Settings shows the Save bar once dirty and Reset '
       'Changes reverts it', (WidgetTester tester) async {
@@ -2253,7 +2283,8 @@ void main() {
       // Appears twice — the profile card headline and the "Full Name"
       // field value.
       expect(find.text('System Administrator'), findsNWidgets(2));
-      expect(find.text('admin@civicvoice.gov'), findsOneWidget);
+      expect(find.text('Email'), findsNothing);
+      expect(find.text('admin@civicvoice.gov'), findsNothing);
       expect(find.text('Platform Administration'), findsOneWidget);
       expect(find.text('ADM-001'), findsOneWidget);
       expect(find.text('Access Summary'), findsOneWidget);
@@ -2306,33 +2337,30 @@ void main() {
     expect(tapped, isTrue);
   });
 
-  testWidgets(
-    'Admin Profile Theme row switches ThemeController.mode via the '
-    'System/Light/Dark control',
-    (WidgetTester tester) async {
-      SharedPreferences.setMockInitialValues({});
-      tester.view.physicalSize = const Size(428, 2600);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-      addTearDown(() => ThemeController.mode.value = ThemeMode.system);
+  testWidgets('Admin Profile Theme row switches ThemeController.mode via the '
+      'System/Light/Dark control', (WidgetTester tester) async {
+    SharedPreferences.setMockInitialValues({});
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(() => ThemeController.mode.value = ThemeMode.system);
 
-      await tester.pumpWidget(
-        MaterialApp(theme: AppTheme.light, home: const AdminProfileScreen()),
-      );
-      await tester.pump();
+    await tester.pumpWidget(
+      MaterialApp(theme: AppTheme.light, home: const AdminProfileScreen()),
+    );
+    await tester.pump();
 
-      expect(ThemeController.mode.value, ThemeMode.system);
+    expect(ThemeController.mode.value, ThemeMode.system);
 
-      await tester.tap(find.text('Dark'));
-      await tester.pump();
-      expect(ThemeController.mode.value, ThemeMode.dark);
+    await tester.tap(find.text('Dark'));
+    await tester.pump();
+    expect(ThemeController.mode.value, ThemeMode.dark);
 
-      await tester.tap(find.text('Light'));
-      await tester.pump();
-      expect(ThemeController.mode.value, ThemeMode.light);
-    },
-  );
+    await tester.tap(find.text('Light'));
+    await tester.pump();
+    expect(ThemeController.mode.value, ThemeMode.light);
+  });
 
   testWidgets(
     'Admin Profile Edit reveals editable fields and the Save bar, Cancel '
@@ -2353,9 +2381,9 @@ void main() {
       await tester.tap(find.byTooltip('Edit'));
       await tester.pump();
 
-      // Full Name and Department only — Email/Phone are locked
-      // (admin-set, not self-editable) and Admin ID always was.
-      expect(find.byType(TextFormField), findsNWidgets(2));
+      // Only Full Name is self-editable. CivicVoice does not collect email,
+      // while phone, jurisdiction/department, and Admin ID stay locked.
+      expect(find.byType(TextFormField), findsOneWidget);
       expect(find.text('Save Changes'), findsOneWidget);
       expect(find.text('Cancel'), findsOneWidget);
       // The bottom nav hides while editing — it would otherwise sit
@@ -2365,8 +2393,8 @@ void main() {
       expect(find.text('Home'), findsNothing);
 
       await tester.enterText(
-        find.widgetWithText(TextFormField, 'Platform Administration'),
-        'Civic Operations',
+        find.widgetWithText(TextFormField, 'System Administrator'),
+        'Updated Administrator',
       );
       await tester.pump();
 
@@ -2381,55 +2409,52 @@ void main() {
       expect(find.byType(TextFormField), findsNothing);
       expect(find.text('Save Changes'), findsNothing);
       expect(find.text('Platform Administration'), findsOneWidget);
-      expect(find.text('Civic Operations'), findsNothing);
+      expect(find.text('Updated Administrator'), findsNothing);
       expect(find.text('Home'), findsOneWidget);
     },
   );
 
-  testWidgets(
-    'Admin Profile Sign Out asks for confirmation before firing the '
-    'callback',
-    (WidgetTester tester) async {
-      tester.view.physicalSize = const Size(428, 2600);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
+  testWidgets('Admin Profile Sign Out asks for confirmation before firing the '
+      'callback', (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
 
-      var signedOut = false;
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: AppTheme.light,
-          home: AdminProfileScreen(onSignOut: () => signedOut = true),
-        ),
-      );
-      await tester.pump();
+    var signedOut = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: AdminProfileScreen(onSignOut: () => signedOut = true),
+      ),
+    );
+    await tester.pump();
 
-      await tester.tap(find.text('Sign Out'));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.text('Sign Out'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
 
-      expect(find.text('Sign out?'), findsOneWidget);
-      expect(signedOut, isFalse);
+    expect(find.text('Sign out?'), findsOneWidget);
+    expect(signedOut, isFalse);
 
-      // Dismissing via Cancel doesn't sign out.
-      await tester.tap(find.text('Cancel'));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
-      expect(signedOut, isFalse);
-      expect(find.text('Sign out?'), findsNothing);
+    // Dismissing via Cancel doesn't sign out.
+    await tester.tap(find.text('Cancel'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(signedOut, isFalse);
+    expect(find.text('Sign out?'), findsNothing);
 
-      // Confirming via the dialog's own button (shares the trigger
-      // button's label, hence .last) does sign out.
-      await tester.tap(find.text('Sign Out'));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
-      await tester.tap(find.text('Sign Out').last);
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
+    // Confirming via the dialog's own button (shares the trigger
+    // button's label, hence .last) does sign out.
+    await tester.tap(find.text('Sign Out'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.text('Sign Out').last);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
 
-      expect(signedOut, isTrue);
-    },
-  );
+    expect(signedOut, isTrue);
+  });
 
   testWidgets(
     'Admin Profile Save Changes shows the success banner and exits edit '
@@ -2449,8 +2474,8 @@ void main() {
       await tester.pump();
 
       await tester.enterText(
-        find.widgetWithText(TextFormField, 'Platform Administration'),
-        'Civic Operations',
+        find.widgetWithText(TextFormField, 'System Administrator'),
+        'Civic Administrator',
       );
       await tester.pump();
       await tester.tap(find.text('Save Changes'));
@@ -2461,7 +2486,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 600));
 
       expect(find.text('Profile updated'), findsOneWidget);
-      expect(find.text('Civic Operations'), findsOneWidget);
+      expect(find.text('Civic Administrator'), findsNWidgets(2));
       expect(find.byType(TextFormField), findsNothing);
       expect(find.text('Save Changes'), findsNothing);
     },
@@ -2723,26 +2748,23 @@ void main() {
     },
   );
 
-  testWidgets(
-    "Admin's bell routes straight to System Activity, not a separate "
-    'Notifications screen',
-    (WidgetTester tester) async {
-      tester.view.physicalSize = const Size(428, 2600);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
+  testWidgets("Admin's bell routes straight to System Activity, not a separate "
+      'Notifications screen', (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
 
-      await tester.pumpWidget(
-        const app.CivicVoiceApp(initialRoute: app.AppRoutes.adminDashboard),
-      );
-      await tester.pump();
-      await tester.pump(const Duration(seconds: 1));
+    await tester.pumpWidget(
+      const app.CivicVoiceApp(initialRoute: app.AppRoutes.adminDashboard),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
 
-      await tester.tap(find.byIcon(AppIcons.notifications));
-      await tester.pump();
-      await tester.pump(const Duration(seconds: 1));
+    await tester.tap(find.byIcon(AppIcons.notifications));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
 
-      expect(find.text('Recent Activity'), findsOneWidget);
-    },
-  );
+    expect(find.text('Recent Activity'), findsOneWidget);
+  });
 }

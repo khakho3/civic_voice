@@ -370,7 +370,6 @@ class _ProfileView extends StatelessWidget {
             ProfileActionRow(
               icon: AppIcons.password,
               label: 'Change Password',
-              caption: profile.passwordLastUpdatedLabel,
               onTap: onChangePassword,
             ),
           ],

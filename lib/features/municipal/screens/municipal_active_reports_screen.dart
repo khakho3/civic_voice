@@ -92,7 +92,7 @@ class _MunicipalActiveReportsScreenState
   /// level as MaintenanceTeamDirectory's own consumers elsewhere) — only
   /// reports a team has actually taken on show up here, per the real
   /// Inbox/Active split.
-  final List<IncomingReportItem> _data = MunicipalReportDirectory
+  List<IncomingReportItem> _data = MunicipalReportDirectory
       .instance
       .reports
       .value
@@ -155,13 +155,11 @@ class _MunicipalActiveReportsScreenState
         break;
       case ActiveReportSort.highestProgress:
         reports.sort(
-          (a, b) =>
-              (b.progressPercent ?? 0).compareTo(a.progressPercent ?? 0),
+          (a, b) => (b.progressPercent ?? 0).compareTo(a.progressPercent ?? 0),
         );
       case ActiveReportSort.lowestProgress:
         reports.sort(
-          (a, b) =>
-              (a.progressPercent ?? 0).compareTo(b.progressPercent ?? 0),
+          (a, b) => (a.progressPercent ?? 0).compareTo(b.progressPercent ?? 0),
         );
     }
     return reports;
@@ -189,13 +187,28 @@ class _MunicipalActiveReportsScreenState
     if (selected != null) setState(() => _sort = selected);
   }
 
-  void _retryLoad() {
+  Future<void> _retryLoad() async {
     setState(() => _state = MunicipalActiveReportsViewState.loading);
-    Future.delayed(const Duration(milliseconds: 500), () {
+    try {
+      await MunicipalReportDirectory.instance.refresh();
       if (mounted) {
-        setState(() => _state = MunicipalActiveReportsViewState.loaded);
+        setState(() {
+          _data = MunicipalReportDirectory.instance.reports.value
+              .where(
+                (report) =>
+                    report.status == ReportStatus.assigned ||
+                    report.status == ReportStatus.inProgress ||
+                    report.status == ReportStatus.resolved,
+              )
+              .toList();
+          _state = MunicipalActiveReportsViewState.loaded;
+        });
       }
-    });
+    } catch (_) {
+      if (mounted) {
+        setState(() => _state = MunicipalActiveReportsViewState.error);
+      }
+    }
   }
 
   @override

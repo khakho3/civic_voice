@@ -10,7 +10,6 @@ class OfficerProfile {
     required this.phone,
     required this.department,
     required this.reportsTo,
-    required this.passwordLastUpdatedLabel,
   });
 
   final String name;
@@ -26,8 +25,6 @@ class OfficerProfile {
   final String department;
   final String reportsTo;
 
-  final String passwordLastUpdatedLabel;
-
   OfficerProfile copyWith({String? name, String? email, String? phone}) {
     return OfficerProfile(
       name: name ?? this.name,
@@ -38,7 +35,6 @@ class OfficerProfile {
       phone: phone ?? this.phone,
       department: department,
       reportsTo: reportsTo,
-      passwordLastUpdatedLabel: passwordLastUpdatedLabel,
     );
   }
 
@@ -54,7 +50,6 @@ class OfficerProfile {
       phone: '+233 24 555 0142',
       department: 'Urban Planning & Dev',
       reportsTo: 'Director M. Chen',
-      passwordLastUpdatedLabel: 'Last updated 3 months ago',
     );
   }
 }

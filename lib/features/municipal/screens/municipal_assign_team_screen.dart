@@ -102,9 +102,7 @@ class _MunicipalAssignTeamScreenState extends State<MunicipalAssignTeamScreen> {
     var teams = MaintenanceTeamDirectory.instance.teams.value.toList();
     final query = _searchController.text.trim().toLowerCase();
     if (query.isNotEmpty) {
-      teams = teams
-          .where((t) => t.name.toLowerCase().contains(query))
-          .toList();
+      teams = teams.where((t) => t.name.toLowerCase().contains(query)).toList();
     }
     if (_filter == TeamFilter.available) {
       teams = teams
@@ -126,20 +124,21 @@ class _MunicipalAssignTeamScreenState extends State<MunicipalAssignTeamScreen> {
     setState(() => _selectedTeamId = team.teamId);
   }
 
-  void _submitAssign() {
+  Future<void> _submitAssign() async {
     final team = _selectedTeam;
+    if (team == null) return;
     setState(() => _state = MunicipalAssignTeamViewState.loading);
-    Future.delayed(const Duration(milliseconds: 500), () {
+    try {
+      await MunicipalReportDirectory.instance.assignTeamOnServer(
+        widget.referenceId,
+        team.name,
+      );
       if (mounted) {
-        if (team != null) {
-          MunicipalReportDirectory.instance.assignTeam(
-            widget.referenceId,
-            team.name,
-          );
-        }
         setState(() => _state = MunicipalAssignTeamViewState.assigned);
       }
-    });
+    } catch (_) {
+      if (mounted) setState(() => _state = MunicipalAssignTeamViewState.error);
+    }
   }
 
   void _retryLoad() {
@@ -598,10 +597,7 @@ class _TeamCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(team.name, style: textTheme.titleSmall),
-                      Text(
-                        team.assembly.fullName,
-                        style: textTheme.bodySmall,
-                      ),
+                      Text(team.assembly.fullName, style: textTheme.bodySmall),
                     ],
                   ),
                 ),

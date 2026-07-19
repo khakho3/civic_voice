@@ -1,3 +1,5 @@
+import 'incoming_report.dart';
+
 /// A single resolved report shown on MUN-008 Resolved Reports (list card
 /// and its Resolution Details drill-down).
 class ResolvedReportItem {
@@ -32,6 +34,27 @@ class ResolvedReportItem {
   final int slaPercent;
   final int evidencePhotoCount;
   final String resolutionNote;
+
+  factory ResolvedReportItem.fromReport(IncomingReportItem report) {
+    final resolvedAt = report.updatedAt ?? DateTime.now();
+    final createdAt = report.createdAt ?? resolvedAt;
+    final duration = resolvedAt.difference(createdAt).inDays;
+    return ResolvedReportItem(
+      referenceId: report.referenceId,
+      title: report.title,
+      locationLabel: report.locationLabel,
+      resolvedDate: resolvedAt,
+      resolvedTimeLabel:
+          '${resolvedAt.hour > 12 ? resolvedAt.hour - 12 : resolvedAt.hour}:'
+          '${resolvedAt.minute.toString().padLeft(2, '0')} '
+          '${resolvedAt.hour >= 12 ? 'PM' : 'AM'}',
+      durationDays: duration < 1 ? 1 : duration,
+      slaPercent: duration <= 3 ? 100 : 0,
+      evidencePhotoCount: report.resolutionPhotoUrls.length,
+      resolutionNote:
+          report.resolutionNotes ?? 'No resolution note was provided.',
+    );
+  }
 
   /// Placeholder content matching the approved MUN-008 design, used until
   /// the Cloud Firestore-backed service (Issue 03 dependency) is wired up.

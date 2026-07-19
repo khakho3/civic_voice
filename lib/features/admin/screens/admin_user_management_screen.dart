@@ -118,11 +118,16 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
     super.dispose();
   }
 
-  void _retry() {
+  Future<void> _retry() async {
     setState(() => _state = AdminUserManagementViewState.loading);
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (mounted) setState(() => _state = AdminUserManagementViewState.loaded);
-    });
+    try {
+      await AdminUserDirectory.instance.refresh();
+      if (mounted) {
+        setState(() => _state = AdminUserManagementViewState.loaded);
+      }
+    } catch (_) {
+      if (mounted) setState(() => _state = AdminUserManagementViewState.error);
+    }
   }
 
   void _clearFilters() {
@@ -149,7 +154,37 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
       );
       if (!confirmed || !mounted) return;
     }
-    AdminUserDirectory.instance.toggleActive(user);
+    try {
+      await AdminUserDirectory.instance.toggleActiveOnServer(user);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not update this account.')),
+      );
+    }
+  }
+
+  Future<void> _deleteUser(AdminUserItem user) async {
+    if (!AdminSession.instance.isSuperAdmin) return;
+    final confirmed = await showConfirmDialog(
+      context,
+      title: 'Delete this account permanently?',
+      message:
+          '${user.name} will be removed from Firebase and CivicVoice. '
+          'Their phone number can register again. Any reports owned by '
+          'this account will also be permanently deleted.',
+      confirmLabel: 'Delete Account',
+      destructive: true,
+    );
+    if (!confirmed || !mounted) return;
+    try {
+      await AdminUserDirectory.instance.deleteOnServer(user);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not delete this account.')),
+      );
+    }
   }
 
   @override
@@ -233,7 +268,9 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
                 filter: _filter,
                 onClearFilters: _clearFilters,
                 onToggleActive: _toggleActive,
+                onDelete: _deleteUser,
                 canDeactivate: AdminSession.instance.canDeactivateUsers,
+                canDelete: AdminSession.instance.isSuperAdmin,
                 onOpenUserDetails: widget.onOpenUserDetails,
               );
             },
@@ -469,7 +506,9 @@ class _UserList extends StatelessWidget {
     required this.filter,
     required this.onClearFilters,
     required this.onToggleActive,
+    required this.onDelete,
     required this.canDeactivate,
+    required this.canDelete,
     this.onOpenUserDetails,
   });
 
@@ -478,7 +517,9 @@ class _UserList extends StatelessWidget {
   final AdminUserFilter filter;
   final VoidCallback onClearFilters;
   final ValueChanged<AdminUserItem> onToggleActive;
+  final ValueChanged<AdminUserItem> onDelete;
   final bool canDeactivate;
+  final bool canDelete;
   final ValueChanged<AdminUserItem>? onOpenUserDetails;
 
   @override
@@ -517,7 +558,12 @@ class _UserList extends StatelessWidget {
               child: _UserCard(
                 user: user,
                 onToggleActive: () => onToggleActive(user),
+                onDelete: () => onDelete(user),
                 canDeactivate: canDeactivate,
+                canDelete:
+                    canDelete &&
+                    user.apiRecordId !=
+                        AdminUserDirectory.instance.currentApiUserId,
                 onOpenDetails: onOpenUserDetails == null
                     ? null
                     : () => onOpenUserDetails!(user),
@@ -610,18 +656,22 @@ class _UserCard extends StatelessWidget {
   const _UserCard({
     required this.user,
     required this.onToggleActive,
+    required this.onDelete,
     required this.canDeactivate,
+    required this.canDelete,
     this.onOpenDetails,
   });
 
   final AdminUserItem user;
   final VoidCallback onToggleActive;
+  final VoidCallback onDelete;
 
   /// Whether the current session can deactivate/reactivate accounts at all
   /// — an assembly Admin can't ([AdminSession.canDeactivateUsers]), so the
   /// kebab menu is omitted entirely rather than shown with nothing to
   /// select, matching "every widget should serve a purpose."
   final bool canDeactivate;
+  final bool canDelete;
   final VoidCallback? onOpenDetails;
 
   @override
@@ -674,7 +724,7 @@ class _UserCard extends StatelessWidget {
                   ],
                 ),
               ),
-              if (canDeactivate)
+              if (canDeactivate || canDelete)
                 KebabMenuButton<void>(
                   iconColor: colorScheme.onSurfaceVariant,
                   itemBuilder: (context) => [
@@ -686,6 +736,11 @@ class _UserCard extends StatelessWidget {
                             : 'Deactivate account',
                       ),
                     ),
+                    if (canDelete)
+                      PopupMenuItem(
+                        onTap: onDelete,
+                        child: const Text('Delete account permanently'),
+                      ),
                   ],
                 ),
             ],

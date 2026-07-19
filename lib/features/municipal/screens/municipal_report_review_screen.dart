@@ -4,6 +4,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../models/report_status.dart';
 import '../models/report_review_data.dart';
+import '../services/municipal_report_directory.dart';
 import '../widgets/dashed_border_box.dart';
 import '../../../widgets/glass_card.dart';
 import '../widgets/municipal_detail_header.dart';
@@ -70,10 +71,21 @@ class MunicipalReportReviewScreen extends StatefulWidget {
 class _MunicipalReportReviewScreenState
     extends State<MunicipalReportReviewScreen> {
   late MunicipalReportReviewViewState _state = widget.initialState;
-  final ReportReviewData _data = ReportReviewData.mock();
+  late final ReportReviewData _data;
   final ReportReviewData _noEvidenceData = ReportReviewData.mock(
     withEvidence: false,
   );
+
+  @override
+  void initState() {
+    super.initState();
+    final report = MunicipalReportDirectory.instance.byReferenceId(
+      widget.referenceId,
+    );
+    _data = report?.apiId == null
+        ? ReportReviewData.mock()
+        : ReportReviewData.fromReport(report!);
+  }
 
   void _retry() {
     setState(() => _state = MunicipalReportReviewViewState.loading);

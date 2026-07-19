@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../models/resolved_report.dart';
+import '../../../models/report_status.dart';
+import '../services/municipal_report_directory.dart';
 import '../../../widgets/collapsible_list_header.dart';
 import '../../../widgets/glass_card.dart';
 import '../widgets/municipal_scaffold.dart';
@@ -64,7 +66,7 @@ class MunicipalResolvedReportsScreen extends StatefulWidget {
 class _MunicipalResolvedReportsScreenState
     extends State<MunicipalResolvedReportsScreen> {
   late MunicipalResolvedReportsViewState _state = widget.initialState;
-  final List<ResolvedReportItem> _data = ResolvedReportItem.mock();
+  late List<ResolvedReportItem> _data = _resolvedReports();
   final _searchController = TextEditingController();
   ResolvedReportFilter _filter = ResolvedReportFilter.all;
 
@@ -112,13 +114,32 @@ class _MunicipalResolvedReportsScreenState
     return reports;
   }
 
-  void _retryLoad() {
+  static List<ResolvedReportItem> _resolvedReports() {
+    final reports = MunicipalReportDirectory.instance.reports.value;
+    final live = reports.any((report) => report.apiId != null);
+    return live
+        ? reports
+              .where((report) => report.status == ReportStatus.resolved)
+              .map(ResolvedReportItem.fromReport)
+              .toList()
+        : ResolvedReportItem.mock();
+  }
+
+  Future<void> _retryLoad() async {
     setState(() => _state = MunicipalResolvedReportsViewState.loading);
-    Future.delayed(const Duration(milliseconds: 500), () {
+    try {
+      await MunicipalReportDirectory.instance.refresh();
       if (mounted) {
-        setState(() => _state = MunicipalResolvedReportsViewState.loaded);
+        setState(() {
+          _data = _resolvedReports();
+          _state = MunicipalResolvedReportsViewState.loaded;
+        });
       }
-    });
+    } catch (_) {
+      if (mounted) {
+        setState(() => _state = MunicipalResolvedReportsViewState.offline);
+      }
+    }
   }
 
   @override

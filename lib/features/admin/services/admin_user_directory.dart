@@ -1,10 +1,13 @@
 import 'package:flutter/foundation.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 
 import '../../../models/app_role.dart';
 import '../../../models/assembly.dart';
 import '../../../models/region.dart';
 import '../models/admin_role_management_data.dart';
 import '../models/admin_user_management_data.dart';
+import '../../../services/api_client.dart';
 
 /// In-memory admin user directory — the same "single shared mock service"
 /// pattern as citizen's `ReportCrudService`, so creating a user from
@@ -24,6 +27,86 @@ class AdminUserDirectory {
   );
 
   int _nextUserNumber = 200;
+  String? currentApiUserId;
+
+  AdminUserItem? get currentUser {
+    final id = currentApiUserId;
+    if (id == null) return null;
+    for (final user in users.value) {
+      if (user.apiRecordId == id) return user;
+    }
+    return null;
+  }
+
+  Future<void> refresh() async {
+    if (Firebase.apps.isEmpty) return;
+    final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+    if (token == null) throw StateError('A signed-in Admin is required');
+    final response = await ApiClient.instance.listUsers(idToken: token);
+    users.value = response.map(AdminUserItem.fromApi).toList();
+  }
+
+  void upsertFromApi(Map<String, dynamic> json) {
+    final user = AdminUserItem.fromApi(json);
+    users.value = [
+      user,
+      for (final existing in users.value)
+        if (existing.userId != user.userId) existing,
+    ];
+  }
+
+  Future<void> saveOnServer(AdminUserItem user) async {
+    if (Firebase.apps.isEmpty) {
+      updateUser(user);
+      return;
+    }
+    final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+    if (token == null) throw StateError('A signed-in Admin is required');
+    final response = await ApiClient.instance.updateUser(
+      user.apiRecordId,
+      idToken: token,
+      fields: {
+        'role': _backendRole(user.role),
+        'active': user.status != AdminUserStatus.inactive,
+        'adminTier': user.adminTier?.name,
+        'region': user.region?.name,
+        'assembly': user.assembly?.name,
+      },
+    );
+    upsertFromApi(response);
+  }
+
+  Future<void> deleteOnServer(AdminUserItem user) async {
+    if (Firebase.apps.isEmpty) {
+      users.value = users.value
+          .where((existing) => existing.userId != user.userId)
+          .toList();
+      return;
+    }
+    final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+    if (token == null) throw StateError('A signed-in Admin is required');
+    await ApiClient.instance.deleteUser(user.apiRecordId, idToken: token);
+    users.value = users.value
+        .where((existing) => existing.userId != user.userId)
+        .toList();
+  }
+
+  Future<void> toggleActiveOnServer(AdminUserItem user) async {
+    final updated = user.copyWith(
+      status: user.status == AdminUserStatus.inactive
+          ? AdminUserStatus.active
+          : AdminUserStatus.inactive,
+    );
+    await saveOnServer(updated);
+  }
+
+  static String _backendRole(AppRole role) => switch (role) {
+    AppRole.citizen => 'CITIZEN',
+    AppRole.municipalOfficer => 'MUNICIPAL',
+    AppRole.maintenanceTeam => 'MAINTENANCE',
+    AppRole.ministrySupervisor => 'MINISTRY',
+    AppRole.systemAdministrator => 'ADMIN',
+  };
 
   AdminUserItem createUser({
     required String name,

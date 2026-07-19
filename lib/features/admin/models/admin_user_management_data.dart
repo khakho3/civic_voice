@@ -57,6 +57,7 @@ enum AdminUserStatus {
 /// display but the detail screen does.
 class AdminUserItem {
   const AdminUserItem({
+    this.apiId,
     required this.name,
     this.email,
     required this.phone,
@@ -69,6 +70,8 @@ class AdminUserItem {
     this.region,
     this.assembly,
   });
+
+  final String? apiId;
 
   final String name;
 
@@ -103,6 +106,57 @@ class AdminUserItem {
   /// scoped to, one level more specific than [region] — see
   /// [roleRequiresAssembly].
   final Assembly? assembly;
+
+  String get apiRecordId => apiId ?? userId;
+
+  factory AdminUserItem.fromApi(Map<String, dynamic> json) {
+    final role = switch (json['role']) {
+      'MUNICIPAL' => AppRole.municipalOfficer,
+      'MAINTENANCE' => AppRole.maintenanceTeam,
+      'MINISTRY' => AppRole.ministrySupervisor,
+      'ADMIN' => AppRole.systemAdministrator,
+      _ => AppRole.citizen,
+    };
+    final regionName = json['region'] as String?;
+    final region = regionName == null
+        ? null
+        : Region.values.cast<Region?>().firstWhere(
+            (item) => item?.name == regionName,
+            orElse: () => null,
+          );
+    final assemblyName = json['assembly'] as String?;
+    final assembly = region == null || assemblyName == null
+        ? null
+        : ghanaAssemblies[region]?.cast<Assembly?>().firstWhere(
+            (item) => item?.name == assemblyName,
+            orElse: () => null,
+          );
+    final tier = json['adminTier'] == 'admin'
+        ? AdminTier.admin
+        : role == AppRole.systemAdministrator
+        ? AdminTier.superAdmin
+        : null;
+    return AdminUserItem(
+      apiId: json['id'] as String,
+      name: json['fullName'] as String? ?? 'Unnamed user',
+      email: json['email'] as String?,
+      phone: json['phone'] as String? ?? 'Phone unavailable',
+      role: role,
+      status: json['active'] == false
+          ? AdminUserStatus.inactive
+          : AdminUserStatus.active,
+      userId: json['publicId'] as String? ?? json['id'] as String,
+      lastSignIn:
+          DateTime.tryParse(json['updatedAt'] as String? ?? '') ??
+          DateTime.now(),
+      accountCreated:
+          DateTime.tryParse(json['createdAt'] as String? ?? '') ??
+          DateTime.now(),
+      adminTier: tier,
+      region: region,
+      assembly: assembly,
+    );
+  }
 
   /// Whether [role] is one of the two region-scoped staff roles — the
   /// single source of truth [AdminUserItem.copyWith], the details form, and
@@ -177,6 +231,7 @@ class AdminUserItem {
         : null;
     final needsAssembly = roleRequiresAssembly(effectiveRole, effectiveTier);
     return AdminUserItem(
+      apiId: apiId,
       name: name,
       email: email,
       phone: phone,

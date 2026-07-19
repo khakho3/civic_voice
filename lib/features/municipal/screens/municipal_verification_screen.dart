@@ -99,14 +99,20 @@ class _MunicipalVerificationScreenState
     });
   }
 
-  void _submitVerify() {
+  Future<void> _submitVerify() async {
     setState(() => _state = MunicipalVerificationViewState.loading);
-    Future.delayed(const Duration(milliseconds: 500), () {
+    try {
+      await MunicipalReportDirectory.instance.verifyOnServer(
+        widget.referenceId,
+      );
       if (mounted) {
-        MunicipalReportDirectory.instance.verify(widget.referenceId);
         setState(() => _state = MunicipalVerificationViewState.verified);
       }
-    });
+    } catch (_) {
+      if (mounted) {
+        setState(() => _state = MunicipalVerificationViewState.failed);
+      }
+    }
   }
 
   Future<void> _submitReject() async {
@@ -123,12 +129,18 @@ class _MunicipalVerificationScreenState
 
     _rejectedWithReason = _reasonController.text.trim().isNotEmpty;
     setState(() => _state = MunicipalVerificationViewState.loading);
-    Future.delayed(const Duration(milliseconds: 500), () {
+    try {
+      await MunicipalReportDirectory.instance.rejectOnServer(
+        widget.referenceId,
+      );
       if (mounted) {
-        MunicipalReportDirectory.instance.reject(widget.referenceId);
         setState(() => _state = MunicipalVerificationViewState.rejected);
       }
-    });
+    } catch (_) {
+      if (mounted) {
+        setState(() => _state = MunicipalVerificationViewState.failed);
+      }
+    }
   }
 
   void _retryLoad() {

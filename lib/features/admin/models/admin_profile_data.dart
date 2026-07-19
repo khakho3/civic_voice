@@ -1,3 +1,6 @@
+import 'admin_role_management_data.dart';
+import 'admin_user_management_data.dart';
+
 /// The outcome of a "Save Changes" attempt on the editable fields — same
 /// shape and same reasoning as `SystemSettingsSaveState`: kept out of the
 /// screen's own load-state enum since these are transient results of an
@@ -68,8 +71,7 @@ class AdminProfileData {
       other.adminId == adminId;
 
   @override
-  int get hashCode =>
-      Object.hash(fullName, email, phone, department, adminId);
+  int get hashCode => Object.hash(fullName, email, phone, department, adminId);
 }
 
 /// Placeholder content matching the approved ADM-008 design, used until a
@@ -85,5 +87,24 @@ AdminProfileData mockAdminProfile() {
     governanceChecklistPercent: 92,
     administrativeScope: const ['Users', 'Roles', 'Settings'],
     governanceLevel: 'Approved administrator',
+  );
+}
+
+AdminProfileData adminProfileFromUser(AdminUserItem user) {
+  final superAdmin = user.adminTier == AdminTier.superAdmin;
+  return AdminProfileData(
+    fullName: user.name,
+    email: '',
+    phone: user.phone,
+    department: superAdmin
+        ? 'Platform Administration'
+        : user.assembly?.fullName ?? 'Assembly Administration',
+    adminId: user.userId,
+    lastActivity: user.lastSignIn,
+    governanceChecklistPercent: 100,
+    administrativeScope: superAdmin
+        ? const ['Users', 'Roles', 'Settings']
+        : const ['Users', 'Activity', 'Maintenance'],
+    governanceLevel: superAdmin ? 'Super Admin' : 'Assembly Admin',
   );
 }

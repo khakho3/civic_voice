@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../models/dashboard_data.dart';
 import '../models/incoming_report.dart';
+import '../services/municipal_report_directory.dart';
 import '../../../widgets/glass_card.dart';
 import '../widgets/municipal_scaffold.dart';
 import '../../../widgets/app_state_message.dart';
@@ -75,13 +76,21 @@ class MunicipalDashboardScreen extends StatefulWidget {
 
 class _MunicipalDashboardScreenState extends State<MunicipalDashboardScreen> {
   late MunicipalDashboardViewState _state = widget.initialState;
-  final MunicipalDashboardData _data = MunicipalDashboardData.mock();
+  MunicipalDashboardData _data = MunicipalDashboardData.mock();
 
-  void _retry() {
+  Future<void> _retry() async {
     setState(() => _state = MunicipalDashboardViewState.loading);
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (mounted) setState(() => _state = MunicipalDashboardViewState.loaded);
-    });
+    try {
+      await MunicipalReportDirectory.instance.refresh();
+      if (mounted) {
+        setState(() {
+          _data = MunicipalDashboardData.mock();
+          _state = MunicipalDashboardViewState.loaded;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _state = MunicipalDashboardViewState.error);
+    }
   }
 
   @override

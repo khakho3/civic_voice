@@ -121,4 +121,54 @@ class ReportReviewData {
       ],
     );
   }
+
+  factory ReportReviewData.fromReport(IncomingReportItem report) {
+    return ReportReviewData(
+      referenceId: report.referenceId,
+      title: report.title,
+      description: report.description,
+      category: report.category,
+      status: report.status,
+      citizenName: report.citizenName ?? 'Citizen',
+      citizenPhone: report.citizenPhone ?? 'Phone unavailable',
+      officerName: 'Municipal Officer',
+      officerPhone: 'Contact unavailable',
+      evidencePhotoUrls: report.photoUrls,
+      locationLabel: report.locationLabel,
+      latitude: report.latitude ?? 5.6037,
+      longitude: report.longitude ?? -0.1870,
+      timeline: [
+        ReportTimelineStep(
+          label: 'Submitted',
+          icon: AppIcons.reportVerified,
+          state: report.status == ReportStatus.submitted
+              ? TimelineStepState.current
+              : TimelineStepState.completed,
+          timestamp: report.timeAgo,
+        ),
+        ReportTimelineStep(
+          label: 'Under Review',
+          icon: AppIcons.municipalOfficer,
+          state: report.status == ReportStatus.submitted
+              ? TimelineStepState.pending
+              : report.status == ReportStatus.underReview
+              ? TimelineStepState.current
+              : TimelineStepState.completed,
+          timestamp: report.status == ReportStatus.submitted
+              ? null
+              : report.updatedLabel,
+        ),
+        ReportTimelineStep(
+          label: 'Team Assignment',
+          icon: AppIcons.success,
+          state:
+              report.status == ReportStatus.submitted ||
+                  report.status == ReportStatus.underReview
+              ? TimelineStepState.pending
+              : TimelineStepState.current,
+          timestamp: report.teamName,
+        ),
+      ],
+    );
+  }
 }

@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_controller.dart';
 import 'features/admin/models/admin_user_management_data.dart';
+import 'features/admin/models/admin_role_management_data.dart';
+import 'features/admin/models/admin_profile_data.dart';
 import 'features/admin/models/admin_maintenance_team_data.dart';
 import 'features/admin/screens/admin_create_user_screen.dart';
 import 'features/admin/screens/admin_dashboard_screen.dart';
@@ -79,6 +81,9 @@ import 'features/municipal/screens/municipal_resolved_reports_screen.dart';
 import 'features/municipal/screens/municipal_verification_screen.dart';
 import 'firebase_options.dart';
 import 'models/app_role.dart';
+import 'models/assembly.dart';
+import 'models/ghana_assemblies_data.dart';
+import 'models/region.dart';
 import 'services/api_client.dart';
 import 'services/idle_session_timer.dart';
 import 'services/mock_auth_service.dart';
@@ -146,13 +151,15 @@ Future<void> _restorePersistedSession() async {
     final syncedUser = await ApiClient.instance.syncUser(idToken: token);
     final role = _appRoleForBackendRole(syncedUser.role);
     if (role == null) return;
-    await auth.selectRole(
-      role,
-      mustChangePasswordOnFirstLogin: syncedUser.mustChangePassword,
-    );
+    await _selectSyncedRole(auth, role, syncedUser);
     if (role == AppRole.citizen) {
       ProfileCrudService.instance.loadSignedInUser(syncedUser);
       await ReportCrudService.instance.refresh();
+    } else if (role == AppRole.municipalOfficer) {
+      await MunicipalReportDirectory.instance.refresh();
+    } else if (role == AppRole.systemAdministrator) {
+      AdminUserDirectory.instance.currentApiUserId = syncedUser.id;
+      await AdminUserDirectory.instance.refresh();
     }
   } catch (_) {
     // Firebase keeps the credential. Preserve the last known role so a
@@ -328,7 +335,6 @@ class _CivicVoiceAppState extends State<CivicVoiceApp> {
               AppRoutes.forgotPassword: (context) =>
                   const _ForgotPasswordRoute(),
               AppRoutes.changePassword: (context) => ChangePasswordScreen(
-                phoneNumber: _currentSessionPhoneNumber(),
                 onBack: () => Navigator.of(context).maybePop(),
                 onSaved: () => _finishChangePassword(context),
               ),
@@ -617,6 +623,37 @@ AppRole? _appRoleForBackendRole(String role) {
   };
 }
 
+Future<void> _selectSyncedRole(
+  MockAuthService auth,
+  AppRole role,
+  SyncedUser user,
+) async {
+  final region = user.region == null
+      ? null
+      : Region.values.cast<Region?>().firstWhere(
+          (item) => item?.name == user.region,
+          orElse: () => null,
+        );
+  final assembly = region == null || user.assembly == null
+      ? null
+      : ghanaAssemblies[region]?.cast<Assembly?>().firstWhere(
+          (item) => item?.name == user.assembly,
+          orElse: () => null,
+        );
+  final tier = role == AppRole.systemAdministrator
+      ? user.adminTier == 'admin'
+            ? AdminTier.admin
+            : AdminTier.superAdmin
+      : null;
+  await auth.selectRole(
+    role,
+    adminTier: tier,
+    region: region,
+    assembly: assembly,
+    mustChangePasswordOnFirstLogin: user.mustChangePassword,
+  );
+}
+
 /// Real Firebase + civic_voice_api sign-in, landing in the same
 /// [MockAuthService] session cache every other module already reads —
 /// see the NOTE above the `routes` map. Kept as a private route widget
@@ -649,14 +686,16 @@ class _LoginRouteState extends State<_LoginRoute> {
       final syncedUser = await ApiClient.instance.syncUser(idToken: idToken);
       final appRole = _appRoleForBackendRole(syncedUser.role);
       if (appRole == null) throw Exception('Unknown role: ${syncedUser.role}');
-      await MockAuthService().selectRole(
-        appRole,
-        mustChangePasswordOnFirstLogin: syncedUser.mustChangePassword,
-      );
+      await _selectSyncedRole(MockAuthService(), appRole, syncedUser);
       await _configurePushNotifications();
       if (appRole == AppRole.citizen) {
         ProfileCrudService.instance.loadSignedInUser(syncedUser);
         await ReportCrudService.instance.refresh();
+      } else if (appRole == AppRole.municipalOfficer) {
+        await MunicipalReportDirectory.instance.refresh();
+      } else if (appRole == AppRole.systemAdministrator) {
+        AdminUserDirectory.instance.currentApiUserId = syncedUser.id;
+        await AdminUserDirectory.instance.refresh();
       }
       if (!context.mounted) return;
       _completeSignIn(context);
@@ -858,17 +897,27 @@ void _startForgotPasswordOtp(BuildContext context, String phoneNumber) {
         onBack: () => Navigator.of(context).maybePop(),
         onResend: () => ApiClient.instance.sendForgotPasswordOtp(phoneNumber),
         onVerify: (code) async {
+          late final String resetToken;
+          try {
+            resetToken = await ApiClient.instance.verifyPasswordResetOtp(
+              phone: phoneNumber,
+              otp: code,
+            );
+          } on ApiException {
+            return false;
+          }
+          if (!context.mounted) return false;
           Navigator.of(context).pushReplacement(
             MaterialPageRoute<void>(
-              builder: (context) => SetNewPasswordScreen(
+              builder: (passwordContext) => SetNewPasswordScreen(
                 purpose: SetNewPasswordPurpose.forgotPassword,
-                onBack: () => Navigator.of(context).maybePop(),
+                onBack: () => Navigator.of(passwordContext).maybePop(),
                 onSaved: (newPassword) async {
-                  final navigator = Navigator.of(context);
+                  final navigator = Navigator.of(passwordContext);
                   try {
                     await ApiClient.instance.resetPassword(
                       phone: phoneNumber,
-                      otp: code,
+                      resetToken: resetToken,
                       newPassword: newPassword,
                     );
                   } on ApiException {
@@ -952,25 +1001,11 @@ Widget _forcedPasswordReset(BuildContext context) {
   );
 }
 
-void _finishChangePassword(BuildContext context) {
-  Navigator.of(context).maybePop();
-  ScaffoldMessenger.of(context).showSnackBar(
-    const SnackBar(content: Text('Password changed successfully.')),
-  );
-}
-
-String _currentSessionPhoneNumber() {
-  return switch (MockAuthService().getCurrentRole()) {
-    AppRole.systemAdministrator => '+233 24 111 2222',
-    AppRole.ministrySupervisor => '+233 20 000 0000',
-    AppRole.municipalOfficer => '+233 24 128 4092',
-    // Matches Yaw Asare (CV-USER-0104), the real Admin-provisioned
-    // Maintenance Team account MaintenanceTaskDirectory.currentUserId
-    // resolves to — the same phone Profile itself now displays.
-    AppRole.maintenanceTeam => '+233 27 777 8888',
-    AppRole.citizen => '+233 24 555 0198',
-    null => '+233 24 000 0000',
-  };
+Future<void> _finishChangePassword(BuildContext context) async {
+  await FirebaseAuth.instance.signOut();
+  await MockAuthService().clearUser();
+  if (!context.mounted) return;
+  Navigator.of(context).pushNamedAndRemoveUntil(AppRoutes.login, (_) => false);
 }
 
 Future<void> _signOut(BuildContext context) async {
@@ -1320,7 +1355,23 @@ Widget _adminSystemSettings(BuildContext context) {
 }
 
 Widget _adminProfile(BuildContext context) {
+  final currentUser = AdminUserDirectory.instance.currentUser;
   return admin.AdminProfileScreen(
+    initialData: currentUser == null ? null : adminProfileFromUser(currentUser),
+    onSaveProfile: (fullName) async {
+      try {
+        final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+        if (token == null) return false;
+        await ApiClient.instance.updateProfile(
+          idToken: token,
+          fullName: fullName,
+        );
+        await AdminUserDirectory.instance.refresh();
+        return true;
+      } catch (_) {
+        return false;
+      }
+    },
     onNavigateToDashboard: () =>
         _replaceWith(context, AppRoutes.adminDashboard),
     onNavigateToUsers: () =>

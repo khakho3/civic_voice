@@ -25,7 +25,9 @@ String _backendRoleFor(AppRole role) {
     AppRole.maintenanceTeam => 'MAINTENANCE',
     AppRole.ministrySupervisor => 'MINISTRY',
     AppRole.systemAdministrator => 'ADMIN',
-    AppRole.citizen => throw ArgumentError('Citizens self-register, not admin-provisioned'),
+    AppRole.citizen => throw ArgumentError(
+      'Citizens self-register, not admin-provisioned',
+    ),
   };
 }
 
@@ -146,17 +148,29 @@ class _AdminCreateUserScreenState extends State<AdminCreateUserScreen> {
     if (!confirmed || !mounted) return;
 
     setState(() => _isSubmitting = true);
+    String? creationWarning;
     try {
       final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
       if (idToken == null) {
         throw Exception('Not signed in — sign in again and retry.');
       }
-      await ApiClient.instance.createStaffUser(
+      final response = await ApiClient.instance.createStaffUser(
         idToken: idToken,
         fullName: name,
         phone: phone,
         role: _backendRoleFor(_role),
+        adminTier: _role == AppRole.systemAdministrator ? _tier.name : null,
+        region: needsAssembly
+            ? (session.isSuperAdmin ? _region : session.region)?.name
+            : null,
+        assembly: needsAssembly
+            ? (session.isSuperAdmin ? _assembly : session.assembly)?.name
+            : null,
       );
+      AdminUserDirectory.instance.upsertFromApi(
+        response['user'] as Map<String, dynamic>,
+      );
+      creationWarning = response['warning'] as String?;
     } on ApiException catch (error) {
       if (!mounted) return;
       setState(() => _isSubmitting = false);
@@ -175,30 +189,15 @@ class _AdminCreateUserScreenState extends State<AdminCreateUserScreen> {
     if (!mounted) return;
     setState(() => _isSubmitting = false);
 
-    // The real account now exists in Firebase/Postgres and the temp
-    // password SMS is already sent — this local mirror is only so the
-    // new account shows up in User Management's list right away, which
-    // still reads from AdminUserDirectory (there's no "list all users"
-    // backend endpoint yet).
-    final created = AdminUserDirectory.instance.createUser(
-      name: name,
-      phone: phone,
-      role: _role,
-      adminTier: _role == AppRole.systemAdministrator ? _tier : null,
-      region: needsAssembly
-          ? (session.isSuperAdmin ? _region : session.region)
-          : null,
-      assembly: needsAssembly
-          ? (session.isSuperAdmin ? _assembly : session.assembly)
-          : null,
-    );
+    final created = AdminUserDirectory.instance.users.value.first;
     widget.onUserCreated?.call(created);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Account created. A temporary password has been sent to '
-            '$phone via SMS.',
+            creationWarning ??
+                'Account created. A temporary password has been sent to '
+                    '$phone via SMS.',
           ),
         ),
       );

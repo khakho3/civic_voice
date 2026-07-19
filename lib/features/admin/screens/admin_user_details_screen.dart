@@ -9,6 +9,7 @@ import '../../../widgets/confirm_dialog.dart';
 import '../models/admin_role_management_data.dart';
 import '../models/admin_user_management_data.dart';
 import '../services/admin_session.dart';
+import '../services/admin_user_directory.dart';
 import '../widgets/admin_scaffold.dart';
 import '../widgets/region_assembly_picker.dart';
 
@@ -196,7 +197,22 @@ class _AdminUserDetailsScreenState extends State<AdminUserDetailsScreen> {
           ? _assembly
           : null,
     );
+    try {
+      await AdminUserDirectory.instance.saveOnServer(updated);
+    } catch (_) {
+      if (mounted) setState(() => _state = AdminUserDetailsViewState.error);
+      return;
+    }
+    if (!mounted) return;
     widget.onSaveChanges?.call(updated);
+    final returnToUsers = widget.onNavigateToUsers;
+    if (returnToUsers != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Changes to ${widget.user.name} were saved.')),
+      );
+      returnToUsers();
+      return;
+    }
     setState(() => _showSuccess = true);
   }
 

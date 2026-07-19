@@ -195,17 +195,25 @@ class ApiClient {
   /// Region/Assembly/Admin-tier scoping — real on the Flutter side via
   /// AdminSession — has no backend model yet (no Assembly/Team table in
   /// Postgres), so none of that is sent or persisted here yet.
-  Future<void> createStaffUser({
+  Future<Map<String, dynamic>> createStaffUser({
     required String idToken,
     required String fullName,
     required String phone,
     required String role,
+    String? adminTier,
+    String? region,
+    String? assembly,
   }) async {
-    await _post('/api/admin/users', {
+    final body = <String, dynamic>{
       'fullName': fullName,
       'phone': phone,
       'role': role,
-    }, idToken: idToken);
+    };
+    if (adminTier != null) body['adminTier'] = adminTier;
+    if (region != null) body['region'] = region;
+    if (assembly != null) body['assembly'] = assembly;
+    final result = await _post('/api/admin/users', body, idToken: idToken);
+    return result;
   }
 
   /// Sets a new real Firebase password for the signed-in user and, if they
@@ -225,6 +233,36 @@ class ApiClient {
     await _post('/api/auth/forgot-password-otp', {'phone': phone});
   }
 
+  Future<void> sendAuthenticatedPasswordChangeOtp({
+    required String idToken,
+    required String phone,
+  }) async {
+    await _post('/api/auth/change-password-otp', {
+      'phone': phone,
+    }, idToken: idToken);
+  }
+
+  Future<String> verifyAuthenticatedPasswordChangeOtp({
+    required String idToken,
+    required String otp,
+  }) async {
+    final result = await _post('/api/auth/verify-change-password-otp', {
+      'otp': otp,
+    }, idToken: idToken);
+    return result['resetToken'] as String;
+  }
+
+  Future<String> verifyPasswordResetOtp({
+    required String phone,
+    required String otp,
+  }) async {
+    final result = await _post('/api/auth/verify-password-reset-otp', {
+      'phone': phone,
+      'otp': otp,
+    });
+    return result['resetToken'] as String;
+  }
+
   Future<void> registerPushToken({
     required String idToken,
     required String token,
@@ -238,12 +276,12 @@ class ApiClient {
 
   Future<void> resetPassword({
     required String phone,
-    required String otp,
+    required String resetToken,
     required String newPassword,
   }) async {
     await _post('/api/auth/reset-password', {
       'phone': phone,
-      'otp': otp,
+      'resetToken': resetToken,
       'newPassword': newPassword,
     });
   }
@@ -301,6 +339,31 @@ class ApiClient {
     return (result['users'] as List).cast<Map<String, dynamic>>();
   }
 
+  Future<Map<String, dynamic>> updateUser(
+    String userId, {
+    required String idToken,
+    required Map<String, dynamic> fields,
+  }) async {
+    final response = await http.patch(
+      Uri.parse('$baseUrl/api/admin/users/$userId'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $idToken',
+      },
+      body: jsonEncode(fields),
+    );
+    return _decode(response)['user'] as Map<String, dynamic>;
+  }
+
+  Future<void> deleteUser(String userId, {required String idToken}) async {
+    _decode(
+      await http.delete(
+        Uri.parse('$baseUrl/api/admin/users/$userId'),
+        headers: {'Authorization': 'Bearer $idToken'},
+      ),
+    );
+  }
+
   Future<Map<String, dynamic>> updateProfile({
     required String idToken,
     String? fullName,
@@ -331,6 +394,9 @@ class SyncedUser {
     required this.mustChangePassword,
     required this.phone,
     required this.avatarUrl,
+    required this.adminTier,
+    required this.region,
+    required this.assembly,
   });
 
   final String id;
@@ -339,6 +405,9 @@ class SyncedUser {
   final bool mustChangePassword;
   final String? phone;
   final String? avatarUrl;
+  final String? adminTier;
+  final String? region;
+  final String? assembly;
 
   factory SyncedUser.fromJson(Map<String, dynamic> json) {
     return SyncedUser(
@@ -348,6 +417,9 @@ class SyncedUser {
       mustChangePassword: json['mustChangePassword'] as bool? ?? false,
       phone: json['phone'] as String?,
       avatarUrl: json['avatarUrl'] as String?,
+      adminTier: json['adminTier'] as String?,
+      region: json['region'] as String?,
+      assembly: json['assembly'] as String?,
     );
   }
 }

@@ -102,6 +102,8 @@ class AdminProfileScreen extends StatefulWidget {
     this.onNavigateToMaintenanceTeams,
     this.onSignOut,
     this.onNotificationsTap,
+    this.initialData,
+    this.onSaveProfile,
   });
 
   final AdminProfileViewState initialState;
@@ -129,6 +131,8 @@ class AdminProfileScreen extends StatefulWidget {
   final VoidCallback? onSignOut;
 
   final VoidCallback? onNotificationsTap;
+  final AdminProfileData? initialData;
+  final Future<bool> Function(String fullName)? onSaveProfile;
 
   @override
   State<AdminProfileScreen> createState() => _AdminProfileScreenState();
@@ -138,8 +142,15 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
   late AdminProfileViewState _state = widget.initialState;
   late AdminProfileSaveState _saveState = widget.initialSaveState;
   bool _editing = false;
-  AdminProfileData _original = mockAdminProfile();
-  late AdminProfileData _draft = _original;
+  late AdminProfileData _original;
+  late AdminProfileData _draft;
+
+  @override
+  void initState() {
+    super.initState();
+    _original = widget.initialData ?? mockAdminProfile();
+    _draft = _original;
+  }
 
   void _retry() {
     setState(() => _state = AdminProfileViewState.loading);
@@ -180,19 +191,28 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
     });
   }
 
-  void _saveChanges() {
+  Future<void> _saveChanges() async {
     if (_draft.fullName.trim().isEmpty) {
       setState(() => _saveState = AdminProfileSaveState.validationError);
       return;
     }
     setState(() => _saveState = AdminProfileSaveState.saving);
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (!mounted) return;
-      setState(() {
+    final save = widget.onSaveProfile;
+    final success = save == null
+        ? await Future<bool>.delayed(
+            const Duration(milliseconds: 500),
+            () => true,
+          )
+        : await save(_draft.fullName.trim());
+    if (!mounted) return;
+    setState(() {
+      if (success) {
         _original = _draft;
         _saveState = AdminProfileSaveState.saved;
         _editing = false;
-      });
+      } else {
+        _saveState = AdminProfileSaveState.failed;
+      }
     });
   }
 
@@ -388,14 +408,6 @@ class _ProfileBody extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.sm),
             ProfileFieldRow(
-              label: 'Email',
-              value: draft.email,
-              caption: editing
-                  ? 'Contact your administrator to change this'
-                  : null,
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            ProfileFieldRow(
               label: 'Phone Number',
               value: draft.phone,
               caption: editing
@@ -406,8 +418,7 @@ class _ProfileBody extends StatelessWidget {
             ProfileFieldRow(
               label: 'Department',
               value: draft.department,
-              editable: editing,
-              onChanged: (v) => onUpdate((d) => d.copyWith(department: v)),
+              locked: true,
             ),
             const SizedBox(height: AppSpacing.sm),
             ProfileFieldRow(

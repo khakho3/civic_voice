@@ -83,7 +83,7 @@ class _MunicipalInboxScreenState extends State<MunicipalInboxScreen> {
   // Only new/reviewed-but-unassigned reports belong in the Inbox — once a
   // team is assigned, a report only shows on Active Reports (see
   // MunicipalReportDirectory.assignTeam).
-  late final List<IncomingReportItem> _reports =
+  late List<IncomingReportItem> _reports =
       widget.initialState == MunicipalInboxViewState.empty
       ? const []
       : MunicipalReportDirectory.instance.reports.value
@@ -132,11 +132,25 @@ class _MunicipalInboxScreenState extends State<MunicipalInboxScreen> {
     });
   }
 
-  void _retry() {
+  Future<void> _retry() async {
     setState(() => _state = MunicipalInboxViewState.loading);
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (mounted) setState(() => _state = MunicipalInboxViewState.loaded);
-    });
+    try {
+      await MunicipalReportDirectory.instance.refresh();
+      if (mounted) {
+        setState(() {
+          _reports = MunicipalReportDirectory.instance.reports.value
+              .where(
+                (report) =>
+                    report.status == ReportStatus.submitted ||
+                    report.status == ReportStatus.underReview,
+              )
+              .toList();
+          _state = MunicipalInboxViewState.loaded;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _state = MunicipalInboxViewState.error);
+    }
   }
 
   @override

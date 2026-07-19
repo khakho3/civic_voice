@@ -61,23 +61,64 @@ class MunicipalDashboardData {
   /// Placeholder content matching the approved MUN-001 design, used until
   /// the Cloud Firestore-backed service (Issue 03 dependency) is wired up.
   factory MunicipalDashboardData.mock() {
+    final reports = MunicipalReportDirectory.instance.reports.value;
+    final isLive = reports.any((report) => report.apiId != null);
+    final assignmentGroups = <String, List<int>>{};
+    if (isLive) {
+      for (final report in reports) {
+        final team = report.teamName;
+        if (team != null) {
+          assignmentGroups
+              .putIfAbsent(team, () => [])
+              .add(report.progressPercent ?? 0);
+        }
+      }
+    }
     return MunicipalDashboardData(
       officerName: 'Alex Johnston',
       municipalityName: 'Springfield District',
-      stats: const MunicipalDashboardStats(
-        newReports: 128,
-        underReview: 42,
-        assigned: 31,
-        resolved: 87,
-      ),
-      recentReports: MunicipalReportDirectory.instance.reports.value
-          .take(3)
-          .toList(),
-      assignmentSummary: const [
-        AssignmentProgress(teamName: 'Public Works', percent: 0.72),
-        AssignmentProgress(teamName: 'Sanitation', percent: 0.54),
-        AssignmentProgress(teamName: 'Utilities', percent: 0.38),
-      ],
+      stats: isLive
+          ? MunicipalDashboardStats(
+              newReports: reports
+                  .where((report) => report.status.name == 'submitted')
+                  .length,
+              underReview: reports
+                  .where((report) => report.status.name == 'underReview')
+                  .length,
+              assigned: reports
+                  .where(
+                    (report) =>
+                        report.status.name == 'assigned' ||
+                        report.status.name == 'inProgress',
+                  )
+                  .length,
+              resolved: reports
+                  .where((report) => report.status.name == 'resolved')
+                  .length,
+            )
+          : const MunicipalDashboardStats(
+              newReports: 128,
+              underReview: 42,
+              assigned: 31,
+              resolved: 87,
+            ),
+      recentReports: reports.take(3).toList(),
+      assignmentSummary: isLive
+          ? [
+              for (final entry in assignmentGroups.entries)
+                AssignmentProgress(
+                  teamName: entry.key,
+                  percent:
+                      entry.value.reduce((a, b) => a + b) /
+                      entry.value.length /
+                      100,
+                ),
+            ]
+          : const [
+              AssignmentProgress(teamName: 'Public Works', percent: 0.72),
+              AssignmentProgress(teamName: 'Sanitation', percent: 0.54),
+              AssignmentProgress(teamName: 'Utilities', percent: 0.38),
+            ],
     );
   }
 }

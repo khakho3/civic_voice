@@ -98,13 +98,21 @@ class AdminDashboardScreen extends StatefulWidget {
 
 class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   late AdminDashboardViewState _state = widget.initialState;
-  final AdminDashboardData _data = AdminDashboardData.mock();
+  AdminDashboardData _data = AdminDashboardData.current();
 
-  void _retry() {
+  Future<void> _retry() async {
     setState(() => _state = AdminDashboardViewState.loading);
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (mounted) setState(() => _state = AdminDashboardViewState.loaded);
-    });
+    try {
+      await AdminUserDirectory.instance.refresh();
+      if (mounted) {
+        setState(() {
+          _data = AdminDashboardData.current();
+          _state = AdminDashboardViewState.loaded;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _state = AdminDashboardViewState.error);
+    }
   }
 
   @override
@@ -253,9 +261,7 @@ class _AdminGreeting extends StatelessWidget {
     final name =
         (assembly == null
                 ? null
-                : AdminUserDirectory.instance.correspondentAdminFor(
-                    assembly,
-                  ))
+                : AdminUserDirectory.instance.correspondentAdminFor(assembly))
             ?.name ??
         mockAdminProfile().fullName;
 

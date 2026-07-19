@@ -1,6 +1,9 @@
 import 'package:flutter/foundation.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 
 import '../../../models/report_status.dart';
+import '../../../services/api_client.dart';
 import '../models/incoming_report.dart';
 
 /// The live, shared report list every Municipal screen reads from — the
@@ -16,6 +19,13 @@ class MunicipalReportDirectory {
   final ValueNotifier<List<IncomingReportItem>> reports = ValueNotifier(
     IncomingReportItem.mock(),
   );
+
+  Future<void> refresh() async {
+    final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+    if (token == null) throw StateError('A signed-in officer is required');
+    final response = await ApiClient.instance.listReports(idToken: token);
+    reports.value = response.map(IncomingReportItem.fromApi).toList();
+  }
 
   IncomingReportItem? byReferenceId(String referenceId) {
     for (final report in reports.value) {
@@ -58,5 +68,49 @@ class MunicipalReportDirectory {
         updatedLabel: 'Just now',
       ),
     );
+  }
+
+  Future<void> verifyOnServer(String referenceId) =>
+      _updateOnServer(referenceId, const {'status': 'UNDER_REVIEW'});
+
+  Future<void> rejectOnServer(String referenceId) =>
+      _updateOnServer(referenceId, const {'status': 'REJECTED'});
+
+  Future<void> assignTeamOnServer(String referenceId, String teamName) =>
+      _updateOnServer(referenceId, {
+        'status': 'ASSIGNED',
+        'assignedTeamName': teamName,
+        'progressPercent': '0',
+      });
+
+  Future<void> _updateOnServer(
+    String referenceId,
+    Map<String, String> fields,
+  ) async {
+    final current = byReferenceId(referenceId);
+    if (current == null) throw StateError('Report not found');
+    if (Firebase.apps.isEmpty) {
+      // The explicit Test Role Selector has no Firebase session. Keep that
+      // development/test surface deterministic without allowing production
+      // sessions to silently fall back when the real API fails.
+      switch (fields['status']) {
+        case 'UNDER_REVIEW':
+          verify(referenceId);
+        case 'REJECTED':
+          reject(referenceId);
+        case 'ASSIGNED':
+          assignTeam(referenceId, fields['assignedTeamName'] ?? 'Assigned');
+      }
+      return;
+    }
+    final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+    if (token == null) throw StateError('A signed-in officer is required');
+    final response = await ApiClient.instance.updateReport(
+      current.apiRecordId,
+      idToken: token,
+      fields: fields,
+    );
+    final updated = IncomingReportItem.fromApi(response);
+    _update(referenceId, (_) => updated);
   }
 }

@@ -1,3 +1,6 @@
+import '../services/admin_user_directory.dart';
+import 'admin_user_management_data.dart';
+
 /// The four Platform Overview stat cards.
 class AdminDashboardStats {
   const AdminDashboardStats({
@@ -64,6 +67,34 @@ class AdminDashboardData {
           title: 'System policy reviewed',
           caption: 'Audit log · read-only',
         ),
+      ],
+    );
+  }
+
+  static AdminDashboardData current() {
+    final users = AdminUserDirectory.instance.users.value;
+    final live = users.any((user) => !user.userId.startsWith('CV-USER-'));
+    if (!live) return mock();
+    final activeUsers = users
+        .where((user) => user.status == AdminUserStatus.active)
+        .toList();
+    return AdminDashboardData(
+      stats: AdminDashboardStats(
+        totalUsers: users.length,
+        totalUsersChangePercent: 0,
+        activeRoles: activeUsers.map((user) => user.role).toSet().length,
+        activeRolesChangePercent: 0,
+        adminActionsLabel: '0',
+        openAlerts: users
+            .where((user) => user.status != AdminUserStatus.active)
+            .length,
+      ),
+      activity: [
+        for (final user in users.take(3))
+          AdminActivityItem(
+            title: '${user.name} · ${user.role.label}',
+            caption: 'Account created · ${user.status.label}',
+          ),
       ],
     );
   }
