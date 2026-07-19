@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
@@ -22,7 +23,25 @@ class ApiClient {
   /// calls against the real dev backend/WittyFlow, regardless of whether
   /// civic_voice_api happens to be running on the machine the tests run
   /// on (it usually is, since that's the same machine).
-  static String baseUrl = 'http://192.168.100.8:4000';
+  static String baseUrl = const String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'http://192.168.100.8:4000',
+  );
+
+  Map<String, dynamic> _decode(http.Response response) {
+    final decoded = response.body.isEmpty
+        ? <String, dynamic>{}
+        : jsonDecode(response.body) as Map<String, dynamic>;
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(
+        statusCode: response.statusCode,
+        message:
+            decoded['error'] as String? ??
+            'Request failed (${response.statusCode})',
+      );
+    }
+    return decoded;
+  }
 
   /// Thrown for any non-2xx response, carrying the backend's own error
   /// message (civic_voice_api always responds with `{ "error": "..." }`)
@@ -41,18 +60,51 @@ class ApiClient {
       body: jsonEncode(body),
     );
 
-    final decoded = response.body.isEmpty
-        ? <String, dynamic>{}
-        : jsonDecode(response.body) as Map<String, dynamic>;
+    return _decode(response);
+  }
 
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw ApiException(
-        statusCode: response.statusCode,
-        message: decoded['error'] as String? ?? 'Request failed (${response.statusCode})',
-      );
+  Future<Map<String, dynamic>> _get(
+    String path, {
+    required String idToken,
+  }) async {
+    return _decode(
+      await http.get(
+        Uri.parse('$baseUrl$path'),
+        headers: {'Authorization': 'Bearer $idToken'},
+      ),
+    );
+  }
+
+  Future<void> deleteReport(String id, {required String idToken}) async {
+    _decode(
+      await http.delete(
+        Uri.parse('$baseUrl/api/reports/$id'),
+        headers: {'Authorization': 'Bearer $idToken'},
+      ),
+    );
+  }
+
+  Future<Map<String, dynamic>> _multipart(
+    String method,
+    String path, {
+    required String idToken,
+    required Map<String, String> fields,
+    Map<String, List<String>> files = const {},
+  }) async {
+    final request = http.MultipartRequest(method, Uri.parse('$baseUrl$path'))
+      ..headers['Authorization'] = 'Bearer $idToken'
+      ..fields.addAll(fields);
+    for (final entry in files.entries) {
+      for (final filePath in entry.value) {
+        if (await File(filePath).exists()) {
+          request.files.add(
+            await http.MultipartFile.fromPath(entry.key, filePath),
+          );
+        }
+      }
     }
-
-    return decoded;
+    final streamed = await request.send();
+    return _decode(await http.Response.fromStream(streamed));
   }
 
   /// Sends a real SMS verification code to confirm the citizen owns this
@@ -93,9 +145,12 @@ class ApiClient {
 
   /// Upserts the signed-in Firebase user into Postgres and returns that
   /// row — the only place the app learns a signed-in user's real `role`.
-  Future<SyncedUser> syncUser({required String idToken, String? fullName}) async {
+  Future<SyncedUser> syncUser({
+    required String idToken,
+    String? fullName,
+  }) async {
     final result = await _post('/api/auth/sync', {
-      if (fullName != null) 'fullName': fullName,
+      ...fullName == null ? const {} : {'fullName': fullName},
     }, idToken: idToken);
     return SyncedUser.fromJson(result['user'] as Map<String, dynamic>);
   }
@@ -135,6 +190,96 @@ class ApiClient {
       'newPassword': newPassword,
     }, idToken: idToken);
   }
+
+  Future<void> sendForgotPasswordOtp(String phone) async {
+    await _post('/api/auth/forgot-password-otp', {'phone': phone});
+  }
+
+  Future<void> resetPassword({
+    required String phone,
+    required String otp,
+    required String newPassword,
+  }) async {
+    await _post('/api/auth/reset-password', {
+      'phone': phone,
+      'otp': otp,
+      'newPassword': newPassword,
+    });
+  }
+
+  Future<List<Map<String, dynamic>>> listReports({
+    required String idToken,
+  }) async {
+    final result = await _get('/api/reports', idToken: idToken);
+    return (result['reports'] as List).cast<Map<String, dynamic>>();
+  }
+
+  Future<Map<String, dynamic>> getReport(
+    String id, {
+    required String idToken,
+  }) async {
+    final result = await _get('/api/reports/$id', idToken: idToken);
+    return result['report'] as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> createReport({
+    required String idToken,
+    required Map<String, String> fields,
+    List<String> photoPaths = const [],
+  }) async {
+    final result = await _multipart(
+      'POST',
+      '/api/reports',
+      idToken: idToken,
+      fields: fields,
+      files: {'photos': photoPaths},
+    );
+    return result['report'] as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> updateReport(
+    String id, {
+    required String idToken,
+    required Map<String, String> fields,
+    List<String> resolutionPhotoPaths = const [],
+  }) async {
+    final result = await _multipart(
+      'PATCH',
+      '/api/reports/$id',
+      idToken: idToken,
+      fields: fields,
+      files: {'resolutionPhotos': resolutionPhotoPaths},
+    );
+    return result['report'] as Map<String, dynamic>;
+  }
+
+  Future<List<Map<String, dynamic>>> listUsers({
+    required String idToken,
+  }) async {
+    final result = await _get('/api/admin/users', idToken: idToken);
+    return (result['users'] as List).cast<Map<String, dynamic>>();
+  }
+
+  Future<Map<String, dynamic>> updateProfile({
+    required String idToken,
+    String? fullName,
+    String? avatarPath,
+    bool removeAvatar = false,
+  }) async {
+    final result = await _multipart(
+      'PATCH',
+      '/api/auth/me',
+      idToken: idToken,
+      fields: {
+        ...fullName == null ? const {} : {'fullName': fullName},
+        if (removeAvatar) 'removeAvatar': 'true',
+      },
+      files: {
+        if (avatarPath != null) 'avatar': [avatarPath],
+      },
+    );
+    return result['user'] as Map<String, dynamic>;
+  }
 }
 
 class SyncedUser {
@@ -143,12 +288,16 @@ class SyncedUser {
     required this.role,
     required this.fullName,
     required this.mustChangePassword,
+    required this.phone,
+    required this.avatarUrl,
   });
 
   final String id;
   final String role;
   final String fullName;
   final bool mustChangePassword;
+  final String? phone;
+  final String? avatarUrl;
 
   factory SyncedUser.fromJson(Map<String, dynamic> json) {
     return SyncedUser(
@@ -156,6 +305,8 @@ class SyncedUser {
       role: json['role'] as String,
       fullName: json['fullName'] as String,
       mustChangePassword: json['mustChangePassword'] as bool? ?? false,
+      phone: json['phone'] as String?,
+      avatarUrl: json['avatarUrl'] as String?,
     );
   }
 }

@@ -1,9 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../models/citizen_profile.dart';
 import 'citizen_data_repository.dart';
+import '../../../services/api_client.dart';
 
 class ProfileCrudService implements ProfileRepository {
   ProfileCrudService._();
@@ -12,10 +14,10 @@ class ProfileCrudService implements ProfileRepository {
 
   static const CitizenProfile _defaultProfile = CitizenProfile(
     id: 'citizen-profile',
-    fullName: 'Amina Mensah',
-    email: 'amina.mensah@gmail.com',
-    phone: '+233 24 555 0198',
-    primaryLocation: 'Main Road, Ward 4',
+    fullName: '',
+    email: '',
+    phone: '',
+    primaryLocation: '',
   );
 
   final StreamController<CitizenProfile> _profileController =
@@ -37,6 +39,24 @@ class ProfileCrudService implements ProfileRepository {
     return profile.value;
   }
 
+  void loadSignedInUser(SyncedUser user) {
+    _publishProfile(
+      CitizenProfile(
+        id: user.id,
+        fullName: user.fullName,
+        email: '',
+        phone: user.phone ?? '',
+        primaryLocation: '',
+        photoPath: user.avatarUrl == null
+            ? null
+            : user.avatarUrl!.startsWith('http')
+            ? user.avatarUrl
+            : '${ApiClient.baseUrl}${user.avatarUrl}',
+        twoStepEnabled: false,
+      ),
+    );
+  }
+
   @override
   Future<CitizenProfile> createProfile(CitizenProfile newProfile) async {
     _publishProfile(newProfile);
@@ -45,12 +65,27 @@ class ProfileCrudService implements ProfileRepository {
 
   @override
   Future<CitizenProfile> updateProfile(CitizenProfile updatedProfile) async {
+    final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+    if (token != null) {
+      await ApiClient.instance.updateProfile(
+        idToken: token,
+        fullName: updatedProfile.fullName,
+      );
+    }
     _publishProfile(updatedProfile);
     return profile.value;
   }
 
   @override
   Future<CitizenProfile> updateProfilePhoto(String? photoPath) async {
+    final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+    if (token != null) {
+      await ApiClient.instance.updateProfile(
+        idToken: token,
+        avatarPath: photoPath,
+        removeAvatar: photoPath == null,
+      );
+    }
     _publishProfile(
       profile.value.copyWith(
         photoPath: photoPath,

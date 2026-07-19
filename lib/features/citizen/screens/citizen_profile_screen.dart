@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/theme_controller.dart';
+import '../../../services/api_client.dart';
 import '../../../widgets/coming_soon_badge.dart';
 import '../../../widgets/confirm_dialog.dart';
 import '../widgets/civic_glass_card.dart';
@@ -32,9 +33,7 @@ class CitizenProfileScreen extends StatefulWidget {
 
 class _CitizenProfileScreenState extends State<CitizenProfileScreen> {
   final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _emailController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
-  final TextEditingController _locationController = TextEditingController();
   final ImagePicker _imagePicker = ImagePicker();
   final ProfileCrudService _profileCrudService = ProfileCrudService.instance;
 
@@ -47,7 +46,6 @@ class _CitizenProfileScreenState extends State<CitizenProfileScreen> {
     super.initState();
     _syncControllers(_profileCrudService.profile.value);
     _nameController.addListener(_refreshProfilePreview);
-    _locationController.addListener(_refreshProfilePreview);
     _profileCrudService.profile.addListener(_syncControllersFromCrud);
   }
 
@@ -55,11 +53,8 @@ class _CitizenProfileScreenState extends State<CitizenProfileScreen> {
   void dispose() {
     _profileCrudService.profile.removeListener(_syncControllersFromCrud);
     _nameController.removeListener(_refreshProfilePreview);
-    _locationController.removeListener(_refreshProfilePreview);
     _nameController.dispose();
-    _emailController.dispose();
     _phoneController.dispose();
-    _locationController.dispose();
     super.dispose();
   }
 
@@ -75,9 +70,7 @@ class _CitizenProfileScreenState extends State<CitizenProfileScreen> {
 
   void _syncControllers(CitizenProfile profile) {
     _nameController.text = profile.fullName;
-    _emailController.text = profile.email;
     _phoneController.text = profile.phone;
-    _locationController.text = profile.primaryLocation;
   }
 
   void _startEditing() {
@@ -94,9 +87,6 @@ class _CitizenProfileScreenState extends State<CitizenProfileScreen> {
     await _profileCrudService.updateProfile(
       _profileCrudService.profile.value.copyWith(
         fullName: _nameController.text.trim(),
-        email: _emailController.text.trim(),
-        phone: _phoneController.text.trim(),
-        primaryLocation: _locationController.text.trim(),
       ),
     );
     if (!mounted) return;
@@ -202,6 +192,11 @@ class _CitizenProfileScreenState extends State<CitizenProfileScreen> {
       );
       if (!mounted || pickedPhoto == null) return;
       await _profileCrudService.updateProfilePhoto(pickedPhoto.path);
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -218,9 +213,7 @@ class _CitizenProfileScreenState extends State<CitizenProfileScreen> {
   }
 
   String get _wardLabel {
-    final location = _locationController.text.trim();
-    if (location.isEmpty) return 'Verified citizen';
-    return 'Verified citizen - $location';
+    return 'Verified citizen';
   }
 
   String get _initials {
@@ -317,16 +310,7 @@ class _CitizenProfileScreenState extends State<CitizenProfileScreen> {
                                 _PersonalInformationCard(
                                   isEditing: _isEditing,
                                   nameController: _nameController,
-                                  emailController: _emailController,
                                   phoneController: _phoneController,
-                                  locationController: _locationController,
-                                ),
-                                const SizedBox(height: AppSpacing.lg),
-                                _SecurityCard(
-                                  twoStepEnabled: profile.twoStepEnabled,
-                                  onTwoStepChanged: (enabled) {
-                                    _profileCrudService.updateTwoStep(enabled);
-                                  },
                                 ),
                                 const SizedBox(height: AppSpacing.lg),
                                 const _AppearanceCard(),
@@ -473,6 +457,13 @@ class _ProfileIdentity extends StatelessWidget {
                         fontWeight: AppFontWeight.bold,
                       ),
                     )
+                  : photoPath!.startsWith('http')
+                  ? Image.network(
+                      photoPath!,
+                      width: 88,
+                      height: 88,
+                      fit: BoxFit.cover,
+                    )
                   : Image.file(
                       File(photoPath!),
                       width: 88,
@@ -569,16 +560,12 @@ class _PersonalInformationCard extends StatelessWidget {
   const _PersonalInformationCard({
     required this.isEditing,
     required this.nameController,
-    required this.emailController,
     required this.phoneController,
-    required this.locationController,
   });
 
   final bool isEditing;
   final TextEditingController nameController;
-  final TextEditingController emailController;
   final TextEditingController phoneController;
-  final TextEditingController locationController;
 
   @override
   Widget build(BuildContext context) {
@@ -604,26 +591,11 @@ class _PersonalInformationCard extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.md),
           _ProfileInfoField(
-            icon: AppIcons.email,
-            label: 'Email',
-            controller: emailController,
-            keyboardType: TextInputType.emailAddress,
-            isEditing: isEditing,
-          ),
-          const SizedBox(height: AppSpacing.md),
-          _ProfileInfoField(
             icon: AppIcons.phone,
             label: 'Phone',
             controller: phoneController,
             keyboardType: TextInputType.phone,
-            isEditing: isEditing,
-          ),
-          const SizedBox(height: AppSpacing.md),
-          _ProfileInfoField(
-            icon: AppIcons.location,
-            label: 'Primary location',
-            controller: locationController,
-            isEditing: isEditing,
+            isEditing: false,
           ),
         ],
       ),
@@ -712,6 +684,8 @@ class _ProfileInfoField extends StatelessWidget {
   }
 }
 
+// Retained temporarily for the future security-settings implementation.
+// ignore: unused_element
 class _SecurityCard extends StatelessWidget {
   const _SecurityCard({
     required this.twoStepEnabled,
@@ -852,138 +826,51 @@ class _AppearanceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return CivicGlassCard(
       borderRadius: AppRadius.allXl,
       child: ValueListenableBuilder<ThemeMode>(
         valueListenable: ThemeController.mode,
         builder: (context, mode, _) {
-          final darkMode = mode == ThemeMode.dark;
-
-          return LayoutBuilder(
-            builder: (context, constraints) {
-              final stacked = constraints.maxWidth < 300;
-              final info = Row(
-                children: [
-                  AnimatedContainer(
-                    duration: AppMotion.duration(
-                      context,
-                      AppMotionDuration.standard,
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Appearance',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: AppFontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              SizedBox(
+                width: double.infinity,
+                child: SegmentedButton<ThemeMode>(
+                  segments: const [
+                    ButtonSegment(
+                      value: ThemeMode.system,
+                      label: Text('System'),
+                      icon: Icon(AppIcons.settings),
                     ),
-                    curve: AppMotionCurve.standard,
-                    width: AppIconSize.xl,
-                    height: AppIconSize.xl,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(
-                        alpha: darkMode ? 0.16 : 0.1,
-                      ),
-                      borderRadius: AppRadius.allLg,
+                    ButtonSegment(
+                      value: ThemeMode.light,
+                      label: Text('Light'),
+                      icon: Icon(AppIcons.sun),
                     ),
-                    child: AnimatedSwitcher(
-                      duration: AppMotion.duration(
-                        context,
-                        AppMotionDuration.standard,
-                      ),
-                      switchInCurve: AppMotionCurve.decelerate,
-                      switchOutCurve: AppMotionCurve.accelerate,
-                      transitionBuilder: (child, animation) {
-                        return ScaleTransition(
-                          scale: animation,
-                          child: FadeTransition(
-                            opacity: animation,
-                            child: child,
-                          ),
-                        );
-                      },
-                      child: Icon(
-                        darkMode ? AppIcons.moon : AppIcons.sun,
-                        key: ValueKey<bool>(darkMode),
-                        color: AppColors.primary,
-                      ),
+                    ButtonSegment(
+                      value: ThemeMode.dark,
+                      label: Text('Dark'),
+                      icon: Icon(AppIcons.moon),
                     ),
-                  ),
-                  const SizedBox(width: AppSpacing.md),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Appearance',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            fontWeight: AppFontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: AppSpacing.xs),
-                        AnimatedSwitcher(
-                          duration: AppMotion.duration(
-                            context,
-                            AppMotionDuration.standard,
-                          ),
-                          switchInCurve: AppMotionCurve.decelerate,
-                          switchOutCurve: AppMotionCurve.accelerate,
-                          child: Text(
-                            darkMode ? 'Dark mode' : 'Light mode',
-                            key: ValueKey<bool>(darkMode),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              color: theme.colorScheme.secondary,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              );
-
-              final toggle = Switch(
-                value: darkMode,
-                onChanged: ThemeController.setDarkMode,
-              );
-
-              if (stacked) {
-                return Column(
-                  children: [
-                    info,
-                    const SizedBox(height: AppSpacing.sm),
-                    Align(alignment: Alignment.centerRight, child: toggle),
                   ],
-                );
-              }
-
-              final appearanceRow = stacked
-                  ? Column(
-                      children: [
-                        info,
-                        const SizedBox(height: AppSpacing.sm),
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: toggle,
-                        ),
-                      ],
-                    )
-                  : Row(
-                      children: [
-                        Expanded(child: info),
-                        const SizedBox(width: AppSpacing.sm),
-                        toggle,
-                      ],
-                    );
-
-              return Column(
-                children: [
-                  appearanceRow,
-                  const SizedBox(height: AppSpacing.md),
-                  const Divider(height: 1),
-                  const SizedBox(height: AppSpacing.md),
-                  const _LanguageRow(),
-                ],
-              );
-            },
+                  selected: {mode},
+                  onSelectionChanged: (selection) =>
+                      ThemeController.setThemeMode(selection.first),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              const Divider(height: 1),
+              const SizedBox(height: AppSpacing.md),
+              const _LanguageRow(),
+            ],
           );
         },
       ),

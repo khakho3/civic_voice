@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../models/region.dart';
+import '../../../services/api_client.dart';
 import '../widgets/civic_glass_card.dart';
 import '../services/report_crud_service.dart';
 import '../widgets/civic_app_chrome.dart';
@@ -41,34 +42,48 @@ class ReviewReportScreen extends StatelessWidget {
   final List<XFile> photos;
 
   Future<void> _submit(BuildContext context) async {
-    final report = await ReportCrudService.instance.createReport(
-      ReportDraft(
-        title: reportTitle ?? '',
-        description: reportDescription ?? '',
-        category: reportCategory ?? '',
-        location: reportLocationLabel ?? '',
-        community: reportCommunity ?? '',
-        latitude: reportLatitude,
-        longitude: reportLongitude,
-        region: reportRegion,
-        photoPaths: [for (final photo in photos) photo.path],
-      ),
-    );
-
-    if (!context.mounted) return;
-
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute<void>(
-        builder: (_) => ReportSubmittedScreen(
-          referenceNumber: report.id,
-          reportTitle: reportTitle,
-          reportCategory: reportCategory,
-          reportLocationLabel: reportLocationLabel,
-          photoCount: photos.length,
+    try {
+      final report = await ReportCrudService.instance.createReport(
+        ReportDraft(
+          title: reportTitle ?? '',
+          description: reportDescription ?? '',
+          category: reportCategory ?? '',
+          location: reportLocationLabel ?? '',
+          community: reportCommunity ?? '',
+          latitude: reportLatitude,
+          longitude: reportLongitude,
+          region: reportRegion,
+          photoPaths: [for (final photo in photos) photo.path],
         ),
-      ),
-      (route) => route.isFirst,
-    );
+      );
+      if (!context.mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute<void>(
+          builder: (_) => ReportSubmittedScreen(
+            referenceNumber: report.id,
+            reportTitle: reportTitle,
+            reportCategory: reportCategory,
+            reportLocationLabel: reportLocationLabel,
+            photoCount: photos.length,
+          ),
+        ),
+        (route) => route.isFirst,
+      );
+    } on ApiException catch (error) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Could not submit report. Check your connection and try again.',
+          ),
+        ),
+      );
+    }
   }
 
   void _editPreviousStep(BuildContext context) {

@@ -5,6 +5,8 @@ import '../../../models/notification_item.dart';
 import '../../../services/notification_directory.dart';
 import '../widgets/civic_glass_card.dart';
 import '../services/report_crud_service.dart';
+import '../services/notification_permission_service.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../widgets/civic_app_chrome.dart';
 import 'citizen_profile_screen.dart';
 import 'citizen_reports_screen.dart';
@@ -21,6 +23,26 @@ class CitizenAlertsScreen extends StatefulWidget {
 }
 
 class _CitizenAlertsScreenState extends State<CitizenAlertsScreen> {
+  final _permissionService = const NotificationPermissionService();
+  PermissionStatus? _permissionStatus;
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshPermission();
+  }
+
+  Future<void> _refreshPermission() async {
+    final status = await _permissionService.currentStatus();
+    if (mounted) setState(() => _permissionStatus = status);
+  }
+
+  Future<void> _enableNotifications() async {
+    final status = await _permissionService.requestOnce();
+    if (mounted) setState(() => _permissionStatus = status);
+    if (status.isPermanentlyDenied) await _permissionService.openSettings();
+  }
+
   void _openDashboard() {
     Navigator.of(context).popUntil((route) => route.isFirst);
   }
@@ -81,6 +103,38 @@ class _CitizenAlertsScreenState extends State<CitizenAlertsScreen> {
                     chromeInset.bottom + AppSpacing.lg,
                   ),
                   children: [
+                    if (_permissionStatus != null &&
+                        !_permissionStatus!.isGranted) ...[
+                      CivicGlassCard(
+                        borderRadius: AppRadius.allXl,
+                        child: Row(
+                          children: [
+                            const Icon(
+                              AppIcons.notifications,
+                              color: AppColors.warning,
+                            ),
+                            const SizedBox(width: AppSpacing.md),
+                            Expanded(
+                              child: Text(
+                                'Notifications are off. Enable them to receive report updates.',
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: _permissionStatus!.isPermanentlyDenied
+                                  ? _permissionService.openSettings
+                                  : _enableNotifications,
+                              child: Text(
+                                _permissionStatus!.isPermanentlyDenied
+                                    ? 'Settings'
+                                    : 'Enable',
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                    ],
                     _NotificationSummary(
                       allCount: notifications.length,
                       unreadCount: unreadCount,

@@ -665,6 +665,7 @@ class _TrackingDetails extends StatelessWidget {
                           child: ClipRRect(
                             borderRadius: AppRadius.allLg,
                             child: InkWell(
+                              key: ValueKey('evidence-photo-$path'),
                               onTap: () =>
                                   EvidenceImageViewer.open(context, path),
                               child: Image.file(

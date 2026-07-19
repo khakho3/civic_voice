@@ -36,6 +36,8 @@ import 'features/citizen/screens/photo_upload_screen.dart';
 import 'features/citizen/screens/report_submitted_screen.dart';
 import 'features/citizen/screens/report_tracking_screen.dart';
 import 'features/citizen/screens/review_report_screen.dart';
+import 'features/citizen/services/report_crud_service.dart';
+import 'features/citizen/services/profile_crud_service.dart';
 import 'features/ministry/models/municipal_performance_data.dart';
 import 'features/ministry/screens/ministry_analytics_screen.dart';
 import 'features/ministry/screens/ministry_dashboard_screen.dart';
@@ -85,7 +87,36 @@ Future<void> main() async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   await ThemeController.loadSavedTheme();
   await MockAuthService().initialize();
+  await _restorePersistedSession();
   runApp(const CivicVoiceApp());
+}
+
+Future<void> _restorePersistedSession() async {
+  final firebaseUser = FirebaseAuth.instance.currentUser;
+  final auth = MockAuthService();
+  if (firebaseUser == null) {
+    if (auth.getCurrentRole() != null) await auth.clearUser();
+    return;
+  }
+
+  try {
+    final token = await firebaseUser.getIdToken();
+    if (token == null) return;
+    final syncedUser = await ApiClient.instance.syncUser(idToken: token);
+    final role = _appRoleForBackendRole(syncedUser.role);
+    if (role == null) return;
+    await auth.selectRole(
+      role,
+      mustChangePasswordOnFirstLogin: syncedUser.mustChangePassword,
+    );
+    if (role == AppRole.citizen) {
+      ProfileCrudService.instance.loadSignedInUser(syncedUser);
+      await ReportCrudService.instance.refresh();
+    }
+  } catch (_) {
+    // Firebase keeps the credential. Preserve the last known role so a
+    // temporary backend outage does not silently log the user out.
+  }
 }
 
 /// Every route name in the app in one place — merges authentication's
@@ -197,6 +228,7 @@ class _CivicVoiceAppState extends State<CivicVoiceApp> {
   /// or already signed out) — there's no session to time out of.
   void _handleIdleTimeout() {
     if (MockAuthService().getCurrentRole() == null) return;
+    FirebaseAuth.instance.signOut();
     MockAuthService().clearUser();
     _navigatorKey.currentState?.pushNamedAndRemoveUntil(
       AppRoutes.welcome,
@@ -212,292 +244,291 @@ class _CivicVoiceAppState extends State<CivicVoiceApp> {
         final effectiveInitialRoute =
             widget.initialRoute ??
             _routeForRole(MockAuthService().getCurrentRole()) ??
-            AppRoutes.testRoleSelector;
+            AppRoutes.welcome;
 
         return Listener(
           onPointerDown: (_) => IdleSessionTimer.instance.registerActivity(),
           child: MaterialApp(
-          navigatorKey: _navigatorKey,
-          title: 'CivicVoice',
-          debugShowCheckedModeBanner: false,
-          theme: AppTheme.light,
-          darkTheme: AppTheme.dark,
-          themeMode: themeMode,
-          themeAnimationDuration: AppMotionDuration.emphasized,
-          themeAnimationCurve: AppMotionCurve.emphasized,
-          initialRoute: effectiveInitialRoute,
-          // NOTE: Admin/Ministry/Municipal/Maintenance routes are wired below
-          // for testing via MockAuthService. Once Firebase auth is real,
-          // MockAuthService and testRoleSelector will be deleted, and
-          // onSignIn() will determine the user's role. The routing constants
-          // and route table stay the same.
-          routes: {
-            AppRoutes.welcome: (context) => WelcomeScreen(
-              onGetStarted: () =>
-                  Navigator.of(context).pushNamed(AppRoutes.registration),
-              onContinueAsGuest: () =>
-                  Navigator.of(context).pushNamed(AppRoutes.citizenDashboard),
-              onLogin: () =>
-                  Navigator.of(context).pushNamed(AppRoutes.testRoleSelector),
-            ),
-            AppRoutes.testRoleSelector: (context) => TestRoleSelectorScreen(
-              // MockAuthService().selectRole(...) already ran by the time
-              // this fires (TestRoleSelectorScreen._continue awaits it
-              // first) — reusing _completeSignIn's routing means the
-              // "Simulate first login" checkbox actually gets honored here
-              // too, not just on the real LoginScreen's onSignIn.
-              onRoleSelected: (role) => _completeSignIn(context),
-              onSkip: () => Navigator.of(
+            navigatorKey: _navigatorKey,
+            title: 'CivicVoice',
+            debugShowCheckedModeBanner: false,
+            theme: AppTheme.light,
+            darkTheme: AppTheme.dark,
+            themeMode: themeMode,
+            themeAnimationDuration: AppMotionDuration.emphasized,
+            themeAnimationCurve: AppMotionCurve.emphasized,
+            initialRoute: effectiveInitialRoute,
+            // NOTE: Admin/Ministry/Municipal/Maintenance routes are wired below
+            // for testing via MockAuthService. Once Firebase auth is real,
+            // MockAuthService and testRoleSelector will be deleted, and
+            // onSignIn() will determine the user's role. The routing constants
+            // and route table stay the same.
+            routes: {
+              AppRoutes.welcome: (context) => WelcomeScreen(
+                onGetStarted: () =>
+                    Navigator.of(context).pushNamed(AppRoutes.registration),
+                onContinueAsGuest: () =>
+                    Navigator.of(context).pushNamed(AppRoutes.citizenDashboard),
+                onLogin: () => Navigator.of(context).pushNamed(AppRoutes.login),
+              ),
+              AppRoutes.testRoleSelector: (context) => TestRoleSelectorScreen(
+                // MockAuthService().selectRole(...) already ran by the time
+                // this fires (TestRoleSelectorScreen._continue awaits it
+                // first) — reusing _completeSignIn's routing means the
+                // "Simulate first login" checkbox actually gets honored here
+                // too, not just on the real LoginScreen's onSignIn.
+                onRoleSelected: (role) => _completeSignIn(context),
+                onSkip: () => Navigator.of(
+                  context,
+                ).pushNamedAndRemoveUntil(AppRoutes.welcome, (_) => false),
+              ),
+              AppRoutes.login: (context) => const _LoginRoute(),
+              AppRoutes.registration: (context) => const _RegistrationRoute(),
+              AppRoutes.forgotPassword: (context) =>
+                  const _ForgotPasswordRoute(),
+              AppRoutes.changePassword: (context) => ChangePasswordScreen(
+                phoneNumber: _currentSessionPhoneNumber(),
+                onBack: () => Navigator.of(context).maybePop(),
+                onSaved: () => _finishChangePassword(context),
+              ),
+              AppRoutes.forcePasswordReset: _forcedPasswordReset,
+              AppRoutes.citizenDashboard: (context) =>
+                  const CitizenDashboardScreen(),
+              AppRoutes.citizenAlerts: (_) => const CitizenAlertsScreen(),
+              AppRoutes.citizenProfile: (context) =>
+                  CitizenProfileScreen(onLogOut: () => _signOut(context)),
+              AppRoutes.citizenReports: (_) => const CitizenReportsScreen(),
+              AppRoutes.citizenCreateReport: (_) => const CreateReportScreen(),
+              AppRoutes.citizenLocationPicker: (_) =>
+                  const LocationPickerScreen(),
+              AppRoutes.citizenPhotoUpload: (_) => const PhotoUploadScreen(),
+              AppRoutes.citizenReviewReport: (_) => const ReviewReportScreen(),
+              AppRoutes.citizenReportSubmitted: (_) =>
+                  const ReportSubmittedScreen(),
+              AppRoutes.citizenReportTracking: (context) =>
+                  _citizenReportTracking(ModalRoute.of(context)?.settings),
+              AppRoutes.adminDashboard: _adminDashboard,
+              AppRoutes.adminUserManagement: _adminUserManagement,
+              AppRoutes.adminRoleManagement: _adminRoleManagement,
+              AppRoutes.adminSystemActivity: _adminSystemActivity,
+              AppRoutes.adminSystemSettings: _adminSystemSettings,
+              AppRoutes.adminProfile: _adminProfile,
+              AppRoutes.adminUserDetails: (context) => _adminUserDetails(
                 context,
-              ).pushNamedAndRemoveUntil(AppRoutes.welcome, (_) => false),
-            ),
-            AppRoutes.login: (context) => const _LoginRoute(),
-            AppRoutes.registration: (context) => const _RegistrationRoute(),
-            AppRoutes.forgotPassword: (context) => ForgotPasswordScreen(
-              state: ForgotPasswordViewState.ready,
-              onBack: () => Navigator.of(context).maybePop(),
-              onSendCode: (phoneNumber) =>
-                  _startForgotPasswordOtp(context, phoneNumber),
-              onBackToLogin: () => Navigator.of(context).maybePop(),
-            ),
-            AppRoutes.changePassword: (context) => ChangePasswordScreen(
-              phoneNumber: _currentSessionPhoneNumber(),
-              onBack: () => Navigator.of(context).maybePop(),
-              onSaved: () => _finishChangePassword(context),
-            ),
-            AppRoutes.forcePasswordReset: _forcedPasswordReset,
-            AppRoutes.citizenDashboard: (context) =>
-                _withSwitchRoleButton(context, const CitizenDashboardScreen()),
-            AppRoutes.citizenAlerts: (_) => const CitizenAlertsScreen(),
-            AppRoutes.citizenProfile: (context) => CitizenProfileScreen(
-              onLogOut: () => Navigator.of(
+                _adminUserFromSettings(ModalRoute.of(context)?.settings),
+              ),
+              AppRoutes.adminCreateUser: _adminCreateUser,
+              AppRoutes.adminMaintenanceTeams: _adminMaintenanceTeams,
+              AppRoutes.adminMaintenanceTeamForm: (context) =>
+                  _adminMaintenanceTeamForm(
+                    context,
+                    _maintenanceTeamFromSettings(
+                      ModalRoute.of(context)?.settings,
+                      optional: true,
+                    ),
+                  ),
+              AppRoutes.adminMaintenanceTeamDetails: (context) =>
+                  _adminMaintenanceTeamDetails(
+                    context,
+                    _maintenanceTeamFromSettings(
+                      ModalRoute.of(context)?.settings,
+                    )!,
+                  ),
+              AppRoutes.ministryDashboard: _ministryDashboard,
+              AppRoutes.ministryReports: _ministryReports,
+              AppRoutes.ministryReportInsights: _ministryReportInsights,
+              AppRoutes.ministryAnalytics: _ministryAnalytics,
+              AppRoutes.ministryMunicipalPerformance:
+                  _ministryMunicipalPerformance,
+              AppRoutes.ministryMunicipalityDetail: (context) =>
+                  _ministryMunicipalityDetail(
+                    context,
+                    _regionalLeaderFromSettings(
+                      ModalRoute.of(context)?.settings,
+                    ),
+                  ),
+              AppRoutes.ministryProfile: _ministryProfile,
+              AppRoutes.ministryNotifications: _ministryNotifications,
+              AppRoutes.municipalDashboard: _municipalDashboard,
+              AppRoutes.municipalInbox: _municipalInbox,
+              AppRoutes.municipalActiveReports: _municipalActiveReports,
+              AppRoutes.municipalReportReview: (context) =>
+                  _municipalReportReview(
+                    context,
+                    _incomingReportFromSettings(
+                      ModalRoute.of(context)?.settings,
+                    ),
+                  ),
+              AppRoutes.municipalAssignTeam: (context) => _municipalAssignTeam(
                 context,
-              ).pushNamedAndRemoveUntil(AppRoutes.welcome, (_) => false),
-            ),
-            AppRoutes.citizenReports: (_) => const CitizenReportsScreen(),
-            AppRoutes.citizenCreateReport: (_) => const CreateReportScreen(),
-            AppRoutes.citizenLocationPicker: (_) =>
-                const LocationPickerScreen(),
-            AppRoutes.citizenPhotoUpload: (_) => const PhotoUploadScreen(),
-            AppRoutes.citizenReviewReport: (_) => const ReviewReportScreen(),
-            AppRoutes.citizenReportSubmitted: (_) =>
-                const ReportSubmittedScreen(),
-            AppRoutes.citizenReportTracking: (context) =>
-                _citizenReportTracking(ModalRoute.of(context)?.settings),
-            AppRoutes.adminDashboard: _adminDashboard,
-            AppRoutes.adminUserManagement: _adminUserManagement,
-            AppRoutes.adminRoleManagement: _adminRoleManagement,
-            AppRoutes.adminSystemActivity: _adminSystemActivity,
-            AppRoutes.adminSystemSettings: _adminSystemSettings,
-            AppRoutes.adminProfile: _adminProfile,
-            AppRoutes.adminUserDetails: (context) => _adminUserDetails(
-              context,
-              _adminUserFromSettings(ModalRoute.of(context)?.settings),
-            ),
-            AppRoutes.adminCreateUser: _adminCreateUser,
-            AppRoutes.adminMaintenanceTeams: _adminMaintenanceTeams,
-            AppRoutes.adminMaintenanceTeamForm: (context) =>
-                _adminMaintenanceTeamForm(
-                  context,
-                  _maintenanceTeamFromSettings(
-                    ModalRoute.of(context)?.settings,
-                    optional: true,
+                _incomingReportFromSettings(ModalRoute.of(context)?.settings),
+              ),
+              AppRoutes.municipalReportProgress: (context) =>
+                  _municipalReportProgress(
+                    context,
+                    _activeReportFromSettings(ModalRoute.of(context)?.settings),
                   ),
-                ),
-            AppRoutes.adminMaintenanceTeamDetails: (context) =>
-                _adminMaintenanceTeamDetails(
-                  context,
-                  _maintenanceTeamFromSettings(
-                    ModalRoute.of(context)?.settings,
-                  )!,
-                ),
-            AppRoutes.ministryDashboard: _ministryDashboard,
-            AppRoutes.ministryReports: _ministryReports,
-            AppRoutes.ministryReportInsights: _ministryReportInsights,
-            AppRoutes.ministryAnalytics: _ministryAnalytics,
-            AppRoutes.ministryMunicipalPerformance:
-                _ministryMunicipalPerformance,
-            AppRoutes.ministryMunicipalityDetail: (context) =>
-                _ministryMunicipalityDetail(
-                  context,
-                  _regionalLeaderFromSettings(ModalRoute.of(context)?.settings),
-                ),
-            AppRoutes.ministryProfile: _ministryProfile,
-            AppRoutes.ministryNotifications: _ministryNotifications,
-            AppRoutes.municipalDashboard: _municipalDashboard,
-            AppRoutes.municipalInbox: _municipalInbox,
-            AppRoutes.municipalActiveReports: _municipalActiveReports,
-            AppRoutes.municipalReportReview: (context) =>
-                _municipalReportReview(
-                  context,
-                  _incomingReportFromSettings(ModalRoute.of(context)?.settings),
-                ),
-            AppRoutes.municipalAssignTeam: (context) => _municipalAssignTeam(
-              context,
-              _incomingReportFromSettings(ModalRoute.of(context)?.settings),
-            ),
-            AppRoutes.municipalReportProgress: (context) =>
-                _municipalReportProgress(
-                  context,
-                  _activeReportFromSettings(ModalRoute.of(context)?.settings),
-                ),
-            AppRoutes.municipalVerification: (context) =>
-                _municipalVerification(
-                  context,
-                  _incomingReportFromSettings(ModalRoute.of(context)?.settings),
-                ),
-            AppRoutes.municipalResolvedReports: _municipalResolvedReports,
-            AppRoutes.municipalResolutionDetails: (context) =>
-                _municipalResolutionDetails(
-                  context,
-                  _resolvedReportFromSettings(ModalRoute.of(context)?.settings),
-                ),
-            AppRoutes.municipalProfile: _municipalProfile,
-            AppRoutes.municipalNotifications: _municipalNotifications,
-            AppRoutes.maintenanceDashboard: _maintenanceDashboard,
-            AppRoutes.maintenanceAssignedTasks: _maintenanceAssignedTasks,
-            AppRoutes.maintenanceTaskDetails: (context) =>
-                _maintenanceTaskDetails(
-                  context,
-                  _maintenanceTaskFromSettings(
-                    ModalRoute.of(context)?.settings,
+              AppRoutes.municipalVerification: (context) =>
+                  _municipalVerification(
+                    context,
+                    _incomingReportFromSettings(
+                      ModalRoute.of(context)?.settings,
+                    ),
                   ),
-                ),
-            AppRoutes.maintenanceUpdateProgress: (context) =>
-                _maintenanceUpdateProgress(
-                  context,
-                  _maintenanceTaskFromSettings(
-                    ModalRoute.of(context)?.settings,
+              AppRoutes.municipalResolvedReports: _municipalResolvedReports,
+              AppRoutes.municipalResolutionDetails: (context) =>
+                  _municipalResolutionDetails(
+                    context,
+                    _resolvedReportFromSettings(
+                      ModalRoute.of(context)?.settings,
+                    ),
                   ),
-                ),
-            AppRoutes.maintenanceTaskCompleted: (context) =>
-                _maintenanceTaskCompleted(
-                  context,
-                  _maintenanceTaskFromSettings(
-                    ModalRoute.of(context)?.settings,
+              AppRoutes.municipalProfile: _municipalProfile,
+              AppRoutes.municipalNotifications: _municipalNotifications,
+              AppRoutes.maintenanceDashboard: _maintenanceDashboard,
+              AppRoutes.maintenanceAssignedTasks: _maintenanceAssignedTasks,
+              AppRoutes.maintenanceTaskDetails: (context) =>
+                  _maintenanceTaskDetails(
+                    context,
+                    _maintenanceTaskFromSettings(
+                      ModalRoute.of(context)?.settings,
+                    ),
                   ),
-                ),
-            AppRoutes.maintenanceProfile: _maintenanceProfile,
-            AppRoutes.maintenanceNotifications: _maintenanceNotifications,
-          },
-          onGenerateRoute: (settings) {
-            final uri = Uri.tryParse(settings.name ?? '');
-            if (uri?.path == AppRoutes.adminUserDetails) {
-              return MaterialPageRoute<void>(
-                settings: settings,
-                builder: (context) => _adminUserDetails(
-                  context,
-                  _adminUserFromSettings(settings),
-                ),
-              );
-            }
-            if (uri?.path == AppRoutes.adminMaintenanceTeamForm) {
-              return MaterialPageRoute<void>(
-                settings: settings,
-                builder: (context) => _adminMaintenanceTeamForm(
-                  context,
-                  _maintenanceTeamFromSettings(settings, optional: true),
-                ),
-              );
-            }
-            if (uri?.path == AppRoutes.adminMaintenanceTeamDetails) {
-              return MaterialPageRoute<void>(
-                settings: settings,
-                builder: (context) => _adminMaintenanceTeamDetails(
-                  context,
-                  _maintenanceTeamFromSettings(settings)!,
-                ),
-              );
-            }
-            if (uri?.path == AppRoutes.ministryMunicipalityDetail) {
-              return MaterialPageRoute<void>(
-                settings: settings,
-                builder: (context) => _ministryMunicipalityDetail(
-                  context,
-                  _regionalLeaderFromSettings(settings),
-                ),
-              );
-            }
-            if (uri?.path == AppRoutes.citizenReportTracking) {
-              return MaterialPageRoute<void>(
-                settings: settings,
-                builder: (context) => _citizenReportTracking(settings),
-              );
-            }
-            if (uri?.path == AppRoutes.municipalReportReview) {
-              return MaterialPageRoute<void>(
-                settings: settings,
-                builder: (context) => _municipalReportReview(
-                  context,
-                  _incomingReportFromSettings(settings),
-                ),
-              );
-            }
-            if (uri?.path == AppRoutes.municipalVerification) {
-              return MaterialPageRoute<void>(
-                settings: settings,
-                builder: (context) => _municipalVerification(
-                  context,
-                  _incomingReportFromSettings(settings),
-                ),
-              );
-            }
-            if (uri?.path == AppRoutes.municipalReportProgress) {
-              return MaterialPageRoute<void>(
-                settings: settings,
-                builder: (context) => _municipalReportProgress(
-                  context,
-                  _activeReportFromSettings(settings),
-                ),
-              );
-            }
-            if (uri?.path == AppRoutes.municipalResolutionDetails) {
-              return MaterialPageRoute<void>(
-                settings: settings,
-                builder: (context) => _municipalResolutionDetails(
-                  context,
-                  _resolvedReportFromSettings(settings),
-                ),
-              );
-            }
-            if (uri?.path == AppRoutes.municipalAssignTeam) {
-              return MaterialPageRoute<void>(
-                settings: settings,
-                builder: (context) => _municipalAssignTeam(
-                  context,
-                  _incomingReportFromSettings(settings),
-                ),
-              );
-            }
-            if (uri?.path == AppRoutes.maintenanceTaskDetails) {
-              return MaterialPageRoute<void>(
-                settings: settings,
-                builder: (context) => _maintenanceTaskDetails(
-                  context,
-                  _maintenanceTaskFromSettings(settings),
-                ),
-              );
-            }
-            if (uri?.path == AppRoutes.maintenanceUpdateProgress) {
-              return MaterialPageRoute<void>(
-                settings: settings,
-                builder: (context) => _maintenanceUpdateProgress(
-                  context,
-                  _maintenanceTaskFromSettings(settings),
-                ),
-              );
-            }
-            if (uri?.path == AppRoutes.maintenanceTaskCompleted) {
-              return MaterialPageRoute<void>(
-                settings: settings,
-                builder: (context) => _maintenanceTaskCompleted(
-                  context,
-                  _maintenanceTaskFromSettings(settings),
-                ),
-              );
-            }
-            return null;
-          },
+              AppRoutes.maintenanceUpdateProgress: (context) =>
+                  _maintenanceUpdateProgress(
+                    context,
+                    _maintenanceTaskFromSettings(
+                      ModalRoute.of(context)?.settings,
+                    ),
+                  ),
+              AppRoutes.maintenanceTaskCompleted: (context) =>
+                  _maintenanceTaskCompleted(
+                    context,
+                    _maintenanceTaskFromSettings(
+                      ModalRoute.of(context)?.settings,
+                    ),
+                  ),
+              AppRoutes.maintenanceProfile: _maintenanceProfile,
+              AppRoutes.maintenanceNotifications: _maintenanceNotifications,
+            },
+            onGenerateRoute: (settings) {
+              final uri = Uri.tryParse(settings.name ?? '');
+              if (uri?.path == AppRoutes.adminUserDetails) {
+                return MaterialPageRoute<void>(
+                  settings: settings,
+                  builder: (context) => _adminUserDetails(
+                    context,
+                    _adminUserFromSettings(settings),
+                  ),
+                );
+              }
+              if (uri?.path == AppRoutes.adminMaintenanceTeamForm) {
+                return MaterialPageRoute<void>(
+                  settings: settings,
+                  builder: (context) => _adminMaintenanceTeamForm(
+                    context,
+                    _maintenanceTeamFromSettings(settings, optional: true),
+                  ),
+                );
+              }
+              if (uri?.path == AppRoutes.adminMaintenanceTeamDetails) {
+                return MaterialPageRoute<void>(
+                  settings: settings,
+                  builder: (context) => _adminMaintenanceTeamDetails(
+                    context,
+                    _maintenanceTeamFromSettings(settings)!,
+                  ),
+                );
+              }
+              if (uri?.path == AppRoutes.ministryMunicipalityDetail) {
+                return MaterialPageRoute<void>(
+                  settings: settings,
+                  builder: (context) => _ministryMunicipalityDetail(
+                    context,
+                    _regionalLeaderFromSettings(settings),
+                  ),
+                );
+              }
+              if (uri?.path == AppRoutes.citizenReportTracking) {
+                return MaterialPageRoute<void>(
+                  settings: settings,
+                  builder: (context) => _citizenReportTracking(settings),
+                );
+              }
+              if (uri?.path == AppRoutes.municipalReportReview) {
+                return MaterialPageRoute<void>(
+                  settings: settings,
+                  builder: (context) => _municipalReportReview(
+                    context,
+                    _incomingReportFromSettings(settings),
+                  ),
+                );
+              }
+              if (uri?.path == AppRoutes.municipalVerification) {
+                return MaterialPageRoute<void>(
+                  settings: settings,
+                  builder: (context) => _municipalVerification(
+                    context,
+                    _incomingReportFromSettings(settings),
+                  ),
+                );
+              }
+              if (uri?.path == AppRoutes.municipalReportProgress) {
+                return MaterialPageRoute<void>(
+                  settings: settings,
+                  builder: (context) => _municipalReportProgress(
+                    context,
+                    _activeReportFromSettings(settings),
+                  ),
+                );
+              }
+              if (uri?.path == AppRoutes.municipalResolutionDetails) {
+                return MaterialPageRoute<void>(
+                  settings: settings,
+                  builder: (context) => _municipalResolutionDetails(
+                    context,
+                    _resolvedReportFromSettings(settings),
+                  ),
+                );
+              }
+              if (uri?.path == AppRoutes.municipalAssignTeam) {
+                return MaterialPageRoute<void>(
+                  settings: settings,
+                  builder: (context) => _municipalAssignTeam(
+                    context,
+                    _incomingReportFromSettings(settings),
+                  ),
+                );
+              }
+              if (uri?.path == AppRoutes.maintenanceTaskDetails) {
+                return MaterialPageRoute<void>(
+                  settings: settings,
+                  builder: (context) => _maintenanceTaskDetails(
+                    context,
+                    _maintenanceTaskFromSettings(settings),
+                  ),
+                );
+              }
+              if (uri?.path == AppRoutes.maintenanceUpdateProgress) {
+                return MaterialPageRoute<void>(
+                  settings: settings,
+                  builder: (context) => _maintenanceUpdateProgress(
+                    context,
+                    _maintenanceTaskFromSettings(settings),
+                  ),
+                );
+              }
+              if (uri?.path == AppRoutes.maintenanceTaskCompleted) {
+                return MaterialPageRoute<void>(
+                  settings: settings,
+                  builder: (context) => _maintenanceTaskCompleted(
+                    context,
+                    _maintenanceTaskFromSettings(settings),
+                  ),
+                );
+              }
+              return null;
+            },
           ),
         );
       },
@@ -581,6 +612,10 @@ class _LoginRouteState extends State<_LoginRoute> {
         appRole,
         mustChangePasswordOnFirstLogin: syncedUser.mustChangePassword,
       );
+      if (appRole == AppRole.citizen) {
+        ProfileCrudService.instance.loadSignedInUser(syncedUser);
+        await ReportCrudService.instance.refresh();
+      }
       if (!context.mounted) return;
       _completeSignIn(context);
     } on FirebaseAuthException {
@@ -701,7 +736,12 @@ class _RegistrationOtpRouteState extends State<_RegistrationOtpRoute> {
         email: email,
         password: widget.password,
       );
+      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
+      if (idToken == null) throw Exception('No ID token after registration');
+      final syncedUser = await ApiClient.instance.syncUser(idToken: idToken);
+      ProfileCrudService.instance.loadSignedInUser(syncedUser);
       await MockAuthService().selectRole(AppRole.citizen);
+      await ReportCrudService.instance.refresh();
       if (!context.mounted) return true;
       Navigator.of(
         context,
@@ -767,24 +807,34 @@ void _completeSignIn(BuildContext context) {
 }
 
 void _startForgotPasswordOtp(BuildContext context, String phoneNumber) {
-  // TODO(auth): send forgot-password OTP via WittiFlow once the backend
-  // exists — unlike registration, this one is still a UI-only pass-through.
   Navigator.of(context).push(
     MaterialPageRoute<void>(
       builder: (context) => OtpVerificationScreen(
         phoneNumber: phoneNumber,
         purpose: OtpPurpose.forgotPassword,
         onBack: () => Navigator.of(context).maybePop(),
-        onVerify: (_) async {
+        onResend: () => ApiClient.instance.sendForgotPasswordOtp(phoneNumber),
+        onVerify: (code) async {
           Navigator.of(context).pushReplacement(
             MaterialPageRoute<void>(
               builder: (context) => SetNewPasswordScreen(
                 purpose: SetNewPasswordPurpose.forgotPassword,
                 onBack: () => Navigator.of(context).maybePop(),
-                onSaved: (_) async {
-                  Navigator.of(
-                    context,
-                  ).pushNamedAndRemoveUntil(AppRoutes.login, (_) => false);
+                onSaved: (newPassword) async {
+                  final navigator = Navigator.of(context);
+                  try {
+                    await ApiClient.instance.resetPassword(
+                      phone: phoneNumber,
+                      otp: code,
+                      newPassword: newPassword,
+                    );
+                  } on ApiException {
+                    return false;
+                  }
+                  navigator.pushNamedAndRemoveUntil(
+                    AppRoutes.login,
+                    (_) => false,
+                  );
                   return true;
                 },
               ),
@@ -794,6 +844,42 @@ void _startForgotPasswordOtp(BuildContext context, String phoneNumber) {
         },
       ),
     ),
+  );
+}
+
+class _ForgotPasswordRoute extends StatefulWidget {
+  const _ForgotPasswordRoute();
+
+  @override
+  State<_ForgotPasswordRoute> createState() => _ForgotPasswordRouteState();
+}
+
+class _ForgotPasswordRouteState extends State<_ForgotPasswordRoute> {
+  ForgotPasswordViewState _state = ForgotPasswordViewState.ready;
+
+  Future<void> _send(String phone) async {
+    setState(() => _state = ForgotPasswordViewState.loading);
+    try {
+      await ApiClient.instance.sendForgotPasswordOtp(phone);
+      if (!mounted) return;
+      _startForgotPasswordOtp(context, phone);
+      setState(() => _state = ForgotPasswordViewState.ready);
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      setState(
+        () => _state = error.statusCode == 404
+            ? ForgotPasswordViewState.phoneNotFound
+            : ForgotPasswordViewState.recoveryError,
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => ForgotPasswordScreen(
+    state: _state,
+    onBack: () => Navigator.of(context).maybePop(),
+    onSendCode: _send,
+    onBackToLogin: () => Navigator.of(context).maybePop(),
   );
 }
 
@@ -844,35 +930,18 @@ String _currentSessionPhoneNumber() {
   };
 }
 
-Widget _withSwitchRoleButton(BuildContext context, Widget child) {
-  if (MockAuthService().getCurrentRole() == null) return child;
-
-  return Stack(
-    children: [
-      child,
-      Positioned(
-        right: AppSpacing.md,
-        bottom: 96,
-        child: SafeArea(
-          child: FloatingActionButton.extended(
-            heroTag: 'switch-test-role',
-            onPressed: () => _switchTestRole(context),
-            icon: const Icon(AppIcons.profile),
-            label: const Text('Switch Role'),
-          ),
-        ),
-      ),
-    ],
-  );
-}
-
-Future<void> _switchTestRole(BuildContext context) async {
+Future<void> _signOut(BuildContext context) async {
+  await FirebaseAuth.instance.signOut();
   await MockAuthService().clearUser();
   if (!context.mounted) return;
   Navigator.of(
     context,
-  ).pushNamedAndRemoveUntil(AppRoutes.testRoleSelector, (_) => false);
+  ).pushNamedAndRemoveUntil(AppRoutes.welcome, (_) => false);
 }
+
+/// Kept as a layout seam for the role dashboard builders and widget tests;
+/// the former development-only floating role switch is intentionally gone.
+Widget _withSwitchRoleButton(BuildContext context, Widget child) => child;
 
 Widget _citizenReportTracking(RouteSettings? settings) {
   final argument = settings?.arguments;
@@ -1224,9 +1293,7 @@ Widget _adminProfile(BuildContext context) {
     onNavigateToMaintenanceTeams: () =>
         Navigator.of(context).pushNamed(AppRoutes.adminMaintenanceTeams),
     onNotificationsTap: () => _openAdminNotifications(context),
-    onSignOut: () => Navigator.of(
-      context,
-    ).pushNamedAndRemoveUntil(AppRoutes.welcome, (_) => false),
+    onSignOut: () => _signOut(context),
   );
 }
 
@@ -1322,9 +1389,7 @@ Widget _ministryProfile(BuildContext context) {
         Navigator.of(context).pushNamed(AppRoutes.changePassword),
     onNotificationsTap: () =>
         Navigator.of(context).pushNamed(AppRoutes.ministryNotifications),
-    onLogOut: () => Navigator.of(
-      context,
-    ).pushNamedAndRemoveUntil(AppRoutes.welcome, (_) => false),
+    onLogOut: () => _signOut(context),
   );
 }
 
@@ -1550,9 +1615,7 @@ Widget _municipalProfile(BuildContext context) {
     onBack: () => _popOrReplaceWith(context, AppRoutes.municipalDashboard),
     onChangePassword: () =>
         Navigator.of(context).pushNamed(AppRoutes.changePassword),
-    onLogOut: () => Navigator.of(
-      context,
-    ).pushNamedAndRemoveUntil(AppRoutes.welcome, (_) => false),
+    onLogOut: () => _signOut(context),
   );
 }
 

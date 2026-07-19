@@ -1,10 +1,13 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../models/civic_report.dart';
 import '../models/report_draft.dart';
 import 'citizen_data_repository.dart';
+import '../../../services/api_client.dart';
+import '../../../models/region.dart';
 
 export '../models/report_draft.dart';
 
@@ -20,7 +23,18 @@ class ReportCrudService implements ReportsRepository {
   final ValueNotifier<List<CivicReport>> reports =
       ValueNotifier<List<CivicReport>>(<CivicReport>[]);
 
-  int _nextReferenceNumber = 4582;
+  Future<String> _token() async {
+    final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+    if (token == null) {
+      throw const ApiException(statusCode: 401, message: 'Sign in required');
+    }
+    return token;
+  }
+
+  Future<void> refresh() async {
+    final raw = await ApiClient.instance.listReports(idToken: await _token());
+    _publishReports(raw.map(_fromApi).toList());
+  }
 
   @override
   Stream<List<CivicReport>> watchReports() async* {
@@ -30,7 +44,13 @@ class ReportCrudService implements ReportsRepository {
 
   @override
   Stream<CivicReport?> watchReport(String id) async* {
-    yield await getReport(id);
+    yield _findReport(reports.value, id);
+    try {
+      final remote = await getReport(id);
+      if (remote != null) yield remote;
+    } catch (_) {
+      // Preserve the last cached value while offline or in widget tests.
+    }
     await for (final updatedReports in watchReports()) {
       yield _findReport(updatedReports, id);
     }
@@ -38,39 +58,45 @@ class ReportCrudService implements ReportsRepository {
 
   @override
   Future<List<CivicReport>> listReports() async {
+    await refresh();
     return List<CivicReport>.unmodifiable(reports.value);
   }
 
   @override
   Future<CivicReport?> getReport(String id) async {
-    return _findReport(reports.value, id);
+    try {
+      return _fromApi(
+        await ApiClient.instance.getReport(id, idToken: await _token()),
+      );
+    } on ApiException catch (error) {
+      if (error.statusCode == 404) return null;
+      rethrow;
+    }
   }
 
   @override
   Future<CivicReport> createReport(ReportDraft draft) async {
-    final now = DateTime.now();
-    final report = CivicReport(
-      id: _createReference(now),
-      title: draft.title.trim().isEmpty
-          ? 'Untitled report'
-          : draft.title.trim(),
-      description: draft.description.trim(),
-      category: draft.category.trim().isEmpty
-          ? 'General'
-          : draft.category.trim(),
-      location: draft.location.trim().isEmpty
-          ? 'Current GPS location'
-          : draft.location.trim(),
-      community: draft.community.trim(),
-      latitude: draft.latitude,
-      longitude: draft.longitude,
-      region: draft.region,
-      photoCount: draft.photoCount,
+    final raw = await ApiClient.instance.createReport(
+      idToken: await _token(),
+      fields: {
+        'title': draft.title.trim().isEmpty
+            ? 'Untitled report'
+            : draft.title.trim(),
+        'description': draft.description.trim(),
+        'category': draft.category.trim().isEmpty
+            ? 'General'
+            : draft.category.trim(),
+        'location': draft.location.trim().isEmpty
+            ? 'Current GPS location'
+            : draft.location.trim(),
+        'community': draft.community.trim(),
+        if (draft.latitude != null) 'latitude': '${draft.latitude}',
+        if (draft.longitude != null) 'longitude': '${draft.longitude}',
+        if (draft.region != null) 'region': draft.region!.name,
+      },
       photoPaths: draft.photoPaths,
-      submittedAt: now,
-      timeLabel: 'Just now',
-      status: ReportStatus.submitted,
     );
+    final report = _fromApi(raw);
 
     _publishReports(<CivicReport>[report, ...reports.value]);
     return report;
@@ -81,21 +107,26 @@ class ReportCrudService implements ReportsRepository {
     String id,
     CivicReport updatedReport,
   ) async {
-    var changed = false;
-    final updated = <CivicReport>[
-      for (final report in reports.value)
-        if (report.id == id) ...[
-          updatedReport.copyWith(id: id),
-        ] else ...[
-          report,
-        ],
-    ];
-
-    changed = updated.any((report) => report.id == id);
-    if (!changed) return null;
-
-    _publishReports(updated);
-    return updated.firstWhere((report) => report.id == id);
+    try {
+      final raw = await ApiClient.instance.updateReport(
+        id,
+        idToken: await _token(),
+        fields: {
+          'title': updatedReport.title,
+          'description': updatedReport.description,
+          'category': updatedReport.category,
+        },
+      );
+      final saved = _fromApi(raw);
+      _publishReports([
+        for (final report in reports.value)
+          if (report.id == id) saved else report,
+      ]);
+      return saved;
+    } on ApiException catch (error) {
+      if (error.statusCode == 404) return null;
+      rethrow;
+    }
   }
 
   @override
@@ -106,16 +137,31 @@ class ReportCrudService implements ReportsRepository {
     final existing = await getReport(id);
     if (existing == null) return null;
 
-    return updateReport(id, existing.copyWith(status: status));
+    final raw = await ApiClient.instance.updateReport(
+      id,
+      idToken: await _token(),
+      fields: {'status': _statusToApi(status)},
+    );
+    final updated = _fromApi(raw);
+    _publishReports([
+      for (final report in reports.value)
+        if (report.id == id) updated else report,
+    ]);
+    return updated;
   }
 
   @override
   Future<bool> deleteReport(String id) async {
-    final updated = reports.value.where((report) => report.id != id).toList();
-    if (updated.length == reports.value.length) return false;
-
-    _publishReports(updated);
-    return true;
+    try {
+      await ApiClient.instance.deleteReport(id, idToken: await _token());
+      _publishReports(
+        reports.value.where((report) => report.id != id).toList(),
+      );
+      return true;
+    } on ApiException catch (error) {
+      if (error.statusCode == 404) return false;
+      rethrow;
+    }
   }
 
   CivicReport? _findReport(List<CivicReport> source, String id) {
@@ -131,10 +177,61 @@ class ReportCrudService implements ReportsRepository {
     _reportsController.add(immutableReports);
   }
 
-  String _createReference(DateTime submittedAt) {
-    final year = submittedAt.year.toString();
-    final serial = _nextReferenceNumber.toString().padLeft(6, '0');
-    _nextReferenceNumber += 1;
-    return 'CV-$year-$serial';
+  CivicReport _fromApi(Map<String, dynamic> json) {
+    final created = DateTime.tryParse(json['createdAt'] as String? ?? '');
+    final urls = (json['photoUrls'] as List? ?? const []).cast<String>();
+    return CivicReport(
+      id: json['id'] as String,
+      title: json['title'] as String? ?? '',
+      description: json['description'] as String? ?? '',
+      category: json['category'] as String? ?? 'General',
+      location: json['location'] as String? ?? '',
+      community: json['community'] as String? ?? '',
+      latitude: (json['latitude'] as num?)?.toDouble(),
+      longitude: (json['longitude'] as num?)?.toDouble(),
+      region: _region(json['region'] as String?),
+      photoCount: urls.length,
+      photoPaths: urls
+          .map(
+            (url) => url.startsWith('http') ? url : '${ApiClient.baseUrl}$url',
+          )
+          .toList(),
+      submittedAt: created,
+      timeLabel: created == null ? '' : _relative(created),
+      status: _statusFromApi(json['status'] as String?),
+    );
   }
+}
+
+Region? _region(String? name) {
+  for (final value in Region.values) {
+    if (value.name == name) return value;
+  }
+  return null;
+}
+
+ReportStatus _statusFromApi(String? value) => switch (value) {
+  'UNDER_REVIEW' => ReportStatus.underReview,
+  'ASSIGNED' => ReportStatus.assigned,
+  'IN_PROGRESS' => ReportStatus.inProgress,
+  'RESOLVED' => ReportStatus.resolved,
+  'REJECTED' => ReportStatus.rejected,
+  _ => ReportStatus.submitted,
+};
+
+String _statusToApi(ReportStatus value) => switch (value) {
+  ReportStatus.submitted => 'SUBMITTED',
+  ReportStatus.underReview => 'UNDER_REVIEW',
+  ReportStatus.assigned => 'ASSIGNED',
+  ReportStatus.inProgress => 'IN_PROGRESS',
+  ReportStatus.resolved => 'RESOLVED',
+  ReportStatus.rejected => 'REJECTED',
+};
+
+String _relative(DateTime value) {
+  final age = DateTime.now().difference(value.toLocal());
+  if (age.inMinutes < 1) return 'Just now';
+  if (age.inHours < 1) return '${age.inMinutes}m ago';
+  if (age.inDays < 1) return '${age.inHours}h ago';
+  return '${age.inDays}d ago';
 }

@@ -28,4 +28,8 @@ class NotificationPermissionService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_askedKey, true);
   }
+
+  Future<PermissionStatus> currentStatus() => Permission.notification.status;
+
+  Future<bool> openSettings() => openAppSettings();
 }

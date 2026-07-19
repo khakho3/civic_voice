@@ -20,7 +20,7 @@ void main() {
       );
       await tester.pump();
 
-      expect(find.text('Good Morning, Amina Mensah'), findsOneWidget);
+      expect(find.text('Good Morning, Citizen'), findsOneWidget);
       expect(find.text('Report a Community Issue'), findsOneWidget);
       expect(find.text('Report Now'), findsOneWidget);
     },
@@ -47,7 +47,7 @@ void main() {
       );
       await tester.pump();
 
-      expect(find.text('Good Morning, Amina Mensah'), findsOneWidget);
+      expect(find.text('Good Morning, Citizen'), findsOneWidget);
 
       await tester.tap(find.text('View My Reports').first);
       await tester.pumpAndSettle();
@@ -100,7 +100,7 @@ void main() {
       await pumpRoute(app.AppRoutes.citizenProfile);
 
       expect(find.text('Profile'), findsWidgets);
-      expect(find.text('Amina Mensah'), findsWidgets);
+      expect(find.text('Citizen'), findsWidgets);
     },
   );
 
@@ -134,7 +134,14 @@ void main() {
 
       expect(find.byType(EvidenceImageViewer), findsNothing);
 
-      await tester.tap(find.byType(InkWell).first);
+      final evidenceTile = find.byKey(
+        const ValueKey('evidence-photo-fake/streetlight.jpg'),
+      );
+      for (var i = 0; i < 8 && evidenceTile.evaluate().isEmpty; i++) {
+        await tester.drag(find.byType(ListView), const Offset(0, -500));
+        await tester.pump();
+      }
+      await tester.tap(evidenceTile);
       await tester.pumpAndSettle();
 
       expect(find.byType(EvidenceImageViewer), findsOneWidget);

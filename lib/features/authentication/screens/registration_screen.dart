@@ -29,7 +29,8 @@ class RegistrationScreen extends StatefulWidget {
 
   final RegistrationViewState state;
   final VoidCallback? onBack;
-  final void Function(String fullName, String phone, String password)? onCreateAccount;
+  final void Function(String fullName, String phone, String password)?
+  onCreateAccount;
   final VoidCallback? onLogin;
 
   @override
@@ -103,6 +104,29 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         _passwordController.text,
       );
     }
+  }
+
+  Future<void> _showPrivacyPolicy() async {
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Privacy & Data Use'),
+        content: const SingleChildScrollView(
+          child: Text(
+            'Civic Voice uses your phone number to secure your account and may use your location, photos, and report details to route and investigate civic issues.\n\n'
+            'The app may temporarily cache report drafts, photos, permission choices, and guest submissions on this device so your work is not lost. Guest reports made on this phone will be linked to your account when you register.\n\n'
+            'Your information is protected and is used only to operate Civic Voice and handle submitted reports. We do not sell your information or share it with unrelated organizations. Authorized civic teams may access the report information required to investigate and resolve an issue.\n\n'
+            'You can review or change location, camera, photo, and notification permissions at any time in your device settings.',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -298,10 +322,26 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                     Expanded(
                       child: Padding(
                         padding: const EdgeInsets.only(top: AppSpacing.sm),
-                        child: Text(
-                          'I acknowledge the Privacy Policy and '
-                          'confirm this is a Citizen self-registration.',
-                          style: theme.textTheme.bodySmall,
+                        child: Wrap(
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            Text(
+                              'I agree to the ',
+                              style: theme.textTheme.bodySmall,
+                            ),
+                            TextButton(
+                              onPressed: _isDisabled
+                                  ? null
+                                  : _showPrivacyPolicy,
+                              style: TextButton.styleFrom(
+                                padding: EdgeInsets.zero,
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              child: const Text('Privacy & Data Use Policy'),
+                            ),
+                            Text('.', style: theme.textTheme.bodySmall),
+                          ],
                         ),
                       ),
                     ),
@@ -324,7 +364,9 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
               SizedBox(
                 width: double.infinity,
                 child: FilledButton(
-                  onPressed: _isDisabled ? null : _submitForm,
+                  onPressed: _isDisabled || !_acceptedPolicy
+                      ? null
+                      : _submitForm,
                   child: _isLoading
                       ? const SizedBox(
                           width: AppIconSize.md,

@@ -63,7 +63,9 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    await tester.pumpWidget(const CivicVoiceApp());
+    await tester.pumpWidget(
+      const CivicVoiceApp(initialRoute: AppRoutes.testRoleSelector),
+    );
     await tester.pumpAndSettle();
 
     expect(find.byType(TestRoleSelectorScreen), findsOneWidget);
@@ -78,43 +80,42 @@ void main() {
     expect(find.byType(AdminDashboardScreen), findsOneWidget);
   });
 
-  testWidgets(
-    'Test Role Selector resets Admin Tier to Super Admin when System '
-    'Administrator is freshly reselected after a different role',
-    (WidgetTester tester) async {
-      // Simulate a prior session that tested Admin tier for Kumasi — the
-      // exact sticky-state scenario that silently hid Super-Admin-only
-      // content (e.g. the health stats) the next time "Admin" was picked.
-      await MockAuthService().selectRole(
-        AppRole.systemAdministrator,
-        adminTier: AdminTier.admin,
-        region: Region.ashanti,
-        assembly: assemblyNamed(Region.ashanti, 'Kumasi'),
-      );
+  testWidgets('Test Role Selector resets Admin Tier to Super Admin when System '
+      'Administrator is freshly reselected after a different role', (
+    WidgetTester tester,
+  ) async {
+    // Simulate a prior session that tested Admin tier for Kumasi — the
+    // exact sticky-state scenario that silently hid Super-Admin-only
+    // content (e.g. the health stats) the next time "Admin" was picked.
+    await MockAuthService().selectRole(
+      AppRole.systemAdministrator,
+      adminTier: AdminTier.admin,
+      region: Region.ashanti,
+      assembly: assemblyNamed(Region.ashanti, 'Kumasi'),
+    );
 
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: AppTheme.light,
-          home: TestRoleSelectorScreen(onRoleSelected: (_) {}, onSkip: () {}),
-        ),
-      );
-      await tester.pump();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: TestRoleSelectorScreen(onRoleSelected: (_) {}, onSkip: () {}),
+      ),
+    );
+    await tester.pump();
 
-      // Switch away to a different role, then back to Admin — a fresh
-      // reselection, not a resumed session.
-      await tester.tap(find.text('Citizen'));
-      await tester.pump();
-      await tester.tap(find.text('Admin'));
-      await tester.pump();
+    // Switch away to a different role, then back to Admin — a fresh
+    // reselection, not a resumed session.
+    await tester.tap(find.text('Citizen'));
+    await tester.pump();
+    await tester.tap(find.text('Admin'));
+    await tester.pump();
 
-      final tierGroup = tester.widget<RadioGroup<AdminTier>>(
-        find.byType(RadioGroup<AdminTier>),
-      );
-      expect(tierGroup.groupValue, AdminTier.superAdmin);
-    },
-  );
+    final tierGroup = tester.widget<RadioGroup<AdminTier>>(
+      find.byType(RadioGroup<AdminTier>),
+    );
+    expect(tierGroup.groupValue, AdminTier.superAdmin);
+  });
 
-  testWidgets('Welcome Login link opens Test Role Selector', (
+  testWidgets('Welcome Login link opens real Login screen', (
     WidgetTester tester,
   ) async {
     await reachFinalSlide(tester);
@@ -122,7 +123,7 @@ void main() {
     await tapVisible(tester, find.text('Already have an account? Log in'));
     await tester.pumpAndSettle();
 
-    expect(find.byType(TestRoleSelectorScreen), findsOneWidget);
+    expect(find.byType(LoginScreen), findsOneWidget);
   });
 
   testWidgets('Welcome to Registration flow', (WidgetTester tester) async {
@@ -166,78 +167,70 @@ void main() {
     expect(find.byType(ForgotPasswordScreen), findsOneWidget);
   });
 
-  testWidgets(
-    'Login Sign In submits to the real auth flow and recovers from a '
-    'failed request',
-    (WidgetTester tester) async {
-      // Sign-in now calls the real backend + Firebase Auth (see
-      // main.dart's _LoginRouteState) instead of the old MockAuthService
-      // shortcut, so a widget test can no longer assert it lands on the
-      // real Citizen Dashboard without a live backend and Firebase — that
-      // path is covered by manual device testing instead. What's still
-      // verifiable here, against the deliberately-unreachable baseUrl set
-      // in setUp(): a failed request is handled cleanly — no crash, no
-      // hang, no accidental navigation — rather than the flow silently
-      // breaking. (Not asserting on the loading spinner mid-flight: the
-      // flutter_test HTTP fake resolves fast enough that it can come and
-      // go within a single pump, making that assertion racy.)
-      await tester.pumpWidget(
-        const CivicVoiceApp(initialRoute: AppRoutes.login),
-      );
-      await tester.pump();
+  testWidgets('Login Sign In submits to the real auth flow and recovers from a '
+      'failed request', (WidgetTester tester) async {
+    // Sign-in now calls the real backend + Firebase Auth (see
+    // main.dart's _LoginRouteState) instead of the old MockAuthService
+    // shortcut, so a widget test can no longer assert it lands on the
+    // real Citizen Dashboard without a live backend and Firebase — that
+    // path is covered by manual device testing instead. What's still
+    // verifiable here, against the deliberately-unreachable baseUrl set
+    // in setUp(): a failed request is handled cleanly — no crash, no
+    // hang, no accidental navigation — rather than the flow silently
+    // breaking. (Not asserting on the loading spinner mid-flight: the
+    // flutter_test HTTP fake resolves fast enough that it can come and
+    // go within a single pump, making that assertion racy.)
+    await tester.pumpWidget(const CivicVoiceApp(initialRoute: AppRoutes.login));
+    await tester.pump();
 
-      final fields = find.byType(TextFormField);
-      await tester.enterText(fields.at(0), '0245550198');
-      await tester.enterText(fields.at(1), 'password');
+    final fields = find.byType(TextFormField);
+    await tester.enterText(fields.at(0), '0245550198');
+    await tester.enterText(fields.at(1), 'password');
 
-      final signIn = find.widgetWithText(FilledButton, 'Sign In');
-      await tester.ensureVisible(signIn);
-      await tester.tap(signIn);
-      await tester.pumpAndSettle();
+    final signIn = find.widgetWithText(FilledButton, 'Sign In');
+    await tester.ensureVisible(signIn);
+    await tester.tap(signIn);
+    await tester.pumpAndSettle();
 
-      expect(find.byType(CircularProgressIndicator), findsNothing);
-      expect(find.byType(LoginScreen), findsOneWidget);
-      expect(tester.takeException(), isNull);
-    },
-  );
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.byType(LoginScreen), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 
-  testWidgets(
-    'Registration Create Account submits to the real auth flow and '
-    'recovers from a failed request',
-    (WidgetTester tester) async {
-      // Same reasoning as the Login test above — account creation now
-      // requires a real SMS OTP round trip through the backend before the
-      // OTP screen even appears (see main.dart's _RegistrationRouteState),
-      // so the full flow through to the Citizen Dashboard is covered by
-      // manual device testing, not this widget test suite. Not asserting
-      // on the loading spinner mid-flight for the same racy-timing reason
-      // as the Login test above.
-      await tester.pumpWidget(
-        const CivicVoiceApp(initialRoute: AppRoutes.registration),
-      );
-      await tester.pump();
+  testWidgets('Registration Create Account submits to the real auth flow and '
+      'recovers from a failed request', (WidgetTester tester) async {
+    // Same reasoning as the Login test above — account creation now
+    // requires a real SMS OTP round trip through the backend before the
+    // OTP screen even appears (see main.dart's _RegistrationRouteState),
+    // so the full flow through to the Citizen Dashboard is covered by
+    // manual device testing, not this widget test suite. Not asserting
+    // on the loading spinner mid-flight for the same racy-timing reason
+    // as the Login test above.
+    await tester.pumpWidget(
+      const CivicVoiceApp(initialRoute: AppRoutes.registration),
+    );
+    await tester.pump();
 
-      final fields = find.byType(TextFormField);
-      await tester.enterText(fields.at(0), 'Amina Mensah');
-      await tester.enterText(fields.at(1), '0245550100');
-      await tester.enterText(fields.at(2), 'password123');
-      await tester.enterText(fields.at(3), 'password123');
+    final fields = find.byType(TextFormField);
+    await tester.enterText(fields.at(0), 'Amina Mensah');
+    await tester.enterText(fields.at(1), '0245550100');
+    await tester.enterText(fields.at(2), 'password123');
+    await tester.enterText(fields.at(3), 'password123');
 
-      final policy = find.byType(Checkbox);
-      await tester.ensureVisible(policy);
-      await tester.tap(policy);
-      await tester.pump();
+    final policy = find.byType(Checkbox);
+    await tester.ensureVisible(policy);
+    await tester.tap(policy);
+    await tester.pump();
 
-      final createAccount = find.widgetWithText(FilledButton, 'Create Account');
-      await tester.ensureVisible(createAccount);
-      await tester.tap(createAccount);
-      await tester.pumpAndSettle();
+    final createAccount = find.widgetWithText(FilledButton, 'Create Account');
+    await tester.ensureVisible(createAccount);
+    await tester.tap(createAccount);
+    await tester.pumpAndSettle();
 
-      expect(find.byType(CircularProgressIndicator), findsNothing);
-      expect(find.byType(RegistrationScreen), findsOneWidget);
-      expect(tester.takeException(), isNull);
-    },
-  );
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.byType(RegistrationScreen), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('Onboarding pages do not overflow on a narrow phone', (
     WidgetTester tester,
