@@ -293,11 +293,33 @@ class ApiClient {
     return (result['reports'] as List).cast<Map<String, dynamic>>();
   }
 
+  Future<List<Map<String, dynamic>>> listMunicipalMaintenanceOptions({
+    required String idToken,
+  }) async {
+    final result = await _get(
+      '/api/reports/maintenance-options',
+      idToken: idToken,
+    );
+    return (result['teams'] as List).cast<Map<String, dynamic>>();
+  }
+
   Future<Map<String, dynamic>> getReport(
     String id, {
     required String idToken,
   }) async {
     final result = await _get('/api/reports/$id', idToken: idToken);
+    return result['report'] as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> claimReportReview(
+    String id, {
+    required String idToken,
+  }) async {
+    final result = await _post(
+      '/api/reports/$id/claim-review',
+      const {},
+      idToken: idToken,
+    );
     return result['report'] as Map<String, dynamic>;
   }
 
@@ -389,6 +411,7 @@ class ApiClient {
 class SyncedUser {
   const SyncedUser({
     required this.id,
+    required this.publicId,
     required this.role,
     required this.fullName,
     required this.mustChangePassword,
@@ -400,6 +423,7 @@ class SyncedUser {
   });
 
   final String id;
+  final String publicId;
   final String role;
   final String fullName;
   final bool mustChangePassword;
@@ -412,6 +436,7 @@ class SyncedUser {
   factory SyncedUser.fromJson(Map<String, dynamic> json) {
     return SyncedUser(
       id: json['id'] as String,
+      publicId: json['publicId'] as String? ?? json['id'] as String,
       role: json['role'] as String,
       fullName: json['fullName'] as String,
       mustChangePassword: json['mustChangePassword'] as bool? ?? false,

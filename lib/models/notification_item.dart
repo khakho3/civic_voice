@@ -14,6 +14,8 @@ enum NotificationType {
   municipalNewIncomingReport,
   maintenanceTaskAssigned,
   ministryReportResolvedNational,
+  adminUserCreated,
+  adminUserDeactivated,
 }
 
 /// A single notification, shared by every module. Never persisted or

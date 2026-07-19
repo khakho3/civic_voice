@@ -71,7 +71,7 @@ class MunicipalReportReviewScreen extends StatefulWidget {
 class _MunicipalReportReviewScreenState
     extends State<MunicipalReportReviewScreen> {
   late MunicipalReportReviewViewState _state = widget.initialState;
-  late final ReportReviewData _data;
+  late ReportReviewData _data;
   final ReportReviewData _noEvidenceData = ReportReviewData.mock(
     withEvidence: false,
   );
@@ -85,6 +85,29 @@ class _MunicipalReportReviewScreenState
     _data = report?.apiId == null
         ? ReportReviewData.mock()
         : ReportReviewData.fromReport(report!);
+    if (report?.apiId != null && !report!.hasReviewer) {
+      _claimReview();
+    }
+  }
+
+  Future<void> _claimReview() async {
+    try {
+      final claimed = await MunicipalReportDirectory.instance
+          .claimReviewOnServer(widget.referenceId);
+      if (!mounted) return;
+      setState(() => _data = ReportReviewData.fromReport(claimed));
+    } catch (_) {
+      try {
+        await MunicipalReportDirectory.instance.refresh();
+      } catch (_) {}
+      final current = MunicipalReportDirectory.instance.byReferenceId(
+        widget.referenceId,
+      );
+      if (!mounted) return;
+      setState(() {
+        if (current != null) _data = ReportReviewData.fromReport(current);
+      });
+    }
   }
 
   void _retry() {
@@ -174,7 +197,7 @@ class _MunicipalReportReviewScreenState
                   ),
                   if (showActionBar)
                     _ActionBar(
-                      enabled: actionsEnabled,
+                      enabled: actionsEnabled && _data.canCurrentOfficerReview,
                       onReject: () => widget.onOpenVerification?.call(),
                       onVerify: () => widget.onOpenVerification?.call(),
                     ),
@@ -257,13 +280,26 @@ class _ReviewBody extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.md),
         _SectionCard(
-          icon: AppIcons.municipalOfficer,
-          title: 'Assigned Officer',
+          icon: AppIcons.phone,
+          title: 'Contact Citizen',
           child: OfficerContactRow(
-            officerName: data.officerName,
-            officerPhone: data.officerPhone,
+            officerName: data.citizenName,
+            officerPhone: data.citizenPhone,
+            label: 'Citizen',
           ),
         ),
+        if (data.officerName != 'Not claimed yet') ...[
+          const SizedBox(height: AppSpacing.md),
+          _SectionCard(
+            icon: AppIcons.municipalOfficer,
+            title: 'Review Ownership',
+            child: Text(
+              data.canCurrentOfficerReview
+                  ? 'You are the reviewing officer for this report.'
+                  : '${data.officerName} is currently reviewing this report. You can still view all updates.',
+            ),
+          ),
+        ],
         const SizedBox(height: AppSpacing.md),
         _SectionCard(
           icon: AppIcons.report,
@@ -498,38 +534,55 @@ class _EvidenceGallery extends StatelessWidget {
       );
     }
 
-    return Row(
-      children: [
-        for (final url in photoUrls) ...[
-          Expanded(child: _EvidenceThumbnail(placeholderId: url)),
-          if (url != photoUrls.last) const SizedBox(width: AppSpacing.sm),
-        ],
-      ],
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: AppSpacing.sm,
+        mainAxisSpacing: AppSpacing.sm,
+      ),
+      itemCount: photoUrls.length,
+      itemBuilder: (context, index) =>
+          _EvidenceThumbnail(url: photoUrls[index]),
     );
   }
 }
 
 class _EvidenceThumbnail extends StatelessWidget {
-  const _EvidenceThumbnail({required this.placeholderId});
+  const _EvidenceThumbnail({required this.url});
 
-  // Real Firebase Storage URLs aren't wired up yet (Issue 03 dependency) —
-  // rendering a labeled placeholder rather than a fake photo.
-  final String placeholderId;
+  final String url;
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return AspectRatio(
       aspectRatio: 1,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: colorScheme.surfaceContainer,
-          borderRadius: AppComponentRadius.inputField,
+      child: InkWell(
+        onTap: () => showDialog<void>(
+          context: context,
+          builder: (_) => Dialog(
+            insetPadding: const EdgeInsets.all(AppSpacing.md),
+            child: InteractiveViewer(
+              child: Image.network(url, fit: BoxFit.contain),
+            ),
+          ),
         ),
-        child: Icon(
-          AppIcons.camera,
-          size: AppIconSize.lg,
-          color: colorScheme.onSurfaceVariant,
+        child: ClipRRect(
+          borderRadius: AppComponentRadius.inputField,
+          child: Image.network(
+            url,
+            fit: BoxFit.cover,
+            errorBuilder: (_, _, _) => ColoredBox(
+              color: colorScheme.surfaceContainer,
+              child: Icon(
+                AppIcons.imageUnavailable,
+                size: AppIconSize.lg,
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
         ),
       ),
     );

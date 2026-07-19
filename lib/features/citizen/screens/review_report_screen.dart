@@ -26,6 +26,7 @@ class ReviewReportScreen extends StatelessWidget {
     this.reportLatitude,
     this.reportLongitude,
     this.reportRegion,
+    this.reportAssembly,
     this.photos = const [],
   });
 
@@ -39,6 +40,7 @@ class ReviewReportScreen extends StatelessWidget {
   final double? reportLatitude;
   final double? reportLongitude;
   final Region? reportRegion;
+  final String? reportAssembly;
   final List<XFile> photos;
 
   Future<void> _submit(BuildContext context) async {
@@ -53,6 +55,7 @@ class ReviewReportScreen extends StatelessWidget {
           latitude: reportLatitude,
           longitude: reportLongitude,
           region: reportRegion,
+          assembly: reportAssembly,
           photoPaths: [for (final photo in photos) photo.path],
         ),
       );

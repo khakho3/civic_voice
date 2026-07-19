@@ -10,6 +10,7 @@ class ReportDraft {
     this.latitude,
     this.longitude,
     this.region,
+    this.assembly,
     this.photoPaths = const <String>[],
   });
 
@@ -21,6 +22,7 @@ class ReportDraft {
   final double? latitude;
   final double? longitude;
   final Region? region;
+  final String? assembly;
   final List<String> photoPaths;
 
   int get photoCount => photoPaths.length;
@@ -35,6 +37,7 @@ class ReportDraft {
       'latitude': latitude,
       'longitude': longitude,
       'region': region?.name,
+      'assembly': assembly,
       'photoPaths': photoPaths,
       'photoCount': photoCount,
     };

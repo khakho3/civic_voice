@@ -69,15 +69,22 @@ class MunicipalVerificationScreen extends StatefulWidget {
 class _MunicipalVerificationScreenState
     extends State<MunicipalVerificationScreen> {
   late MunicipalVerificationViewState _state = widget.initialState;
-  final VerificationData _data = VerificationData.mock();
+  late final VerificationData _data;
   final Set<int> _checked = {};
   final _reasonController = TextEditingController();
 
-  /// Captured at submission time (the field is Optional) so the Rejected
-  /// confirmation message doesn't claim a reason was given when it wasn't.
-  bool _rejectedWithReason = false;
-
   bool get _allConfirmed => _checked.length == _data.checklist.length;
+
+  @override
+  void initState() {
+    super.initState();
+    final report = MunicipalReportDirectory.instance.byReferenceId(
+      widget.referenceId,
+    );
+    _data = report?.apiId == null
+        ? VerificationData.mock()
+        : VerificationData.fromReport(report!);
+  }
 
   @override
   void dispose() {
@@ -116,6 +123,15 @@ class _MunicipalVerificationScreenState
   }
 
   Future<void> _submitReject() async {
+    final reason = _reasonController.text.trim();
+    if (reason.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Add a reason before rejecting this report.'),
+        ),
+      );
+      return;
+    }
     final confirmed = await showConfirmDialog(
       context,
       title: 'Reject this report?',
@@ -127,11 +143,11 @@ class _MunicipalVerificationScreenState
     );
     if (!confirmed || !mounted) return;
 
-    _rejectedWithReason = _reasonController.text.trim().isNotEmpty;
     setState(() => _state = MunicipalVerificationViewState.loading);
     try {
       await MunicipalReportDirectory.instance.rejectOnServer(
         widget.referenceId,
+        reason,
       );
       if (mounted) {
         setState(() => _state = MunicipalVerificationViewState.rejected);
@@ -229,20 +245,20 @@ class _MunicipalVerificationScreenState
                         onSecondaryAction: widget.onNavigateToDashboard,
                         bordered: true,
                       ),
-                      MunicipalVerificationViewState.rejected => AppStateMessage(
-                        icon: AppIcons.success,
-                        badgeColor: AppColors.success,
-                        title: 'Report Rejected',
-                        message: _rejectedWithReason
-                            ? 'The citizen has been notified with the provided '
-                                  'reason.'
-                            : 'The citizen has been notified of the rejection.',
-                        primaryActionLabel: 'Back to Inbox',
-                        onPrimaryAction: widget.onBackToInbox,
-                        secondaryActionLabel: 'Return to Dashboard',
-                        onSecondaryAction: widget.onNavigateToDashboard,
-                        bordered: true,
-                      ),
+                      MunicipalVerificationViewState.rejected =>
+                        AppStateMessage(
+                          icon: AppIcons.success,
+                          badgeColor: AppColors.success,
+                          title: 'Report Rejected',
+                          message:
+                              'The citizen has been notified with the provided '
+                              'reason.',
+                          primaryActionLabel: 'Back to Inbox',
+                          onPrimaryAction: widget.onBackToInbox,
+                          secondaryActionLabel: 'Return to Dashboard',
+                          onSecondaryAction: widget.onNavigateToDashboard,
+                          bordered: true,
+                        ),
                       MunicipalVerificationViewState.failed => AppStateMessage(
                         icon: AppIcons.warning,
                         badgeColor: AppColors.error,
@@ -436,6 +452,7 @@ class _VerificationForm extends StatelessWidget {
               OfficerContactRow(
                 officerName: data.officerName,
                 officerPhone: data.officerPhone,
+                label: 'Citizen',
               ),
             ],
           ),
@@ -483,7 +500,7 @@ class _VerificationForm extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                'Reason for rejection (Optional)',
+                'Reason for rejection',
                 style: textTheme.titleSmall,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -511,7 +528,7 @@ class _VerificationForm extends StatelessWidget {
                 maxLength,
               }) => null,
           decoration: const InputDecoration(
-            hintText: 'Provide details if rejecting this report...',
+            hintText: 'Explain why this report cannot be accepted...',
           ),
         ),
         const SizedBox(height: AppSpacing.sm),

@@ -44,6 +44,7 @@ class ReportReviewData {
     required this.latitude,
     required this.longitude,
     required this.timeline,
+    required this.canCurrentOfficerReview,
   });
 
   final String referenceId;
@@ -77,6 +78,7 @@ class ReportReviewData {
   final double latitude;
   final double longitude;
   final List<ReportTimelineStep> timeline;
+  final bool canCurrentOfficerReview;
 
   /// Placeholder content matching the approved MUN-003 design, used until
   /// the Cloud Firestore-backed service (Issue 03 dependency) is wired up.
@@ -119,6 +121,7 @@ class ReportReviewData {
           state: TimelineStepState.pending,
         ),
       ],
+      canCurrentOfficerReview: true,
     );
   }
 
@@ -131,8 +134,8 @@ class ReportReviewData {
       status: report.status,
       citizenName: report.citizenName ?? 'Citizen',
       citizenPhone: report.citizenPhone ?? 'Phone unavailable',
-      officerName: 'Municipal Officer',
-      officerPhone: 'Contact unavailable',
+      officerName: report.reviewerName ?? 'Not claimed yet',
+      officerPhone: report.reviewerPhone ?? 'Contact unavailable',
       evidencePhotoUrls: report.photoUrls,
       locationLabel: report.locationLabel,
       latitude: report.latitude ?? 5.6037,
@@ -169,6 +172,7 @@ class ReportReviewData {
           timestamp: report.teamName,
         ),
       ],
+      canCurrentOfficerReview: report.canCurrentOfficerReview,
     );
   }
 }

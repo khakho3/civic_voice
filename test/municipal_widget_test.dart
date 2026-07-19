@@ -80,9 +80,7 @@ List<MaintenanceTeam> _seedAssignTeamTestTeams() {
 /// which mutate this shared singleton the same way a Firestore write would.
 void _preserveMunicipalReportDirectory() {
   final original = MunicipalReportDirectory.instance.reports.value;
-  addTearDown(
-    () => MunicipalReportDirectory.instance.reports.value = original,
-  );
+  addTearDown(() => MunicipalReportDirectory.instance.reports.value = original);
 }
 
 /// Snapshots the live `NotificationDirectory` read ledger and restores it
@@ -90,9 +88,7 @@ void _preserveMunicipalReportDirectory() {
 /// marks ids read for real against this same shared singleton.
 void _preserveNotificationReadIds() {
   final original = NotificationDirectory.instance.readIds.value;
-  addTearDown(
-    () => NotificationDirectory.instance.readIds.value = original,
-  );
+  addTearDown(() => NotificationDirectory.instance.readIds.value = original);
 }
 
 void main() {
@@ -214,7 +210,7 @@ void main() {
       await tester.tap(find.byIcon(AppIcons.statusResolved).last);
       await advanceRoute();
 
-      expect(find.text('Resolved Reports'), findsOneWidget);
+      expect(find.text('Closed Reports'), findsOneWidget);
 
       final resolvedReport = find.textContaining('Streetlight Outage');
       await tester.ensureVisible(resolvedReport);
@@ -226,7 +222,7 @@ void main() {
       await tester.tap(find.byIcon(AppIcons.back));
       await advanceRoute();
 
-      expect(find.text('Resolved Reports'), findsOneWidget);
+      expect(find.text('Closed Reports'), findsOneWidget);
 
       await tester.tap(find.byIcon(AppIcons.profile));
       await advanceRoute();
@@ -418,7 +414,8 @@ void main() {
 
       expect(find.text('Report Review'), findsOneWidget);
       expect(find.text('#REQ-8421'), findsOneWidget);
-      expect(find.text('John Smith'), findsOneWidget);
+      expect(find.text('John Smith'), findsNWidgets(2));
+      expect(find.text('Contact Citizen'), findsOneWidget);
       expect(find.text('Pothole on Main St.'), findsOneWidget);
       expect(find.text('Evidence (2)'), findsOneWidget);
       expect(find.text('Reject'), findsOneWidget);
@@ -559,38 +556,31 @@ void main() {
     },
   );
 
-  testWidgets(
-    'Municipal Verification Rejected message does not claim a reason was '
-    'given when the Optional field was left empty',
-    (WidgetTester tester) async {
-      tester.view.physicalSize = const Size(428, 2600);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-      _preserveMunicipalReportDirectory();
+  testWidgets('Municipal Verification requires a reason before rejection', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    _preserveMunicipalReportDirectory();
 
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: AppTheme.light,
-          home: const MunicipalVerificationScreen(),
-        ),
-      );
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Reject Report'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Reject'));
-      await tester.pumpAndSettle(const Duration(milliseconds: 600));
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: const MunicipalVerificationScreen(),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Reject Report'));
+    await tester.pumpAndSettle();
 
-      expect(
-        find.text('The citizen has been notified of the rejection.'),
-        findsOneWidget,
-      );
-      expect(
-        find.text('The citizen has been notified with the provided reason.'),
-        findsNothing,
-      );
-    },
-  );
+    expect(
+      find.text('Add a reason before rejecting this report.'),
+      findsOneWidget,
+    );
+    expect(find.text('Reject this report?'), findsNothing);
+  });
 
   testWidgets(
     'Municipal Verification Rejected message confirms the reason when one '
@@ -755,18 +745,12 @@ void main() {
 
       await tester.tap(find.text('Unit Bravo'));
       await tester.pumpAndSettle();
-      expect(
-        find.textContaining('Unit Bravo is now assigned'),
-        findsOneWidget,
-      );
+      expect(find.textContaining('Unit Bravo is now assigned'), findsOneWidget);
 
       // Unit Delta is off-duty — tapping it must not change the selection.
       await tester.tap(find.text('Unit Delta'));
       await tester.pumpAndSettle();
-      expect(
-        find.textContaining('Unit Bravo is now assigned'),
-        findsOneWidget,
-      );
+      expect(find.textContaining('Unit Bravo is now assigned'), findsOneWidget);
       expect(find.textContaining('Unit Delta is now assigned'), findsNothing);
     },
   );
@@ -1302,8 +1286,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Resolved Reports'), findsOneWidget);
-      expect(find.text('128'), findsOneWidget);
+      expect(find.text('Closed Reports'), findsOneWidget);
+      expect(find.text('Resolved'), findsWidgets);
       expect(find.text('Streetlight Outage — 4th Ave'), findsOneWidget);
       expect(find.text('Pothole Cluster — Elm Rd'), findsOneWidget);
       expect(find.text('Graffiti Removal — Bridge'), findsOneWidget);
@@ -1385,10 +1369,7 @@ void main() {
 
       expect(find.text('Home'), findsOneWidget);
       expect(find.text('Inbox'), findsOneWidget);
-      // 'Resolved' text also appears on every report card's status badge —
-      // check the nav item's icon instead, which is distinct from the
-      // badge's icon (statusResolved vs success).
-      expect(find.byIcon(AppIcons.statusResolved), findsOneWidget);
+      expect(find.text('Closed'), findsOneWidget);
       expect(find.byType(BackButton), findsNothing);
       expect(find.byIcon(AppIcons.back), findsNothing);
 
@@ -1569,47 +1550,46 @@ void main() {
     },
   );
 
-  testWidgets(
-    'CollapsibleListHeader: header reveals immediately on any upward '
-    'scroll, not just once the list is back at the top',
-    (WidgetTester tester) async {
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: AppTheme.light,
-          home: Scaffold(
-            body: CollapsibleListHeader(
-              header: const SizedBox(height: 60, child: Text('header')),
-              child: ListView.builder(
-                itemCount: 30,
-                itemBuilder: (context, index) =>
-                    SizedBox(height: 60, child: Text('Item $index')),
-              ),
+  testWidgets('CollapsibleListHeader: header reveals immediately on any upward '
+      'scroll, not just once the list is back at the top', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: Scaffold(
+          body: CollapsibleListHeader(
+            header: const SizedBox(height: 60, child: Text('header')),
+            child: ListView.builder(
+              itemCount: 30,
+              itemBuilder: (context, index) =>
+                  SizedBox(height: 60, child: Text('Item $index')),
             ),
           ),
         ),
-      );
-      await tester.pumpAndSettle();
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      final headerFinder = find.byKey(const ValueKey('collapsible_header'));
-      final listFinder = find.byType(ListView);
-      final expandedHeight = tester.getSize(headerFinder).height;
-      expect(expandedHeight, greaterThan(0));
+    final headerFinder = find.byKey(const ValueKey('collapsible_header'));
+    final listFinder = find.byType(ListView);
+    final expandedHeight = tester.getSize(headerFinder).height;
+    expect(expandedHeight, greaterThan(0));
 
-      // Scroll down well past the very top: header hides.
-      await tester.drag(listFinder, const Offset(0, -300));
-      await tester.pumpAndSettle();
-      expect(tester.getSize(headerFinder).height, lessThan(1));
+    // Scroll down well past the very top: header hides.
+    await tester.drag(listFinder, const Offset(0, -300));
+    await tester.pumpAndSettle();
+    expect(tester.getSize(headerFinder).height, lessThan(1));
 
-      // A small upward scroll, nowhere near the top, still brings it back
-      // — no 50%-of-header or "reached the top" threshold to clear first.
-      await tester.drag(listFinder, const Offset(0, 40));
-      await tester.pumpAndSettle();
-      expect(
-        tester.getSize(headerFinder).height,
-        greaterThan(expandedHeight / 2),
-      );
-    },
-  );
+    // A small upward scroll, nowhere near the top, still brings it back
+    // — no 50%-of-header or "reached the top" threshold to clear first.
+    await tester.drag(listFinder, const Offset(0, 40));
+    await tester.pumpAndSettle();
+    expect(
+      tester.getSize(headerFinder).height,
+      greaterThan(expandedHeight / 2),
+    );
+  });
 
   testWidgets(
     'CollapsibleListHeader: chrome can still be pulled back when collapsing '
@@ -1733,10 +1713,10 @@ void main() {
     expect(find.text('Alex Johnston'), findsOneWidget);
     expect(find.text('Senior Municipal Coordinator'), findsOneWidget);
     expect(find.text('Verified Official'), findsOneWidget);
-    expect(find.text('alex.johnston@city.gov'), findsOneWidget);
+    expect(find.text('alex.johnston@city.gov'), findsNothing);
     expect(find.text('+233 24 555 0142'), findsOneWidget);
-    expect(find.text('Urban Planning & Dev'), findsOneWidget);
-    expect(find.text('Director M. Chen'), findsOneWidget);
+    expect(find.text('Springfield District'), findsOneWidget);
+    expect(find.text('Greater Accra'), findsOneWidget);
     expect(find.text('Change Password'), findsOneWidget);
     expect(find.text('Two-Factor Authentication'), findsNothing);
     expect(find.text('Login Sessions'), findsNothing);
@@ -1825,7 +1805,7 @@ void main() {
       // Matches both the header's name display and the Full Name field's
       // current value.
       expect(find.text('Alex Johnston'), findsNWidgets(2));
-      expect(find.text('alex.johnston@city.gov'), findsOneWidget);
+      expect(find.text('alex.johnston@city.gov'), findsNothing);
       expect(find.text('+233 24 555 0142'), findsOneWidget);
       // Department is shown but locked, not part of the editable form.
       expect(find.text('Set by your administrator'), findsOneWidget);
@@ -1841,7 +1821,10 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
 
       await tester.pumpWidget(
-        MaterialApp(theme: AppTheme.light, home: const MunicipalProfileScreen()),
+        MaterialApp(
+          theme: AppTheme.light,
+          home: const MunicipalProfileScreen(),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -1899,37 +1882,34 @@ void main() {
     },
   );
 
-  testWidgets(
-    'Municipal Profile Save fails validation on an empty Full Name, '
-    'without leaving the edit form',
-    (WidgetTester tester) async {
-      tester.view.physicalSize = const Size(428, 2600);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
+  testWidgets('Municipal Profile Save fails validation on an empty Full Name, '
+      'without leaving the edit form', (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
 
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: AppTheme.light,
-          home: const MunicipalProfileScreen(
-            initialState: MunicipalProfileViewState.editing,
-          ),
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: const MunicipalProfileScreen(
+          initialState: MunicipalProfileViewState.editing,
         ),
-      );
-      await tester.pumpAndSettle();
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      await tester.enterText(find.byType(TextField).first, '');
-      await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).first, '');
+    await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Save Changes'));
-      await tester.pumpAndSettle();
+    await tester.tap(find.text('Save Changes'));
+    await tester.pumpAndSettle();
 
-      expect(find.text('Full name is required'), findsOneWidget);
-      // Still editing — a failed save must not silently drop the user back
-      // to the read-only view.
-      expect(find.text('Personal Information'), findsOneWidget);
-    },
-  );
+    expect(find.text('Full name is required'), findsOneWidget);
+    // Still editing — a failed save must not silently drop the user back
+    // to the read-only view.
+    expect(find.text('Personal Information'), findsOneWidget);
+  });
 
   testWidgets(
     'Municipal Profile Save succeeds with valid data and shows the updated '

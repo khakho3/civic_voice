@@ -5,10 +5,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/theme/app_theme.dart';
 import '../features/admin/services/admin_maintenance_team_directory.dart';
+import '../features/admin/services/admin_user_directory.dart';
+import '../features/admin/models/admin_user_management_data.dart';
 import '../features/citizen/services/report_crud_service.dart';
 import '../features/maintenance/models/maintenance_task.dart';
 import '../features/maintenance/services/maintenance_task_directory.dart';
 import '../features/municipal/services/municipal_report_directory.dart';
+import '../features/municipal/services/municipal_session.dart';
 import '../models/notification_item.dart';
 import '../models/report_status.dart';
 
@@ -134,7 +137,9 @@ class NotificationDirectory {
             ReportStatus.resolved =>
               'The responsible team has marked this report as resolved.',
             ReportStatus.rejected =>
-              'Your report was reviewed and could not be accepted.',
+              report.rejectionReason?.trim().isNotEmpty == true
+                  ? 'Reason: ${report.rejectionReason}'
+                  : 'Your report was reviewed and could not be accepted.',
           },
           category: switch (report.status) {
             ReportStatus.submitted || ReportStatus.underReview => 'Report',
@@ -153,13 +158,14 @@ class NotificationDirectory {
   /// Reports newly submitted to Municipal's Inbox, awaiting triage — the
   /// same source `MunicipalReportDirectory` powers Inbox/Active/Dashboard.
   List<NotificationItem> forMunicipal() {
+    final officerId = MunicipalSession.instance.profile.value.employeeId;
     final reports = MunicipalReportDirectory.instance.reports.value.where(
       (r) => r.status == ReportStatus.submitted,
     );
     return [
       for (final report in reports)
         _build(
-          id: 'municipal-report-${report.referenceId}',
+          id: 'municipal-$officerId-report-${report.referenceId}',
           type: NotificationType.municipalNewIncomingReport,
           title: 'New incoming report',
           message: '${report.title} was just submitted.',
@@ -169,6 +175,39 @@ class NotificationDirectory {
           color: AppColors.primary,
           referenceId: report.referenceId,
         ),
+    ];
+  }
+
+  /// Live account events visible within the signed-in Admin's already scoped
+  /// user directory. This is deliberately separate from the full audit log.
+  List<NotificationItem> forAdmin() {
+    final users = AdminUserDirectory.instance.users.value;
+    return [
+      for (final user in users)
+        if (user.status == AdminUserStatus.inactive)
+          _build(
+            id: 'admin-user-${user.userId}-inactive',
+            type: NotificationType.adminUserDeactivated,
+            title: 'Account deactivated',
+            message: '${user.name} can no longer sign in.',
+            category: 'Security',
+            timeLabel: 'Current status',
+            icon: AppIcons.permissionDenied,
+            color: AppColors.error,
+            referenceId: user.userId,
+          )
+        else if (DateTime.now().difference(user.accountCreated).inDays <= 7)
+          _build(
+            id: 'admin-user-${user.userId}-created',
+            type: NotificationType.adminUserCreated,
+            title: 'New account created',
+            message: '${user.name} joined as ${user.role.label}.',
+            category: 'Account',
+            timeLabel: 'Recently',
+            icon: AppIcons.profile,
+            color: AppColors.primary,
+            referenceId: user.userId,
+          ),
     ];
   }
 

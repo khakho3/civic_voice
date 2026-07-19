@@ -2748,8 +2748,9 @@ void main() {
     },
   );
 
-  testWidgets("Admin's bell routes straight to System Activity, not a separate "
-      'Notifications screen', (WidgetTester tester) async {
+  testWidgets("Admin's bell opens distinct live account notifications", (
+    WidgetTester tester,
+  ) async {
     tester.view.physicalSize = const Size(428, 2600);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -2765,6 +2766,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
 
-    expect(find.text('Recent Activity'), findsOneWidget);
+    expect(find.text('Admin Notifications'), findsOneWidget);
+    expect(find.text('Recent Activity'), findsNothing);
   });
 }

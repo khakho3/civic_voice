@@ -1,5 +1,6 @@
 import 'incoming_report.dart';
 import '../services/municipal_report_directory.dart';
+import '../services/municipal_session.dart';
 
 /// Aggregate counters shown on the Municipal Dashboard stat cards.
 class MunicipalDashboardStats {
@@ -62,7 +63,7 @@ class MunicipalDashboardData {
   /// the Cloud Firestore-backed service (Issue 03 dependency) is wired up.
   factory MunicipalDashboardData.mock() {
     final reports = MunicipalReportDirectory.instance.reports.value;
-    final isLive = reports.any((report) => report.apiId != null);
+    final isLive = MunicipalReportDirectory.instance.hasLiveSnapshot;
     final assignmentGroups = <String, List<int>>{};
     if (isLive) {
       for (final report in reports) {
@@ -74,9 +75,10 @@ class MunicipalDashboardData {
         }
       }
     }
+    final officer = MunicipalSession.instance.profile.value;
     return MunicipalDashboardData(
-      officerName: 'Alex Johnston',
-      municipalityName: 'Springfield District',
+      officerName: isLive ? officer.name : 'Alex Johnston',
+      municipalityName: isLive ? officer.department : 'Springfield District',
       stats: isLive
           ? MunicipalDashboardStats(
               newReports: reports

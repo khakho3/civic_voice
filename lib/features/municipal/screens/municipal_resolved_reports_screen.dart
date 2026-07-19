@@ -116,10 +116,14 @@ class _MunicipalResolvedReportsScreenState
 
   static List<ResolvedReportItem> _resolvedReports() {
     final reports = MunicipalReportDirectory.instance.reports.value;
-    final live = reports.any((report) => report.apiId != null);
+    final live = MunicipalReportDirectory.instance.hasLiveSnapshot;
     return live
         ? reports
-              .where((report) => report.status == ReportStatus.resolved)
+              .where(
+                (report) =>
+                    report.status == ReportStatus.resolved ||
+                    report.status == ReportStatus.rejected,
+              )
               .map(ResolvedReportItem.fromReport)
               .toList()
         : ResolvedReportItem.mock();
@@ -187,10 +191,10 @@ class _MunicipalResolvedReportsScreenState
                 child: AppStateMessage(
                   icon: AppIcons.empty,
                   badgeColor: AppColors.primary,
-                  title: 'No Resolved Reports Yet',
+                  title: 'No Closed Reports Yet',
                   message:
-                      'When your active reports are resolved, they\'ll '
-                      'appear here for review and archiving.',
+                      'Resolved and rejected reports will appear here as a '
+                      'durable case history.',
                   primaryActionLabel: 'View Active Reports',
                   onPrimaryAction: widget.onNavigateToActiveReports,
                   secondaryActionLabel: 'Refresh',
@@ -231,7 +235,7 @@ class _OfflineBanner extends StatelessWidget {
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(
-              'Offline Mode — showing cached resolved reports',
+              'Offline Mode — showing cached closed reports',
               style: Theme.of(
                 context,
               ).textTheme.labelMedium?.copyWith(color: AppColors.error),
@@ -267,7 +271,7 @@ class _ResolvedReportsBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    const stats = ResolvedReportStats.mock;
+    final stats = ResolvedReportStats.fromReports(reports);
 
     return CollapsibleListHeader(
       header: Padding(
@@ -282,7 +286,7 @@ class _ResolvedReportsBody extends StatelessWidget {
           children: [
             MunicipalSearchField(
               controller: searchController,
-              hintText: 'Search resolved reports...',
+              hintText: 'Search closed reports...',
             ),
             const SizedBox(height: AppSpacing.sm),
             SizedBox(
@@ -328,7 +332,7 @@ class _ResolvedReportsBody extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.symmetric(vertical: AppSpacing.xl),
               child: Text(
-                'No resolved reports match your search.',
+                'No closed reports match your search.',
                 style: textTheme.bodyMedium,
                 textAlign: TextAlign.center,
               ),
@@ -522,7 +526,7 @@ class _ResolvedReportCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              const _ResolvedBadge(),
+              _ClosedBadge(status: report.status),
             ],
           ),
           const SizedBox(height: 2),
@@ -578,7 +582,9 @@ class _ResolvedReportCard extends StatelessWidget {
               const SizedBox(width: 4),
               Expanded(
                 child: Text(
-                  'Resolved in ${report.durationDays}d',
+                  report.isRejected
+                      ? 'Rejected after ${report.durationDays}d'
+                      : 'Resolved in ${report.durationDays}d',
                   style: textTheme.bodySmall,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -601,31 +607,29 @@ class _ResolvedReportCard extends StatelessWidget {
   }
 }
 
-class _ResolvedBadge extends StatelessWidget {
-  const _ResolvedBadge();
+class _ClosedBadge extends StatelessWidget {
+  const _ClosedBadge({required this.status});
+
+  final ReportStatus status;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
       decoration: BoxDecoration(
-        color: AppColors.success.withValues(alpha: 0.12),
-        border: Border.all(color: AppColors.success.withValues(alpha: 0.24)),
+        color: status.color.withValues(alpha: 0.12),
+        border: Border.all(color: status.color.withValues(alpha: 0.24)),
         borderRadius: AppRadius.allXl,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(
-            AppIcons.success,
-            size: AppIconSize.sm,
-            color: AppColors.success,
-          ),
+          Icon(status.icon, size: AppIconSize.sm, color: status.color),
           const SizedBox(width: 4),
           Text(
-            'Resolved',
+            status.label,
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: AppColors.success,
+              color: status.color,
               fontWeight: AppFontWeight.semiBold,
             ),
           ),

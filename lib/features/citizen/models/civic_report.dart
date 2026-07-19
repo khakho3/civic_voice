@@ -15,9 +15,12 @@ class CivicReport {
     this.latitude,
     this.longitude,
     this.region,
+    this.assembly,
     this.photoCount = 0,
     this.photoPaths = const <String>[],
     this.submittedAt,
+    this.rejectionReason,
+    this.rejectedAt,
     required this.timeLabel,
     required this.status,
   });
@@ -37,6 +40,7 @@ class CivicReport {
   /// metropolitan assembly it should route to. Null if the geocoder
   /// couldn't resolve a recognized region.
   final Region? region;
+  final String? assembly;
   final int photoCount;
 
   /// Local file paths for the photos attached to this report. There's no
@@ -44,6 +48,8 @@ class CivicReport {
   /// remote URLs — [photoCount] should always equal `photoPaths.length`.
   final List<String> photoPaths;
   final DateTime? submittedAt;
+  final String? rejectionReason;
+  final DateTime? rejectedAt;
   final String timeLabel;
   final ReportStatus status;
 
@@ -62,6 +68,7 @@ class CivicReport {
       latitude: (map['latitude'] as num?)?.toDouble(),
       longitude: (map['longitude'] as num?)?.toDouble(),
       region: _regionFromName(map['region'] as String?),
+      assembly: map['assembly'] as String?,
       photoCount: (map['photoCount'] as num?)?.toInt() ?? 0,
       photoPaths:
           (map['photoPaths'] as List<Object?>?)?.cast<String>() ??
@@ -69,6 +76,8 @@ class CivicReport {
       submittedAt: submittedAtValue == null
           ? null
           : DateTime.tryParse(submittedAtValue),
+      rejectionReason: map['rejectionReason'] as String?,
+      rejectedAt: DateTime.tryParse(map['rejectedAt'] as String? ?? ''),
       timeLabel: map['timeLabel'] as String? ?? '',
       status: ReportStatus.values.firstWhere(
         (status) => status.name == statusName,
@@ -89,9 +98,12 @@ class CivicReport {
       'latitude': latitude,
       'longitude': longitude,
       'region': region?.name,
+      'assembly': assembly,
       'photoCount': photoCount,
       'photoPaths': photoPaths,
       'submittedAt': submittedAt?.toIso8601String(),
+      'rejectionReason': rejectionReason,
+      'rejectedAt': rejectedAt?.toIso8601String(),
       'timeLabel': timeLabel,
       'status': status.name,
     };
@@ -108,9 +120,12 @@ class CivicReport {
     double? latitude,
     double? longitude,
     Region? region,
+    String? assembly,
     int? photoCount,
     List<String>? photoPaths,
     DateTime? submittedAt,
+    String? rejectionReason,
+    DateTime? rejectedAt,
     String? timeLabel,
     ReportStatus? status,
   }) {
@@ -125,9 +140,12 @@ class CivicReport {
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
       region: region ?? this.region,
+      assembly: assembly ?? this.assembly,
       photoCount: photoCount ?? this.photoCount,
       photoPaths: photoPaths ?? this.photoPaths,
       submittedAt: submittedAt ?? this.submittedAt,
+      rejectionReason: rejectionReason ?? this.rejectionReason,
+      rejectedAt: rejectedAt ?? this.rejectedAt,
       timeLabel: timeLabel ?? this.timeLabel,
       status: status ?? this.status,
     );

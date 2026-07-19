@@ -27,6 +27,7 @@ class PhotoUploadScreen extends StatefulWidget {
     this.reportLatitude,
     this.reportLongitude,
     this.reportRegion,
+    this.reportAssembly,
   });
 
   static const String routeName = '/citizen/photo-upload';
@@ -41,6 +42,7 @@ class PhotoUploadScreen extends StatefulWidget {
   final double? reportLatitude;
   final double? reportLongitude;
   final Region? reportRegion;
+  final String? reportAssembly;
 
   @override
   State<PhotoUploadScreen> createState() => _PhotoUploadScreenState();
@@ -177,6 +179,7 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
           reportLatitude: widget.reportLatitude,
           reportLongitude: widget.reportLongitude,
           reportRegion: widget.reportRegion,
+          reportAssembly: widget.reportAssembly,
           photos: List<XFile>.of(_photos),
         ),
       ),

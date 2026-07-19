@@ -33,6 +33,14 @@ class IncomingReportItem {
     this.updatedAt,
     this.resolutionPhotoUrls = const [],
     this.resolutionNotes,
+    this.rejectionReason,
+    this.rejectedAt,
+    this.assembly,
+    this.reviewerName,
+    this.reviewerPhone,
+    this.reviewerPublicId,
+    this.reviewedByCurrentUser = false,
+    this.reviewedAt,
   });
 
   /// Internal database identifier used for API calls. [referenceId] remains
@@ -72,6 +80,17 @@ class IncomingReportItem {
   final DateTime? updatedAt;
   final List<String> resolutionPhotoUrls;
   final String? resolutionNotes;
+  final String? rejectionReason;
+  final DateTime? rejectedAt;
+  final String? assembly;
+  final String? reviewerName;
+  final String? reviewerPhone;
+  final String? reviewerPublicId;
+  final bool reviewedByCurrentUser;
+  final DateTime? reviewedAt;
+
+  bool get hasReviewer => reviewerPublicId != null;
+  bool get canCurrentOfficerReview => !hasReviewer || reviewedByCurrentUser;
 
   String get apiRecordId => apiId ?? referenceId;
 
@@ -109,6 +128,17 @@ class IncomingReportItem {
               .map(ApiClient.assetUrl)
               .toList(),
       resolutionNotes: json['resolutionNotes'] as String?,
+      rejectionReason: json['rejectionReason'] as String?,
+      rejectedAt: DateTime.tryParse(json['rejectedAt'] as String? ?? ''),
+      assembly: json['assembly'] as String?,
+      reviewerName:
+          (json['reviewer'] as Map<String, dynamic>?)?['fullName'] as String?,
+      reviewerPhone:
+          (json['reviewer'] as Map<String, dynamic>?)?['phone'] as String?,
+      reviewerPublicId:
+          (json['reviewer'] as Map<String, dynamic>?)?['publicId'] as String?,
+      reviewedByCurrentUser: json['reviewedByCurrentUser'] as bool? ?? false,
+      reviewedAt: DateTime.tryParse(json['reviewedAt'] as String? ?? ''),
     );
   }
 
@@ -117,6 +147,8 @@ class IncomingReportItem {
     String? teamName,
     int? progressPercent,
     String? updatedLabel,
+    String? rejectionReason,
+    DateTime? rejectedAt,
   }) {
     return IncomingReportItem(
       apiId: apiId,
@@ -140,6 +172,14 @@ class IncomingReportItem {
       updatedAt: updatedAt,
       resolutionPhotoUrls: resolutionPhotoUrls,
       resolutionNotes: resolutionNotes,
+      rejectionReason: rejectionReason ?? this.rejectionReason,
+      rejectedAt: rejectedAt ?? this.rejectedAt,
+      assembly: assembly,
+      reviewerName: reviewerName,
+      reviewerPhone: reviewerPhone,
+      reviewerPublicId: reviewerPublicId,
+      reviewedByCurrentUser: reviewedByCurrentUser,
+      reviewedAt: reviewedAt,
     );
   }
 

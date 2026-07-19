@@ -15,6 +15,7 @@ import 'features/admin/screens/admin_maintenance_teams_screen.dart';
 import 'features/admin/screens/admin_profile_screen.dart' as admin;
 import 'features/admin/screens/admin_role_management_screen.dart';
 import 'features/admin/screens/admin_system_activity_screen.dart';
+import 'features/admin/screens/admin_notifications_screen.dart';
 import 'features/admin/screens/admin_system_settings_screen.dart';
 import 'features/admin/screens/admin_user_details_screen.dart';
 import 'features/admin/screens/admin_user_management_screen.dart';
@@ -68,6 +69,7 @@ import 'features/maintenance/services/maintenance_task_directory.dart';
 import 'features/municipal/models/incoming_report.dart';
 import 'features/municipal/models/resolved_report.dart';
 import 'features/municipal/services/municipal_report_directory.dart';
+import 'features/municipal/services/municipal_session.dart';
 import 'features/municipal/screens/municipal_active_reports_screen.dart';
 import 'features/municipal/screens/municipal_assign_team_screen.dart';
 import 'features/municipal/screens/municipal_dashboard_screen.dart';
@@ -81,6 +83,7 @@ import 'features/municipal/screens/municipal_resolved_reports_screen.dart';
 import 'features/municipal/screens/municipal_verification_screen.dart';
 import 'firebase_options.dart';
 import 'models/app_role.dart';
+import 'models/report_status.dart';
 import 'models/assembly.dart';
 import 'models/ghana_assemblies_data.dart';
 import 'models/region.dart';
@@ -157,6 +160,7 @@ Future<void> _restorePersistedSession() async {
       await ReportCrudService.instance.refresh();
     } else if (role == AppRole.municipalOfficer) {
       await MunicipalReportDirectory.instance.refresh();
+      await MaintenanceTeamDirectory.instance.refreshForMunicipal();
     } else if (role == AppRole.systemAdministrator) {
       AdminUserDirectory.instance.currentApiUserId = syncedUser.id;
       await AdminUserDirectory.instance.refresh();
@@ -209,6 +213,7 @@ abstract final class AppRoutes {
   static const adminMaintenanceTeamForm = '/admin/maintenance-team-form';
   static const adminRoleManagement = '/admin/role-management';
   static const adminSystemActivity = '/admin/system-activity';
+  static const adminNotifications = '/admin/notifications';
   static const adminSystemSettings = '/admin/system-settings';
   static const adminProfile = '/admin/profile';
 
@@ -358,6 +363,7 @@ class _CivicVoiceAppState extends State<CivicVoiceApp> {
               AppRoutes.adminUserManagement: _adminUserManagement,
               AppRoutes.adminRoleManagement: _adminRoleManagement,
               AppRoutes.adminSystemActivity: _adminSystemActivity,
+              AppRoutes.adminNotifications: _adminNotifications,
               AppRoutes.adminSystemSettings: _adminSystemSettings,
               AppRoutes.adminProfile: _adminProfile,
               AppRoutes.adminUserDetails: (context) => _adminUserDetails(
@@ -645,6 +651,16 @@ Future<void> _selectSyncedRole(
             ? AdminTier.admin
             : AdminTier.superAdmin
       : null;
+  if (role == AppRole.municipalOfficer) {
+    MunicipalSession.instance.setAuthenticatedUser(
+      publicId: user.publicId,
+      fullName: user.fullName,
+      phone: user.phone ?? 'Phone unavailable',
+      region: region?.label ?? user.region ?? 'Region not assigned',
+      assembly: assembly?.fullName ?? user.assembly ?? 'Assembly not assigned',
+      avatarUrl: user.avatarUrl,
+    );
+  }
   await auth.selectRole(
     role,
     adminTier: tier,
@@ -693,6 +709,7 @@ class _LoginRouteState extends State<_LoginRoute> {
         await ReportCrudService.instance.refresh();
       } else if (appRole == AppRole.municipalOfficer) {
         await MunicipalReportDirectory.instance.refresh();
+        await MaintenanceTeamDirectory.instance.refreshForMunicipal();
       } else if (appRole == AppRole.systemAdministrator) {
         AdminUserDirectory.instance.currentApiUserId = syncedUser.id;
         await AdminUserDirectory.instance.refresh();
@@ -1319,15 +1336,18 @@ Widget _adminSystemActivity(BuildContext context) {
   );
 }
 
-/// Admin's bell routes straight to System Activity (ADM-006) rather than a
-/// separate Notifications screen — it's already a full audit feed a Super
-/// Admin/assembly Admin plausibly checks every session, so a second,
-/// mostly-redundant screen would just be more surface area for the same
-/// content. `_replaceWith` switches the Activity tab in place (matching
-/// every other "jump to a tab" callback in this file) rather than pushing
-/// a duplicate copy on top.
 void _openAdminNotifications(BuildContext context) {
-  _replaceWith(context, AppRoutes.adminSystemActivity);
+  Navigator.of(context).pushNamed(AppRoutes.adminNotifications);
+}
+
+Widget _adminNotifications(BuildContext context) {
+  return AdminNotificationsScreen(
+    onBack: () => Navigator.of(context).maybePop(),
+    onOpenUser: (publicId) {
+      final user = AdminUserDirectory.instance.userById(publicId);
+      if (user != null) _pushAdminUserDetails(context, user);
+    },
+  );
 }
 
 Widget _adminSystemSettings(BuildContext context) {
@@ -1541,7 +1561,10 @@ IncomingReportItem _incomingReportFromSettings(RouteSettings? settings) {
   final argument = settings?.arguments;
   if (argument is IncomingReportItem) return argument;
 
-  final reports = IncomingReportItem.mock();
+  final directoryReports = MunicipalReportDirectory.instance.reports.value;
+  final reports = directoryReports.isNotEmpty
+      ? directoryReports
+      : IncomingReportItem.mock();
   final uri = Uri.tryParse(settings?.name ?? '');
   final reportId = uri?.queryParameters['reportId'];
   if (reportId != null) {
@@ -1571,7 +1594,13 @@ ResolvedReportItem _resolvedReportFromSettings(RouteSettings? settings) {
   final argument = settings?.arguments;
   if (argument is ResolvedReportItem) return argument;
 
-  final reports = ResolvedReportItem.mock();
+  final liveReports = MunicipalReportDirectory.instance.reports.value
+      .where((report) => report.status == ReportStatus.resolved)
+      .map(ResolvedReportItem.fromReport)
+      .toList();
+  final reports = liveReports.isNotEmpty
+      ? liveReports
+      : ResolvedReportItem.mock();
   final uri = Uri.tryParse(settings?.name ?? '');
   final reportId = uri?.queryParameters['reportId'];
   if (reportId != null) {
@@ -1699,6 +1728,7 @@ Widget _municipalResolutionDetails(
 ) {
   return MunicipalResolutionDetailsScreen(
     referenceId: report.referenceId,
+    data: report,
     onBack: () =>
         _popOrReplaceWith(context, AppRoutes.municipalResolvedReports),
   );
@@ -1706,10 +1736,25 @@ Widget _municipalResolutionDetails(
 
 Widget _municipalProfile(BuildContext context) {
   return municipal.MunicipalProfileScreen(
+    initialProfile: MunicipalSession.instance.profile.value,
     onBack: () => _popOrReplaceWith(context, AppRoutes.municipalDashboard),
     onChangePassword: () =>
         Navigator.of(context).pushNamed(AppRoutes.changePassword),
     onLogOut: () => _signOut(context),
+    onSaveProfile: (fullName) async {
+      try {
+        final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+        if (token == null) return false;
+        await ApiClient.instance.updateProfile(
+          idToken: token,
+          fullName: fullName,
+        );
+        MunicipalSession.instance.updateName(fullName);
+        return true;
+      } catch (_) {
+        return false;
+      }
+    },
   );
 }
 

@@ -14,7 +14,8 @@ enum _ReportFilter {
   all('All'),
   underReview('Under Review'),
   inProgress('In Progress'),
-  resolved('Resolved');
+  resolved('Resolved'),
+  rejected('Rejected');
 
   const _ReportFilter(this.label);
 
@@ -58,6 +59,7 @@ class _CitizenReportsScreenState extends State<CitizenReportsScreen> {
               report.status == ReportStatus.assigned ||
               report.status == ReportStatus.submitted,
         _ReportFilter.resolved => report.status == ReportStatus.resolved,
+        _ReportFilter.rejected => report.status == ReportStatus.rejected,
       };
 
       if (!matchesFilter) return false;

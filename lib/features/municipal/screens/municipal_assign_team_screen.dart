@@ -71,7 +71,7 @@ class MunicipalAssignTeamScreen extends StatefulWidget {
 
 class _MunicipalAssignTeamScreenState extends State<MunicipalAssignTeamScreen> {
   late MunicipalAssignTeamViewState _state = widget.initialState;
-  final AssignTeamData _data = AssignTeamData.mock();
+  late final AssignTeamData _data;
   final _searchController = TextEditingController();
   TeamFilter _filter = TeamFilter.all;
 
@@ -85,6 +85,12 @@ class _MunicipalAssignTeamScreenState extends State<MunicipalAssignTeamScreen> {
   @override
   void initState() {
     super.initState();
+    final report = MunicipalReportDirectory.instance.byReferenceId(
+      widget.referenceId,
+    );
+    _data = report?.apiId == null
+        ? AssignTeamData.mock()
+        : AssignTeamData.fromReport(report!);
     _searchController.addListener(() => setState(() {}));
     final teams = MaintenanceTeamDirectory.instance.teams.value;
     if (teams.isNotEmpty) _selectedTeamId = teams.first.teamId;

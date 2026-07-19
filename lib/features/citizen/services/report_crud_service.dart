@@ -93,6 +93,7 @@ class ReportCrudService implements ReportsRepository {
         if (draft.latitude != null) 'latitude': '${draft.latitude}',
         if (draft.longitude != null) 'longitude': '${draft.longitude}',
         if (draft.region != null) 'region': draft.region!.name,
+        if (draft.assembly != null) 'assembly': draft.assembly!,
       },
       photoPaths: draft.photoPaths,
     );
@@ -192,9 +193,12 @@ class ReportCrudService implements ReportsRepository {
       latitude: (json['latitude'] as num?)?.toDouble(),
       longitude: (json['longitude'] as num?)?.toDouble(),
       region: _region(json['region'] as String?),
+      assembly: json['assembly'] as String?,
       photoCount: urls.length,
       photoPaths: urls.map(ApiClient.assetUrl).toList(),
       submittedAt: created,
+      rejectionReason: json['rejectionReason'] as String?,
+      rejectedAt: DateTime.tryParse(json['rejectedAt'] as String? ?? ''),
       timeLabel: created == null ? '' : _relative(created),
       status: _statusFromApi(json['status'] as String?),
     );

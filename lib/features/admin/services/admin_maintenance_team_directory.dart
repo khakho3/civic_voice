@@ -1,6 +1,10 @@
 import 'package:flutter/foundation.dart';
 
 import '../../../models/assembly.dart';
+import '../../../models/ghana_assemblies_data.dart';
+import '../../../models/region.dart';
+import '../../../services/api_client.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/admin_maintenance_team_data.dart';
 
 class MaintenanceTeamDirectory {
@@ -13,6 +17,43 @@ class MaintenanceTeamDirectory {
   );
 
   int _nextTeamNumber = 2;
+
+  Future<void> refreshForMunicipal() async {
+    final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+    if (token == null) throw StateError('A signed-in officer is required');
+    final rows = await ApiClient.instance.listMunicipalMaintenanceOptions(
+      idToken: token,
+    );
+    teams.value = [
+      for (final row in rows)
+        if (_assemblyFromApi(row) case final assembly?)
+          MaintenanceTeam(
+            teamId: row['id'] as String,
+            name: row['name'] as String,
+            region: assembly.region,
+            assembly: assembly,
+            memberUserIds: (row['members'] as List? ?? const [])
+                .whereType<Map<String, dynamic>>()
+                .map((member) => member['publicId'] as String)
+                .toList(),
+            createdAt: DateTime.now(),
+          ),
+    ];
+  }
+
+  Assembly? _assemblyFromApi(Map<String, dynamic> row) {
+    final regionName = row['region'] as String?;
+    final assemblyName = row['assembly'] as String?;
+    final region = Region.values.cast<Region?>().firstWhere(
+      (item) => item?.name == regionName,
+      orElse: () => null,
+    );
+    if (region == null || assemblyName == null) return null;
+    return (ghanaAssemblies[region] ?? const []).cast<Assembly?>().firstWhere(
+      (item) => item?.name == assemblyName,
+      orElse: () => null,
+    );
+  }
 
   MaintenanceTeam createTeam({
     required String name,

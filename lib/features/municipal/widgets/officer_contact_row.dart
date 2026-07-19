@@ -16,10 +16,12 @@ class OfficerContactRow extends StatelessWidget {
     super.key,
     required this.officerName,
     required this.officerPhone,
+    this.label = 'Assigned Officer',
   });
 
   final String officerName;
   final String officerPhone;
+  final String label;
 
   Future<void> _call(BuildContext context) =>
       _launch(context, Uri(scheme: 'tel', path: _digits));
@@ -64,7 +66,7 @@ class OfficerContactRow extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Assigned Officer',
+                label,
                 style: textTheme.labelSmall?.copyWith(
                   color: colorScheme.onSurfaceVariant,
                 ),

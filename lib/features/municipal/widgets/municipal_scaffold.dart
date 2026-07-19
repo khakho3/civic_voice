@@ -19,9 +19,9 @@ enum MunicipalTab {
     headerTitle: 'Active Reports',
   ),
   resolved(
-    label: 'Resolved',
+    label: 'Closed',
     icon: AppIcons.statusResolved,
-    headerTitle: 'Resolved Reports',
+    headerTitle: 'Closed Reports',
   );
 
   const MunicipalTab({

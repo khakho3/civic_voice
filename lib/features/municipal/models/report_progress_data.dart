@@ -1,4 +1,5 @@
 import '../../../models/report_status.dart';
+import 'incoming_report.dart';
 
 /// One entry in the Status Timeline card.
 class ProgressTimelineStep {
@@ -164,6 +165,68 @@ class ReportProgressData {
         // Matches Report Review's Citizen Information for this same report.
         reporterName: 'John Smith',
         evidencePhotoCount: 2,
+      ),
+    );
+  }
+
+  factory ReportProgressData.fromReport(IncomingReportItem report) {
+    final progress = report.progressPercent ?? 0;
+    final team = report.teamName ?? 'Maintenance team not assigned';
+    return ReportProgressData(
+      referenceId: report.referenceId,
+      title: report.title,
+      districtLabel: report.assembly ?? report.locationLabel,
+      officerName: report.reviewerName ?? 'Reviewing officer unavailable',
+      officerPhone: report.reviewerPhone ?? 'Contact unavailable',
+      status: report.status,
+      completionPercent: progress,
+      timeline: [
+        ProgressTimelineStep(
+          label: 'Submitted',
+          timestamp: report.timeAgo,
+          description: 'Citizen report received by Civic Voice.',
+        ),
+        if (report.hasReviewer)
+          ProgressTimelineStep(
+            label: 'Reviewed',
+            timestamp: report.updatedLabel ?? 'Completed',
+            description: '${report.reviewerName} reviewed the report.',
+          ),
+        if (report.teamName != null)
+          ProgressTimelineStep(
+            label: 'Assigned',
+            timestamp: report.updatedLabel ?? 'Assigned',
+            description: '$team is responsible for this report.',
+            isCurrent: report.status == ReportStatus.assigned,
+          ),
+        if (report.status == ReportStatus.inProgress)
+          ProgressTimelineStep(
+            label: 'In Progress',
+            timestamp: report.updatedLabel ?? 'In progress',
+            description: '$team reported $progress% completion.',
+            isCurrent: true,
+          ),
+      ],
+      latestUpdateTeam: team,
+      latestUpdateTimeAgo: report.updatedLabel ?? 'No update yet',
+      latestUpdateNote:
+          report.resolutionNotes ??
+          (report.status == ReportStatus.assigned
+              ? 'The assigned team has not posted a progress update yet.'
+              : 'Current completion reported at $progress%.'),
+      cachedActivity: const [],
+      caseSummary: CaseSummary(
+        referenceId: report.referenceId,
+        title: report.title,
+        resolutionDate: report.status == ReportStatus.resolved
+            ? (report.updatedAt ?? DateTime.now())
+                  .toLocal()
+                  .toString()
+                  .split(' ')
+                  .first
+            : 'Not resolved',
+        reporterName: report.citizenName ?? 'Citizen',
+        evidencePhotoCount: report.resolutionPhotoUrls.length,
       ),
     );
   }

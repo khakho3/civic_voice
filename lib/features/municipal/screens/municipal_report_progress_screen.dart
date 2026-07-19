@@ -4,6 +4,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../models/report_status.dart';
 import '../models/report_progress_data.dart';
+import '../services/municipal_report_directory.dart';
 import '../../../widgets/glass_card.dart';
 import '../../../widgets/kebab_menu_button.dart';
 import '../widgets/municipal_detail_header.dart';
@@ -59,11 +60,26 @@ class MunicipalReportProgressScreen extends StatefulWidget {
 class _MunicipalReportProgressScreenState
     extends State<MunicipalReportProgressScreen> {
   late MunicipalReportProgressViewState _state = widget.initialState;
-  final ReportProgressData _data = ReportProgressData.mock();
-  late int _evidenceCount =
-      widget.initialState == MunicipalReportProgressViewState.missingEvidence
-      ? 0
-      : _data.caseSummary.evidencePhotoCount;
+  late final bool _live;
+  late final ReportProgressData _data;
+  late int _evidenceCount;
+
+  @override
+  void initState() {
+    super.initState();
+    final report = MunicipalReportDirectory.instance.byReferenceId(
+      widget.referenceId,
+    );
+    _live = report?.apiId != null;
+    _data = _live
+        ? ReportProgressData.fromReport(report!)
+        : ReportProgressData.mock();
+    _evidenceCount =
+        widget.initialState == MunicipalReportProgressViewState.missingEvidence
+        ? 0
+        : _data.caseSummary.evidencePhotoCount;
+  }
+
   final _timelineKey = GlobalKey();
 
   bool get _canResolve => _evidenceCount > 0;
@@ -117,7 +133,8 @@ class _MunicipalReportProgressScreenState
 
   @override
   Widget build(BuildContext context) {
-    final showActionBar = _state != MunicipalReportProgressViewState.success;
+    final showActionBar =
+        !_live && _state != MunicipalReportProgressViewState.success;
     // widget.status is fixed at whatever it was when this screen opened —
     // it doesn't track _state, so without this the header would keep
     // showing e.g. "In Progress" even after the report's actually been

@@ -19,12 +19,14 @@ class MunicipalReportDirectory {
   final ValueNotifier<List<IncomingReportItem>> reports = ValueNotifier(
     IncomingReportItem.mock(),
   );
+  bool hasLiveSnapshot = false;
 
   Future<void> refresh() async {
     final token = await FirebaseAuth.instance.currentUser?.getIdToken();
     if (token == null) throw StateError('A signed-in officer is required');
     final response = await ApiClient.instance.listReports(idToken: token);
     reports.value = response.map(IncomingReportItem.fromApi).toList();
+    hasLiveSnapshot = true;
   }
 
   IncomingReportItem? byReferenceId(String referenceId) {
@@ -52,8 +54,15 @@ class MunicipalReportDirectory {
   }
 
   /// Dismisses an Inbox report as not actionable.
-  void reject(String referenceId) {
-    _update(referenceId, (r) => r.copyWith(status: ReportStatus.rejected));
+  void reject(String referenceId, String reason) {
+    _update(
+      referenceId,
+      (r) => r.copyWith(
+        status: ReportStatus.rejected,
+        rejectionReason: reason,
+        rejectedAt: DateTime.now(),
+      ),
+    );
   }
 
   /// The real "moves from Inbox to Active" transition — a team taking the
@@ -73,8 +82,27 @@ class MunicipalReportDirectory {
   Future<void> verifyOnServer(String referenceId) =>
       _updateOnServer(referenceId, const {'status': 'UNDER_REVIEW'});
 
-  Future<void> rejectOnServer(String referenceId) =>
-      _updateOnServer(referenceId, const {'status': 'REJECTED'});
+  Future<void> rejectOnServer(String referenceId, String reason) =>
+      _updateOnServer(referenceId, {
+        'status': 'REJECTED',
+        'rejectionReason': reason,
+      });
+
+  Future<IncomingReportItem> claimReviewOnServer(String referenceId) async {
+    final current = byReferenceId(referenceId);
+    if (current == null) throw StateError('Report not found');
+    if (current.hasReviewer) return current;
+    if (Firebase.apps.isEmpty) return current;
+    final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+    if (token == null) throw StateError('A signed-in officer is required');
+    final response = await ApiClient.instance.claimReportReview(
+      current.apiRecordId,
+      idToken: token,
+    );
+    final updated = IncomingReportItem.fromApi(response);
+    _update(referenceId, (_) => updated);
+    return updated;
+  }
 
   Future<void> assignTeamOnServer(String referenceId, String teamName) =>
       _updateOnServer(referenceId, {
@@ -97,7 +125,7 @@ class MunicipalReportDirectory {
         case 'UNDER_REVIEW':
           verify(referenceId);
         case 'REJECTED':
-          reject(referenceId);
+          reject(referenceId, fields['rejectionReason'] ?? 'Not actionable');
         case 'ASSIGNED':
           assignTeam(referenceId, fields['assignedTeamName'] ?? 'Assigned');
       }

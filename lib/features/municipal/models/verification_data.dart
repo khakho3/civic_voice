@@ -79,4 +79,38 @@ class VerificationData {
       ],
     );
   }
+
+  factory VerificationData.fromReport(IncomingReportItem report) {
+    return VerificationData(
+      referenceId: report.referenceId,
+      title: report.title,
+      locationSummary: '${report.locationLabel} · ${report.timeAgo}',
+      category: report.category,
+      citizenName: report.citizenName ?? 'Citizen',
+      officerName: report.citizenName ?? 'Citizen',
+      officerPhone: report.citizenPhone ?? 'Phone unavailable',
+      checklist: const [
+        ChecklistItem(
+          label: 'Issue confirmed',
+          description: 'Description matches the reported issue',
+        ),
+        ChecklistItem(
+          label: 'Photos reviewed',
+          description: 'Available evidence has been reviewed',
+        ),
+        ChecklistItem(
+          label: 'Location validated',
+          description: 'Location details match the report',
+        ),
+        ChecklistItem(
+          label: 'Not duplicate',
+          description: 'No open duplicate was identified',
+        ),
+        ChecklistItem(
+          label: 'Citizen contacted',
+          description: 'Optional — for follow-up questions',
+        ),
+      ],
+    );
+  }
 }

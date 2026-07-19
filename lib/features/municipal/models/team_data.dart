@@ -53,4 +53,15 @@ class AssignTeamData {
       officerPhone: '+233 24 555 0142',
     );
   }
+
+  factory AssignTeamData.fromReport(IncomingReportItem report) {
+    return AssignTeamData(
+      referenceId: report.referenceId,
+      title: report.title,
+      locationSummary: '${report.locationLabel} · ${report.timeAgo}',
+      category: report.category,
+      officerName: report.reviewerName ?? 'Reviewing officer',
+      officerPhone: report.reviewerPhone ?? 'Contact unavailable',
+    );
+  }
 }

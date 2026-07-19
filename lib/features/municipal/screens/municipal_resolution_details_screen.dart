@@ -3,6 +3,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../models/resolved_report.dart';
+import '../../../models/report_status.dart';
 import '../../../widgets/glass_card.dart';
 import '../widgets/municipal_detail_header.dart';
 
@@ -23,6 +24,7 @@ class MunicipalResolutionDetailsScreen extends StatefulWidget {
     this.initialState = MunicipalResolutionDetailsViewState.loaded,
     this.onBack,
     this.onArchive,
+    this.data,
   });
 
   final String referenceId;
@@ -34,6 +36,7 @@ class MunicipalResolutionDetailsScreen extends StatefulWidget {
   /// until that destination exists. "Share Summary" needed no such
   /// destination (see [_ActionBar]'s own `_shareSummary`) and is real now.
   final VoidCallback? onArchive;
+  final ResolvedReportItem? data;
 
   @override
   State<MunicipalResolutionDetailsScreen> createState() =>
@@ -49,7 +52,8 @@ class _MunicipalResolutionDetailsScreenState
   // item was actually tapped, the same simplification every other
   // list-to-detail flow in this module makes (e.g. Active Reports →
   // Report Progress).
-  final ResolvedReportItem _data = ResolvedReportItem.mock().first;
+  late final ResolvedReportItem _data =
+      widget.data ?? ResolvedReportItem.mock().first;
 
   @override
   Widget build(BuildContext context) {
@@ -79,7 +83,9 @@ class _MunicipalResolutionDetailsScreenState
           Align(
             alignment: Alignment.topCenter,
             child: MunicipalDetailHeader(
-              title: 'Resolution Details',
+              title: _data.isRejected
+                  ? 'Rejection Details'
+                  : 'Resolution Details',
               referenceId: widget.referenceId,
               onBack: widget.onBack,
             ),
@@ -113,7 +119,11 @@ class _DetailsBody extends StatelessWidget {
         const SizedBox(height: AppSpacing.md),
         _StatsRow(data: data),
         const SizedBox(height: AppSpacing.md),
-        _EvidenceCard(photoCount: data.evidencePhotoCount),
+        _EvidenceCard(
+          photoCount: data.evidencePhotoCount,
+          photoUrls: data.evidencePhotoUrls,
+          isRejected: data.isRejected,
+        ),
         const SizedBox(height: AppSpacing.md),
         _TimelineCard(data: data),
       ],
@@ -142,7 +152,7 @@ class _SummaryCard extends StatelessWidget {
                   style: textTheme.labelSmall?.copyWith(letterSpacing: 0.96),
                 ),
               ),
-              const _ResolvedBadge(),
+              _ClosedBadge(status: data.status),
             ],
           ),
           const SizedBox(height: 2),
@@ -165,7 +175,7 @@ class _SummaryCard extends StatelessWidget {
           // Duration deliberately not repeated here — it's the first stat
           // in the row directly below this card.
           _LabeledValue(
-            label: 'RESOLVED ON',
+            label: data.isRejected ? 'REJECTED ON' : 'RESOLVED ON',
             value: formatResolvedDate(data.resolvedDate),
           ),
         ],
@@ -174,31 +184,29 @@ class _SummaryCard extends StatelessWidget {
   }
 }
 
-class _ResolvedBadge extends StatelessWidget {
-  const _ResolvedBadge();
+class _ClosedBadge extends StatelessWidget {
+  const _ClosedBadge({required this.status});
+
+  final ReportStatus status;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
       decoration: BoxDecoration(
-        color: AppColors.success.withValues(alpha: 0.12),
-        border: Border.all(color: AppColors.success.withValues(alpha: 0.24)),
+        color: status.color.withValues(alpha: 0.12),
+        border: Border.all(color: status.color.withValues(alpha: 0.24)),
         borderRadius: AppRadius.allXl,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(
-            AppIcons.success,
-            size: AppIconSize.sm,
-            color: AppColors.success,
-          ),
+          Icon(status.icon, size: AppIconSize.sm, color: status.color),
           const SizedBox(width: 4),
           Text(
-            'Resolved',
+            status.label,
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: AppColors.success,
+              color: status.color,
               fontWeight: AppFontWeight.semiBold,
             ),
           ),
@@ -301,9 +309,15 @@ class _MiniStat extends StatelessWidget {
 }
 
 class _EvidenceCard extends StatelessWidget {
-  const _EvidenceCard({required this.photoCount});
+  const _EvidenceCard({
+    required this.photoCount,
+    required this.photoUrls,
+    required this.isRejected,
+  });
 
   final int photoCount;
+  final List<String> photoUrls;
+  final bool isRejected;
 
   @override
   Widget build(BuildContext context) {
@@ -314,20 +328,35 @@ class _EvidenceCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Text('Verified Evidence', style: textTheme.titleSmall),
+              Text(
+                isRejected ? 'Submitted Evidence' : 'Verified Evidence',
+                style: textTheme.titleSmall,
+              ),
               const Spacer(),
               Text('$photoCount Photos', style: textTheme.bodySmall),
             ],
           ),
           const SizedBox(height: AppSpacing.sm),
-          Row(
-            children: [
-              for (var i = 0; i < photoCount; i++) ...[
-                const Expanded(child: _VerifiedThumbnail()),
-                if (i != photoCount - 1) const SizedBox(width: AppSpacing.sm),
-              ],
-            ],
-          ),
+          if (photoUrls.isEmpty)
+            Text(
+              isRejected
+                  ? 'No citizen evidence was attached.'
+                  : 'No resolution photos were uploaded.',
+              style: textTheme.bodyMedium,
+            )
+          else
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: AppSpacing.sm,
+                mainAxisSpacing: AppSpacing.sm,
+              ),
+              itemCount: photoUrls.length,
+              itemBuilder: (_, index) =>
+                  _VerifiedThumbnail(url: photoUrls[index]),
+            ),
         ],
       ),
     );
@@ -335,7 +364,9 @@ class _EvidenceCard extends StatelessWidget {
 }
 
 class _VerifiedThumbnail extends StatelessWidget {
-  const _VerifiedThumbnail();
+  const _VerifiedThumbnail({required this.url});
+
+  final String url;
 
   @override
   Widget build(BuildContext context) {
@@ -345,15 +376,19 @@ class _VerifiedThumbnail extends StatelessWidget {
       child: Stack(
         children: [
           Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: colorScheme.surfaceContainer,
-                borderRadius: AppComponentRadius.inputField,
-              ),
-              child: Icon(
-                AppIcons.camera,
-                size: AppIconSize.lg,
-                color: colorScheme.onSurfaceVariant,
+            child: ClipRRect(
+              borderRadius: AppComponentRadius.inputField,
+              child: Image.network(
+                url,
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => ColoredBox(
+                  color: colorScheme.surfaceContainer,
+                  child: Icon(
+                    AppIcons.imageUnavailable,
+                    size: AppIconSize.lg,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
               ),
             ),
           ),
@@ -394,7 +429,10 @@ class _TimelineCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Resolution Timeline', style: textTheme.titleSmall),
+          Text(
+            data.isRejected ? 'Rejection Record' : 'Resolution Timeline',
+            style: textTheme.titleSmall,
+          ),
           const SizedBox(height: AppSpacing.md),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -421,7 +459,10 @@ class _TimelineCard extends StatelessWidget {
                     Row(
                       children: [
                         Expanded(
-                          child: Text('Resolved', style: textTheme.titleSmall),
+                          child: Text(
+                            data.isRejected ? 'Rejected' : 'Resolved',
+                            style: textTheme.titleSmall,
+                          ),
                         ),
                         Text(
                           '${formatResolvedDate(data.resolvedDate)} · '
@@ -530,10 +571,13 @@ class _ActionBar extends StatelessWidget {
         text:
             'Case ${data.referenceId} — ${data.title}\n'
             'Location: ${data.locationLabel}\n'
-            'Resolved: ${data.resolvedDate.toLocal().toString().split(' ').first} '
+            '${data.isRejected ? 'Rejected' : 'Resolved'}: '
+            '${data.resolvedDate.toLocal().toString().split(' ').first} '
             '(${data.durationDays} days, SLA ${data.slaPercent}%)\n\n'
             '${data.resolutionNote}',
-        subject: 'CivicVoice case ${data.referenceId} — resolved',
+        subject:
+            'CivicVoice case ${data.referenceId} — '
+            '${data.isRejected ? 'rejected' : 'resolved'}',
       ),
     );
   }

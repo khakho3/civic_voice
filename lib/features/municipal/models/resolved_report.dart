@@ -1,4 +1,5 @@
 import 'incoming_report.dart';
+import '../../../models/report_status.dart';
 
 /// A single resolved report shown on MUN-008 Resolved Reports (list card
 /// and its Resolution Details drill-down).
@@ -13,6 +14,8 @@ class ResolvedReportItem {
     required this.slaPercent,
     required this.evidencePhotoCount,
     required this.resolutionNote,
+    this.evidencePhotoUrls = const [],
+    this.status = ReportStatus.resolved,
   });
 
   final String referenceId;
@@ -34,9 +37,13 @@ class ResolvedReportItem {
   final int slaPercent;
   final int evidencePhotoCount;
   final String resolutionNote;
+  final List<String> evidencePhotoUrls;
+  final ReportStatus status;
+
+  bool get isRejected => status == ReportStatus.rejected;
 
   factory ResolvedReportItem.fromReport(IncomingReportItem report) {
-    final resolvedAt = report.updatedAt ?? DateTime.now();
+    final resolvedAt = report.rejectedAt ?? report.updatedAt ?? DateTime.now();
     final createdAt = report.createdAt ?? resolvedAt;
     final duration = resolvedAt.difference(createdAt).inDays;
     return ResolvedReportItem(
@@ -50,9 +57,16 @@ class ResolvedReportItem {
           '${resolvedAt.hour >= 12 ? 'PM' : 'AM'}',
       durationDays: duration < 1 ? 1 : duration,
       slaPercent: duration <= 3 ? 100 : 0,
-      evidencePhotoCount: report.resolutionPhotoUrls.length,
-      resolutionNote:
-          report.resolutionNotes ?? 'No resolution note was provided.',
+      evidencePhotoCount: report.status == ReportStatus.rejected
+          ? report.photoUrls.length
+          : report.resolutionPhotoUrls.length,
+      resolutionNote: report.status == ReportStatus.rejected
+          ? report.rejectionReason ?? 'No rejection reason was recorded.'
+          : report.resolutionNotes ?? 'No resolution note was provided.',
+      evidencePhotoUrls: report.status == ReportStatus.rejected
+          ? report.photoUrls
+          : report.resolutionPhotoUrls,
+      status: report.status,
     );
   }
 
@@ -173,6 +187,34 @@ class ResolvedReportStats {
     avgResolutionDays: 2.4,
     slaMetPercent: 94,
   );
+
+  factory ResolvedReportStats.fromReports(List<ResolvedReportItem> reports) {
+    reports = reports.where((report) => !report.isRejected).toList();
+    final now = DateTime.now();
+    final thisMonth = reports
+        .where(
+          (report) =>
+              report.resolvedDate.year == now.year &&
+              report.resolvedDate.month == now.month,
+        )
+        .toList();
+    final source = thisMonth.isEmpty ? reports : thisMonth;
+    final average = source.isEmpty
+        ? 0.0
+        : source.fold<int>(0, (sum, report) => sum + report.durationDays) /
+              source.length;
+    final sla = source.isEmpty
+        ? 0
+        : (source.where((report) => report.slaPercent == 100).length /
+                  source.length *
+                  100)
+              .round();
+    return ResolvedReportStats(
+      resolvedThisMonth: thisMonth.length,
+      avgResolutionDays: average,
+      slaMetPercent: sla,
+    );
+  }
 }
 
 /// Simple manual "MMM d, yyyy" formatter — no `intl` dependency for this

@@ -49,6 +49,8 @@ class MunicipalProfileScreen extends StatefulWidget {
     this.onBack,
     this.onChangePassword,
     this.onLogOut,
+    this.initialProfile,
+    this.onSaveProfile,
   });
 
   final MunicipalProfileViewState initialState;
@@ -64,6 +66,8 @@ class MunicipalProfileScreen extends StatefulWidget {
   /// Fired after the log-out confirmation dialog is accepted. Nullable:
   /// there's no real authentication flow to sign out of yet.
   final VoidCallback? onLogOut;
+  final OfficerProfile? initialProfile;
+  final Future<bool> Function(String fullName)? onSaveProfile;
 
   @override
   State<MunicipalProfileScreen> createState() => _MunicipalProfileScreenState();
@@ -71,10 +75,8 @@ class MunicipalProfileScreen extends StatefulWidget {
 
 class _MunicipalProfileScreenState extends State<MunicipalProfileScreen> {
   late MunicipalProfileViewState _state = widget.initialState;
-  OfficerProfile _profile = OfficerProfile.mock();
+  late OfficerProfile _profile = widget.initialProfile ?? OfficerProfile.mock();
   late final _nameController = TextEditingController(text: _profile.name);
-  late final _emailController = TextEditingController(text: _profile.email);
-  late final _phoneController = TextEditingController(text: _profile.phone);
   Map<String, String> _fieldErrors = {};
 
   @override
@@ -92,8 +94,6 @@ class _MunicipalProfileScreenState extends State<MunicipalProfileScreen> {
   @override
   void dispose() {
     _nameController.dispose();
-    _emailController.dispose();
-    _phoneController.dispose();
     super.dispose();
   }
 
@@ -106,15 +106,13 @@ class _MunicipalProfileScreenState extends State<MunicipalProfileScreen> {
 
   void _cancel() {
     _nameController.text = _profile.name;
-    _emailController.text = _profile.email;
-    _phoneController.text = _profile.phone;
     setState(() {
       _fieldErrors = {};
       _state = MunicipalProfileViewState.loaded;
     });
   }
 
-  void _save() {
+  Future<void> _save() async {
     final name = _nameController.text.trim();
 
     final errors = <String, String>{};
@@ -127,17 +125,15 @@ class _MunicipalProfileScreenState extends State<MunicipalProfileScreen> {
     if (errors.isNotEmpty) return;
 
     setState(() => _state = MunicipalProfileViewState.loading);
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (!mounted) return;
-      setState(() {
-        _profile = _profile.copyWith(name: name);
-        _state = MunicipalProfileViewState.success;
-      });
-      Future.delayed(const Duration(seconds: 3), () {
-        if (mounted && _state == MunicipalProfileViewState.success) {
-          setState(() => _state = MunicipalProfileViewState.loaded);
-        }
-      });
+    final saved = await widget.onSaveProfile?.call(name) ?? true;
+    if (!mounted) return;
+    if (!saved) {
+      setState(() => _state = MunicipalProfileViewState.error);
+      return;
+    }
+    setState(() {
+      _profile = _profile.copyWith(name: name);
+      _state = MunicipalProfileViewState.success;
     });
   }
 
@@ -191,8 +187,6 @@ class _MunicipalProfileScreenState extends State<MunicipalProfileScreen> {
                       MunicipalProfileViewState.error => _ProfileEditForm(
                         profile: _profile,
                         nameController: _nameController,
-                        emailController: _emailController,
-                        phoneController: _phoneController,
                         fieldErrors: _fieldErrors,
                       ),
                     },
@@ -343,13 +337,11 @@ class _ProfileView extends StatelessWidget {
           icon: AppIcons.profile,
           title: 'Contact Information',
           children: [
-            ProfileFieldRow(label: 'Email', value: profile.email),
-            const SizedBox(height: AppSpacing.sm),
             ProfileFieldRow(label: 'Phone', value: profile.phone),
             const SizedBox(height: AppSpacing.sm),
-            ProfileFieldRow(label: 'Department', value: profile.department),
+            ProfileFieldRow(label: 'Assembly', value: profile.department),
             const SizedBox(height: AppSpacing.sm),
-            ProfileFieldRow(label: 'Reports To', value: profile.reportsTo),
+            ProfileFieldRow(label: 'Region', value: profile.region),
           ],
         ),
         const SizedBox(height: AppSpacing.lg),
@@ -434,15 +426,11 @@ class _ProfileEditForm extends StatelessWidget {
   const _ProfileEditForm({
     required this.profile,
     required this.nameController,
-    required this.emailController,
-    required this.phoneController,
     required this.fieldErrors,
   });
 
   final OfficerProfile profile;
   final TextEditingController nameController;
-  final TextEditingController emailController;
-  final TextEditingController phoneController;
   final Map<String, String> fieldErrors;
 
   @override
@@ -473,22 +461,18 @@ class _ProfileEditForm extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.sm),
             ProfileFieldRow(
-              label: 'Email Address',
-              controller: emailController,
-              caption: 'Contact your administrator to change this',
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            ProfileFieldRow(
               label: 'Phone Number',
-              controller: phoneController,
+              value: profile.phone,
               caption: 'Contact your administrator to change this',
             ),
             const SizedBox(height: AppSpacing.sm),
             ProfileFieldRow(
-              label: 'Department',
+              label: 'Assembly',
               value: profile.department,
               caption: 'Set by your administrator',
             ),
+            const SizedBox(height: AppSpacing.sm),
+            ProfileFieldRow(label: 'Region', value: profile.region),
           ],
         ),
       ],

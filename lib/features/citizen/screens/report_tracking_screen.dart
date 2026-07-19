@@ -349,8 +349,10 @@ class _TrackingProgress extends StatelessWidget {
                   ),
                   const SizedBox(height: AppSpacing.xs),
                   Text(
-                    'This report was reviewed and could not be accepted. '
-                    'No further updates will follow.',
+                    report.rejectionReason?.trim().isNotEmpty == true
+                        ? 'Reason: ${report.rejectionReason}'
+                        : 'This report was reviewed and could not be accepted. '
+                              'No further updates will follow.',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.secondary,
                     ),
@@ -558,7 +560,9 @@ class _LatestUpdateCard extends StatelessWidget {
         'Public Works started repair work for this report.',
       ReportStatus.resolved => 'The report has been resolved and closed.',
       ReportStatus.rejected =>
-        'This report was reviewed and could not be accepted.',
+        report.rejectionReason?.trim().isNotEmpty == true
+            ? 'Rejected: ${report.rejectionReason}'
+            : 'This report was reviewed and could not be accepted.',
     };
 
     return CivicGlassCard(

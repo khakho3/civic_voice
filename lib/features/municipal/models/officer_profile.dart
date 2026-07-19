@@ -6,10 +6,10 @@ class OfficerProfile {
     required this.role,
     required this.employeeId,
     required this.verifiedOfficial,
-    required this.email,
     required this.phone,
     required this.department,
-    required this.reportsTo,
+    required this.region,
+    this.avatarUrl,
   });
 
   final String name;
@@ -17,24 +17,24 @@ class OfficerProfile {
   final String employeeId;
   final bool verifiedOfficial;
 
-  final String email;
   final String phone;
 
   /// Assigned by an administrator, not self-service — shown read-only on
   /// the edit form rather than as an editable field.
   final String department;
-  final String reportsTo;
+  final String region;
+  final String? avatarUrl;
 
-  OfficerProfile copyWith({String? name, String? email, String? phone}) {
+  OfficerProfile copyWith({String? name, String? phone, String? avatarUrl}) {
     return OfficerProfile(
       name: name ?? this.name,
       role: role,
       employeeId: employeeId,
       verifiedOfficial: verifiedOfficial,
-      email: email ?? this.email,
       phone: phone ?? this.phone,
       department: department,
-      reportsTo: reportsTo,
+      region: region,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
     );
   }
 
@@ -46,10 +46,9 @@ class OfficerProfile {
       role: 'Senior Municipal Coordinator',
       employeeId: 'MC-4092',
       verifiedOfficial: true,
-      email: 'alex.johnston@city.gov',
       phone: '+233 24 555 0142',
-      department: 'Urban Planning & Dev',
-      reportsTo: 'Director M. Chen',
+      department: 'Springfield District',
+      region: 'Greater Accra',
     );
   }
 }
