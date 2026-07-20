@@ -10,6 +10,8 @@ import '../services/dashboard_state_service.dart';
 import '../services/location_service.dart';
 import '../services/profile_crud_service.dart';
 import '../services/report_crud_service.dart';
+import '../../../widgets/stat_tile.dart';
+import '../../../widgets/status_badge.dart';
 import '../widgets/civic_app_chrome.dart';
 import 'citizen_alerts_screen.dart';
 import 'citizen_profile_screen.dart';
@@ -381,6 +383,26 @@ class _DashboardContent extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.xl),
             ],
+            ValueListenableBuilder<CitizenProfile>(
+              valueListenable: ProfileCrudService.instance.profile,
+              builder: (context, profile, _) {
+                if (!profile.isGuest) return const SizedBox.shrink();
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.xl),
+                  child: _InlineStateBanner(
+                    icon: AppIcons.profile,
+                    title: "You're browsing as a guest",
+                    message:
+                        'Reports you submit are saved and trackable right '
+                        "here. Create a free account so they're tied to "
+                        "you permanently, even if you switch devices.",
+                    actionLabel: 'Create Account',
+                    onAction: () =>
+                        Navigator.of(context).pushNamed('/registration'),
+                  ),
+                );
+              },
+            ),
             const _QuickActionGrid(),
             const SizedBox(height: AppSpacing.xl),
             _AnalyticsRow(reports: reports),
@@ -690,15 +712,7 @@ class _QuickActionCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Container(
-                width: AppIconSize.xl,
-                height: AppIconSize.xl,
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.1),
-                  borderRadius: AppRadius.allLg,
-                ),
-                child: Icon(icon, color: AppColors.primary),
-              ),
+              Icon(icon, color: AppColors.primary, size: AppIconSize.lg),
               const SizedBox(height: AppSpacing.md),
               Text(title, style: theme.textTheme.titleSmall),
               const SizedBox(height: AppSpacing.xs),
@@ -739,25 +753,25 @@ class _AnalyticsRow extends StatelessWidget {
     return Row(
       children: [
         Expanded(
-          child: _AnalyticsCard(
+          child: StatTile(
             icon: AppIcons.statusSubmitted,
-            count: submittedCount.toString(),
+            value: submittedCount.toString(),
             label: 'Submitted',
           ),
         ),
-        const SizedBox(width: AppSpacing.md),
+        const StatTileDivider(),
         Expanded(
-          child: _AnalyticsCard(
+          child: StatTile(
             icon: AppIcons.statusUnderReview,
-            count: reviewCount.toString(),
+            value: reviewCount.toString(),
             label: 'In Review',
           ),
         ),
-        const SizedBox(width: AppSpacing.md),
+        const StatTileDivider(),
         Expanded(
-          child: _AnalyticsCard(
+          child: StatTile(
             icon: AppIcons.statusResolved,
-            count: resolvedCount.toString(),
+            value: resolvedCount.toString(),
             label: 'Resolved',
           ),
         ),
@@ -774,63 +788,29 @@ class _EmptyAnalyticsRow extends StatelessWidget {
     return const Row(
       children: [
         Expanded(
-          child: _AnalyticsCard(
+          child: StatTile(
             icon: AppIcons.statusSubmitted,
-            count: '0',
+            value: '0',
             label: 'Submitted',
           ),
         ),
-        SizedBox(width: AppSpacing.md),
+        StatTileDivider(),
         Expanded(
-          child: _AnalyticsCard(
+          child: StatTile(
             icon: AppIcons.statusUnderReview,
-            count: '0',
+            value: '0',
             label: 'In Review',
           ),
         ),
-        SizedBox(width: AppSpacing.md),
+        StatTileDivider(),
         Expanded(
-          child: _AnalyticsCard(
+          child: StatTile(
             icon: AppIcons.statusResolved,
-            count: '0',
+            value: '0',
             label: 'Resolved',
           ),
         ),
       ],
-    );
-  }
-}
-
-class _AnalyticsCard extends StatelessWidget {
-  const _AnalyticsCard({
-    required this.icon,
-    required this.count,
-    required this.label,
-  });
-
-  final IconData icon;
-  final String count;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return CivicGlassCard(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      child: Column(
-        children: [
-          Icon(icon, color: AppColors.primary),
-          const SizedBox(height: AppSpacing.sm),
-          Text(count, style: theme.textTheme.headlineMedium),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            label,
-            style: theme.textTheme.labelMedium,
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
     );
   }
 }
@@ -961,7 +941,7 @@ class _ReportListTile extends StatelessWidget {
                         const SizedBox(height: AppSpacing.md),
                         Align(
                           alignment: Alignment.centerLeft,
-                          child: _StatusChip(status: report.status),
+                          child: ReportStatusBadge(status: report.status),
                         ),
                       ],
                     )
@@ -969,7 +949,7 @@ class _ReportListTile extends StatelessWidget {
                       children: [
                         Expanded(child: _ReportTileMainContent(report: report)),
                         const SizedBox(width: AppSpacing.sm),
-                        _StatusChip(status: report.status),
+                        ReportStatusBadge(status: report.status),
                       ],
                     ),
             ),
@@ -991,14 +971,10 @@ class _ReportTileMainContent extends StatelessWidget {
 
     return Row(
       children: [
-        Container(
-          width: AppIconSize.xl,
-          height: AppIconSize.xl,
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerLow,
-            borderRadius: const BorderRadius.all(Radius.circular(999)),
-          ),
-          child: const Icon(AppIcons.report),
+        Icon(
+          AppIcons.report,
+          size: AppIconSize.md,
+          color: theme.colorScheme.onSurfaceVariant,
         ),
         const SizedBox(width: AppSpacing.md),
         Expanded(
@@ -1026,53 +1002,20 @@ class _ReportTileMainContent extends StatelessWidget {
   }
 }
 
-class _StatusChip extends StatelessWidget {
-  const _StatusChip({required this.status});
-
-  final ReportStatus status;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = status.color;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xs,
-      ),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        border: Border.all(color: color.withValues(alpha: 0.24)),
-        borderRadius: const BorderRadius.all(Radius.circular(999)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(status.icon, size: AppIconSize.sm, color: color),
-          const SizedBox(width: AppSpacing.xs),
-          Text(
-            status.label,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: color,
-              fontWeight: AppFontWeight.semiBold,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _InlineStateBanner extends StatelessWidget {
   const _InlineStateBanner({
     required this.icon,
     required this.title,
     required this.message,
+    this.actionLabel,
+    this.onAction,
   });
 
   final IconData icon;
   final String title;
   final String message;
+  final String? actionLabel;
+  final VoidCallback? onAction;
 
   @override
   Widget build(BuildContext context) {
@@ -1092,6 +1035,17 @@ class _InlineStateBanner extends StatelessWidget {
                 Text(title, style: theme.textTheme.titleSmall),
                 const SizedBox(height: AppSpacing.xs),
                 Text(message, style: theme.textTheme.bodySmall),
+                if (actionLabel != null && onAction != null) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton(
+                      onPressed: onAction,
+                      style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                      child: Text(actionLabel!),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

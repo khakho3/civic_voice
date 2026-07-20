@@ -6,6 +6,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../models/assembly.dart';
 import '../../../widgets/app_state_message.dart';
 import '../../../widgets/glass_card.dart';
+import '../../../widgets/stat_tile.dart';
 import '../models/admin_dashboard_data.dart';
 import '../models/admin_profile_data.dart';
 import '../models/admin_system_activity_data.dart';
@@ -459,20 +460,20 @@ class _LoadedContent extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Expanded(
-                child: _StatCard(
+                child: StatTile(
                   icon: AppIcons.team,
-                  tint: AppColors.primary,
+                  iconColor: AppColors.primary,
                   label: 'Total Users',
                   value: _formatThousands(stats.totalUsers),
                   delta: '+${stats.totalUsersChangePercent}%',
                   deltaColor: AppColors.statusResolved,
                 ),
               ),
-              const SizedBox(width: AppSpacing.sm),
+              const StatTileDivider(),
               Expanded(
-                child: _StatCard(
+                child: StatTile(
                   icon: AppIcons.shield,
-                  tint: AppColors.statusResolved,
+                  iconColor: AppColors.statusResolved,
                   label: 'Active Roles',
                   value: '${stats.activeRoles}',
                   delta: '+${stats.activeRolesChangePercent}%',
@@ -488,20 +489,20 @@ class _LoadedContent extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Expanded(
-                child: _StatCard(
+                child: StatTile(
                   icon: AppIcons.activityPulse,
-                  tint: AppColors.primary,
+                  iconColor: AppColors.primary,
                   label: 'Admin Actions',
                   value: stats.adminActionsLabel,
                   delta: '24h',
                   deltaColor: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
-              const SizedBox(width: AppSpacing.sm),
+              const StatTileDivider(),
               Expanded(
-                child: _StatCard(
+                child: StatTile(
                   icon: AppIcons.warning,
-                  tint: AppColors.warning,
+                  iconColor: AppColors.warning,
                   label: 'Open Alerts',
                   value: '${stats.openAlerts}',
                   delta: 'Review',
@@ -594,67 +595,6 @@ class _LoadedContent extends StatelessWidget {
   }
 }
 
-class _StatCard extends StatelessWidget {
-  const _StatCard({
-    required this.icon,
-    required this.tint,
-    required this.label,
-    required this.value,
-    required this.delta,
-    required this.deltaColor,
-  });
-
-  final IconData icon;
-  final Color tint;
-  final String label;
-  final String value;
-  final String delta;
-  final Color deltaColor;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    return GlassCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                width: AppIconSize.lg,
-                height: AppIconSize.lg,
-                decoration: BoxDecoration(
-                  color: tint.withValues(alpha: 0.12),
-                  borderRadius: AppRadius.allSm,
-                ),
-                child: Icon(icon, size: AppIconSize.sm + 2, color: tint),
-              ),
-              Text(
-                delta,
-                style: textTheme.labelMedium?.copyWith(color: deltaColor),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            label,
-            style: textTheme.bodySmall,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          Text(
-            value,
-            style: textTheme.titleLarge,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _ManagementRow extends StatelessWidget {
   const _ManagementRow({
     required this.icon,
@@ -676,15 +616,7 @@ class _ManagementRow extends StatelessWidget {
       onTap: onTap,
       child: Row(
         children: [
-          Container(
-            width: AppDimensions.controlHeightStandard,
-            height: AppDimensions.controlHeightStandard,
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.12),
-              borderRadius: AppRadius.allSm,
-            ),
-            child: Icon(icon, size: AppIconSize.md, color: AppColors.primary),
-          ),
+          Icon(icon, size: AppIconSize.lg, color: AppColors.primary),
           const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(

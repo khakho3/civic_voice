@@ -6,6 +6,8 @@ import '../../../services/notification_directory.dart';
 import '../widgets/civic_glass_card.dart';
 import '../services/report_crud_service.dart';
 import '../services/notification_permission_service.dart';
+import '../../../widgets/stat_tile.dart';
+import '../../../widgets/status_badge.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../widgets/civic_app_chrome.dart';
 import 'citizen_profile_screen.dart';
@@ -233,7 +235,11 @@ class _NotificationSummary extends StatelessWidget {
                   ),
                 ),
               ),
-              _UnreadBadge(count: unreadCount),
+              TintedBadge(
+                label: '$unreadCount unread',
+                color: AppColors.primary,
+                textColor: AppColors.primary,
+              ),
             ],
           ),
           const SizedBox(height: AppSpacing.md),
@@ -246,44 +252,17 @@ class _NotificationSummary extends StatelessWidget {
                   selected: true,
                 ),
               ),
-              const SizedBox(width: AppSpacing.sm),
+              const StatTileDivider(),
               Expanded(
                 child: _SummaryTile(label: 'Unread', count: unreadCount),
               ),
-              const SizedBox(width: AppSpacing.sm),
+              const StatTileDivider(),
               Expanded(
                 child: _SummaryTile(label: 'Read', count: readCount),
               ),
             ],
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _UnreadBadge extends StatelessWidget {
-  const _UnreadBadge({required this.count});
-
-  final int count;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xs,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.primary.withValues(alpha: 0.1),
-        borderRadius: AppRadius.allXl,
-      ),
-      child: Text(
-        '$count unread',
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: AppColors.primary,
-          fontWeight: AppFontWeight.bold,
-        ),
       ),
     );
   }
@@ -303,38 +282,35 @@ class _SummaryTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final foreground = selected ? Colors.white : theme.colorScheme.onSurface;
+    // Borderless — "selected" (the "All" tile) reads via primary-tinted
+    // text/weight instead of a filled block background, same idea as
+    // StatTile elsewhere. Three of these next to each other no longer
+    // needs to be three separate boxed tiles.
+    final foreground = selected
+        ? AppColors.primary
+        : theme.colorScheme.onSurface;
 
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: selected ? AppColors.primary : theme.colorScheme.surface,
-        borderRadius: AppRadius.allMd,
-        border: Border.all(
-          color: selected
-              ? AppColors.primary
-              : theme.colorScheme.outlineVariant,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          count.toString(),
+          style: theme.textTheme.titleLarge?.copyWith(
+            color: foreground,
+            fontWeight: AppFontWeight.bold,
+          ),
         ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            count.toString(),
-            style: theme.textTheme.titleLarge?.copyWith(
-              color: foreground,
-              fontWeight: AppFontWeight.bold,
-            ),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: selected ? AppColors.primary : theme.colorScheme.secondary,
+            fontWeight: selected ? AppFontWeight.semiBold : null,
           ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.labelSmall?.copyWith(color: foreground),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -408,7 +384,11 @@ class _NotificationCard extends StatelessWidget {
                   runSpacing: AppSpacing.sm,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    _NotificationTag(label: notification.category),
+                    TintedBadge(
+                      label: notification.category,
+                      color: AppColors.primary,
+                      textColor: AppColors.primary,
+                    ),
                     Text(
                       notification.referenceId ?? 'Reference pending',
                       style: theme.textTheme.labelSmall?.copyWith(
@@ -486,33 +466,6 @@ class _UnreadDot extends StatelessWidget {
       decoration: const BoxDecoration(
         color: AppColors.primary,
         shape: BoxShape.circle,
-      ),
-    );
-  }
-}
-
-class _NotificationTag extends StatelessWidget {
-  const _NotificationTag({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xs,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.primary.withValues(alpha: 0.1),
-        borderRadius: AppRadius.allXl,
-      ),
-      child: Text(
-        label,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: AppColors.primary,
-          fontWeight: AppFontWeight.bold,
-        ),
       ),
     );
   }

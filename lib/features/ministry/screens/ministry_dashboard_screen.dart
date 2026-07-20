@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../widgets/app_state_message.dart';
 import '../../../widgets/glass_card.dart';
+import '../../../widgets/stat_tile.dart';
 import '../models/ministry_dashboard_data.dart';
 import '../models/municipal_performance_data.dart';
 import '../widgets/ministry_scaffold.dart';
@@ -256,20 +257,20 @@ class _StatsGrid extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Expanded(
-                child: _StatCard(
+                child: StatTile(
                   icon: AppIcons.report,
-                  tint: AppColors.primary,
+                  iconColor: AppColors.primary,
                   label: 'Total Reports',
                   value: _formatCount(stats.totalReports),
                   delta: '+${stats.totalReportsChangePercent}%',
                   deltaColor: AppColors.primary,
                 ),
               ),
-              const SizedBox(width: AppSpacing.sm),
+              const StatTileDivider(),
               Expanded(
-                child: _StatCard(
+                child: StatTile(
                   icon: AppIcons.warning,
-                  tint: AppColors.statusUnderReview,
+                  iconColor: AppColors.statusUnderReview,
                   label: 'Under Review',
                   value: _formatCount(stats.underReview),
                   delta: '${stats.underReviewPercent}%',
@@ -285,20 +286,20 @@ class _StatsGrid extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Expanded(
-                child: _StatCard(
+                child: StatTile(
                   icon: AppIcons.success,
-                  tint: AppColors.statusResolved,
+                  iconColor: AppColors.statusResolved,
                   label: 'Resolved',
                   value: _formatCount(stats.resolved),
                   delta: '${stats.resolvedPercent}%',
                   deltaColor: AppColors.statusResolved,
                 ),
               ),
-              const SizedBox(width: AppSpacing.sm),
+              const StatTileDivider(),
               Expanded(
-                child: _StatCard(
+                child: StatTile(
                   icon: AppIcons.municipality,
-                  tint: AppColors.statusAssigned,
+                  iconColor: AppColors.statusAssigned,
                   label: 'Municipalities',
                   value: '${stats.activeMunicipalities}',
                   delta: 'Active',
@@ -317,69 +318,6 @@ class _StatsGrid extends StatelessWidget {
     final thousands = value / 1000;
     final rounded = (thousands * 10).round() / 10;
     return '${rounded % 1 == 0 ? rounded.toInt() : rounded}K';
-  }
-}
-
-class _StatCard extends StatelessWidget {
-  const _StatCard({
-    required this.icon,
-    required this.tint,
-    required this.label,
-    required this.value,
-    required this.delta,
-    required this.deltaColor,
-  });
-
-  final IconData icon;
-  final Color tint;
-  final String label;
-  final String value;
-  final String delta;
-  final Color deltaColor;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    return GlassCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: AppIconSize.lg,
-            height: AppIconSize.lg,
-            decoration: BoxDecoration(
-              color: tint.withValues(alpha: 0.12),
-              borderRadius: AppRadius.allSm,
-            ),
-            child: Icon(icon, size: AppIconSize.sm + 2, color: tint),
-          ),
-          const Spacer(),
-          Text(
-            label,
-            style: textTheme.bodySmall,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 2),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
-              Text(value, style: textTheme.titleLarge),
-              const SizedBox(width: AppSpacing.xs),
-              Flexible(
-                child: Text(
-                  delta,
-                  style: textTheme.labelMedium?.copyWith(color: deltaColor),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
   }
 }
 
@@ -493,7 +431,7 @@ class _QuickInsightsGrid extends StatelessWidget {
                   sublabel: '${insights.submittedPercent}% of national reports',
                 ),
               ),
-              const SizedBox(width: AppSpacing.sm),
+              const StatTileDivider(),
               Expanded(
                 child: _QuickInsightCard(
                   dotColor: AppColors.statusUnderReview,
@@ -517,7 +455,7 @@ class _QuickInsightsGrid extends StatelessWidget {
                   sublabel: '${insights.assignedPercent}% of national reports',
                 ),
               ),
-              const SizedBox(width: AppSpacing.sm),
+              const StatTileDivider(),
               Expanded(
                 child: _QuickInsightCard(
                   dotColor: AppColors.statusInProgress,
@@ -548,30 +486,31 @@ class _QuickInsightCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    return GlassCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            label,
-            style: textTheme.titleSmall,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          Text(
-            sublabel,
-            style: textTheme.bodySmall,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
-      ),
+    // Borderless, matching StatTile's spirit — a colored dot carries the
+    // same "which status is this" signal a full card border used to,
+    // without needing its own bordered box.
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Text(
+          label,
+          style: textTheme.titleSmall,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        Text(
+          sublabel,
+          style: textTheme.bodySmall,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
     );
   }
 }

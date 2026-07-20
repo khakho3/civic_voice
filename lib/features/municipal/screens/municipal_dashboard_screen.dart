@@ -382,7 +382,6 @@ class _StatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    final semantic = Theme.of(context).extension<AppSemanticColors>()!;
     return GlassCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -400,19 +399,7 @@ class _StatCard extends StatelessWidget {
                         ),
                       ),
               ),
-              Container(
-                width: AppIconSize.lg,
-                height: AppIconSize.lg,
-                decoration: BoxDecoration(
-                  color: semantic.iconBadgeSurface,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  icon,
-                  size: AppIconSize.sm + 2,
-                  color: AppColors.primary,
-                ),
-              ),
+              Icon(icon, size: AppIconSize.md, color: AppColors.primary),
             ],
           ),
           const Spacer(),
@@ -594,18 +581,10 @@ class _ReportRowIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: AppDimensions.controlHeightStandard,
-      height: AppDimensions.controlHeightStandard,
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainer,
-        borderRadius: AppComponentRadius.inputField,
-      ),
-      child: Icon(
-        AppIcons.report,
-        size: AppIconSize.md,
-        color: Theme.of(context).colorScheme.onSurfaceVariant,
-      ),
+    return Icon(
+      AppIcons.report,
+      size: AppIconSize.lg,
+      color: Theme.of(context).colorScheme.onSurfaceVariant,
     );
   }
 }
