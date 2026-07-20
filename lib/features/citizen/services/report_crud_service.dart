@@ -201,6 +201,7 @@ class ReportCrudService implements ReportsRepository {
       rejectedAt: DateTime.tryParse(json['rejectedAt'] as String? ?? ''),
       timeLabel: created == null ? '' : _relative(created),
       status: _statusFromApi(json['status'] as String?),
+      hasMunicipalCoverage: json['hasMunicipalCoverage'] as bool?,
     );
   }
 }

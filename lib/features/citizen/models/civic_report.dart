@@ -23,6 +23,7 @@ class CivicReport {
     this.rejectedAt,
     required this.timeLabel,
     required this.status,
+    this.hasMunicipalCoverage,
   });
 
   final String id;
@@ -52,6 +53,14 @@ class CivicReport {
   final DateTime? rejectedAt;
   final String timeLabel;
   final ReportStatus status;
+
+  /// Whether the report's region/assembly currently has an active Municipal
+  /// Officer covering it — null means region/assembly hasn't been resolved
+  /// yet. Computed fresh by the backend on every read (see reports.js's
+  /// coverageForPairs), so it naturally flips to true the moment an officer
+  /// is provisioned for a previously-uncovered area, with no migration or
+  /// stored flag needed on this end.
+  final bool? hasMunicipalCoverage;
 
   factory CivicReport.fromMap(Map<String, Object?> map) {
     final statusName = map['status'] as String?;
@@ -83,6 +92,7 @@ class CivicReport {
         (status) => status.name == statusName,
         orElse: () => ReportStatus.submitted,
       ),
+      hasMunicipalCoverage: map['hasMunicipalCoverage'] as bool?,
     );
   }
 
@@ -106,6 +116,7 @@ class CivicReport {
       'rejectedAt': rejectedAt?.toIso8601String(),
       'timeLabel': timeLabel,
       'status': status.name,
+      'hasMunicipalCoverage': hasMunicipalCoverage,
     };
   }
 
@@ -128,6 +139,7 @@ class CivicReport {
     DateTime? rejectedAt,
     String? timeLabel,
     ReportStatus? status,
+    bool? hasMunicipalCoverage,
   }) {
     return CivicReport(
       id: id ?? this.id,
@@ -148,6 +160,7 @@ class CivicReport {
       rejectedAt: rejectedAt ?? this.rejectedAt,
       timeLabel: timeLabel ?? this.timeLabel,
       status: status ?? this.status,
+      hasMunicipalCoverage: hasMunicipalCoverage ?? this.hasMunicipalCoverage,
     );
   }
 }

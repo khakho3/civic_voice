@@ -71,6 +71,7 @@ class ReviewReportScreen extends StatelessWidget {
             reportCategory: reportCategory,
             reportLocationLabel: reportLocationLabel,
             photoCount: photos.length,
+            hasMunicipalCoverage: report.hasMunicipalCoverage,
           ),
         ),
         (route) => route.isFirst,

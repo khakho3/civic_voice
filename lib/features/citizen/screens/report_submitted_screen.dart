@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../widgets/pending_coverage_notice.dart';
 import '../widgets/civic_glass_card.dart';
 import '../widgets/civic_app_chrome.dart';
 import 'citizen_alerts_screen.dart';
@@ -18,6 +19,7 @@ class ReportSubmittedScreen extends StatefulWidget {
     this.reportCategory,
     this.reportLocationLabel,
     this.photoCount = 0,
+    this.hasMunicipalCoverage,
   });
 
   static const String routeName = '/citizen/report-submitted';
@@ -28,6 +30,7 @@ class ReportSubmittedScreen extends StatefulWidget {
   final String? reportCategory;
   final String? reportLocationLabel;
   final int photoCount;
+  final bool? hasMunicipalCoverage;
 
   @override
   State<ReportSubmittedScreen> createState() => _ReportSubmittedScreenState();
@@ -63,6 +66,10 @@ class _ReportSubmittedScreenState extends State<ReportSubmittedScreen> {
                 const _SuccessIntro(),
                 const SizedBox(height: AppSpacing.xl),
                 _ReferenceCard(referenceNumber: referenceNumber),
+                if (widget.hasMunicipalCoverage == false) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  const PendingCoverageNotice(),
+                ],
                 const SizedBox(height: AppSpacing.xl),
                 const _TimelineSection(),
                 const SizedBox(height: AppSpacing.xl),

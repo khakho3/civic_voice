@@ -5,6 +5,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../widgets/evidence_image_viewer.dart';
+import '../../../widgets/pending_coverage_notice.dart';
 import '../widgets/civic_glass_card.dart';
 import '../models/civic_report.dart';
 import '../services/report_crud_service.dart';
@@ -99,6 +100,11 @@ class ReportTrackingScreen extends StatelessWidget {
                   ),
                   children: [
                     _ReportSummaryCard(report: report),
+                    if (report.status == ReportStatus.submitted &&
+                        report.hasMunicipalCoverage == false) ...[
+                      const SizedBox(height: AppSpacing.md),
+                      const PendingCoverageNotice(),
+                    ],
                     const SizedBox(height: AppSpacing.md),
                     _CurrentStatusCard(report: report),
                     const SizedBox(height: AppSpacing.md),
