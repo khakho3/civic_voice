@@ -478,8 +478,7 @@ class _CivicVoiceAppState extends State<CivicVoiceApp> {
                 ),
                 onGetStarted: () =>
                     Navigator.of(context).pushNamed(AppRoutes.registration),
-                onContinueAsGuest: () =>
-                    Navigator.of(context).pushNamed(AppRoutes.citizenDashboard),
+                onContinueAsGuest: () => _continueAsGuest(context),
                 onLogin: () => Navigator.of(context).pushNamed(AppRoutes.login),
               ),
               AppRoutes.testRoleSelector: (context) => TestRoleSelectorScreen(
@@ -498,7 +497,9 @@ class _CivicVoiceAppState extends State<CivicVoiceApp> {
               AppRoutes.forgotPassword: (context) =>
                   const _ForgotPasswordRoute(),
               AppRoutes.changePassword: (context) => ChangePasswordScreen(
-                onBack: () => Navigator.of(context).maybePop(),
+                onBack: Navigator.canPop(context)
+                    ? () => Navigator.of(context).maybePop()
+                    : null,
                 onSaved: () => _finishChangePassword(context),
               ),
               AppRoutes.forcePasswordReset: _forcedPasswordReset,
@@ -868,6 +869,7 @@ class _LoginRouteState extends State<_LoginRoute> {
     BuildContext context,
     String phone,
     String password,
+    bool keepSignedIn,
   ) async {
     setState(() => _state = LoginViewState.loading);
     try {
@@ -903,6 +905,8 @@ class _LoginRouteState extends State<_LoginRoute> {
         await AdminSystemActivityDirectory.instance.refresh();
       }
       if (!context.mounted) return;
+      await AppCacheService.instance.setKeepSignedIn(keepSignedIn);
+      if (!context.mounted) return;
       _completeSignIn(context);
     } on FirebaseAuthException {
       if (!mounted) return;
@@ -920,8 +924,11 @@ class _LoginRouteState extends State<_LoginRoute> {
   Widget build(BuildContext context) {
     return LoginScreen(
       state: _state,
-      onBack: () => Navigator.of(context).maybePop(),
-      onSignIn: (phone, password) => _handleSignIn(context, phone, password),
+      onBack: Navigator.canPop(context)
+          ? () => Navigator.of(context).maybePop()
+          : null,
+      onSignIn: (phone, password, keepSignedIn) =>
+          _handleSignIn(context, phone, password, keepSignedIn),
       onForgotPassword: () =>
           Navigator.of(context).pushNamed(AppRoutes.forgotPassword),
       onRegister: () =>
@@ -982,7 +989,9 @@ class _RegistrationRouteState extends State<_RegistrationRoute> {
   Widget build(BuildContext context) {
     return RegistrationScreen(
       state: _state,
-      onBack: () => Navigator.of(context).maybePop(),
+      onBack: Navigator.canPop(context)
+          ? () => Navigator.of(context).maybePop()
+          : null,
       onCreateAccount: (fullName, phone, password) =>
           _handleCreateAccount(context, fullName, phone, password),
       onLogin: () =>
@@ -1012,11 +1021,21 @@ class _RegistrationOtpRoute extends StatefulWidget {
 class _RegistrationOtpRouteState extends State<_RegistrationOtpRoute> {
   Future<bool> _handleVerify(BuildContext context, String code) async {
     try {
+      // If they got here via "Continue as Guest" and are still on that
+      // same Anonymous Auth session, pass its token along so the backend
+      // upgrades that account in place — same UID, so any reports they
+      // filed as a guest carry over automatically instead of needing a
+      // separate claim step.
+      final currentUser = FirebaseAuth.instance.currentUser;
+      final guestIdToken = (currentUser != null && currentUser.isAnonymous)
+          ? await currentUser.getIdToken()
+          : null;
       final email = await ApiClient.instance.registerCitizen(
         fullName: widget.fullName,
         phone: widget.phone,
         password: widget.password,
         otp: code,
+        guestIdToken: guestIdToken,
       );
       await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: email,
@@ -1206,6 +1225,33 @@ Widget _forcedPasswordReset(BuildContext context) {
   );
 }
 
+/// Real Firebase Anonymous Auth session (not just "push the dashboard
+/// with no session at all") — this is what lets a guest actually submit
+/// and track reports via the same authenticated API every real citizen
+/// uses, and what makes /citizen-register's guest-upgrade path (same
+/// UID, same rows, reports carry over) possible later if they register.
+Future<void> _continueAsGuest(BuildContext context) async {
+  try {
+    final credential = await FirebaseAuth.instance.signInAnonymously();
+    final idToken = await credential.user?.getIdToken();
+    if (idToken == null) throw Exception('No ID token after guest sign-in');
+    final syncedUser = await ApiClient.instance.syncUser(idToken: idToken);
+    ProfileCrudService.instance.loadSignedInUser(syncedUser);
+    await MockAuthService().selectRole(AppRole.citizen);
+    if (!context.mounted) return;
+    Navigator.of(context).pushNamed(AppRoutes.citizenDashboard);
+  } catch (_) {
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Could not continue as guest. Check your connection and try again.',
+        ),
+      ),
+    );
+  }
+}
+
 Future<void> _finishChangePassword(BuildContext context) async {
   await FirebaseAuth.instance.signOut();
   await MockAuthService().clearUser();
@@ -1214,15 +1260,15 @@ Future<void> _finishChangePassword(BuildContext context) async {
 }
 
 Future<void> _signOut(BuildContext context) async {
+  await AppCacheService.instance.setKeepSignedIn(false);
+  IdleSessionTimer.instance.cancel();
   await FirebaseAuth.instance.signOut();
   await MockAuthService().clearUser();
   if (!context.mounted) return;
   // Straight to Login, matching _handleIdleTimeout/_finishChangePassword —
   // a device that's already had an account signed in on it should never
   // see the onboarding carousel again on sign-out.
-  Navigator.of(
-    context,
-  ).pushNamedAndRemoveUntil(AppRoutes.login, (_) => false);
+  Navigator.of(context).pushNamedAndRemoveUntil(AppRoutes.login, (_) => false);
 }
 
 /// Kept as a layout seam for the role dashboard builders and widget tests;
@@ -1981,6 +2027,9 @@ Widget _municipalAssignTeam(BuildContext context, IncomingReportItem report) {
   return MunicipalAssignTeamScreen(
     referenceId: report.referenceId,
     status: report.status,
+    initialState: MaintenanceTeamDirectory.instance.teams.value.isEmpty
+        ? MunicipalAssignTeamViewState.empty
+        : MunicipalAssignTeamViewState.loaded,
     onBack: () => _popOrReplaceWith(context, AppRoutes.municipalVerification),
     onNavigateToDashboard: () =>
         _replaceWith(context, AppRoutes.municipalDashboard),

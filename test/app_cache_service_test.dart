@@ -3,6 +3,7 @@ import 'package:civic_voice/features/citizen/models/report_draft.dart';
 import 'package:civic_voice/features/citizen/screens/create_report_screen.dart';
 import 'package:civic_voice/models/region.dart';
 import 'package:civic_voice/services/app_cache_service.dart';
+import 'package:civic_voice/services/idle_session_timer.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -20,6 +21,34 @@ void main() {
     await AppCacheService.instance.initialize();
 
     expect(AppCacheService.instance.onboardingComplete, isTrue);
+  });
+
+  test('persists the keep-signed-in preference on the device', () async {
+    expect(AppCacheService.instance.keepSignedIn, isFalse);
+
+    await AppCacheService.instance.setKeepSignedIn(true);
+    await AppCacheService.instance.initialize();
+    expect(AppCacheService.instance.keepSignedIn, isTrue);
+
+    await AppCacheService.instance.setKeepSignedIn(false);
+    expect(AppCacheService.instance.keepSignedIn, isFalse);
+  });
+
+  testWidgets('keep signed in prevents the idle timer from expiring', (
+    tester,
+  ) async {
+    var expired = false;
+    IdleSessionTimer.instance.onExpire = () => expired = true;
+    addTearDown(() {
+      IdleSessionTimer.instance.onExpire = null;
+      IdleSessionTimer.instance.cancel();
+    });
+
+    await AppCacheService.instance.setKeepSignedIn(true);
+    IdleSessionTimer.instance.registerActivity();
+    await tester.pump(const Duration(hours: 1));
+
+    expect(expired, isFalse);
   });
 
   test('restores an in-progress report draft after reinitialization', () async {

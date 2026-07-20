@@ -125,6 +125,20 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(LoginScreen), findsOneWidget);
+    // find.byTooltip resolves to Flutter's internal tooltip widget, not
+    // IconButton itself, so casting it directly can throw a bad-cast error
+    // depending on the SDK's tooltip implementation — find the IconButton
+    // by its icon instead, which is stable regardless of that internal.
+    final backButton = tester.widget<IconButton>(
+      find.ancestor(
+        of: find.byIcon(AppIcons.back),
+        matching: find.byType(IconButton),
+      ),
+    );
+    expect(backButton.onPressed, isNotNull);
+    await tester.tap(find.byTooltip('Go back'));
+    await tester.pumpAndSettle();
+    expect(find.byType(WelcomeScreen), findsOneWidget);
   });
 
   testWidgets('Welcome to Registration flow', (WidgetTester tester) async {
@@ -134,11 +148,55 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(RegistrationScreen), findsOneWidget);
+    // find.byTooltip resolves to Flutter's internal tooltip widget, not
+    // IconButton itself, so casting it directly can throw a bad-cast error
+    // depending on the SDK's tooltip implementation — find the IconButton
+    // by its icon instead, which is stable regardless of that internal.
+    final backButton = tester.widget<IconButton>(
+      find.ancestor(
+        of: find.byIcon(AppIcons.back),
+        matching: find.byType(IconButton),
+      ),
+    );
+    expect(backButton.onPressed, isNotNull);
+    await tester.tap(find.byTooltip('Go back'));
+    await tester.pumpAndSettle();
+    expect(find.byType(WelcomeScreen), findsOneWidget);
   });
 
-  testWidgets('Welcome guest flow opens Citizen Dashboard', (
+  testWidgets('root Login and Registration routes disable the back button', (
+    tester,
+  ) async {
+    for (final route in [AppRoutes.login, AppRoutes.registration]) {
+      await tester.pumpWidget(CivicVoiceApp(initialRoute: route));
+      await tester.pump();
+
+      // find.byTooltip resolves to Flutter's internal tooltip widget, not
+    // IconButton itself, so casting it directly can throw a bad-cast error
+    // depending on the SDK's tooltip implementation — find the IconButton
+    // by its icon instead, which is stable regardless of that internal.
+    final backButton = tester.widget<IconButton>(
+      find.ancestor(
+        of: find.byIcon(AppIcons.back),
+        matching: find.byType(IconButton),
+      ),
+    );
+      expect(backButton.onPressed, isNull);
+      expect(tester.takeException(), isNull);
+    }
+  });
+
+  testWidgets('Welcome guest flow attempts a real anonymous session and fails '
+      'gracefully without a reachable backend/Firebase', (
     WidgetTester tester,
   ) async {
+    // Continue as Guest now signs in with real Firebase Anonymous Auth
+    // and syncs against the real backend (see main.dart's
+    // _continueAsGuest) instead of a bare local navigation — reaching
+    // the real Citizen Dashboard requires both, neither of which is
+    // available in this widget test sandbox. What's verifiable here is
+    // that a failure is handled cleanly (an error SnackBar, no crash,
+    // no stuck loading state) rather than the flow silently breaking.
     await reachFinalSlide(tester);
 
     await tapVisible(
@@ -147,7 +205,13 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.byType(CitizenDashboardScreen), findsOneWidget);
+    expect(find.byType(CitizenDashboardScreen), findsNothing);
+    expect(
+      find.text(
+        'Could not continue as guest. Check your connection and try again.',
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('completed onboarding opens directly on the action slide', (
@@ -186,6 +250,37 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(ForgotPasswordScreen), findsOneWidget);
+  });
+
+  testWidgets('Login submits the keep-signed-in selection', (tester) async {
+    String? submittedPhone;
+    String? submittedPassword;
+    bool? submittedKeepSignedIn;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: LoginScreen(
+          onSignIn: (phone, password, keepSignedIn) {
+            submittedPhone = phone;
+            submittedPassword = password;
+            submittedKeepSignedIn = keepSignedIn;
+          },
+        ),
+      ),
+    );
+
+    final fields = find.byType(TextFormField);
+    await tester.enterText(fields.at(0), '0551234567');
+    await tester.enterText(fields.at(1), 'secret-password');
+    await tester.tap(find.byType(Checkbox));
+    await tester.ensureVisible(find.widgetWithText(FilledButton, 'Sign In'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Sign In'));
+
+    expect(submittedPhone, '0551234567');
+    expect(submittedPassword, 'secret-password');
+    expect(submittedKeepSignedIn, isTrue);
+    expect(find.byTooltip('Paste password'), findsNothing);
   });
 
   testWidgets('Login Sign In submits to the real auth flow and recovers from a '
@@ -351,14 +446,38 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(theme: AppTheme.light, home: const RegistrationScreen()),
     );
+    await tester.pump();
+    final scrollView = find.byType(SingleChildScrollView);
+    final fullHeight = tester.getSize(scrollView).height;
     tester.view.viewInsets = const FakeViewPadding(bottom: 340);
     addTearDown(tester.view.resetViewInsets);
+    await tester.pump();
+
+    final scaffold = tester.widget<Scaffold>(find.byType(Scaffold));
+    expect(scaffold.resizeToAvoidBottomInset, isFalse);
+    expect(tester.getSize(scrollView).height, fullHeight);
+    final keyboardPadding = tester
+        .widget<SingleChildScrollView>(scrollView)
+        .padding!
+        .resolve(TextDirection.ltr);
+    expect(keyboardPadding.bottom, AppSpacing.lg + 340);
+
     await tester.tap(find.byType(TextFormField).last);
     await tester.pump();
     final createAccount = find.widgetWithText(FilledButton, 'Create Account');
     await tester.ensureVisible(createAccount);
     await tester.pump();
     expect(createAccount, findsOneWidget);
+
+    FocusManager.instance.primaryFocus?.unfocus();
+    tester.view.resetViewInsets();
+    await tester.pumpAndSettle();
+    final closedPadding = tester
+        .widget<SingleChildScrollView>(scrollView)
+        .padding!
+        .resolve(TextDirection.ltr);
+    expect(closedPadding.bottom, AppSpacing.lg);
+    expect(tester.getSize(scrollView).height, fullHeight);
     expect(tester.takeException(), isNull);
   });
 
@@ -378,6 +497,7 @@ void main() {
       ),
     );
 
+    expect(find.text('Paste Code'), findsNothing);
     await tester.enterText(find.byType(TextField), '123456');
     await tester.pump();
     expect(find.widgetWithText(FilledButton, 'Verify Code'), findsOneWidget);

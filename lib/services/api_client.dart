@@ -149,18 +149,24 @@ class ApiClient {
   /// [otp] matches what [sendRegistrationOtp] most recently sent. Returns
   /// the synthetic email so the caller can immediately sign in with it via
   /// FirebaseAuth.instance.signInWithEmailAndPassword.
+  ///
+  /// Pass [guestIdToken] when the caller is currently signed in as an
+  /// Anonymous Auth guest (see [signInAsGuest]/[syncUser]) — the backend
+  /// upgrades that same account in place instead of creating a new one,
+  /// so any reports filed while a guest carry over automatically.
   Future<String> registerCitizen({
     required String fullName,
     required String phone,
     required String password,
     required String otp,
+    String? guestIdToken,
   }) async {
     final result = await _post('/api/auth/citizen-register', {
       'fullName': fullName,
       'phone': phone,
       'password': password,
       'otp': otp,
-    });
+    }, idToken: guestIdToken);
     return result['email'] as String;
   }
 
@@ -514,6 +520,7 @@ class SyncedUser {
     required this.maintenanceTeamId,
     required this.maintenanceTeamName,
     required this.maintenanceTeamLeadUserId,
+    required this.isGuest,
   });
 
   final String id;
@@ -529,6 +536,7 @@ class SyncedUser {
   final String? maintenanceTeamId;
   final String? maintenanceTeamName;
   final String? maintenanceTeamLeadUserId;
+  final bool isGuest;
 
   factory SyncedUser.fromJson(Map<String, dynamic> json) {
     return SyncedUser(
@@ -545,6 +553,7 @@ class SyncedUser {
       maintenanceTeamId: json['maintenanceTeamId'] as String?,
       maintenanceTeamName: json['maintenanceTeamName'] as String?,
       maintenanceTeamLeadUserId: json['maintenanceTeamLeadUserId'] as String?,
+      isGuest: json['isGuest'] as bool? ?? false,
     );
   }
 }

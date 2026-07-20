@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../features/admin/services/admin_system_settings_directory.dart';
+import 'app_cache_service.dart';
 
 /// Real, app-wide idle-timeout — [AdminSystemSettingsDirectory]'s Session
 /// Timeout setting decides how long the app can sit untouched before
@@ -27,6 +28,10 @@ class IdleSessionTimer {
   VoidCallback? onExpire;
 
   void registerActivity() {
+    if (AppCacheService.instance.keepSignedIn) {
+      cancel();
+      return;
+    }
     _timer?.cancel();
     final callback = onExpire;
     if (callback == null) return;
@@ -38,10 +43,9 @@ class IdleSessionTimer {
     _timer = null;
   }
 
-  static Duration _currentDuration() =>
-      parseSessionTimeout(
-        AdminSystemSettingsDirectory.instance.settings.value.sessionTimeout,
-      );
+  static Duration _currentDuration() => parseSessionTimeout(
+    AdminSystemSettingsDirectory.instance.settings.value.sessionTimeout,
+  );
 
   /// Exposed for tests — parses labels like "30 minutes" into a
   /// [Duration], defaulting to 30 minutes for anything unrecognized.

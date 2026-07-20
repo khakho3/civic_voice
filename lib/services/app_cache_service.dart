@@ -14,6 +14,7 @@ class AppCacheService {
   static final instance = AppCacheService._();
 
   static const _onboardingCompleteKey = 'onboarding_complete_v1';
+  static const _keepSignedInKey = 'keep_signed_in_v1';
   static const _reportDraftKey = 'citizen_report_draft_v1';
 
   SharedPreferences? _preferences;
@@ -21,6 +22,7 @@ class AppCacheService {
 
   bool get onboardingComplete =>
       _preferences?.getBool(_onboardingCompleteKey) ?? false;
+  bool get keepSignedIn => _preferences?.getBool(_keepSignedInKey) ?? false;
   ReportDraft? get reportDraft => _reportDraft;
 
   Future<void> initialize() async {
@@ -52,6 +54,12 @@ class AppCacheService {
     final preferences = _preferences ?? await SharedPreferences.getInstance();
     _preferences = preferences;
     await preferences.setBool(_onboardingCompleteKey, true);
+  }
+
+  Future<void> setKeepSignedIn(bool value) async {
+    final preferences = _preferences ?? await SharedPreferences.getInstance();
+    _preferences = preferences;
+    await preferences.setBool(_keepSignedInKey, value);
   }
 
   Future<void> saveReportDraft(ReportDraft draft) async {

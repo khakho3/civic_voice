@@ -51,6 +51,7 @@ class ProfileCrudService implements ProfileRepository {
             ? null
             : ApiClient.assetUrl(user.avatarUrl!),
         twoStepEnabled: false,
+        isGuest: user.isGuest,
       ),
     );
   }
