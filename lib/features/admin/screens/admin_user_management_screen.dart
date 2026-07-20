@@ -161,7 +161,18 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Could not update this account.')),
       );
+      return;
     }
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          deactivating
+              ? '${user.name} was deactivated.'
+              : '${user.name} was reactivated.',
+        ),
+      ),
+    );
   }
 
   Future<void> _deleteUser(AdminUserItem user) async {
@@ -184,7 +195,12 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Could not delete this account.')),
       );
+      return;
     }
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('${user.name}\'s account was deleted.')),
+    );
   }
 
   @override

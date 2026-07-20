@@ -20,6 +20,7 @@ import 'package:civic_voice/features/admin/screens/admin_system_activity_screen.
 import 'package:civic_voice/features/admin/screens/admin_system_settings_screen.dart';
 import 'package:civic_voice/features/admin/screens/admin_user_details_screen.dart';
 import 'package:civic_voice/features/admin/screens/admin_user_management_screen.dart';
+import 'package:civic_voice/features/admin/services/admin_user_directory.dart';
 import 'package:civic_voice/features/admin/services/admin_system_settings_directory.dart';
 import 'package:civic_voice/models/app_role.dart';
 import 'package:civic_voice/models/ghana_assemblies_data.dart';
@@ -663,6 +664,12 @@ void main() {
   testWidgets(
     'Admin User Management kebab menu deactivates and reactivates a user',
     (WidgetTester tester) async {
+      final originalUsers = List<AdminUserItem>.of(
+        AdminUserDirectory.instance.users.value,
+      );
+      addTearDown(
+        () => AdminUserDirectory.instance.users.value = originalUsers,
+      );
       tester.view.physicalSize = const Size(428, 2600);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -689,6 +696,8 @@ void main() {
       await tester.tap(find.text('Deactivate'));
       await tester.pumpAndSettle();
 
+      expect(find.text('Kojo Mensah was deactivated.'), findsOneWidget);
+
       // Ama Boateng and Kojo Mensah are now both "Inactive" (joining the
       // filter chip of the same name) — Yaw Asare, Kojo Mensah-Boateng,
       // Genevieve Amadapah, and Efua Darko are still "Active" (Esi Owusu
@@ -696,13 +705,59 @@ void main() {
       expect(find.text('Inactive'), findsNWidgets(3));
       expect(find.text('Active'), findsNWidgets(4));
 
+      // Let the first SnackBar leave before checking the reactivation copy.
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(AppIcons.more).at(1));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Reactivate account'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Kojo Mensah was reactivated.'), findsOneWidget);
+      expect(find.text('Inactive'), findsNWidgets(2));
+      expect(find.text('Active'), findsNWidgets(5));
+
       await tester.tap(find.text('Inactive').first);
       await tester.pumpAndSettle();
       expect(find.text('Ama Boateng'), findsOneWidget);
-      expect(find.text('Kojo Mensah'), findsOneWidget);
+      expect(find.text('Kojo Mensah'), findsNothing);
       expect(find.text('Yaw Asare'), findsNothing);
     },
   );
+
+  testWidgets('Admin User Management confirms a successful account deletion', (
+    WidgetTester tester,
+  ) async {
+    final originalUsers = List<AdminUserItem>.of(
+      AdminUserDirectory.instance.users.value,
+    );
+    addTearDown(() => AdminUserDirectory.instance.users.value = originalUsers);
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: const AdminUserManagementScreen(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(AppIcons.more).at(1));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete account permanently'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Delete this account permanently?'), findsOneWidget);
+    await tester.tap(find.text('Delete Account'));
+    await tester.pumpAndSettle();
+
+    expect(find.text("Kojo Mensah's account was deleted."), findsOneWidget);
+    expect(find.text('Kojo Mensah'), findsNothing);
+  });
 
   testWidgets('Admin User Management tapping a user card opens User Details', (
     WidgetTester tester,
@@ -2352,7 +2407,12 @@ void main() {
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
-    addTearDown(() => ThemeController.mode.value = ThemeMode.system);
+    addTearDown(() => ThemeController.mode.value = ThemeMode.light);
+    // Explicit starting point rather than relying on ThemeController's own
+    // default (light, not system, as of this app's onboarding UX) — this
+    // test is about the System/Light/Dark control actually switching
+    // modes, not about what the unrelated default happens to be.
+    ThemeController.mode.value = ThemeMode.system;
 
     await tester.pumpWidget(
       MaterialApp(theme: AppTheme.light, home: const AdminProfileScreen()),
