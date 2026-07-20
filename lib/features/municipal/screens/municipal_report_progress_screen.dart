@@ -291,6 +291,10 @@ class _ProgressBody extends StatelessWidget {
       ),
       children: [
         _SummaryCard(data: data),
+        if (data.failureNote != null) ...[
+          const SizedBox(height: AppSpacing.md),
+          _FailureNoticeCard(reason: data.failureNote!),
+        ],
         if (evidenceCount == 0) ...[
           const SizedBox(height: AppSpacing.md),
           _EvidenceRequiredCard(onUpload: onAddEvidence),
@@ -358,6 +362,16 @@ class _SummaryCard extends StatelessWidget {
             officerName: data.officerName,
             officerPhone: data.officerPhone,
           ),
+          if (data.maintenanceContactName != null &&
+              data.maintenanceContactPhone != null) ...[
+            const SizedBox(height: AppSpacing.sm),
+            OfficerContactRow(
+              officerName: data.maintenanceContactName!,
+              officerPhone: data.maintenanceContactPhone!,
+              label: 'Maintenance Contact',
+              icon: AppIcons.team,
+            ),
+          ],
           const SizedBox(height: AppSpacing.md),
           Row(
             children: [
@@ -374,6 +388,55 @@ class _SummaryCard extends StatelessWidget {
               minHeight: 6,
               backgroundColor: colorScheme.surfaceContainer,
               color: AppColors.primary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The maintenance team's reported reason the task couldn't be completed
+/// (`Report.maintenanceFailureNotes`) — the report itself stays IN_PROGRESS
+/// (there's no distinct failed status), so without this card the reason is
+/// only ever visible in the notification that announced it, gone the
+/// moment it's dismissed or scrolled past.
+class _FailureNoticeCard extends StatelessWidget {
+  const _FailureNoticeCard({required this.reason});
+
+  final String reason;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.warning.withValues(alpha: 0.1),
+        borderRadius: AppComponentRadius.card,
+        border: Border.all(color: AppColors.warning.withValues(alpha: 0.24)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(AppIcons.warning, color: AppColors.warning),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Needs Attention',
+                  style: textTheme.titleSmall?.copyWith(
+                    color: AppColors.warning,
+                    fontWeight: AppFontWeight.semiBold,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(reason, style: textTheme.bodySmall),
+              ],
             ),
           ),
         ],

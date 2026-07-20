@@ -65,6 +65,9 @@ class ReportProgressData {
     required this.latestUpdateNote,
     required this.cachedActivity,
     required this.caseSummary,
+    this.maintenanceContactName,
+    this.maintenanceContactPhone,
+    this.failureNote,
   });
 
   final String referenceId;
@@ -86,6 +89,18 @@ class ReportProgressData {
   /// Shown only in the Offline state.
   final List<ActivityLogEntry> cachedActivity;
   final CaseSummary caseSummary;
+
+  /// Whichever Maintenance user most recently touched this report's
+  /// workflow — null until a maintenance team has actually acted on it.
+  final String? maintenanceContactName;
+  final String? maintenanceContactPhone;
+
+  /// Non-null when the maintenance team reported the task couldn't be
+  /// completed (see `Report.maintenanceFailureNotes`) — the report itself
+  /// stays IN_PROGRESS rather than moving to a distinct failed state, so
+  /// this is the one place that reason is visible outside the transient
+  /// notification it was also sent as.
+  final String? failureNote;
 
   /// Placeholder content matching the approved MUN-007 design, used until
   /// the Cloud Firestore-backed service (Issue 03 dependency) is wired up.
@@ -228,6 +243,11 @@ class ReportProgressData {
         reporterName: report.citizenName ?? 'Citizen',
         evidencePhotoCount: report.resolutionPhotoUrls.length,
       ),
+      maintenanceContactName: report.maintenanceContactName,
+      maintenanceContactPhone: report.maintenanceContactPhone,
+      failureNote: report.maintenanceFailureNotes?.trim().isNotEmpty == true
+          ? report.maintenanceFailureNotes
+          : null,
     );
   }
 }

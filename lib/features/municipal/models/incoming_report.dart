@@ -45,6 +45,8 @@ class IncomingReportItem {
     this.reviewerPublicId,
     this.reviewedByCurrentUser = false,
     this.reviewedAt,
+    this.maintenanceContactName,
+    this.maintenanceContactPhone,
   });
 
   /// Internal database identifier used for API calls. [referenceId] remains
@@ -95,6 +97,13 @@ class IncomingReportItem {
   final String? reviewerPublicId;
   final bool reviewedByCurrentUser;
   final DateTime? reviewedAt;
+
+  /// Whichever Maintenance user most recently touched this report's
+  /// workflow (progress, failure note, or resolution) — see
+  /// `Report.maintenanceContactId` on the backend. Null until a maintenance
+  /// team has actually acted on the report at least once.
+  final String? maintenanceContactName;
+  final String? maintenanceContactPhone;
 
   bool get hasReviewer => reviewerPublicId != null;
   bool get canCurrentOfficerReview => !hasReviewer || reviewedByCurrentUser;
@@ -154,6 +163,12 @@ class IncomingReportItem {
           (json['reviewer'] as Map<String, dynamic>?)?['publicId'] as String?,
       reviewedByCurrentUser: json['reviewedByCurrentUser'] as bool? ?? false,
       reviewedAt: DateTime.tryParse(json['reviewedAt'] as String? ?? ''),
+      maintenanceContactName:
+          (json['maintenanceContact'] as Map<String, dynamic>?)?['fullName']
+              as String?,
+      maintenanceContactPhone:
+          (json['maintenanceContact'] as Map<String, dynamic>?)?['phone']
+              as String?,
     );
   }
 
@@ -198,6 +213,8 @@ class IncomingReportItem {
       reviewerPublicId: reviewerPublicId,
       reviewedByCurrentUser: reviewedByCurrentUser,
       reviewedAt: reviewedAt,
+      maintenanceContactName: maintenanceContactName,
+      maintenanceContactPhone: maintenanceContactPhone,
     );
   }
 

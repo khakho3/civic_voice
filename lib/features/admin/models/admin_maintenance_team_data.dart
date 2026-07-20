@@ -12,6 +12,8 @@ class MaintenanceTeam {
     required this.memberUserIds,
     required this.createdAt,
     this.leadUserId,
+    this.leadName,
+    this.leadPhone,
     this.availability = TeamAvailability.available,
   });
 
@@ -29,6 +31,13 @@ class MaintenanceTeam {
   /// every member would otherwise be equally able to submit, which is fine
   /// for a 1-person team but ambiguous once a team has several.
   final String? leadUserId;
+
+  /// Denormalized display fields for [leadUserId] — sourced fresh from the
+  /// backend's `lead` object on every fetch (see `MaintenanceTeam.fromApi`),
+  /// never derived via a separate directory lookup. Null whenever
+  /// [leadUserId] is null.
+  final String? leadName;
+  final String? leadPhone;
 
   /// Self-reported by the team lead from Maintenance's own Profile screen
   /// (see `lib/features/maintenance/screens/profile_screen.dart`) — this
@@ -58,6 +67,8 @@ class MaintenanceTeam {
               .map((member) => member['publicId'] as String)
               .toList(),
       leadUserId: json['leadUserId'] as String?,
+      leadName: (json['lead'] as Map<String, dynamic>?)?['fullName'] as String?,
+      leadPhone: (json['lead'] as Map<String, dynamic>?)?['phone'] as String?,
       availability: availability,
       createdAt:
           DateTime.tryParse(json['createdAt'] as String? ?? '') ??
@@ -89,6 +100,12 @@ class MaintenanceTeam {
       leadUserId: identical(leadUserId, _unset)
           ? this.leadUserId
           : leadUserId as String?,
+      // leadName/leadPhone are only ever sourced fresh from a real fetch
+      // (see fromApi) — if the lead is changing here, stale contact info
+      // pointing at the old lead would be worse than none, so clear it
+      // until the next refresh re-populates it for real.
+      leadName: identical(leadUserId, _unset) ? leadName : null,
+      leadPhone: identical(leadUserId, _unset) ? leadPhone : null,
       availability: availability ?? this.availability,
     );
   }
@@ -112,6 +129,8 @@ List<MaintenanceTeam> mockMaintenanceTeams() {
       memberUserIds: const ['MNT-000004', 'MNT-000010'],
       createdAt: DateTime(2025, 7, 4),
       leadUserId: 'MNT-000004',
+      leadName: 'Yaw Asare',
+      leadPhone: '+233 27 777 8888',
     ),
   ];
 }

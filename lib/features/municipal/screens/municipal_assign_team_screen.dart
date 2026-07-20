@@ -7,7 +7,6 @@ import '../models/team_data.dart';
 import '../../../widgets/glass_card.dart';
 import '../../admin/models/admin_maintenance_team_data.dart';
 import '../../admin/services/admin_maintenance_team_directory.dart';
-import '../../admin/services/admin_user_directory.dart';
 import '../services/municipal_report_directory.dart';
 import '../widgets/municipal_detail_header.dart';
 import '../widgets/municipal_search_field.dart';
@@ -148,13 +147,31 @@ class _MunicipalAssignTeamScreenState extends State<MunicipalAssignTeamScreen> {
     }
   }
 
-  void _retryLoad() {
+  Future<void> _retryLoad() async {
     setState(() => _state = MunicipalAssignTeamViewState.loading);
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (mounted) {
-        setState(() => _state = MunicipalAssignTeamViewState.loaded);
-      }
-    });
+    try {
+      await MaintenanceTeamDirectory.instance.refreshForMunicipal();
+      if (!mounted) return;
+      final teams = MaintenanceTeamDirectory.instance.teams.value;
+      setState(() {
+        _state = teams.isEmpty
+            ? MunicipalAssignTeamViewState.empty
+            : MunicipalAssignTeamViewState.loaded;
+        if (teams.isNotEmpty && _selectedTeamId == null) {
+          _selectedTeamId = teams.first.teamId;
+        }
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _state = MunicipalAssignTeamViewState.empty);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Could not refresh teams. Check your connection and try again.',
+          ),
+        ),
+      );
+    }
   }
 
   @override
@@ -229,24 +246,47 @@ class _MunicipalAssignTeamScreenState extends State<MunicipalAssignTeamScreen> {
                         icon: AppIcons.team,
                         title: 'No Teams Available',
                         message:
-                            'There are no maintenance teams available in this '
-                            'district right now.',
+                            'There are no maintenance teams set up for your '
+                            'assembly yet. Ask your Admin to create one '
+                            'before you can assign this report.',
                         primaryActionLabel: 'Refresh',
                         onPrimaryAction: _retryLoad,
                         secondaryActionLabel: 'Return to Dashboard',
                         onSecondaryAction: widget.onNavigateToDashboard,
                       ),
-                      MunicipalAssignTeamViewState.assigned => AppStateMessage(
-                        icon: AppIcons.success,
-                        badgeColor: AppColors.success,
-                        title: 'Team Assigned',
-                        message: selected == null
-                            ? 'The maintenance team is now assigned to this '
-                                  'report.'
-                            : '${selected.name} is now assigned to this '
-                                  'report.',
-                        primaryActionLabel: 'Return to Dashboard',
-                        onPrimaryAction: widget.onNavigateToDashboard,
+                      MunicipalAssignTeamViewState.assigned => Column(
+                        children: [
+                          Expanded(
+                            child: AppStateMessage(
+                              icon: AppIcons.success,
+                              badgeColor: AppColors.success,
+                              title: 'Team Assigned',
+                              message: selected == null
+                                  ? 'The maintenance team is now assigned '
+                                        'to this report.'
+                                  : '${selected.name} is now assigned to '
+                                        'this report.',
+                              primaryActionLabel: 'Return to Dashboard',
+                              onPrimaryAction: widget.onNavigateToDashboard,
+                            ),
+                          ),
+                          if (selected?.leadName != null &&
+                              selected?.leadPhone != null)
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(
+                                AppSpacing.md,
+                                0,
+                                AppSpacing.md,
+                                AppSpacing.md,
+                              ),
+                              child: OfficerContactRow(
+                                officerName: selected!.leadName!,
+                                officerPhone: selected.leadPhone!,
+                                label: 'Team Lead',
+                                icon: AppIcons.team,
+                              ),
+                            ),
+                        ],
                       ),
                       MunicipalAssignTeamViewState.error => AppStateMessage(
                         icon: AppIcons.warning,
@@ -574,12 +614,6 @@ class _TeamCard extends StatelessWidget {
   final bool enabled;
   final VoidCallback onTap;
 
-  String _leadName(MaintenanceTeam team) {
-    final leadId = team.leadUserId;
-    if (leadId == null) return 'No lead set';
-    return AdminUserDirectory.instance.userById(leadId)?.name ?? 'No lead set';
-  }
-
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
@@ -621,7 +655,7 @@ class _TeamCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 4),
                 Text(
-                  '${_leadName(team)} · ${team.memberUserIds.length} members',
+                  '${team.leadName ?? 'No lead set'} · ${team.memberUserIds.length} members',
                   style: textTheme.bodySmall,
                 ),
               ],
@@ -641,6 +675,7 @@ class _AssignmentSummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final hasLeadContact = team.leadName != null && team.leadPhone != null;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -649,20 +684,36 @@ class _AssignmentSummaryCard extends StatelessWidget {
         border: Border.all(color: AppColors.primary.withValues(alpha: 0.24)),
         borderRadius: AppComponentRadius.card,
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(
-            AppIcons.info,
-            size: AppIconSize.md,
-            color: AppColors.primary,
+          Row(
+            children: [
+              const Icon(
+                AppIcons.info,
+                size: AppIconSize.md,
+                color: AppColors.primary,
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  '${team.name} is now assigned to this report.',
+                  style: textTheme.bodySmall?.copyWith(
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Text(
-              '${team.name} is now assigned to this report.',
-              style: textTheme.bodySmall?.copyWith(color: AppColors.primary),
+          if (hasLeadContact) ...[
+            const SizedBox(height: AppSpacing.sm),
+            OfficerContactRow(
+              officerName: team.leadName!,
+              officerPhone: team.leadPhone!,
+              label: 'Team Lead',
+              icon: AppIcons.team,
             ),
-          ),
+          ],
         ],
       ),
     );

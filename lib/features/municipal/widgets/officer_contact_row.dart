@@ -17,11 +17,13 @@ class OfficerContactRow extends StatelessWidget {
     required this.officerName,
     required this.officerPhone,
     this.label = 'Assigned Officer',
+    this.icon = AppIcons.municipalOfficer,
   });
 
   final String officerName;
   final String officerPhone;
   final String label;
+  final IconData icon;
 
   Future<void> _call(BuildContext context) =>
       _launch(context, Uri(scheme: 'tel', path: _digits));
@@ -56,7 +58,7 @@ class OfficerContactRow extends StatelessWidget {
     return Row(
       children: [
         Icon(
-          AppIcons.municipalOfficer,
+          icon,
           size: AppIconSize.sm,
           color: colorScheme.onSurfaceVariant,
         ),
