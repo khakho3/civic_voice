@@ -9,6 +9,7 @@ import '../../../widgets/profile_edit_action_bar.dart';
 import '../../../widgets/profile_field_row.dart';
 import '../../../widgets/profile_header_card.dart';
 import '../../../widgets/profile_section.dart';
+import '../../../widgets/status_badge.dart';
 import '../../../widgets/theme_preference_row.dart';
 import '../models/officer_profile.dart';
 import '../widgets/municipal_detail_header.dart';
@@ -311,6 +312,7 @@ class _ProfileView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return ListView(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.md,
@@ -324,12 +326,17 @@ class _ProfileView extends StatelessWidget {
           subtitle: profile.role,
           pills: [
             if (profile.verifiedOfficial)
-              const _Pill(
+              const TintedBadge(
                 icon: AppIcons.verify,
                 label: 'Verified Official',
                 color: AppColors.primary,
+                textColor: AppColors.primary,
               ),
-            _Pill(label: 'ID #${profile.employeeId}'),
+            TintedBadge(
+              label: 'ID #${profile.employeeId}',
+              color: colorScheme.onSurfaceVariant,
+              textColor: colorScheme.onSurfaceVariant,
+            ),
           ],
         ),
         const SizedBox(height: AppSpacing.lg),
@@ -367,46 +374,6 @@ class _ProfileView extends StatelessWidget {
           ],
         ),
       ],
-    );
-  }
-}
-
-class _Pill extends StatelessWidget {
-  const _Pill({this.icon, required this.label, this.color});
-
-  final IconData? icon;
-  final String label;
-  final Color? color;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final effectiveColor = color ?? colorScheme.onSurfaceVariant;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-      decoration: BoxDecoration(
-        color: color?.withValues(alpha: 0.12) ?? colorScheme.surfaceContainer,
-        border: color != null
-            ? Border.all(color: color!.withValues(alpha: 0.24))
-            : null,
-        borderRadius: AppRadius.allXl,
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (icon != null) ...[
-            Icon(icon, size: AppIconSize.sm, color: effectiveColor),
-            const SizedBox(width: 4),
-          ],
-          Text(
-            label,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: effectiveColor,
-              fontWeight: AppFontWeight.semiBold,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

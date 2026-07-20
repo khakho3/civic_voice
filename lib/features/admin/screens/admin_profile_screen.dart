@@ -6,6 +6,7 @@ import '../../../widgets/confirm_dialog.dart';
 import '../../../widgets/language_preference_row.dart';
 import '../../../widgets/profile_action_row.dart';
 import '../../../widgets/profile_edit_action_bar.dart';
+import '../../../widgets/profile_edit_button.dart';
 import '../../../widgets/profile_field_row.dart';
 import '../../../widgets/profile_header_card.dart';
 import '../../../widgets/profile_section.dart';
@@ -393,11 +394,7 @@ class _ProfileBody extends StatelessWidget {
           title: 'Administrator Information',
           trailing: editing
               ? null
-              : IconButton(
-                  onPressed: onStartEdit,
-                  icon: const Icon(AppIcons.edit, size: AppIconSize.sm),
-                  tooltip: 'Edit',
-                ),
+              : ProfileEditButton(onPressed: onStartEdit),
           children: [
             ProfileFieldRow(
               label: 'Full Name',
@@ -430,16 +427,6 @@ class _ProfileBody extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.lg),
         ProfileSection(
-          icon: AppIcons.systemTheme,
-          title: 'System Preferences',
-          children: const [
-            ThemePreferenceRow(),
-            Divider(height: AppSpacing.lg),
-            LanguagePreferenceRow(),
-          ],
-        ),
-        const SizedBox(height: AppSpacing.lg),
-        ProfileSection(
           icon: AppIcons.shield,
           title: 'Security Settings',
           children: [
@@ -448,6 +435,12 @@ class _ProfileBody extends StatelessWidget {
               label: 'Change Password',
               onTap: onChangePassword,
             ),
+            const _SubGroupDivider(),
+            const _SubGroupLabel('System Preferences'),
+            const SizedBox(height: AppSpacing.sm),
+            const ThemePreferenceRow(),
+            const Divider(height: AppSpacing.lg),
+            const LanguagePreferenceRow(),
           ],
         ),
         const SizedBox(height: AppSpacing.lg),
@@ -468,13 +461,9 @@ class _ProfileBody extends StatelessWidget {
               value: draft.governanceLevel,
               locked: true,
             ),
-          ],
-        ),
-        const SizedBox(height: AppSpacing.lg),
-        ProfileSection(
-          icon: AppIcons.activityPulse,
-          title: 'Session',
-          children: [
+            const _SubGroupDivider(),
+            const _SubGroupLabel('Session'),
+            const SizedBox(height: AppSpacing.sm),
             ProfileActionRow(
               icon: AppIcons.activityPulse,
               label: 'Last activity',
@@ -529,7 +518,11 @@ class _AccessSummaryCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: colorScheme.surface,
         borderRadius: AppComponentRadius.card,
-        border: Border.all(color: colorScheme.outlineVariant),
+        border: Border.all(
+          color: colorScheme.outlineVariant.withValues(
+            alpha: colorScheme.outlineVariant.a * 0.6,
+          ),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -630,6 +623,42 @@ class _TagChip extends StatelessWidget {
         borderRadius: AppRadius.allXl,
       ),
       child: Text(label, style: Theme.of(context).textTheme.labelMedium),
+    );
+  }
+}
+
+/// A light separator + small caption used to divide two logically distinct
+/// groups sharing one [ProfileSection] card (e.g. Security Settings +
+/// System Preferences) — cuts the section-card count on this screen from
+/// 6 down to 4 without dropping any of the original group labels.
+class _SubGroupDivider extends StatelessWidget {
+  const _SubGroupDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    final outline = Theme.of(context).colorScheme.outlineVariant;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+      child: Divider(
+        height: 1,
+        color: outline.withValues(alpha: outline.a * 0.6),
+      ),
+    );
+  }
+}
+
+class _SubGroupLabel extends StatelessWidget {
+  const _SubGroupLabel(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+        color: Theme.of(context).colorScheme.onSurfaceVariant,
+      ),
     );
   }
 }

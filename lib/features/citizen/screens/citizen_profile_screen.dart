@@ -1,14 +1,16 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../core/theme/app_theme.dart';
-import '../../../core/theme/theme_controller.dart';
 import '../../../services/api_client.dart';
-import '../../../widgets/coming_soon_badge.dart';
 import '../../../widgets/confirm_dialog.dart';
-import '../widgets/civic_glass_card.dart';
+import '../../../widgets/language_preference_row.dart';
+import '../../../widgets/profile_edit_action_bar.dart';
+import '../../../widgets/profile_edit_button.dart';
+import '../../../widgets/profile_field_row.dart';
+import '../../../widgets/profile_header_card.dart';
+import '../../../widgets/profile_section.dart';
+import '../../../widgets/theme_preference_row.dart';
 import '../models/citizen_profile.dart';
 import '../services/profile_crud_service.dart';
 import '../widgets/civic_app_chrome.dart';
@@ -18,6 +20,16 @@ import 'create_report_screen.dart';
 
 enum _PhotoSheetAction { camera, gallery, remove }
 
+/// CIT-006 — Citizen Profile.
+///
+/// Re-platformed onto the same shared profile widget library every other
+/// module now uses (`ProfileHeaderCard`/`ProfileSection`/`ProfileFieldRow`/
+/// `ProfileEditActionBar`) — this screen used to run its own parallel
+/// design system (`CivicGlassCard`, a bespoke edit action bar, a large
+/// "Edit Profile" `FilledButton`), which is what "sudoku"-clutter and the
+/// oversized edit affordance both trace back to on this specific screen.
+/// The real photo picker stays — `ProfileHeaderCard` gained real
+/// photo/loading-spinner support specifically for this migration.
 class CitizenProfileScreen extends StatefulWidget {
   const CitizenProfileScreen({super.key, this.onLogOut});
 
@@ -212,21 +224,6 @@ class _CitizenProfileScreenState extends State<CitizenProfileScreen> {
     return value.isEmpty ? 'Citizen' : value;
   }
 
-  String get _wardLabel {
-    return 'Verified citizen';
-  }
-
-  String get _initials {
-    final words = _displayName
-        .split(RegExp(r'\s+'))
-        .where((word) => word.isNotEmpty)
-        .toList();
-    if (words.isEmpty) return 'CV';
-    final first = words.first[0];
-    final second = words.length > 1 ? words.last[0] : '';
-    return '$first$second'.toUpperCase();
-  }
-
   void _openDashboard(BuildContext context) {
     Navigator.of(context).popUntil((route) => route.isFirst);
   }
@@ -296,27 +293,68 @@ class _CitizenProfileScreenState extends State<CitizenProfileScreen> {
                           builder: (context, profile, _) {
                             return Column(
                               children: [
-                                _ProfileIdentity(
-                                  displayName: _displayName,
-                                  subtitle: _wardLabel,
-                                  initials: _initials,
+                                ProfileHeaderCard(
+                                  name: _displayName,
+                                  subtitle: 'Verified citizen',
                                   photoPath: profile.photoPath,
-                                  isEditing: _isEditing,
                                   photoUpdating: _photoUpdating,
-                                  onChoosePhoto: _chooseProfilePhoto,
-                                  onEditProfile: _startEditing,
-                                ),
-                                const SizedBox(height: AppSpacing.xl),
-                                _PersonalInformationCard(
-                                  isEditing: _isEditing,
-                                  nameController: _nameController,
-                                  phoneController: _phoneController,
+                                  onEditPhoto: _chooseProfilePhoto,
                                 ),
                                 const SizedBox(height: AppSpacing.lg),
-                                const _AppearanceCard(),
+                                ProfileSection(
+                                  icon: AppIcons.profile,
+                                  title: 'Personal Information',
+                                  trailing: _isEditing
+                                      ? null
+                                      : ProfileEditButton(
+                                          onPressed: _startEditing,
+                                        ),
+                                  children: [
+                                    ProfileFieldRow(
+                                      label: 'Full Name',
+                                      controller: _nameController,
+                                      editable: _isEditing,
+                                    ),
+                                    const SizedBox(height: AppSpacing.sm),
+                                    ProfileFieldRow(
+                                      label: 'Phone Number',
+                                      controller: _phoneController,
+                                      editable: false,
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: AppSpacing.lg),
+                                const ProfileSection(
+                                  icon: AppIcons.systemTheme,
+                                  title: 'System Preferences',
+                                  children: [
+                                    ThemePreferenceRow(),
+                                    Divider(height: AppSpacing.lg),
+                                    LanguagePreferenceRow(),
+                                  ],
+                                ),
                                 if (!_isEditing) ...[
                                   const SizedBox(height: AppSpacing.lg),
-                                  _LogOutCard(onLogOut: _confirmLogOut),
+                                  ProfileSection(
+                                    icon: AppIcons.shield,
+                                    title: 'Session',
+                                    children: [
+                                      SizedBox(
+                                        width: double.infinity,
+                                        child: OutlinedButton(
+                                          onPressed: _confirmLogOut,
+                                          style: OutlinedButton.styleFrom(
+                                            foregroundColor: AppColors.error,
+                                            side: BorderSide(
+                                              color: AppColors.error
+                                                  .withValues(alpha: 0.4),
+                                            ),
+                                          ),
+                                          child: const Text('Log Out'),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ],
                               ],
                             );
@@ -326,7 +364,7 @@ class _CitizenProfileScreenState extends State<CitizenProfileScreen> {
                     ),
                   ),
                   if (_isEditing)
-                    _ProfileEditActionBar(
+                    ProfileEditActionBar(
                       onSave: _saveProfile,
                       onCancel: _cancelEditing,
                     ),
@@ -366,575 +404,6 @@ class _CitizenProfileScreenState extends State<CitizenProfileScreen> {
   }
 }
 
-class _ProfileEditActionBar extends StatelessWidget {
-  const _ProfileEditActionBar({required this.onSave, required this.onCancel});
-
-  final VoidCallback onSave;
-  final VoidCallback onCancel;
-
-  @override
-  Widget build(BuildContext context) {
-    final semantic = Theme.of(context).extension<AppSemanticColors>()!;
-
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: semantic.glassSurface,
-        border: Border(top: BorderSide(color: semantic.glassBorder)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          child: Column(
-            children: [
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: onSave,
-                  child: const Text('Save Changes'),
-                ),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton(
-                  onPressed: onCancel,
-                  child: const Text('Cancel'),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ProfileIdentity extends StatelessWidget {
-  const _ProfileIdentity({
-    required this.displayName,
-    required this.subtitle,
-    required this.initials,
-    required this.photoPath,
-    required this.isEditing,
-    required this.photoUpdating,
-    required this.onChoosePhoto,
-    required this.onEditProfile,
-  });
-
-  final String displayName;
-  final String subtitle;
-  final String initials;
-  final String? photoPath;
-  final bool isEditing;
-  final bool photoUpdating;
-  final VoidCallback onChoosePhoto;
-  final VoidCallback onEditProfile;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Column(
-      children: [
-        Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Container(
-              width: 88,
-              height: 88,
-              decoration: const BoxDecoration(
-                color: AppColors.primary,
-                shape: BoxShape.circle,
-              ),
-              alignment: Alignment.center,
-              clipBehavior: Clip.antiAlias,
-              child: photoPath == null
-                  ? Text(
-                      initials,
-                      style: theme.textTheme.headlineSmall?.copyWith(
-                        color: Colors.white,
-                        fontWeight: AppFontWeight.bold,
-                      ),
-                    )
-                  : photoPath!.startsWith('http')
-                  ? Image.network(
-                      photoPath!,
-                      width: 88,
-                      height: 88,
-                      fit: BoxFit.cover,
-                    )
-                  : Image.file(
-                      File(photoPath!),
-                      width: 88,
-                      height: 88,
-                      fit: BoxFit.cover,
-                    ),
-            ),
-            if (photoUpdating)
-              Container(
-                width: 88,
-                height: 88,
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.4),
-                  shape: BoxShape.circle,
-                ),
-                alignment: Alignment.center,
-                child: const SizedBox.square(
-                  dimension: 28,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2.5,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                  ),
-                ),
-              ),
-            Positioned(
-              right: 0,
-              bottom: 2,
-              child: Tooltip(
-                message: 'Change profile picture',
-                child: InkWell(
-                  customBorder: const CircleBorder(),
-                  onTap: photoUpdating ? null : onChoosePhoto,
-                  child: Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: theme.scaffoldBackgroundColor,
-                        width: 3,
-                      ),
-                    ),
-                    child: const Icon(
-                      AppIcons.camera,
-                      color: Colors.white,
-                      size: AppIconSize.sm,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: AppSpacing.md),
-        Text(
-          displayName,
-          style: theme.textTheme.titleMedium?.copyWith(
-            fontWeight: AppFontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        Text(
-          subtitle,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.secondary,
-          ),
-        ),
-        if (!isEditing) ...[
-          const SizedBox(height: AppSpacing.md),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final compact = constraints.maxWidth < 320;
-
-              return FilledButton(
-                onPressed: onEditProfile,
-                style: FilledButton.styleFrom(
-                  minimumSize: Size(compact ? 104 : 116, 42),
-                  padding: EdgeInsets.symmetric(
-                    horizontal: compact ? AppSpacing.md : AppSpacing.lg,
-                  ),
-                ),
-                child: const Text('Edit Profile'),
-              );
-            },
-          ),
-        ],
-      ],
-    );
-  }
-}
-
-class _PersonalInformationCard extends StatelessWidget {
-  const _PersonalInformationCard({
-    required this.isEditing,
-    required this.nameController,
-    required this.phoneController,
-  });
-
-  final bool isEditing;
-  final TextEditingController nameController;
-  final TextEditingController phoneController;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return CivicGlassCard(
-      borderRadius: AppRadius.allXl,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Personal Information',
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: AppFontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          _ProfileInfoField(
-            icon: AppIcons.profile,
-            label: 'Full name',
-            controller: nameController,
-            isEditing: isEditing,
-          ),
-          const SizedBox(height: AppSpacing.md),
-          _ProfileInfoField(
-            icon: AppIcons.phone,
-            label: 'Phone',
-            controller: phoneController,
-            keyboardType: TextInputType.phone,
-            isEditing: false,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ProfileInfoField extends StatelessWidget {
-  const _ProfileInfoField({
-    required this.icon,
-    required this.label,
-    required this.controller,
-    required this.isEditing,
-    this.keyboardType,
-  });
-
-  final IconData icon;
-  final String label;
-  final TextEditingController controller;
-  final bool isEditing;
-  final TextInputType? keyboardType;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: theme.textTheme.labelSmall?.copyWith(
-            fontWeight: AppFontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.md,
-          ),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerLow,
-            borderRadius: AppRadius.allXl,
-            border: Border.all(color: theme.colorScheme.outlineVariant),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                icon,
-                size: AppIconSize.md,
-                color: theme.colorScheme.secondary,
-              ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: isEditing
-                    ? TextField(
-                        controller: controller,
-                        keyboardType: keyboardType,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          fontWeight: AppFontWeight.semiBold,
-                        ),
-                        decoration: const InputDecoration(
-                          isDense: true,
-                          border: InputBorder.none,
-                          enabledBorder: InputBorder.none,
-                          focusedBorder: InputBorder.none,
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                      )
-                    : Text(
-                        controller.text,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          fontWeight: AppFontWeight.semiBold,
-                        ),
-                      ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// Retained temporarily for the future security-settings implementation.
-// ignore: unused_element
-class _SecurityCard extends StatelessWidget {
-  const _SecurityCard({
-    required this.twoStepEnabled,
-    required this.onTwoStepChanged,
-  });
-
-  final bool twoStepEnabled;
-  final ValueChanged<bool> onTwoStepChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return CivicGlassCard(
-      borderRadius: AppRadius.allXl,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Security',
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: AppFontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          _SecurityRow(
-            icon: AppIcons.password,
-            title: 'Password',
-            subtitle: 'Last changed 28 days ago',
-            trailing: TextButton(onPressed: () {}, child: const Text('Manage')),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          _SecurityRow(
-            icon: AppIcons.permissionDenied,
-            title: 'Two-step verification',
-            subtitle: 'Recommended for account safety',
-            trailing: Switch(
-              value: twoStepEnabled,
-              onChanged: onTwoStepChanged,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SecurityRow extends StatelessWidget {
-  const _SecurityRow({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.trailing,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final Widget trailing;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final stacked = constraints.maxWidth < 315;
-
-        final leadingContent = Row(
-          children: [
-            Container(
-              width: AppIconSize.xl,
-              height: AppIconSize.xl,
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.1),
-                borderRadius: AppRadius.allLg,
-              ),
-              child: Icon(icon, color: AppColors.primary, size: AppIconSize.md),
-            ),
-            const SizedBox(width: AppSpacing.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: AppFontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(
-                    subtitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: theme.colorScheme.secondary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        );
-
-        return Container(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerLow,
-            borderRadius: AppRadius.allLg,
-            border: Border.all(color: theme.colorScheme.outlineVariant),
-          ),
-          child: stacked
-              ? Column(
-                  children: [
-                    leadingContent,
-                    const SizedBox(height: AppSpacing.sm),
-                    Align(alignment: Alignment.centerRight, child: trailing),
-                  ],
-                )
-              : Row(
-                  children: [
-                    Expanded(child: leadingContent),
-                    const SizedBox(width: AppSpacing.sm),
-                    FittedBox(fit: BoxFit.scaleDown, child: trailing),
-                  ],
-                ),
-        );
-      },
-    );
-  }
-}
-
-class _AppearanceCard extends StatelessWidget {
-  const _AppearanceCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return CivicGlassCard(
-      borderRadius: AppRadius.allXl,
-      child: ValueListenableBuilder<ThemeMode>(
-        valueListenable: ThemeController.mode,
-        builder: (context, mode, _) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Appearance',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: AppFontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              SizedBox(
-                width: double.infinity,
-                child: SegmentedButton<ThemeMode>(
-                  segments: const [
-                    ButtonSegment(
-                      value: ThemeMode.system,
-                      label: Text('System'),
-                      icon: Icon(AppIcons.settings),
-                    ),
-                    ButtonSegment(
-                      value: ThemeMode.light,
-                      label: Text('Light'),
-                      icon: Icon(AppIcons.sun),
-                    ),
-                    ButtonSegment(
-                      value: ThemeMode.dark,
-                      label: Text('Dark'),
-                      icon: Icon(AppIcons.moon),
-                    ),
-                  ],
-                  selected: {mode},
-                  onSelectionChanged: (selection) =>
-                      ThemeController.setThemeMode(selection.first),
-                ),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              const Divider(height: 1),
-              const SizedBox(height: AppSpacing.md),
-              const _LanguageRow(),
-            ],
-          );
-        },
-      ),
-    );
-  }
-}
-
-/// No multi-language content exists anywhere in the app yet — genuinely
-/// inert (no control at all), matching every other module's "Language"
-/// row, just styled to Citizen's own icon-box shape rather than the shared
-/// Civic Glass profile widgets (this screen deliberately keeps its own
-/// design system — see the class doc comment on [CitizenProfileScreen]).
-class _LanguageRow extends StatelessWidget {
-  const _LanguageRow();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Row(
-      children: [
-        Container(
-          width: AppIconSize.xl,
-          height: AppIconSize.xl,
-          decoration: BoxDecoration(
-            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.1),
-            borderRadius: AppRadius.allLg,
-          ),
-          child: Icon(
-            AppIcons.language,
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
-        const SizedBox(width: AppSpacing.md),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Language',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  fontWeight: AppFontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                'English',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: theme.colorScheme.secondary,
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        const ComingSoonBadge(),
-      ],
-    );
-  }
-}
-
 class _SaveSuccessBanner extends StatelessWidget {
   const _SaveSuccessBanner();
 
@@ -964,44 +433,6 @@ class _SaveSuccessBanner extends StatelessWidget {
               style: Theme.of(
                 context,
               ).textTheme.labelMedium?.copyWith(color: AppColors.success),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _LogOutCard extends StatelessWidget {
-  const _LogOutCard({required this.onLogOut});
-
-  final VoidCallback onLogOut;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return CivicGlassCard(
-      borderRadius: AppRadius.allXl,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Session',
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: AppFontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton(
-              onPressed: onLogOut,
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.error,
-                side: BorderSide(color: AppColors.error.withValues(alpha: 0.4)),
-              ),
-              child: const Text('Log Out'),
             ),
           ),
         ],

@@ -5,9 +5,11 @@ import '../../../widgets/confirm_dialog.dart';
 import '../../../widgets/language_preference_row.dart';
 import '../../../widgets/profile_action_row.dart';
 import '../../../widgets/profile_edit_action_bar.dart';
+import '../../../widgets/profile_edit_button.dart';
 import '../../../widgets/profile_field_row.dart';
 import '../../../widgets/profile_header_card.dart';
 import '../../../widgets/profile_section.dart';
+import '../../../widgets/status_badge.dart';
 import '../../../widgets/theme_preference_row.dart';
 import '../models/maintenance_profile.dart';
 import '../services/maintenance_session.dart';
@@ -278,7 +280,13 @@ class _ProfileForm extends StatelessWidget {
                   ],
                   ProfileHeaderCard(
                     name: nameController.text,
-                    pills: [_Pill(label: 'Maintenance Technician')],
+                    pills: const [
+                      TintedBadge(
+                        label: 'Maintenance Technician',
+                        color: AppColors.primary,
+                        textColor: AppColors.primary,
+                      ),
+                    ],
                     editing: editing,
                   ),
                   const SizedBox(height: AppSpacing.lg),
@@ -323,14 +331,7 @@ class _ProfileForm extends StatelessWidget {
                     title: 'Personal Information',
                     trailing: editing
                         ? null
-                        : IconButton(
-                            onPressed: onEdit,
-                            icon: const Icon(
-                              AppIcons.edit,
-                              size: AppIconSize.sm,
-                            ),
-                            tooltip: 'Edit',
-                          ),
+                        : ProfileEditButton(onPressed: onEdit),
                     children: [
                       ProfileFieldRow(
                         label: 'Full Name',
@@ -394,31 +395,6 @@ class _ProfileForm extends StatelessWidget {
             if (editing)
               ProfileEditActionBar(onCancel: onCancel, onSave: onSave),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _Pill extends StatelessWidget {
-  const _Pill({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-      decoration: BoxDecoration(
-        color: AppColors.primary.withValues(alpha: 0.12),
-        border: Border.all(color: AppColors.primary.withValues(alpha: 0.24)),
-        borderRadius: AppRadius.allXl,
-      ),
-      child: Text(
-        label,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: AppColors.primary,
-          fontWeight: AppFontWeight.semiBold,
         ),
       ),
     );

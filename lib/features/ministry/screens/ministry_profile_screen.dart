@@ -11,6 +11,7 @@ import '../../../widgets/profile_edit_action_bar.dart';
 import '../../../widgets/profile_field_row.dart';
 import '../../../widgets/profile_header_card.dart';
 import '../../../widgets/profile_section.dart';
+import '../../../widgets/status_badge.dart';
 import '../../../widgets/theme_preference_row.dart';
 import '../models/ministry_profile_data.dart';
 
@@ -383,8 +384,16 @@ class _ProfileBody extends StatelessWidget {
           name: profile.name,
           subtitle: profile.ministry,
           pills: [
-            _Pill(label: profile.role),
-            _Pill(label: 'ID ${profile.publicId}'),
+            TintedBadge(
+              label: profile.role,
+              color: AppColors.primary,
+              textColor: AppColors.primary,
+            ),
+            TintedBadge(
+              label: 'ID ${profile.publicId}',
+              color: AppColors.primary,
+              textColor: AppColors.primary,
+            ),
           ],
           editing: editing,
         ),
@@ -451,37 +460,16 @@ class _ProfileBody extends StatelessWidget {
               runSpacing: AppSpacing.xs,
               children: [
                 for (final badge in profile.metadataBadges)
-                  _MetadataBadge(label: badge),
+                  TintedBadge(
+                    label: badge,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    textColor: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
               ],
             ),
           ],
         ),
       ],
-    );
-  }
-}
-
-class _Pill extends StatelessWidget {
-  const _Pill({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-      decoration: BoxDecoration(
-        color: AppColors.primary.withValues(alpha: 0.12),
-        border: Border.all(color: AppColors.primary.withValues(alpha: 0.24)),
-        borderRadius: AppRadius.allXl,
-      ),
-      child: Text(
-        label,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: AppColors.primary,
-          fontWeight: AppFontWeight.semiBold,
-        ),
-      ),
     );
   }
 }
@@ -523,37 +511,6 @@ class _SuccessBanner extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Shared row/badge pieces
-// ---------------------------------------------------------------------------
-
-class _MetadataBadge extends StatelessWidget {
-  const _MetadataBadge({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.xs,
-      ),
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainer,
-        borderRadius: AppRadius.allXl,
-      ),
-      child: Text(
-        label,
-        style: Theme.of(
-          context,
-        ).textTheme.labelMedium?.copyWith(color: colorScheme.onSurfaceVariant),
       ),
     );
   }
