@@ -143,14 +143,17 @@ class _AdminSystemSettingsScreenState extends State<AdminSystemSettingsScreen> {
     if (!confirmed || !mounted) return;
 
     setState(() => _saveState = SystemSettingsSaveState.saving);
-    Future.delayed(const Duration(milliseconds: 500), () {
+    try {
+      await AdminSystemSettingsDirectory.instance.save(_draft);
       if (!mounted) return;
       setState(() {
         _original = _draft;
-        AdminSystemSettingsDirectory.instance.settings.value = _draft;
         _saveState = SystemSettingsSaveState.saved;
       });
-    });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _saveState = SystemSettingsSaveState.failed);
+    }
   }
 
   @override

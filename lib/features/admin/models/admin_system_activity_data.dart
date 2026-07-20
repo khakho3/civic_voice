@@ -106,6 +106,19 @@ class ActivityItem {
 
   bool matchesTimeRange(ActivityTimeRange range) => range.includes(timestamp);
 
+  /// Case-insensitive match against title/description/tag — the same
+  /// fields civic_voice_api's own GET /api/admin/activity?q= searches
+  /// server-side. Client-side here since the feed is already fully
+  /// loaded (a bounded 500-record snapshot) by the time this runs, same
+  /// as [matches]/[matchesTimeRange]'s existing client-side filtering.
+  bool matchesQuery(String query) {
+    final normalized = query.trim().toLowerCase();
+    if (normalized.isEmpty) return true;
+    return title.toLowerCase().contains(normalized) ||
+        description.toLowerCase().contains(normalized) ||
+        tag.toLowerCase().contains(normalized);
+  }
+
   factory ActivityItem.fromApi(Map<String, dynamic> json) {
     final regionName = json['region'] as String?;
     final region = Region.values.cast<Region?>().firstWhere(

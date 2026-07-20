@@ -26,6 +26,7 @@ import 'features/admin/services/admin_maintenance_team_directory.dart';
 import 'features/admin/services/admin_session.dart';
 import 'features/admin/services/admin_user_directory.dart';
 import 'features/admin/services/admin_system_activity_directory.dart';
+import 'features/admin/services/admin_system_settings_directory.dart';
 import 'features/authentication/screens/change_password_screen.dart';
 import 'features/authentication/screens/forgot_password_screen.dart';
 import 'features/authentication/screens/login_screen.dart';
@@ -239,6 +240,7 @@ Future<void> _restorePersistedSession() async {
       await AdminUserDirectory.instance.refresh();
       await MaintenanceTeamDirectory.instance.refreshForAdmin();
       await AdminSystemActivityDirectory.instance.refresh();
+      await AdminSystemSettingsDirectory.instance.refresh();
     }
   } catch (_) {
     // Firebase keeps the credential. Preserve the last known role so a
@@ -419,8 +421,12 @@ class _CivicVoiceAppState extends State<CivicVoiceApp> {
     if (MockAuthService().getCurrentRole() == null) return;
     FirebaseAuth.instance.signOut();
     MockAuthService().clearUser();
+    // Straight to Login, not the onboarding carousel — this device has
+    // been used before, so re-showing onboarding (and letting them scroll
+    // back through slides they've already seen) is exactly the confusing
+    // dead end this used to be.
     _navigatorKey.currentState?.pushNamedAndRemoveUntil(
-      AppRoutes.welcome,
+      AppRoutes.login,
       (_) => false,
     );
   }

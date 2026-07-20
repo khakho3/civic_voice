@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'package:civic_voice/core/theme/app_theme.dart';
 import 'package:civic_voice/features/authentication/widgets/auth_presentation.dart';
@@ -66,6 +67,23 @@ class _LoginScreenState extends State<LoginScreen> {
     if (isValid) {
       widget.onSignIn?.call(_phoneController.text.trim(), _passwordController.text);
     }
+  }
+
+  /// Same reasoning as OtpVerificationScreen's own paste shortcut — a
+  /// freshly-provisioned staff member's temp password arrives in a real
+  /// SMS they have to switch apps to read, and manually retyping a random
+  /// generated string is exactly what's already caused real "wrong
+  /// password" reports.
+  Future<void> _pastePassword() async {
+    final data = await Clipboard.getData(Clipboard.kTextPlain);
+    final text = data?.text?.trim();
+    if (text == null || text.isEmpty || !mounted) return;
+    setState(() {
+      _passwordController.text = text;
+      _passwordController.selection = TextSelection.collapsed(
+        offset: text.length,
+      );
+    });
   }
 
   @override
@@ -151,12 +169,34 @@ class _LoginScreenState extends State<LoginScreen> {
                   return null;
                 },
               ),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: _isDisabled ? null : widget.onForgotPassword,
-                  child: const Text('Forgot Password?'),
-                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  IconButton(
+                    onPressed: _isDisabled ? null : _pastePassword,
+                    icon: const Icon(AppIcons.copy, size: AppIconSize.sm),
+                    tooltip: 'Paste password',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(
+                      minWidth: 32,
+                      minHeight: 32,
+                    ),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  Flexible(
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: _isDisabled ? null : widget.onForgotPassword,
+                        style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                        child: const Text(
+                          'Forgot Password?',
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: AppSpacing.sm),
               SizedBox(

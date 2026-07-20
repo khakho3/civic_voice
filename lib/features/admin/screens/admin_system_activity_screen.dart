@@ -151,6 +151,8 @@ class _AdminSystemActivityScreenState extends State<AdminSystemActivityScreen> {
       AdminSession.instance.visibleActivity(mockActivityItems());
   ActivityFilter _filter = ActivityFilter.all;
   ActivityTimeRange _timeRange = ActivityTimeRange.last24Hours;
+  final _searchController = TextEditingController();
+  String _searchQuery = '';
 
   @override
   void initState() {
@@ -184,8 +186,16 @@ class _AdminSystemActivityScreenState extends State<AdminSystemActivityScreen> {
     setState(() {
       _filter = ActivityFilter.all;
       _timeRange = ActivityTimeRange.last24Hours;
+      _searchController.clear();
+      _searchQuery = '';
       _state = AdminSystemActivityViewState.loaded;
     });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   @override
@@ -218,9 +228,11 @@ class _AdminSystemActivityScreenState extends State<AdminSystemActivityScreen> {
                 header: _FilterChrome(
                   filter: _filter,
                   timeRange: _timeRange,
+                  searchController: _searchController,
                   enabled: true,
                   onFilterSelected: (f) => setState(() => _filter = f),
                   onTimeRangeChanged: (r) => setState(() => _timeRange = r),
+                  onSearchChanged: (q) => setState(() => _searchQuery = q),
                 ),
                 child: _ActivityList(
                   healthStats: _healthStats,
@@ -228,6 +240,7 @@ class _AdminSystemActivityScreenState extends State<AdminSystemActivityScreen> {
                   liveAudit: widget.items != null,
                   filter: _filter,
                   timeRange: _timeRange,
+                  searchQuery: _searchQuery,
                   onClearFilters: _clearFilters,
                 ),
               ),
@@ -240,12 +253,16 @@ class _AdminSystemActivityScreenState extends State<AdminSystemActivityScreen> {
             _FilterChrome(
               filter: _filter,
               timeRange: _timeRange,
+              searchController: _searchController,
               enabled: chromeEnabled,
               onFilterSelected: chromeEnabled
                   ? (f) => setState(() => _filter = f)
                   : null,
               onTimeRangeChanged: chromeEnabled
                   ? (r) => setState(() => _timeRange = r)
+                  : null,
+              onSearchChanged: chromeEnabled
+                  ? (q) => setState(() => _searchQuery = q)
                   : null,
             ),
             Expanded(
@@ -327,16 +344,20 @@ class _FilterChrome extends StatelessWidget {
   const _FilterChrome({
     required this.filter,
     required this.timeRange,
+    required this.searchController,
     required this.enabled,
     this.onFilterSelected,
     this.onTimeRangeChanged,
+    this.onSearchChanged,
   });
 
   final ActivityFilter filter;
   final ActivityTimeRange timeRange;
+  final TextEditingController searchController;
   final bool enabled;
   final ValueChanged<ActivityFilter>? onFilterSelected;
   final ValueChanged<ActivityTimeRange>? onTimeRangeChanged;
+  final ValueChanged<String>? onSearchChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -353,6 +374,41 @@ class _FilterChrome extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            TextField(
+              controller: searchController,
+              enabled: enabled,
+              onChanged: onSearchChanged,
+              textInputAction: TextInputAction.search,
+              decoration: InputDecoration(
+                isDense: true,
+                hintText: 'Search activity',
+                prefixIcon: const Icon(AppIcons.search, size: AppIconSize.sm),
+                suffixIcon: ValueListenableBuilder<TextEditingValue>(
+                  valueListenable: searchController,
+                  builder: (context, value, _) {
+                    if (value.text.isEmpty) return const SizedBox.shrink();
+                    return IconButton(
+                      icon: const Icon(AppIcons.close, size: AppIconSize.sm),
+                      tooltip: 'Clear search',
+                      onPressed: enabled
+                          ? () {
+                              searchController.clear();
+                              onSearchChanged?.call('');
+                            }
+                          : null,
+                    );
+                  },
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: AppComponentRadius.inputField,
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                  vertical: AppSpacing.sm,
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
             SizedBox(
               height: 40,
               child: ListView.separated(
@@ -596,6 +652,7 @@ class _ActivityList extends StatelessWidget {
     required this.items,
     required this.filter,
     required this.timeRange,
+    required this.searchQuery,
     required this.onClearFilters,
     required this.liveAudit,
   });
@@ -604,6 +661,7 @@ class _ActivityList extends StatelessWidget {
   final List<ActivityItem> items;
   final ActivityFilter filter;
   final ActivityTimeRange timeRange;
+  final String searchQuery;
   final VoidCallback onClearFilters;
   final bool liveAudit;
 
@@ -614,7 +672,12 @@ class _ActivityList extends StatelessWidget {
         liveAudit ||
         AdminSystemSettingsDirectory.instance.settings.value.auditLogging;
     final filtered = items
-        .where((i) => filter.matches(i) && i.matchesTimeRange(timeRange))
+        .where(
+          (i) =>
+              filter.matches(i) &&
+              i.matchesTimeRange(timeRange) &&
+              i.matchesQuery(searchQuery),
+        )
         .toList();
 
     return ListView(

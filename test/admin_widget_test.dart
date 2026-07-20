@@ -1986,42 +1986,48 @@ void main() {
     expect(find.text('Reset Changes'), findsNothing);
   });
 
-  testWidgets('Admin System Settings Save Changes shows the success banner and '
-      'clears the dirty state', (WidgetTester tester) async {
-    tester.view.physicalSize = const Size(428, 2600);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-    _preserveAdminSystemSettingsDirectory();
+  testWidgets(
+    'Admin System Settings Save Changes submits to the real backend and '
+    'recovers from a failed request',
+    (WidgetTester tester) async {
+      // Save now calls the real civic_voice_api PATCH /api/admin/settings
+      // (see AdminSystemSettingsDirectory.save) instead of a fake delay
+      // that always succeeded — against the dead baseUrl every test runs
+      // with (flutter_test_config.dart), that means a real failure here
+      // is the correct, testable outcome: the "Update Failed" banner
+      // appears and the draft survives so nothing is silently lost.
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      _preserveAdminSystemSettingsDirectory();
 
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: AppTheme.light,
-        home: const AdminSystemSettingsScreen(),
-      ),
-    );
-    await tester.pump();
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: const AdminSystemSettingsScreen(),
+        ),
+      );
+      await tester.pump();
 
-    await tester.tap(find.byType(Switch).at(1));
-    await tester.pump();
-    await tester.tap(find.text('Save Changes'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
+      await tester.tap(find.byType(Switch).at(1));
+      await tester.pump();
+      await tester.tap(find.text('Save Changes'));
+      await tester.pump();
 
-    // Saving asks for confirmation first — its own confirm button shares
-    // the same label as the page's Save Changes button.
-    expect(find.text('Save system settings?'), findsOneWidget);
-    await tester.tap(find.text('Save Changes').last);
-    await tester.pump();
+      // Saving asks for confirmation first — its own confirm button shares
+      // the same label as the page's Save Changes button.
+      expect(find.text('Save system settings?'), findsOneWidget);
+      await tester.tap(find.text('Save Changes').last);
+      await tester.pumpAndSettle();
 
-    // The save completes after a simulated delay — a single pump only
-    // advances one frame, not the full delay.
-    await tester.pump(const Duration(milliseconds: 600));
-
-    expect(find.text('Configuration saved'), findsOneWidget);
-    expect(find.text('Save Changes'), findsNothing);
-    expect(find.text('Reset Changes'), findsNothing);
-  });
+      expect(find.text('Update Failed'), findsOneWidget);
+      // The failed save doesn't clear the dirty state — the draft is
+      // still unsaved, so Save/Reset stay available to retry.
+      expect(find.text('Save Changes'), findsOneWidget);
+      expect(find.text('Reset Changes'), findsOneWidget);
+    },
+  );
 
   testWidgets(
     'Admin System Settings initialSaveState previews the Update Failed '

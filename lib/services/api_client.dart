@@ -409,13 +409,37 @@ class ApiClient {
 
   Future<List<Map<String, dynamic>>> listAdminActivity({
     required String idToken,
+    String? search,
   }) async {
-    final result = await _get('/api/admin/activity', idToken: idToken);
+    final query = (search != null && search.trim().isNotEmpty)
+        ? '?q=${Uri.encodeQueryComponent(search.trim())}'
+        : '';
+    final result = await _get('/api/admin/activity$query', idToken: idToken);
     return (result['activity'] as List).cast<Map<String, dynamic>>();
   }
 
   Future<Map<String, dynamic>> getAdminHealth({required String idToken}) async {
     return _get('/api/admin/health', idToken: idToken);
+  }
+
+  Future<Map<String, dynamic>> getAdminSettings({required String idToken}) async {
+    final result = await _get('/api/admin/settings', idToken: idToken);
+    return result['settings'] as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> updateAdminSettings({
+    required String idToken,
+    required Map<String, dynamic> fields,
+  }) async {
+    final response = await http.patch(
+      Uri.parse('$baseUrl/api/admin/settings'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $idToken',
+      },
+      body: jsonEncode(fields),
+    );
+    return _decode(response)['settings'] as Map<String, dynamic>;
   }
 
   Future<List<Map<String, dynamic>>> listMinistryMunicipalContacts({

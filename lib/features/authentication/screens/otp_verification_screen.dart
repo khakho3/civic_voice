@@ -91,6 +91,25 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
     });
   }
 
+  /// Reads the clipboard and fills the code field — the code arrives in a
+  /// real SMS the user has to switch apps to read, and manually retyping
+  /// a 6-digit code (or, worse, the temp password on the login screen
+  /// this mirrors) is exactly the kind of transcription step that's
+  /// already caused real "wrong code"/"wrong password" reports. Strips
+  /// anything that isn't a digit so pasting the whole SMS body (not just
+  /// the code) still works.
+  Future<void> _pasteCode() async {
+    final data = await Clipboard.getData(Clipboard.kTextPlain);
+    final digitsOnly = data?.text?.replaceAll(RegExp(r'\D'), '') ?? '';
+    if (digitsOnly.isEmpty || !mounted) return;
+    final code = digitsOnly.length > 6 ? digitsOnly.substring(0, 6) : digitsOnly;
+    setState(() {
+      _codeController.text = code;
+      _codeController.selection = TextSelection.collapsed(offset: code.length);
+      _invalidCode = false;
+    });
+  }
+
   Future<void> _verify() async {
     if (!_canVerify) return;
     setState(() {
@@ -146,7 +165,20 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                 prefixIcon: AppIcons.sms,
               ).copyWith(counterText: ''),
             ),
-            const SizedBox(height: AppSpacing.sm),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: (_verifying || _expired) ? null : _pasteCode,
+                icon: const Icon(AppIcons.copy, size: AppIconSize.sm),
+                label: const Text('Paste Code'),
+                style: TextButton.styleFrom(
+                  padding: EdgeInsets.zero,
+                  minimumSize: const Size(0, 32),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xs),
             _TimerLine(
               icon: AppIcons.eta,
               text: _expired

@@ -15,12 +15,11 @@ const List<String> kSessionTimeoutOptions = [
 ///
 /// No [validationError] value — every field here is a switch or a
 /// closed-set dropdown, always populated, so there's nothing left that
-/// could ever actually fail validation. [failed] itself has no reachable
-/// trigger through normal interaction either — there's no backend here to
-/// actually fail a save against — so, like every other screen's
-/// `initialState` preview mechanism, it's only reachable via
-/// [AdminSystemSettingsScreen.initialSaveState] for building/testing the
-/// "Update Failed" copy.
+/// could ever actually fail validation. [failed] is reachable for real now
+/// (a network error, or the backend 403ing a non-Super-Admin session) —
+/// [AdminSystemSettingsScreen.initialSaveState] remains as a preview/test
+/// hook for the same "Update Failed" copy, same as every other screen's
+/// `initialState` mechanism, not the only way to reach it anymore.
 enum SystemSettingsSaveState { idle, saving, saved, failed }
 
 /// All the fields on ADM-007 System Settings.
@@ -67,6 +66,21 @@ class SystemSettingsData {
   /// Real: gates whether Admin Create User's form actually submits, via
   /// [AdminSystemSettingsDirectory].
   final bool allowNewAccountCreation;
+
+  /// Builds from civic_voice_api's GET/PATCH /api/admin/settings response.
+  /// maintenanceMode/publicStatusPage aren't part of that payload at all
+  /// (see the class doc comment — no backend feature exists for either),
+  /// so they keep the same fixed display values [mockSystemSettings] always
+  /// used; only the three real fields actually come from the server.
+  factory SystemSettingsData.fromApi(Map<String, dynamic> json) {
+    return SystemSettingsData(
+      maintenanceMode: false,
+      sessionTimeout: json['sessionTimeout'] as String? ?? '30 minutes',
+      auditLogging: json['auditLogging'] as bool? ?? true,
+      publicStatusPage: true,
+      allowNewAccountCreation: json['allowNewAccountCreation'] as bool? ?? true,
+    );
+  }
 
   SystemSettingsData copyWith({
     bool? maintenanceMode,
