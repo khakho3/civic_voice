@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android blocks plain HTTP by default (targetSdk 28+). Production always
+  talks to https://api.civicvoice.eraaxis.com, so this exception is scoped
+  only to local-dev addresses — it does not weaken anything in a real
+  release. Needed for a local dev run (dart-define override of
+  API_BASE_URL, see api_client.dart's baseUrl) against a locally-running
+  backend to actually reach the device: 10.0.2.2 is the Android emulator's
+  alias for the host machine's localhost; the LAN IP below is this dev
+  machine's address for a physical device on the same network — update it
+  if the machine's IP ever changes.
+-->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">10.0.2.2</domain>
+        <domain includeSubdomains="false">localhost</domain>
+        <domain includeSubdomains="false">127.0.0.1</domain>
+        <domain includeSubdomains="false">192.168.100.8</domain>
+    </domain-config>
+</network-security-config>
