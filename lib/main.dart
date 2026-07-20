@@ -436,10 +436,18 @@ class _CivicVoiceAppState extends State<CivicVoiceApp> {
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: ThemeController.mode,
       builder: (context, themeMode, _) {
+        // A cold start with no active role isn't necessarily a fresh
+        // device — it's just as often someone reopening the app after an
+        // earlier sign-out/timeout. onboardingComplete is what actually
+        // distinguishes "never seen this app before" (show the full
+        // onboarding carousel) from "has an account, just needs to sign
+        // back in" (go straight to Login).
         final effectiveInitialRoute =
             widget.initialRoute ??
             _routeForRole(MockAuthService().getCurrentRole()) ??
-            AppRoutes.welcome;
+            (AppCacheService.instance.onboardingComplete
+                ? AppRoutes.login
+                : AppRoutes.welcome);
 
         return Listener(
           onPointerDown: (_) => IdleSessionTimer.instance.registerActivity(),
@@ -459,12 +467,12 @@ class _CivicVoiceAppState extends State<CivicVoiceApp> {
             // onSignIn() will determine the user's role. The routing constants
             // and route table stay the same.
             routes: {
+              // Only ever reached when onboardingComplete is still false
+              // (see effectiveInitialRoute above, and _signOut/
+              // _handleIdleTimeout below) — a device that's already
+              // finished onboarding once never lands here again, so this
+              // always starts at the first slide now.
               AppRoutes.welcome: (context) => WelcomeScreen(
-                initialPage:
-                    widget.initialRoute == null &&
-                        AppCacheService.instance.onboardingComplete
-                    ? 2
-                    : 0,
                 onOnboardingCompleted: () => unawaited(
                   AppCacheService.instance.markOnboardingComplete(),
                 ),
@@ -1209,9 +1217,12 @@ Future<void> _signOut(BuildContext context) async {
   await FirebaseAuth.instance.signOut();
   await MockAuthService().clearUser();
   if (!context.mounted) return;
+  // Straight to Login, matching _handleIdleTimeout/_finishChangePassword —
+  // a device that's already had an account signed in on it should never
+  // see the onboarding carousel again on sign-out.
   Navigator.of(
     context,
-  ).pushNamedAndRemoveUntil(AppRoutes.welcome, (_) => false);
+  ).pushNamedAndRemoveUntil(AppRoutes.login, (_) => false);
 }
 
 /// Kept as a layout seam for the role dashboard builders and widget tests;
