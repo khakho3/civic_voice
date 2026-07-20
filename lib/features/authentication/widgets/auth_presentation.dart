@@ -64,45 +64,53 @@ class AuthScreenLayout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AuthBackdrop(
-      child: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) => SingleChildScrollView(
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                minHeight: constraints.maxHeight - (AppSpacing.lg * 2),
+    return Scaffold(
+      resizeToAvoidBottomInset: false,
+      body: AuthBackdrop(
+        child: SafeArea(
+          child: LayoutBuilder(
+            builder: (context, constraints) => SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                AppSpacing.lg,
+                AppSpacing.lg,
+                AppSpacing.lg + MediaQuery.viewInsetsOf(context).bottom,
               ),
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(
-                    maxWidth: AppBreakpoints.standardMobile,
-                  ),
-                  child: IntrinsicHeight(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: IconButton(
-                            onPressed: onBack,
-                            tooltip: 'Go back',
-                            icon: const Icon(AppIcons.back),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: constraints.maxHeight - (AppSpacing.lg * 2),
+                ),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(
+                      maxWidth: AppBreakpoints.standardMobile,
+                    ),
+                    child: IntrinsicHeight(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: IconButton(
+                              onPressed: onBack,
+                              tooltip: 'Go back',
+                              icon: const Icon(AppIcons.back),
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: AppSpacing.sm),
-                        AuthBrandHeader(
-                          title: title,
-                          supportingText: supportingText,
-                        ),
-                        const SizedBox(height: AppSpacing.lg),
-                        AuthFormSurface(child: form),
-                        const Spacer(),
-                        if (footer != null) ...[
+                          const SizedBox(height: AppSpacing.sm),
+                          AuthBrandHeader(
+                            title: title,
+                            supportingText: supportingText,
+                          ),
                           const SizedBox(height: AppSpacing.lg),
-                          footer!,
+                          AuthFormSurface(child: form),
+                          const Spacer(),
+                          if (footer != null) ...[
+                            const SizedBox(height: AppSpacing.lg),
+                            footer!,
+                          ],
                         ],
-                      ],
+                      ),
                     ),
                   ),
                 ),
@@ -152,27 +160,18 @@ class AuthBrandHeader extends StatelessWidget {
         Semantics(
           image: true,
           label: 'CivicVoice logo',
-          child: Container(
+          // AppAssets.logoApp, not iconFlat — iconFlat is the launcher
+          // icon's flat, opaque source (solid background baked in, meant
+          // for that one use), which looked like a boxed-in white square
+          // sitting inside this header. logoApp is the transparent mark
+          // every module's own header already uses, so this now matches
+          // that same clean, unboxed treatment instead of a one-off style.
+          child: Image.asset(
+            AppAssets.logoApp,
             width: 76,
             height: 76,
-            decoration: BoxDecoration(
-              borderRadius: AppRadius.allXl,
-              boxShadow: [
-                BoxShadow(
-                  color: colors.primary.withValues(alpha: 0.16),
-                  blurRadius: AppSpacing.lg,
-                  offset: const Offset(0, AppSpacing.sm),
-                ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: AppRadius.allXl,
-              child: Image.asset(
-                AppAssets.iconFlat,
-                fit: BoxFit.cover,
-                excludeFromSemantics: true,
-              ),
-            ),
+            fit: BoxFit.contain,
+            excludeFromSemantics: true,
           ),
         ),
         const SizedBox(height: AppSpacing.md),
@@ -212,9 +211,13 @@ class AuthFormSurface extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
-        border: Border.all(color: semantic.glassBorder),
+        border: Border.all(
+          color: semantic.glassBorder.withValues(
+            alpha: semantic.glassBorder.a * 0.7,
+          ),
+        ),
         borderRadius: AppRadius.allXl,
-        boxShadow: AppShadow.level2,
+        boxShadow: AppShadow.level1,
       ),
       child: child,
     );
@@ -240,7 +243,7 @@ InputDecoration authInputDecoration(
     suffixIcon: suffixIcon,
     errorText: errorText,
     filled: true,
-    fillColor: colors.surfaceContainerHighest.withValues(alpha: 0.48),
+    fillColor: colors.surfaceContainerHighest,
     border: border,
     enabledBorder: border,
     disabledBorder: border,

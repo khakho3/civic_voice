@@ -134,69 +134,65 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       );
     }
     if (_step == _ChangePasswordStep.password) {
-      return Scaffold(
-        body: AuthScreenLayout(
-          onBack: () => setState(() => _step = _ChangePasswordStep.otp),
-          title: 'Change Password',
-          supportingText: 'Choose a new password for future sign-ins.',
-          form: SetNewPasswordForm(
-            submitLabel: 'Save Password',
-            onSaved: _savePassword,
-          ),
-          footer: Text(
-            'You will be signed out after your password is changed.',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
+      return AuthScreenLayout(
+        onBack: () => setState(() => _step = _ChangePasswordStep.otp),
+        title: 'Change Password',
+        supportingText: 'Choose a new password for future sign-ins.',
+        form: SetNewPasswordForm(
+          submitLabel: 'Save Password',
+          onSaved: _savePassword,
+        ),
+        footer: Text(
+          'You will be signed out after your password is changed.',
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         ),
       );
     }
 
-    return Scaffold(
-      body: AuthScreenLayout(
-        onBack: widget.onBack,
-        title: 'Change Password',
-        supportingText:
-            'Enter your account phone number and we will send a verification code.',
-        form: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Phone Number',
-                style: Theme.of(context).textTheme.labelMedium,
+    return AuthScreenLayout(
+      onBack: widget.onBack,
+      title: 'Change Password',
+      supportingText:
+          'Enter your account phone number and we will send a verification code.',
+      form: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Phone Number',
+              style: Theme.of(context).textTheme.labelMedium,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            TextFormField(
+              controller: _phoneController,
+              enabled: !_sending,
+              keyboardType: TextInputType.phone,
+              textInputAction: TextInputAction.done,
+              autofillHints: const [AutofillHints.telephoneNumber],
+              onFieldSubmitted: (_) => _sendCode(),
+              decoration: authInputDecoration(
+                context,
+                hintText: 'Enter your phone number',
+                prefixIcon: AppIcons.phone,
+                errorText: _phoneError,
               ),
-              const SizedBox(height: AppSpacing.sm),
-              TextFormField(
-                controller: _phoneController,
-                enabled: !_sending,
-                keyboardType: TextInputType.phone,
-                textInputAction: TextInputAction.done,
-                autofillHints: const [AutofillHints.telephoneNumber],
-                onFieldSubmitted: (_) => _sendCode(),
-                decoration: authInputDecoration(
-                  context,
-                  hintText: 'Enter your phone number',
-                  prefixIcon: AppIcons.phone,
-                  errorText: _phoneError,
-                ),
-                validator: (value) => value == null || value.trim().isEmpty
-                    ? 'Please enter your phone number.'
-                    : null,
+              validator: (value) => value == null || value.trim().isEmpty
+                  ? 'Please enter your phone number.'
+                  : null,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: _sending ? null : _sendCode,
+                child: Text(_sending ? 'Sending...' : 'Send Code'),
               ),
-              const SizedBox(height: AppSpacing.md),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: _sending ? null : _sendCode,
-                  child: Text(_sending ? 'Sending...' : 'Send Code'),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

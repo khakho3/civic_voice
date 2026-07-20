@@ -85,83 +85,81 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Scaffold(
-      body: AuthScreenLayout(
-        onBack: widget.onBack,
-        title: 'Forgot Password',
-        supportingText:
-            'Enter your phone number and we will send a verification code.',
-        form: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Phone Number', style: theme.textTheme.labelMedium),
-              const SizedBox(height: AppSpacing.sm),
-              TextFormField(
-                controller: _phoneController,
-                enabled: !_isDisabled,
-                keyboardType: TextInputType.phone,
-                textInputAction: TextInputAction.done,
-                autofillHints: const [AutofillHints.telephoneNumber],
-                onFieldSubmitted: (_) => _submitForm(),
-                decoration: authInputDecoration(
-                  context,
-                  hintText: 'Enter your phone number',
-                  prefixIcon: AppIcons.phone,
-                  errorText: _phoneErrorText,
-                ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Please enter your phone number.';
-                  }
+    return AuthScreenLayout(
+      onBack: widget.onBack,
+      title: 'Forgot Password',
+      supportingText:
+          'Enter your phone number and we will send a verification code.',
+      form: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Phone Number', style: theme.textTheme.labelMedium),
+            const SizedBox(height: AppSpacing.sm),
+            TextFormField(
+              controller: _phoneController,
+              enabled: !_isDisabled,
+              keyboardType: TextInputType.phone,
+              textInputAction: TextInputAction.done,
+              autofillHints: const [AutofillHints.telephoneNumber],
+              onFieldSubmitted: (_) => _submitForm(),
+              decoration: authInputDecoration(
+                context,
+                hintText: 'Enter your phone number',
+                prefixIcon: AppIcons.phone,
+                errorText: _phoneErrorText,
+              ),
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'Please enter your phone number.';
+                }
 
-                  return null;
-                },
-              ),
-              const SizedBox(height: AppSpacing.md),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: _isDisabled ? null : _submitForm,
-                  child: _isLoading
-                      ? const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            SizedBox(
-                              width: AppIconSize.md,
-                              height: AppIconSize.md,
-                              child: CircularProgressIndicator(
-                                strokeWidth: AppSpacing.xs / 2,
-                              ),
+                return null;
+              },
+            ),
+            const SizedBox(height: AppSpacing.md),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: _isDisabled ? null : _submitForm,
+                child: _isLoading
+                    ? const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox(
+                            width: AppIconSize.md,
+                            height: AppIconSize.md,
+                            child: CircularProgressIndicator(
+                              strokeWidth: AppSpacing.xs / 2,
                             ),
-                            SizedBox(width: AppSpacing.sm),
-                            Text('Sending...'),
-                          ],
-                        )
-                      : const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text('Send Code'),
-                            SizedBox(width: AppSpacing.sm),
-                            Icon(AppIcons.chevronRight, size: AppIconSize.md),
-                          ],
-                        ),
-                ),
+                          ),
+                          SizedBox(width: AppSpacing.sm),
+                          Text('Sending...'),
+                        ],
+                      )
+                    : const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text('Send Code'),
+                          SizedBox(width: AppSpacing.sm),
+                          Icon(AppIcons.chevronRight, size: AppIconSize.md),
+                        ],
+                      ),
               ),
-              if (_showStatusPanel) ...[
-                const SizedBox(height: AppSpacing.md),
-                _ForgotPasswordStatusPanel(state: widget.state),
-              ],
+            ),
+            if (_showStatusPanel) ...[
+              const SizedBox(height: AppSpacing.md),
+              _ForgotPasswordStatusPanel(state: widget.state),
             ],
-          ),
+          ],
         ),
-        footer: Align(
-          alignment: Alignment.center,
-          child: TextButton(
-            onPressed: widget.onBackToLogin,
-            child: const Text('Back to Login'),
-          ),
+      ),
+      footer: Align(
+        alignment: Alignment.center,
+        child: TextButton(
+          onPressed: widget.onBackToLogin,
+          child: const Text('Back to Login'),
         ),
       ),
     );

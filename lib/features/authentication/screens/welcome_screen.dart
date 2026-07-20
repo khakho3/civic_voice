@@ -156,16 +156,27 @@ class _OnboardingSlide extends StatelessWidget {
                   SizedBox(
                     height: illustrationHeight,
                     width: double.infinity,
-                    child: Semantics(
-                      image: true,
-                      label: content.semanticsLabel,
-                      child: Image.asset(
-                        content.asset,
-                        width: double.infinity,
-                        height: illustrationHeight,
-                        fit: BoxFit.contain,
-                        alignment: Alignment.center,
-                        excludeFromSemantics: true,
+                    child: Center(
+                      child: Semantics(
+                        image: true,
+                        label: content.semanticsLabel,
+                        // The onboarding assets are square (1024x1024) — a
+                        // full-width contain box just floated the square in
+                        // a sea of transparent letterbox. Clipping tight to
+                        // the square's own bounds is what actually makes
+                        // the rounded corners visible, reading as a
+                        // designed illustration card rather than a dropped-
+                        // in photo.
+                        child: ClipRRect(
+                          borderRadius: AppRadius.allLg,
+                          child: Image.asset(
+                            content.asset,
+                            width: illustrationHeight,
+                            height: illustrationHeight,
+                            fit: BoxFit.cover,
+                            excludeFromSemantics: true,
+                          ),
+                        ),
                       ),
                     ),
                   ),

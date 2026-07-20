@@ -25,6 +25,7 @@ class OtpVerificationScreen extends StatefulWidget {
 
   final String phoneNumber;
   final OtpPurpose purpose;
+
   /// Returns true on a correct code, false on a wrong/expired one — the
   /// screen shows an inline error for false rather than the caller
   /// silently proceeding.
@@ -91,25 +92,6 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
     });
   }
 
-  /// Reads the clipboard and fills the code field — the code arrives in a
-  /// real SMS the user has to switch apps to read, and manually retyping
-  /// a 6-digit code (or, worse, the temp password on the login screen
-  /// this mirrors) is exactly the kind of transcription step that's
-  /// already caused real "wrong code"/"wrong password" reports. Strips
-  /// anything that isn't a digit so pasting the whole SMS body (not just
-  /// the code) still works.
-  Future<void> _pasteCode() async {
-    final data = await Clipboard.getData(Clipboard.kTextPlain);
-    final digitsOnly = data?.text?.replaceAll(RegExp(r'\D'), '') ?? '';
-    if (digitsOnly.isEmpty || !mounted) return;
-    final code = digitsOnly.length > 6 ? digitsOnly.substring(0, 6) : digitsOnly;
-    setState(() {
-      _codeController.text = code;
-      _codeController.selection = TextSelection.collapsed(offset: code.length);
-      _invalidCode = false;
-    });
-  }
-
   Future<void> _verify() async {
     if (!_canVerify) return;
     setState(() {
@@ -133,117 +115,102 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
             ? AppSemanticColors.dark
             : AppSemanticColors.light);
 
-    return Scaffold(
-      body: AuthScreenLayout(
-        onBack: widget.onBack,
-        title: _title,
-        supportingText: 'We sent a code to ${widget.phoneNumber}.',
-        form: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Verification Code', style: theme.textTheme.labelMedium),
-            const SizedBox(height: AppSpacing.sm),
-            TextField(
-              controller: _codeController,
-              enabled: !_verifying && !_expired,
-              keyboardType: TextInputType.number,
-              textInputAction: TextInputAction.done,
-              maxLength: 6,
-              textAlign: TextAlign.center,
-              style: theme.textTheme.headlineSmall?.copyWith(
-                letterSpacing: AppSpacing.xs,
-                fontWeight: AppFontWeight.bold,
-              ),
-              inputFormatters: [
-                FilteringTextInputFormatter.digitsOnly,
-                LengthLimitingTextInputFormatter(6),
-              ],
-              onSubmitted: (_) => _verify(),
-              decoration: authInputDecoration(
-                context,
-                hintText: '000000',
-                prefixIcon: AppIcons.sms,
-              ).copyWith(counterText: ''),
+    return AuthScreenLayout(
+      onBack: widget.onBack,
+      title: _title,
+      supportingText: 'We sent a code to ${widget.phoneNumber}.',
+      form: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Verification Code', style: theme.textTheme.labelMedium),
+          const SizedBox(height: AppSpacing.sm),
+          TextField(
+            controller: _codeController,
+            enabled: !_verifying && !_expired,
+            keyboardType: TextInputType.number,
+            textInputAction: TextInputAction.done,
+            maxLength: 6,
+            textAlign: TextAlign.center,
+            style: theme.textTheme.headlineSmall?.copyWith(
+              letterSpacing: AppSpacing.xs,
+              fontWeight: AppFontWeight.bold,
             ),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                onPressed: (_verifying || _expired) ? null : _pasteCode,
-                icon: const Icon(AppIcons.copy, size: AppIconSize.sm),
-                label: const Text('Paste Code'),
-                style: TextButton.styleFrom(
-                  padding: EdgeInsets.zero,
-                  minimumSize: const Size(0, 32),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            _TimerLine(
-              icon: AppIcons.eta,
-              text: _expired
-                  ? 'Code expired'
-                  : 'Code expires in ${_formatDuration(_timeToExpiry)}',
-              color: _expired ? semantic.error : semantic.info,
-            ),
-            const SizedBox(height: AppSpacing.md),
-            if (_expired)
-              AuthStatusAlert(
-                title: 'Code Expired',
-                message: 'Request a new code before verifying.',
-                icon: AppIcons.warning,
-                statusColor: semantic.warning,
-              )
-            else if (_invalidCode)
-              AuthStatusAlert(
-                title: 'Incorrect Code',
-                message: 'That code is wrong or has expired. Try again.',
-                icon: AppIcons.error,
-                statusColor: semantic.error,
-              )
-            else if (_resent)
-              AuthStatusAlert(
-                title: 'Code Resent',
-                message: 'Check your messages for the latest code.',
-                icon: AppIcons.success,
-                statusColor: semantic.success,
-              ),
-            if (_expired || _invalidCode || _resent)
-              const SizedBox(height: AppSpacing.md),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: _canVerify ? _verify : null,
-                child: _verifying
-                    ? const SizedBox(
-                        width: AppIconSize.md,
-                        height: AppIconSize.md,
-                        child: CircularProgressIndicator(
-                          strokeWidth: AppSpacing.xs / 2,
-                        ),
-                      )
-                    : const Text('Verify Code'),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Center(
-              child: TextButton(
-                onPressed: _canResend ? _resend : null,
-                child: Text(
-                  _canResend
-                      ? 'Resend Code'
-                      : 'Resend code in ${_formatDuration(_resendCooldown)}',
-                ),
-              ),
-            ),
-          ],
-        ),
-        footer: Text(
-          'Codes expire after 15 minutes.',
-          textAlign: TextAlign.center,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+              LengthLimitingTextInputFormatter(6),
+            ],
+            onSubmitted: (_) => _verify(),
+            decoration: authInputDecoration(
+              context,
+              hintText: '000000',
+              prefixIcon: AppIcons.sms,
+            ).copyWith(counterText: ''),
           ),
+          const SizedBox(height: AppSpacing.xs),
+          _TimerLine(
+            icon: AppIcons.eta,
+            text: _expired
+                ? 'Code expired'
+                : 'Code expires in ${_formatDuration(_timeToExpiry)}',
+            color: _expired ? semantic.error : semantic.info,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          if (_expired)
+            AuthStatusAlert(
+              title: 'Code Expired',
+              message: 'Request a new code before verifying.',
+              icon: AppIcons.warning,
+              statusColor: semantic.warning,
+            )
+          else if (_invalidCode)
+            AuthStatusAlert(
+              title: 'Incorrect Code',
+              message: 'That code is wrong or has expired. Try again.',
+              icon: AppIcons.error,
+              statusColor: semantic.error,
+            )
+          else if (_resent)
+            AuthStatusAlert(
+              title: 'Code Resent',
+              message: 'Check your messages for the latest code.',
+              icon: AppIcons.success,
+              statusColor: semantic.success,
+            ),
+          if (_expired || _invalidCode || _resent)
+            const SizedBox(height: AppSpacing.md),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: _canVerify ? _verify : null,
+              child: _verifying
+                  ? const SizedBox(
+                      width: AppIconSize.md,
+                      height: AppIconSize.md,
+                      child: CircularProgressIndicator(
+                        strokeWidth: AppSpacing.xs / 2,
+                      ),
+                    )
+                  : const Text('Verify Code'),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Center(
+            child: TextButton(
+              onPressed: _canResend ? _resend : null,
+              child: Text(
+                _canResend
+                    ? 'Resend Code'
+                    : 'Resend code in ${_formatDuration(_resendCooldown)}',
+              ),
+            ),
+          ),
+        ],
+      ),
+      footer: Text(
+        'Codes expire after 15 minutes.',
+        textAlign: TextAlign.center,
+        style: theme.textTheme.bodySmall?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
         ),
       ),
     );

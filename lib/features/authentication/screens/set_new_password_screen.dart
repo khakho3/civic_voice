@@ -21,37 +21,35 @@ class SetNewPasswordScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Scaffold(
-      body: AuthScreenLayout(
-        onBack: purpose == SetNewPasswordPurpose.firstLogin ? null : onBack,
-        title: _title,
-        supportingText: _supportingText,
-        form: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (purpose == SetNewPasswordPurpose.firstLogin) ...[
-              AuthStatusAlert(
-                title: 'Temporary Password Used',
-                message:
-                    'You must set a new password before continuing to your dashboard.',
-                icon: AppIcons.warning,
-                statusColor:
-                    theme.extension<AppSemanticColors>()?.warning ??
-                    AppColors.warning,
-              ),
-              const SizedBox(height: AppSpacing.md),
-            ],
-            SetNewPasswordForm(submitLabel: _buttonLabel, onSaved: onSaved),
+    return AuthScreenLayout(
+      onBack: purpose == SetNewPasswordPurpose.firstLogin ? null : onBack,
+      title: _title,
+      supportingText: _supportingText,
+      form: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (purpose == SetNewPasswordPurpose.firstLogin) ...[
+            AuthStatusAlert(
+              title: 'Temporary Password Used',
+              message:
+                  'You must set a new password before continuing to your dashboard.',
+              icon: AppIcons.warning,
+              statusColor:
+                  theme.extension<AppSemanticColors>()?.warning ??
+                  AppColors.warning,
+            ),
+            const SizedBox(height: AppSpacing.md),
           ],
-        ),
-        footer: Text(
-          purpose == SetNewPasswordPurpose.firstLogin
-              ? 'This step cannot be skipped.'
-              : 'Use at least 8 characters.',
-          textAlign: TextAlign.center,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
+          SetNewPasswordForm(submitLabel: _buttonLabel, onSaved: onSaved),
+        ],
+      ),
+      footer: Text(
+        purpose == SetNewPasswordPurpose.firstLogin
+            ? 'This step cannot be skipped.'
+            : 'Use at least 8 characters.',
+        textAlign: TextAlign.center,
+        style: theme.textTheme.bodySmall?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
         ),
       ),
     );
