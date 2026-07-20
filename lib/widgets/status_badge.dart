@@ -16,11 +16,17 @@ class TintedBadge extends StatelessWidget {
     required this.label,
     required this.color,
     required this.textColor,
+    this.icon,
   });
 
   final String label;
   final Color color;
   final Color textColor;
+
+  /// Optional leading glyph — most badges stay text-only (the original
+  /// intent here), but a few consolidated call sites (unread markers,
+  /// verification pills) carry a small icon before the label.
+  final IconData? icon;
 
   @override
   Widget build(BuildContext context) {
@@ -31,12 +37,25 @@ class TintedBadge extends StatelessWidget {
         border: Border.all(color: color.withValues(alpha: 0.24)),
         borderRadius: AppRadius.allXl,
       ),
-      child: Text(
-        label,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: textColor,
-          fontWeight: AppFontWeight.semiBold,
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: AppIconSize.sm - 2, color: textColor),
+            const SizedBox(width: 4),
+          ],
+          Flexible(
+            child: Text(
+              label,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: textColor,
+                fontWeight: AppFontWeight.semiBold,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -21,6 +21,12 @@ import '../core/theme/app_theme.dart';
 /// Per §19.10 Glass Usage Rules, glass is prohibited on input-heavy
 /// forms/long-form content — screens with a form section keep that section
 /// on a plain opaque surface instead of wrapping it in [GlassCard].
+///
+/// Weight is deliberately light by default (a faint hairline, no shadow) —
+/// a card should read as a soft grouping, not a boxed panel. Pass
+/// [elevated] for the rare surface that genuinely needs to float above its
+/// surroundings (e.g. something stacked over other cards); everything else
+/// should stay at the default.
 class GlassCard extends StatelessWidget {
   const GlassCard({
     super.key,
@@ -28,6 +34,7 @@ class GlassCard extends StatelessWidget {
     this.padding = const EdgeInsets.all(AppSpacing.md),
     this.onTap,
     this.border,
+    this.elevated = false,
   });
 
   final Widget child;
@@ -41,14 +48,24 @@ class GlassCard extends StatelessWidget {
   /// border to highlight a selected list row.
   final Border? border;
 
+  /// Opts into a visible shadow (`AppShadow.level1`) for a surface that
+  /// needs to float above its surroundings. Default is flat/no shadow.
+  final bool elevated;
+
   @override
   Widget build(BuildContext context) {
     final semantic = Theme.of(context).extension<AppSemanticColors>()!;
     final decoration = BoxDecoration(
       color: semantic.glassCardSurface,
-      border: border ?? Border.all(color: semantic.glassBorder),
+      border:
+          border ??
+          Border.all(
+            color: semantic.glassBorder.withValues(
+              alpha: semantic.glassBorder.a * 0.6,
+            ),
+          ),
       borderRadius: AppComponentRadius.card,
-      boxShadow: AppShadow.level1,
+      boxShadow: elevated ? AppShadow.level1 : AppShadow.level0,
     );
 
     if (onTap == null) {

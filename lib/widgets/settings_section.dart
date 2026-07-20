@@ -45,7 +45,11 @@ class SettingsSection extends StatelessWidget {
           decoration: BoxDecoration(
             color: colorScheme.surface,
             borderRadius: AppComponentRadius.card,
-            border: Border.all(color: colorScheme.outlineVariant),
+            border: Border.all(
+              color: colorScheme.outlineVariant.withValues(
+                alpha: colorScheme.outlineVariant.a * 0.6,
+              ),
+            ),
           ),
           child: Column(
             children: [
@@ -55,7 +59,12 @@ class SettingsSection extends StatelessWidget {
                   child: children[i],
                 ),
                 if (i != children.length - 1)
-                  Divider(height: 1, color: colorScheme.outlineVariant),
+                  Divider(
+                    height: 1,
+                    color: colorScheme.outlineVariant.withValues(
+                      alpha: colorScheme.outlineVariant.a * 0.6,
+                    ),
+                  ),
               ],
             ],
           ),

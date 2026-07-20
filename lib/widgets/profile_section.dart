@@ -50,7 +50,11 @@ class ProfileSection extends StatelessWidget {
           decoration: BoxDecoration(
             color: colorScheme.surface,
             borderRadius: AppComponentRadius.card,
-            border: Border.all(color: colorScheme.outlineVariant),
+            border: Border.all(
+              color: colorScheme.outlineVariant.withValues(
+                alpha: colorScheme.outlineVariant.a * 0.6,
+              ),
+            ),
           ),
           child: Column(children: children),
         ),

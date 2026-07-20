@@ -71,44 +71,56 @@ class ProfileFieldRow extends StatelessWidget {
           ],
         ),
         const SizedBox(height: AppSpacing.xs),
-        Container(
-          width: double.infinity,
-          decoration: BoxDecoration(
-            color: hasError
-                ? AppColors.error.withValues(alpha: 0.08)
-                : colorScheme.surfaceContainer,
-            borderRadius: AppComponentRadius.inputField,
-            border: hasError ? Border.all(color: AppColors.error) : null,
-          ),
-          child: editable
-              ? TextFormField(
-                  controller: controller,
-                  initialValue: controller == null ? value : null,
-                  onChanged: onChanged,
-                  keyboardType: keyboardType,
-                  decoration: const InputDecoration(
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: AppSpacing.md,
-                      vertical: AppSpacing.sm,
-                    ),
-                  ),
-                )
-              : Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.md,
+        editable
+            ? TextFormField(
+                controller: controller,
+                initialValue: controller == null ? value : null,
+                onChanged: onChanged,
+                keyboardType: keyboardType,
+                style: textTheme.bodyLarge,
+                decoration: InputDecoration(
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(
                     vertical: AppSpacing.sm,
                   ),
-                  child: Text(
-                    displayValue,
-                    style: textTheme.bodyLarge?.copyWith(
-                      color: locked ? colorScheme.onSurfaceVariant : null,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  border: UnderlineInputBorder(
+                    borderSide: BorderSide(color: colorScheme.outlineVariant),
+                  ),
+                  enabledBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: colorScheme.outlineVariant),
+                  ),
+                  focusedBorder: const UnderlineInputBorder(
+                    borderSide: BorderSide(color: AppColors.primary, width: 2),
+                  ),
+                  errorBorder: const UnderlineInputBorder(
+                    borderSide: BorderSide(color: AppColors.error),
+                  ),
+                  focusedErrorBorder: const UnderlineInputBorder(
+                    borderSide: BorderSide(color: AppColors.error, width: 2),
                   ),
                 ),
-        ),
+              )
+            : Container(
+                width: double.infinity,
+                padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+                decoration: BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(
+                      color: hasError
+                          ? AppColors.error
+                          : colorScheme.outlineVariant,
+                    ),
+                  ),
+                ),
+                child: Text(
+                  displayValue,
+                  style: textTheme.bodyLarge?.copyWith(
+                    color: locked ? colorScheme.onSurfaceVariant : null,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
         if (errorText != null) ...[
           const SizedBox(height: AppSpacing.xs),
           Text(

@@ -14,21 +14,32 @@ class LanguagePreferenceRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final colorScheme = Theme.of(context).colorScheme;
+    // Flat, single-level Row (not Row-inside-Expanded-inside-Row) — both
+    // text pieces are independently Flexible with ellipsis, so on a very
+    // narrow phone they shrink first rather than forcing a RenderFlex
+    // overflow around the one genuinely fixed-width child, ComingSoonBadge.
     return Row(
       children: [
-        Expanded(
-          child: Row(
-            children: [
-              Flexible(child: Text('Language', style: textTheme.bodyLarge)),
-              const SizedBox(width: AppSpacing.xs),
-              const ComingSoonBadge(),
-            ],
+        Flexible(
+          child: Text(
+            'Language',
+            style: textTheme.bodyLarge,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ),
-        Text(
-          'English',
-          style: textTheme.bodyMedium?.copyWith(
-            color: colorScheme.onSurfaceVariant,
+        const SizedBox(width: AppSpacing.xs),
+        const ComingSoonBadge(),
+        const SizedBox(width: AppSpacing.sm),
+        Flexible(
+          child: Text(
+            'English',
+            style: textTheme.bodyMedium?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.end,
           ),
         ),
       ],
