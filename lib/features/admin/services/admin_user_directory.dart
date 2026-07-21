@@ -48,10 +48,17 @@ class AdminUserDirectory {
 
   void upsertFromApi(Map<String, dynamic> json) {
     final user = AdminUserItem.fromApi(json);
+    // Match on the stable database id, not userId — userId mirrors the
+    // backend's publicId, which the server deliberately mints fresh
+    // whenever role changes (CIT-000123 -> MUN-000045, still the same
+    // row). Matching on userId meant a role edit's response never matched
+    // its own pre-edit entry here, so it got prepended as a second row
+    // instead of replacing the first — same account, same everything,
+    // just two entries with different roles.
     users.value = [
       user,
       for (final existing in users.value)
-        if (existing.userId != user.userId) existing,
+        if (existing.apiId != user.apiId) existing,
     ];
   }
 
