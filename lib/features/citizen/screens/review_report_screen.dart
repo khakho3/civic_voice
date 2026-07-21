@@ -11,9 +11,7 @@ import '../../../services/api_client.dart';
 import '../widgets/civic_glass_card.dart';
 import '../services/report_crud_service.dart';
 import '../widgets/civic_app_chrome.dart';
-import 'citizen_alerts_screen.dart';
-import 'citizen_profile_screen.dart';
-import 'citizen_reports_screen.dart';
+import 'citizen_tab_routes.dart';
 import 'report_submitted_screen.dart';
 
 class ReviewReportScreen extends StatelessWidget {
@@ -162,18 +160,18 @@ class ReviewReportScreen extends StatelessWidget {
                   if (index == 0) {
                     Navigator.of(context).popUntil((route) => route.isFirst);
                   } else if (index == 1) {
-                    Navigator.of(context).pushNamedAndRemoveUntil(
-                      CitizenReportsScreen.routeName,
+                    Navigator.of(context).pushAndRemoveUntil(
+                      citizenReportsTabRoute(context),
                       (route) => route.isFirst,
                     );
                   } else if (index == 3) {
-                    Navigator.of(context).pushNamedAndRemoveUntil(
-                      CitizenAlertsScreen.routeName,
+                    Navigator.of(context).pushAndRemoveUntil(
+                      citizenAlertsTabRoute(context),
                       (route) => route.isFirst,
                     );
                   } else if (index == 4) {
-                    Navigator.of(context).pushNamedAndRemoveUntil(
-                      CitizenProfileScreen.routeName,
+                    Navigator.of(context).pushAndRemoveUntil(
+                      citizenProfileTabRoute(context),
                       (route) => route.isFirst,
                     );
                   }

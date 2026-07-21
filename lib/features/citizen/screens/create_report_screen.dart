@@ -17,9 +17,7 @@ import '../models/location.dart';
 import '../services/location_service.dart';
 import '../services/report_category_classifier.dart';
 import '../widgets/civic_app_chrome.dart';
-import 'citizen_alerts_screen.dart';
-import 'citizen_profile_screen.dart';
-import 'citizen_reports_screen.dart';
+import 'citizen_tab_routes.dart';
 import 'location_picker_screen.dart';
 import 'photo_upload_screen.dart';
 
@@ -530,18 +528,18 @@ class _CreateReportScreenState extends State<CreateReportScreen>
                   if (index == 0) {
                     Navigator.of(context).maybePop();
                   } else if (index == 1) {
-                    Navigator.of(context).pushNamedAndRemoveUntil(
-                      CitizenReportsScreen.routeName,
+                    Navigator.of(context).pushAndRemoveUntil(
+                      citizenReportsTabRoute(context),
                       (route) => route.isFirst,
                     );
                   } else if (index == 3) {
-                    Navigator.of(context).pushNamedAndRemoveUntil(
-                      CitizenAlertsScreen.routeName,
+                    Navigator.of(context).pushAndRemoveUntil(
+                      citizenAlertsTabRoute(context),
                       (route) => route.isFirst,
                     );
                   } else if (index == 4) {
-                    Navigator.of(context).pushNamedAndRemoveUntil(
-                      CitizenProfileScreen.routeName,
+                    Navigator.of(context).pushAndRemoveUntil(
+                      citizenProfileTabRoute(context),
                       (route) => route.isFirst,
                     );
                   }

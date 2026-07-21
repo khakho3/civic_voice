@@ -13,9 +13,7 @@ import '../widgets/civic_glass_card.dart';
 import '../models/report_draft.dart';
 import '../models/photo_upload_view_state.dart';
 import '../widgets/civic_app_chrome.dart';
-import 'citizen_alerts_screen.dart';
-import 'citizen_profile_screen.dart';
-import 'citizen_reports_screen.dart';
+import 'citizen_tab_routes.dart';
 import 'review_report_screen.dart';
 
 class PhotoUploadScreen extends StatefulWidget {
@@ -304,18 +302,18 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
                   if (index == 0) {
                     Navigator.of(context).maybePop();
                   } else if (index == 1) {
-                    Navigator.of(context).pushNamedAndRemoveUntil(
-                      CitizenReportsScreen.routeName,
+                    Navigator.of(context).pushAndRemoveUntil(
+                      citizenReportsTabRoute(context),
                       (route) => route.isFirst,
                     );
                   } else if (index == 3) {
-                    Navigator.of(context).pushNamedAndRemoveUntil(
-                      CitizenAlertsScreen.routeName,
+                    Navigator.of(context).pushAndRemoveUntil(
+                      citizenAlertsTabRoute(context),
                       (route) => route.isFirst,
                     );
                   } else if (index == 4) {
-                    Navigator.of(context).pushNamedAndRemoveUntil(
-                      CitizenProfileScreen.routeName,
+                    Navigator.of(context).pushAndRemoveUntil(
+                      citizenProfileTabRoute(context),
                       (route) => route.isFirst,
                     );
                   }

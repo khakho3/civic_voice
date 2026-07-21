@@ -5,9 +5,7 @@ import '../../../services/notification_directory.dart';
 import '../../../widgets/notification_list_view.dart';
 import '../services/report_crud_service.dart';
 import '../widgets/civic_app_chrome.dart';
-import 'citizen_profile_screen.dart';
-import 'citizen_reports_screen.dart';
-import 'create_report_screen.dart';
+import 'citizen_tab_routes.dart';
 import 'report_tracking_screen.dart';
 
 class CitizenAlertsScreen extends StatelessWidget {
@@ -20,24 +18,22 @@ class CitizenAlertsScreen extends StatelessWidget {
   }
 
   void _openReports(BuildContext context) {
-    Navigator.of(context).pushNamedAndRemoveUntil(
-      CitizenReportsScreen.routeName,
-      (route) => route.isFirst,
-    );
+    Navigator.of(
+      context,
+    ).pushAndRemoveUntil(citizenReportsTabRoute(context), (route) => route.isFirst);
   }
 
   void _openCreateReport(BuildContext context) {
-    Navigator.of(context).pushNamedAndRemoveUntil(
-      CreateReportScreen.routeName,
+    Navigator.of(context).pushAndRemoveUntil(
+      citizenCreateReportTabRoute(context),
       (route) => route.isFirst,
     );
   }
 
   void _openProfile(BuildContext context) {
-    Navigator.of(context).pushNamedAndRemoveUntil(
-      CitizenProfileScreen.routeName,
-      (route) => route.isFirst,
-    );
+    Navigator.of(
+      context,
+    ).pushAndRemoveUntil(citizenProfileTabRoute(context), (route) => route.isFirst);
   }
 
   @override

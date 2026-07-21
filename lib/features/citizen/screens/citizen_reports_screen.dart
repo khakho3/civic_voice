@@ -6,9 +6,7 @@ import '../widgets/civic_glass_card.dart';
 import '../models/civic_report.dart';
 import '../services/report_crud_service.dart';
 import '../widgets/civic_app_chrome.dart';
-import 'citizen_alerts_screen.dart';
-import 'citizen_profile_screen.dart';
-import 'create_report_screen.dart';
+import 'citizen_tab_routes.dart';
 import 'report_tracking_screen.dart';
 
 enum _ReportFilter {
@@ -78,24 +76,22 @@ class _CitizenReportsScreenState extends State<CitizenReportsScreen> {
   }
 
   void _openCreateReport() {
-    Navigator.of(context).pushNamedAndRemoveUntil(
-      CreateReportScreen.routeName,
+    Navigator.of(context).pushAndRemoveUntil(
+      citizenCreateReportTabRoute(context),
       (route) => route.isFirst,
     );
   }
 
   void _openAlerts() {
-    Navigator.of(context).pushNamedAndRemoveUntil(
-      CitizenAlertsScreen.routeName,
-      (route) => route.isFirst,
-    );
+    Navigator.of(
+      context,
+    ).pushAndRemoveUntil(citizenAlertsTabRoute(context), (route) => route.isFirst);
   }
 
   void _openProfile() {
-    Navigator.of(context).pushNamedAndRemoveUntil(
-      CitizenProfileScreen.routeName,
-      (route) => route.isFirst,
-    );
+    Navigator.of(
+      context,
+    ).pushAndRemoveUntil(citizenProfileTabRoute(context), (route) => route.isFirst);
   }
 
   @override

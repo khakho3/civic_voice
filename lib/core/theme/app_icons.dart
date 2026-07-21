@@ -101,10 +101,10 @@ abstract final class AppIcons {
 
   // Role & module iconography (Screen Specifications Standard role prefixes).
   static const IconData citizen = LucideIcons.user;
-  static const IconData municipalOfficer = LucideIcons.shieldCheck;
+  static const IconData municipalOfficer = LucideIcons.building2;
   static const IconData maintenanceTeam = LucideIcons.wrench;
   static const IconData ministrySupervisor = LucideIcons.landmark;
-  static const IconData systemAdministrator = LucideIcons.building2;
+  static const IconData systemAdministrator = LucideIcons.shieldCheck;
   static const IconData team = LucideIcons.users;
   static const IconData teamLead = LucideIcons.crown;
 

@@ -15,10 +15,7 @@ import '../../../widgets/glass_dialog_backdrop.dart';
 import '../../../widgets/stat_tile.dart';
 import '../../../widgets/status_badge.dart';
 import '../widgets/civic_app_chrome.dart';
-import 'citizen_alerts_screen.dart';
-import 'citizen_profile_screen.dart';
-import 'citizen_reports_screen.dart';
-import 'create_report_screen.dart';
+import 'citizen_tab_routes.dart';
 import 'report_tracking_screen.dart';
 
 class CitizenDashboardScreen extends StatefulWidget {
@@ -198,10 +195,10 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen>
                             onOpenSettings: _locationService.openAppSettings,
                             onCreateReport: () => Navigator.of(
                               context,
-                            ).pushNamed(CreateReportScreen.routeName),
+                            ).push(citizenCreateReportTabRoute(context)),
                             onViewReports: () => Navigator.of(
                               context,
-                            ).pushNamed(CitizenReportsScreen.routeName),
+                            ).push(citizenReportsTabRoute(context)),
                           );
                         },
                       );
@@ -222,27 +219,21 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen>
                 selectedIndex: _selectedIndex,
                 onDestinationSelected: (index) {
                   if (index == 1) {
-                    Navigator.of(
-                      context,
-                    ).pushNamed(CitizenReportsScreen.routeName);
+                    Navigator.of(context).push(citizenReportsTabRoute(context));
                     return;
                   }
                   if (index == 2) {
                     Navigator.of(
                       context,
-                    ).pushNamed(CreateReportScreen.routeName);
+                    ).push(citizenCreateReportTabRoute(context));
                     return;
                   }
                   if (index == 3) {
-                    Navigator.of(
-                      context,
-                    ).pushNamed(CitizenAlertsScreen.routeName);
+                    Navigator.of(context).push(citizenAlertsTabRoute(context));
                     return;
                   }
                   if (index == 4) {
-                    Navigator.of(
-                      context,
-                    ).pushNamed(CitizenProfileScreen.routeName);
+                    Navigator.of(context).push(citizenProfileTabRoute(context));
                     return;
                   }
                   setState(() => _selectedIndex = index);
@@ -382,7 +373,7 @@ class _DashboardContent extends StatelessWidget {
             _ReportHeroCard(
               actionsDisabled: actionsDisabled,
               onReportNow: () =>
-                  Navigator.of(context).pushNamed(CreateReportScreen.routeName),
+                  Navigator.of(context).push(citizenCreateReportTabRoute(context)),
               onViewReports: onViewReports,
             ),
             const SizedBox(height: AppSpacing.xl),
@@ -600,13 +591,13 @@ class _QuickActionGrid extends StatelessWidget {
   void _handleAction(BuildContext context, int index) {
     switch (index) {
       case 0:
-        Navigator.of(context).pushNamed(CreateReportScreen.routeName);
+        Navigator.of(context).push(citizenCreateReportTabRoute(context));
       case 1:
-        Navigator.of(context).pushNamed(CitizenReportsScreen.routeName);
+        Navigator.of(context).push(citizenReportsTabRoute(context));
       case 2:
         _showNearbyIssues(context);
       case 3:
-        Navigator.of(context).pushNamed(CitizenAlertsScreen.routeName);
+        Navigator.of(context).push(citizenAlertsTabRoute(context));
     }
   }
 
@@ -694,7 +685,7 @@ class _QuickActionGrid extends StatelessWidget {
                             Navigator.of(context).pop();
                             Navigator.of(
                               context,
-                            ).pushNamed(CitizenReportsScreen.routeName);
+                            ).push(citizenReportsTabRoute(context));
                           },
                           icon: const Icon(AppIcons.report),
                           label: const Text('View All Reports'),

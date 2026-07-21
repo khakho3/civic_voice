@@ -6,6 +6,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import 'core/navigation/tab_route.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_controller.dart';
 import 'features/admin/models/admin_user_management_data.dart';
@@ -100,6 +101,7 @@ import 'services/api_client.dart';
 import 'services/app_cache_service.dart';
 import 'services/idle_session_timer.dart';
 import 'services/mock_auth_service.dart';
+import 'services/session_actions.dart';
 import 'services/notification_directory.dart';
 import 'widgets/glass_dialog_backdrop.dart';
 import 'widgets/in_app_notification_banner.dart';
@@ -569,7 +571,7 @@ class _CivicVoiceAppState extends State<CivicVoiceApp> {
                   const CitizenDashboardScreen(),
               AppRoutes.citizenAlerts: (_) => const CitizenAlertsScreen(),
               AppRoutes.citizenProfile: (context) =>
-                  CitizenProfileScreen(onLogOut: () => _signOut(context)),
+                  CitizenProfileScreen(onLogOut: () => signOut(context)),
               AppRoutes.citizenReports: (_) => const CitizenReportsScreen(),
               AppRoutes.citizenCreateReport: (_) => const CreateReportScreen(),
               AppRoutes.citizenLocationPicker: (_) =>
@@ -810,9 +812,40 @@ class _CivicVoiceAppState extends State<CivicVoiceApp> {
   }
 }
 
+/// The bottom-nav tab destinations reachable via [_replaceWith] — kept as
+/// its own small map (reusing the exact same builder functions the main
+/// `routes:` table uses) rather than threading [tabRoute] through that
+/// whole 60+ entry table, since only these 14 are ever reached by a tab
+/// switch rather than a drill-down push.
+final Map<String, WidgetBuilder> _tabRouteBuilders = {
+  AppRoutes.adminDashboard: _adminDashboard,
+  AppRoutes.adminSystemActivity: _adminSystemActivity,
+  AppRoutes.adminSystemSettings: _adminSystemSettings,
+  AppRoutes.adminUserManagement: _adminUserManagement,
+  AppRoutes.maintenanceAssignedTasks: _maintenanceAssignedTasks,
+  AppRoutes.maintenanceDashboard: _maintenanceDashboard,
+  AppRoutes.ministryAnalytics: _ministryAnalytics,
+  AppRoutes.ministryDashboard: _ministryDashboard,
+  AppRoutes.ministryMunicipalPerformance: _ministryMunicipalPerformance,
+  AppRoutes.ministryReports: _ministryReports,
+  AppRoutes.municipalActiveReports: _municipalActiveReports,
+  AppRoutes.municipalDashboard: _municipalDashboard,
+  AppRoutes.municipalInbox: _municipalInbox,
+  AppRoutes.municipalResolvedReports: _municipalResolvedReports,
+};
+
 void _replaceWith(BuildContext context, String routeName) {
   if (ModalRoute.of(context)?.settings.name == routeName) return;
-  Navigator.of(context).pushReplacementNamed(routeName);
+  final builder = _tabRouteBuilders[routeName];
+  if (builder == null) {
+    // Not one of the known tab destinations — fall back to the app-wide
+    // default transition rather than silently doing nothing.
+    Navigator.of(context).pushReplacementNamed(routeName);
+    return;
+  }
+  Navigator.of(
+    context,
+  ).pushReplacement(tabRoute(context, builder, routeName: routeName));
 }
 
 void _popOrReplaceWith(BuildContext context, String routeName) {
@@ -1321,18 +1354,6 @@ Future<void> _finishChangePassword(BuildContext context) async {
   Navigator.of(context).pushNamedAndRemoveUntil(AppRoutes.login, (_) => false);
 }
 
-Future<void> _signOut(BuildContext context) async {
-  await AppCacheService.instance.setKeepSignedIn(false);
-  IdleSessionTimer.instance.cancel();
-  await FirebaseAuth.instance.signOut();
-  await MockAuthService().clearUser();
-  if (!context.mounted) return;
-  // Straight to Login, matching _handleIdleTimeout/_finishChangePassword —
-  // a device that's already had an account signed in on it should never
-  // see the onboarding carousel again on sign-out.
-  Navigator.of(context).pushNamedAndRemoveUntil(AppRoutes.login, (_) => false);
-}
-
 /// Kept as a layout seam for the role dashboard builders and widget tests;
 /// the former development-only floating role switch is intentionally gone.
 Widget _withSwitchRoleButton(BuildContext context, Widget child) => child;
@@ -1723,7 +1744,7 @@ Widget _adminProfile(BuildContext context) {
     onNavigateToMaintenanceTeams: () =>
         Navigator.of(context).pushNamed(AppRoutes.adminMaintenanceTeams),
     onNotificationsTap: () => _openAdminNotifications(context),
-    onSignOut: () => _signOut(context),
+    onSignOut: () => signOut(context),
   );
 }
 
@@ -1875,7 +1896,7 @@ Widget _ministryProfile(BuildContext context) {
           Navigator.of(context).pushNamed(AppRoutes.changePassword),
       onNotificationsTap: () =>
           Navigator.of(context).pushNamed(AppRoutes.ministryNotifications),
-      onLogOut: () => _signOut(context),
+      onLogOut: () => signOut(context),
       onSaveProfile: (fullName) async {
         try {
           final token = await FirebaseAuth.instance.currentUser?.getIdToken();
@@ -2134,7 +2155,7 @@ Widget _municipalProfile(BuildContext context) {
     onBack: () => _popOrReplaceWith(context, AppRoutes.municipalDashboard),
     onChangePassword: () =>
         Navigator.of(context).pushNamed(AppRoutes.changePassword),
-    onLogOut: () => _signOut(context),
+    onLogOut: () => signOut(context),
     onSaveProfile: (fullName) async {
       try {
         final token = await FirebaseAuth.instance.currentUser?.getIdToken();
@@ -2238,7 +2259,7 @@ Widget _maintenanceProfile(BuildContext context) {
         Navigator.of(context).pushNamed(AppRoutes.maintenanceNotifications),
     onChangePassword: () =>
         Navigator.of(context).pushNamed(AppRoutes.changePassword),
-    onLogOut: () => _signOut(context),
+    onLogOut: () => signOut(context),
     onSaveProfile: (fullName) async {
       try {
         final token = await FirebaseAuth.instance.currentUser?.getIdToken();

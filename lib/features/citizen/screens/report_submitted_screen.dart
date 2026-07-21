@@ -4,10 +4,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../widgets/pending_coverage_notice.dart';
 import '../widgets/civic_glass_card.dart';
 import '../widgets/civic_app_chrome.dart';
-import 'citizen_alerts_screen.dart';
-import 'citizen_profile_screen.dart';
-import 'citizen_reports_screen.dart';
-import 'create_report_screen.dart';
+import 'citizen_tab_routes.dart';
 import 'report_tracking_screen.dart';
 
 class ReportSubmittedScreen extends StatefulWidget {
@@ -88,8 +85,8 @@ class _ReportSubmittedScreenState extends State<ReportSubmittedScreen> {
                   onDashboard: () =>
                       Navigator.of(context).popUntil((route) => route.isFirst),
                   onAnother: () {
-                    Navigator.of(context).pushNamedAndRemoveUntil(
-                      CreateReportScreen.routeName,
+                    Navigator.of(context).pushAndRemoveUntil(
+                      citizenCreateReportTabRoute(context),
                       (route) => route.isFirst,
                     );
                   },
@@ -110,23 +107,23 @@ class _ReportSubmittedScreenState extends State<ReportSubmittedScreen> {
                   if (index == 0) {
                     Navigator.of(context).popUntil((route) => route.isFirst);
                   } else if (index == 1) {
-                    Navigator.of(context).pushNamedAndRemoveUntil(
-                      CitizenReportsScreen.routeName,
+                    Navigator.of(context).pushAndRemoveUntil(
+                      citizenReportsTabRoute(context),
                       (route) => route.isFirst,
                     );
                   } else if (index == 2) {
-                    Navigator.of(context).pushNamedAndRemoveUntil(
-                      CreateReportScreen.routeName,
+                    Navigator.of(context).pushAndRemoveUntil(
+                      citizenCreateReportTabRoute(context),
                       (route) => route.isFirst,
                     );
                   } else if (index == 3) {
-                    Navigator.of(context).pushNamedAndRemoveUntil(
-                      CitizenAlertsScreen.routeName,
+                    Navigator.of(context).pushAndRemoveUntil(
+                      citizenAlertsTabRoute(context),
                       (route) => route.isFirst,
                     );
                   } else if (index == 4) {
-                    Navigator.of(context).pushNamedAndRemoveUntil(
-                      CitizenProfileScreen.routeName,
+                    Navigator.of(context).pushAndRemoveUntil(
+                      citizenProfileTabRoute(context),
                       (route) => route.isFirst,
                     );
                   }

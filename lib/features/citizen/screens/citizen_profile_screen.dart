@@ -15,9 +15,7 @@ import '../../../widgets/theme_preference_row.dart';
 import '../models/citizen_profile.dart';
 import '../services/profile_crud_service.dart';
 import '../widgets/civic_app_chrome.dart';
-import 'citizen_alerts_screen.dart';
-import 'citizen_reports_screen.dart';
-import 'create_report_screen.dart';
+import 'citizen_tab_routes.dart';
 
 enum _PhotoSheetAction { camera, gallery, remove }
 
@@ -235,24 +233,22 @@ class _CitizenProfileScreenState extends State<CitizenProfileScreen> {
   }
 
   void _openReports(BuildContext context) {
-    Navigator.of(context).pushNamedAndRemoveUntil(
-      CitizenReportsScreen.routeName,
-      (route) => route.isFirst,
-    );
+    Navigator.of(
+      context,
+    ).pushAndRemoveUntil(citizenReportsTabRoute(context), (route) => route.isFirst);
   }
 
   void _openCreateReport(BuildContext context) {
-    Navigator.of(context).pushNamedAndRemoveUntil(
-      CreateReportScreen.routeName,
+    Navigator.of(context).pushAndRemoveUntil(
+      citizenCreateReportTabRoute(context),
       (route) => route.isFirst,
     );
   }
 
   void _openAlerts(BuildContext context) {
-    Navigator.of(context).pushNamedAndRemoveUntil(
-      CitizenAlertsScreen.routeName,
-      (route) => route.isFirst,
-    );
+    Navigator.of(
+      context,
+    ).pushAndRemoveUntil(citizenAlertsTabRoute(context), (route) => route.isFirst);
   }
 
   @override
