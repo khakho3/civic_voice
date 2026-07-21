@@ -208,6 +208,7 @@ IconData _iconForPushType(String? type) => switch (type) {
   'municipal-report-status' => AppIcons.statusInProgress,
   'ministry-resolution' => AppIcons.statusResolved,
   'maintenance-task' || 'maintenance-task-status' => AppIcons.statusAssigned,
+  'maintenance-team-membership' => AppIcons.profile,
   _ => AppIcons.notifications,
 };
 
@@ -1735,6 +1736,9 @@ Widget _ministryDashboard(BuildContext context) {
         data: Firebase.apps.isEmpty || FirebaseAuth.instance.currentUser == null
             ? null
             : MinistryDataDirectory.instance.dashboard,
+        onRefresh: Firebase.apps.isEmpty || FirebaseAuth.instance.currentUser == null
+            ? null
+            : MinistryDataDirectory.instance.refresh,
         onNavigateToAnalytics: () =>
             _replaceWith(context, AppRoutes.ministryAnalytics),
         onNavigateToMunicipalities: () =>
@@ -1819,6 +1823,9 @@ Widget _ministryReports(BuildContext context) {
       data: Firebase.apps.isEmpty || FirebaseAuth.instance.currentUser == null
           ? null
           : MinistryDataDirectory.instance.reportOverview,
+      onRefresh: Firebase.apps.isEmpty || FirebaseAuth.instance.currentUser == null
+          ? null
+          : MinistryDataDirectory.instance.refresh,
       onNavigateToDashboard: () =>
           _replaceWith(context, AppRoutes.ministryDashboard),
       onNavigateToAnalytics: () =>

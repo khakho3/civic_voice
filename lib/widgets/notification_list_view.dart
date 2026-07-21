@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../core/theme/app_theme.dart';
+import '../core/widgets/ghana_refresh_indicator.dart';
 import '../models/notification_item.dart';
 import '../services/notification_directory.dart';
 import '../features/citizen/services/notification_permission_service.dart';
@@ -20,6 +21,8 @@ class NotificationListView extends StatefulWidget {
     this.onTap,
     this.padding,
     this.onClearAll,
+    this.onRefresh,
+    this.topOffset = 0.0,
   });
 
   final List<NotificationItem> notifications;
@@ -33,6 +36,22 @@ class NotificationListView extends StatefulWidget {
   /// notification (see `NotificationDirectory.clearAll`'s own doc comment
   /// for why this can't be a real delete). Null hides the button entirely.
   final VoidCallback? onClearAll;
+
+  /// When given, wraps the list in [GhanaRefreshIndicator] — one wiring
+  /// point here covers pull-to-refresh for every module's notification
+  /// screen at once, each passing whatever directory actually backs its
+  /// own notifications (see each screen's own call site). Null (e.g. a
+  /// caller with nothing meaningful to re-sync) leaves plain scrolling.
+  final Future<void> Function()? onRefresh;
+
+  /// [GhanaRefreshIndicator.topOffset] — each caller's own fixed header
+  /// paints on top of this list, so this needs the *raw* header inset
+  /// (e.g. `DetailHeader.topInset(context)`), not [padding]'s top value.
+  /// [padding] deliberately adds extra breathing room on top of that same
+  /// inset for the list content itself; reusing it here previously pushed
+  /// the star/bar down by that same extra amount, past where the header
+  /// actually ends, unlike every other screen's pull-to-refresh.
+  final double topOffset;
 
   @override
   State<NotificationListView> createState() => _NotificationListViewState();
@@ -82,7 +101,7 @@ class _NotificationListViewState extends State<NotificationListView>
   Widget build(BuildContext context) {
     final notifications = widget.notifications;
     final padding = widget.padding ?? const EdgeInsets.all(AppSpacing.md);
-    return ListView(
+    final list = ListView(
       // Stays draggable even when a short list fits the viewport — same
       // fix already applied to every other list screen in this app.
       physics: const AlwaysScrollableScrollPhysics(),
@@ -138,6 +157,16 @@ class _NotificationListViewState extends State<NotificationListView>
               const SizedBox(height: AppSpacing.sm),
           ],
       ],
+    );
+    final onRefresh = widget.onRefresh;
+    if (onRefresh == null) return list;
+    return GhanaRefreshIndicator(
+      onRefresh: onRefresh,
+      // Every caller's own header paints on top of this list (a later
+      // sibling in that screen's own Stack), so without this the pull
+      // indicator would grow in from behind it.
+      topOffset: widget.topOffset,
+      child: list,
     );
   }
 }

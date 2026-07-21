@@ -69,6 +69,8 @@ class _MaintenanceNotificationsScreenState
                   onClearAll: () => NotificationDirectory.instance.clearAll(
                     notifications.map((n) => n.id),
                   ),
+                  onRefresh: MaintenanceTaskDirectory.instance.refresh,
+                  topOffset: DetailHeader.topInset(context),
                 );
               },
             ),

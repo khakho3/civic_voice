@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/ghana_refresh_indicator.dart';
 import '../../../models/assembly.dart';
 import '../../../models/region.dart';
 import '../../../widgets/app_state_message.dart';
@@ -137,8 +138,14 @@ class _AdminMaintenanceTeamsScreenState
   Widget _buildBody(BuildContext context, bool chromeEnabled) {
     return switch (_state) {
       AdminMaintenanceTeamsViewState.loading => const _LoadingSkeleton(),
-      AdminMaintenanceTeamsViewState.loaded =>
-        ValueListenableBuilder<List<MaintenanceTeam>>(
+      AdminMaintenanceTeamsViewState.loaded => GhanaRefreshIndicator(
+        onRefresh: MaintenanceTeamDirectory.instance.refreshForAdmin,
+        // The header paints on top of this content (a later sibling in
+        // AdminScaffold's own Stack); _TeamListView's own top SizedBox
+        // pushes its content down but doesn't move where
+        // GhanaRefreshIndicator itself anchors its star/bar.
+        topOffset: AdminScaffold.contentPadding(context).top,
+        child: ValueListenableBuilder<List<MaintenanceTeam>>(
           valueListenable: MaintenanceTeamDirectory.instance.teams,
           builder: (context, teams, _) {
             return _TeamListView(
@@ -159,6 +166,7 @@ class _AdminMaintenanceTeamsScreenState
             );
           },
         ),
+      ),
       _ => Column(
         children: [
           SizedBox(height: AdminScaffold.contentPadding(context).top),
@@ -238,6 +246,7 @@ class _AdminMaintenanceTeamFormScreenState
   String _memberQuery = '';
   String? _nameError;
   String? _assemblyError;
+  bool _saving = false;
 
   bool get _editing => widget.team != null;
 
@@ -302,6 +311,7 @@ class _AdminMaintenanceTeamFormScreenState
     );
     if (!confirmed || !mounted) return;
 
+    setState(() => _saving = true);
     try {
       if (_editing) {
         await MaintenanceTeamDirectory.instance.updateTeamOnServer(
@@ -322,6 +332,7 @@ class _AdminMaintenanceTeamFormScreenState
       }
     } catch (error) {
       if (!mounted) return;
+      setState(() => _saving = false);
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(error.toString())));
@@ -446,17 +457,24 @@ class _AdminMaintenanceTeamFormScreenState
                     children: [
                       Expanded(
                         child: OutlinedButton(
-                          onPressed: _cancel,
+                          onPressed: _saving ? null : _cancel,
                           child: const Text('Cancel'),
                         ),
                       ),
                       const SizedBox(width: AppSpacing.sm),
                       Expanded(
                         child: FilledButton(
-                          onPressed: _save,
-                          child: Text(
-                            _editing ? 'Save Changes' : 'Create Team',
-                          ),
+                          onPressed: _saving ? null : _save,
+                          child: _saving
+                              ? const SizedBox(
+                                  width: AppIconSize.sm,
+                                  height: AppIconSize.sm,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : Text(_editing ? 'Save Changes' : 'Create Team'),
                         ),
                       ),
                     ],
@@ -598,6 +616,10 @@ class _TeamListView extends StatelessWidget {
         ),
         Expanded(
           child: ListView(
+            // Stays draggable even when a short/filtered list fits the
+            // viewport — otherwise pull-to-refresh silently wouldn't
+            // trigger.
+            physics: const AlwaysScrollableScrollPhysics(),
             padding: EdgeInsets.fromLTRB(
               AppSpacing.md,
               0,

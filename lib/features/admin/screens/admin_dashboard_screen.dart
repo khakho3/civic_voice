@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/ghana_refresh_indicator.dart';
 import '../../../models/assembly.dart';
 import '../../../widgets/app_state_message.dart';
 import '../../../widgets/glass_card.dart';
@@ -143,6 +144,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     }
   }
 
+  /// Pull-to-refresh's silent counterpart to [_retry] — re-fetches and
+  /// updates the dashboard in place without dropping into the full-screen
+  /// loading state, since GhanaRefreshIndicator's own bar is already the
+  /// loading affordance here.
+  Future<void> _pullToRefresh() async {
+    await AdminUserDirectory.instance.refresh();
+    if (mounted) setState(() => _data = AdminDashboardData.current());
+  }
+
   @override
   Widget build(BuildContext context) {
     return AdminScaffold(
@@ -161,17 +171,24 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       onOpenProfile: widget.onOpenProfile,
       body: switch (_state) {
         AdminDashboardViewState.loading => const _LoadingSkeleton(),
-        _ => _DashboardBody(
-          state: _state,
-          data: _state == AdminDashboardViewState.loaded
-              ? AdminDashboardData.current()
-              : _data,
-          onRetry: _retry,
-          onNavigateToUsers: widget.onNavigateToUsers,
-          onNavigateToRoles: widget.onNavigateToRoles,
-          onNavigateToSettings: widget.onNavigateToSettings,
-          onNavigateToActivity: widget.onNavigateToActivity,
-          healthStats: widget.healthStats,
+        _ => GhanaRefreshIndicator(
+          onRefresh: _pullToRefresh,
+          // The header paints on top of this body (a later sibling in
+          // AdminScaffold's own Stack), so without this the pull indicator
+          // would grow in from behind it.
+          topOffset: AdminScaffold.contentPadding(context).top,
+          child: _DashboardBody(
+            state: _state,
+            data: _state == AdminDashboardViewState.loaded
+                ? AdminDashboardData.current()
+                : _data,
+            onRetry: _retry,
+            onNavigateToUsers: widget.onNavigateToUsers,
+            onNavigateToRoles: widget.onNavigateToRoles,
+            onNavigateToSettings: widget.onNavigateToSettings,
+            onNavigateToActivity: widget.onNavigateToActivity,
+            healthStats: widget.healthStats,
+          ),
         ),
       },
     );
@@ -210,6 +227,9 @@ class _DashboardBody extends StatelessWidget {
     final loaded = state == AdminDashboardViewState.loaded;
 
     return ListView(
+      // Stays draggable even when the content fits the viewport —
+      // otherwise pull-to-refresh silently wouldn't trigger.
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: EdgeInsets.fromLTRB(
         AppSpacing.md,
         chromeInset.top + AppSpacing.md,

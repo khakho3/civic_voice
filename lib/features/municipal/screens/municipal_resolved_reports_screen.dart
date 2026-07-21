@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/ghana_refresh_indicator.dart';
 import '../models/resolved_report.dart';
 import '../../../models/report_status.dart';
 import '../services/municipal_report_directory.dart';
@@ -146,6 +147,14 @@ class _MunicipalResolvedReportsScreenState
     }
   }
 
+  /// Pull-to-refresh's silent counterpart to [_retryLoad] — see
+  /// municipal_inbox_screen.dart's identical [_pullToRefresh] for why this
+  /// doesn't drop into the full-screen loading state.
+  Future<void> _pullToRefresh() async {
+    await MunicipalReportDirectory.instance.refresh();
+    if (mounted) setState(() => _data = _resolvedReports());
+  }
+
   @override
   Widget build(BuildContext context) {
     final chromeInset = MunicipalScaffold.contentPadding(context);
@@ -170,22 +179,30 @@ class _MunicipalResolvedReportsScreenState
             child: switch (_state) {
               MunicipalResolvedReportsViewState.loading =>
                 const _LoadingSkeleton(),
-              MunicipalResolvedReportsViewState.loaded => _ResolvedReportsBody(
-                reports: _visibleReports,
-                cached: false,
-                searchController: _searchController,
-                filter: _filter,
-                onFilterChanged: (filter) => setState(() => _filter = filter),
-                onReportTap: widget.onReportTap,
+              MunicipalResolvedReportsViewState.loaded => GhanaRefreshIndicator(
+                onRefresh: _pullToRefresh,
+                child: _ResolvedReportsBody(
+                  reports: _visibleReports,
+                  cached: false,
+                  searchController: _searchController,
+                  filter: _filter,
+                  onFilterChanged: (filter) => setState(() => _filter = filter),
+                  onReportTap: widget.onReportTap,
+                ),
               ),
-              MunicipalResolvedReportsViewState.offline => _ResolvedReportsBody(
-                reports: _visibleReports,
-                cached: true,
-                searchController: _searchController,
-                filter: _filter,
-                onFilterChanged: (filter) => setState(() => _filter = filter),
-                onReportTap: widget.onReportTap,
-              ),
+              MunicipalResolvedReportsViewState.offline =>
+                GhanaRefreshIndicator(
+                  onRefresh: _pullToRefresh,
+                  child: _ResolvedReportsBody(
+                    reports: _visibleReports,
+                    cached: true,
+                    searchController: _searchController,
+                    filter: _filter,
+                    onFilterChanged: (filter) =>
+                        setState(() => _filter = filter),
+                    onReportTap: widget.onReportTap,
+                  ),
+                ),
               MunicipalResolvedReportsViewState.empty => Padding(
                 padding: EdgeInsets.only(bottom: chromeInset.bottom),
                 child: AppStateMessage(

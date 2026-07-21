@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:civic_voice/core/theme/app_theme.dart';
 
+import '../../../core/widgets/ghana_refresh_indicator.dart';
 import '../../../widgets/glass_card.dart';
 import '../../../widgets/status_badge.dart';
 import '../models/maintenance_task.dart';
@@ -47,9 +48,16 @@ class _AssignedTasksScreenState extends State<AssignedTasksScreen> {
         }
         if (tab == MaintenanceTab.profile) widget.onNavigateToProfile?.call();
       },
-      body: ValueListenableBuilder<List<MaintenanceTask>>(
-        valueListenable: MaintenanceTaskDirectory.instance.tasks,
-        builder: (context, tasks, _) => _buildBody(context, tasks),
+      body: GhanaRefreshIndicator(
+        onRefresh: MaintenanceTaskDirectory.instance.refresh,
+        // The header paints on top of this body (a later sibling in
+        // MaintenanceScaffold's own Stack), so without this the pull
+        // indicator would grow in from behind it.
+        topOffset: MaintenanceScaffold.contentPadding(context).top,
+        child: ValueListenableBuilder<List<MaintenanceTask>>(
+          valueListenable: MaintenanceTaskDirectory.instance.tasks,
+          builder: (context, tasks, _) => _buildBody(context, tasks),
+        ),
       ),
     );
   }
@@ -137,6 +145,9 @@ class _AssignedTasksContent extends StatelessWidget {
       child: IgnorePointer(
         ignoring: disabled,
         child: ListView(
+          // Stays draggable even when a short/filtered task list fits the
+          // viewport — otherwise pull-to-refresh silently wouldn't trigger.
+          physics: const AlwaysScrollableScrollPhysics(),
           padding: EdgeInsets.fromLTRB(
             AppSpacing.md,
             chromeInset.top + AppSpacing.md,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/ghana_refresh_indicator.dart';
 import '../../../widgets/app_state_message.dart';
 import '../../../widgets/glass_card.dart';
 import '../../../widgets/stat_tile.dart';
@@ -45,6 +46,7 @@ class MinistryDashboardScreen extends StatefulWidget {
     this.onNotificationsTap,
     this.onOpenMunicipality,
     this.data,
+    this.onRefresh,
   });
 
   /// Testing hook: defaults to the normal loaded view. Pass a different
@@ -74,6 +76,11 @@ class MinistryDashboardScreen extends StatefulWidget {
   final ValueChanged<RegionalLeaderItem>? onOpenMunicipality;
   final MinistryDashboardData? data;
 
+  /// Pull-to-refresh — omitted (falls back to a plain, non-refreshable
+  /// view) when there's no real backend session to refresh against, e.g.
+  /// tests/previews.
+  final Future<void> Function()? onRefresh;
+
   @override
   State<MinistryDashboardScreen> createState() =>
       _MinistryDashboardScreenState();
@@ -91,6 +98,19 @@ class _MinistryDashboardScreenState extends State<MinistryDashboardScreen> {
     });
   }
 
+  Widget _wrapWithRefresh(Widget child) {
+    final onRefresh = widget.onRefresh;
+    if (onRefresh == null) return child;
+    return GhanaRefreshIndicator(
+      onRefresh: onRefresh,
+      // The header paints on top of this content (a later sibling in
+      // MinistryScaffold's own Stack), so without this the pull indicator
+      // would grow in from behind it.
+      topOffset: MinistryScaffold.contentPadding(context).top,
+      child: child,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return MinistryScaffold(
@@ -106,10 +126,12 @@ class _MinistryDashboardScreenState extends State<MinistryDashboardScreen> {
       },
       body: switch (_state) {
         MinistryDashboardViewState.loading => const _LoadingSkeleton(),
-        MinistryDashboardViewState.loaded => _DashboardContent(
-          data: _data,
-          onViewAllMunicipalities: widget.onNavigateToMunicipalities,
-          onOpenMunicipality: widget.onOpenMunicipality,
+        MinistryDashboardViewState.loaded => _wrapWithRefresh(
+          _DashboardContent(
+            data: _data,
+            onViewAllMunicipalities: widget.onNavigateToMunicipalities,
+            onOpenMunicipality: widget.onOpenMunicipality,
+          ),
         ),
         MinistryDashboardViewState.empty => Padding(
           padding: MinistryScaffold.contentPadding(context),
@@ -187,6 +209,9 @@ class _DashboardContent extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
     final chromeInset = MinistryScaffold.contentPadding(context);
     return ListView(
+      // Stays draggable even when the content fits the viewport —
+      // otherwise pull-to-refresh silently wouldn't trigger.
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: EdgeInsets.fromLTRB(
         AppSpacing.md,
         chromeInset.top + AppSpacing.md,

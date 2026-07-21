@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/ghana_refresh_indicator.dart';
 import '../widgets/civic_glass_card.dart';
 import '../widgets/civic_status_panel.dart';
 import '../models/citizen_profile.dart';
@@ -173,33 +174,41 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen>
       body: Stack(
         children: [
           Positioned.fill(
-            child: ValueListenableBuilder<DashboardViewState>(
-              valueListenable: _dashboardStateService.state,
-              builder: (context, dashboardState, _) {
-                return ValueListenableBuilder<CitizenProfile>(
-                  valueListenable: _profileCrudService.profile,
-                  builder: (context, profile, _) {
-                    return ValueListenableBuilder<List<CivicReport>>(
-                      valueListenable: _reportCrudService.reports,
-                      builder: (context, reports, _) {
-                        return _DashboardBody(
-                          state: dashboardState,
-                          reports: reports,
-                          displayName: profile.fullName,
-                          onReset: _dashboardStateService.reset,
-                          onOpenSettings: _locationService.openAppSettings,
-                          onCreateReport: () => Navigator.of(
-                            context,
-                          ).pushNamed(CreateReportScreen.routeName),
-                          onViewReports: () => Navigator.of(
-                            context,
-                          ).pushNamed(CitizenReportsScreen.routeName),
-                        );
-                      },
-                    );
-                  },
-                );
-              },
+            child: GhanaRefreshIndicator(
+              onRefresh: _reportCrudService.refresh,
+              // CivicTopBar paints on top of this Positioned.fill (a later
+              // sibling in the outer Stack), so without this the pull
+              // indicator would grow in from behind it, invisible until it
+              // grew past the header's own height.
+              topOffset: civicContentPadding(context).top,
+              child: ValueListenableBuilder<DashboardViewState>(
+                valueListenable: _dashboardStateService.state,
+                builder: (context, dashboardState, _) {
+                  return ValueListenableBuilder<CitizenProfile>(
+                    valueListenable: _profileCrudService.profile,
+                    builder: (context, profile, _) {
+                      return ValueListenableBuilder<List<CivicReport>>(
+                        valueListenable: _reportCrudService.reports,
+                        builder: (context, reports, _) {
+                          return _DashboardBody(
+                            state: dashboardState,
+                            reports: reports,
+                            displayName: profile.fullName,
+                            onReset: _dashboardStateService.reset,
+                            onOpenSettings: _locationService.openAppSettings,
+                            onCreateReport: () => Navigator.of(
+                              context,
+                            ).pushNamed(CreateReportScreen.routeName),
+                            onViewReports: () => Navigator.of(
+                              context,
+                            ).pushNamed(CitizenReportsScreen.routeName),
+                          );
+                        },
+                      );
+                    },
+                  );
+                },
+              ),
             ),
           ),
           const Align(

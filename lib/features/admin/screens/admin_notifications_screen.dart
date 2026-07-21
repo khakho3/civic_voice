@@ -55,6 +55,8 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
                 onClearAll: () => NotificationDirectory.instance.clearAll(
                   NotificationDirectory.instance.forAdmin().map((n) => n.id),
                 ),
+                onRefresh: AdminUserDirectory.instance.refresh,
+                topOffset: DetailHeader.topInset(context),
               ),
             ),
           ),

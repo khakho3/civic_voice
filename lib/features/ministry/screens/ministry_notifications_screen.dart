@@ -68,6 +68,8 @@ class _MinistryNotificationsScreenState
                   onClearAll: () => NotificationDirectory.instance.clearAll(
                     notifications.map((n) => n.id),
                   ),
+                  onRefresh: MunicipalReportDirectory.instance.refresh,
+                  topOffset: DetailHeader.topInset(context),
                 );
               },
             ),

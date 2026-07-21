@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/ghana_refresh_indicator.dart';
 import '../../../widgets/app_state_message.dart';
 import '../../../widgets/collapsible_list_header.dart';
 import '../../../widgets/confirm_dialog.dart';
@@ -131,6 +132,11 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
     }
   }
 
+  /// Pull-to-refresh's silent counterpart to [_retry] — re-fetches without
+  /// dropping into the full-screen loading state, since
+  /// GhanaRefreshIndicator's own bar is already the loading affordance.
+  Future<void> _pullToRefresh() => AdminUserDirectory.instance.refresh();
+
   void _clearFilters() {
     setState(() {
       _searchController.clear();
@@ -242,7 +248,16 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
       onOpenProfile: widget.onOpenProfile,
       body: Stack(
         children: [
-          Positioned.fill(child: _buildBody(context, chromeEnabled, subtitle)),
+          Positioned.fill(
+            child: GhanaRefreshIndicator(
+              onRefresh: _pullToRefresh,
+              // The header paints on top of this Positioned.fill (a later
+              // sibling in AdminScaffold's own Stack), so without this the
+              // pull indicator would grow in from behind it.
+              topOffset: AdminScaffold.contentPadding(context).top,
+              child: _buildBody(context, chromeEnabled, subtitle),
+            ),
+          ),
           if (widget.onCreateUser != null)
             Positioned(
               right: AppSpacing.md,
@@ -560,6 +575,9 @@ class _UserList extends StatelessWidget {
     final scopeIsEmpty = users.isEmpty;
 
     return ListView(
+      // Stays draggable even when a short/filtered list fits the viewport
+      // — otherwise pull-to-refresh silently wouldn't trigger.
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: EdgeInsets.fromLTRB(
         AppSpacing.md,
         0,

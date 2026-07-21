@@ -138,8 +138,10 @@ class MaintenanceTeamDirectory {
   }
 
   void addMember(MaintenanceTeam team, String userId) {
-    // TODO(notifications): Notify the maintenance user when team
-    // membership changes once the app has a real notification system.
+    // Notifying the affected maintenance user now happens server-side —
+    // updateTeamOnServer's real PATCH diffs old vs. new membership and
+    // sends a push (see adminTeams.js's PATCH /teams/:id) — this local
+    // mutation is just the optimistic/offline-mock path.
     updateTeam(
       team.copyWith(memberUserIds: {...team.memberUserIds, userId}.toList()),
     );

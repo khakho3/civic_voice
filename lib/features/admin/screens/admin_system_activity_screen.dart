@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/ghana_refresh_indicator.dart';
 import '../../../widgets/app_dropdown_field.dart';
 import '../../../widgets/app_state_message.dart';
 import '../../../widgets/collapsible_list_header.dart';
@@ -193,6 +194,20 @@ class _AdminSystemActivityScreenState extends State<AdminSystemActivityScreen> {
     });
   }
 
+  Widget _wrapWithRefresh(Widget child) {
+    final onRefresh = widget.onRefresh;
+    if (onRefresh == null) return child;
+    return GhanaRefreshIndicator(
+      onRefresh: onRefresh,
+      // The header paints on top of this content (a later sibling in
+      // AdminScaffold's own Stack); child's own top SizedBox pushes its
+      // content down but doesn't move where GhanaRefreshIndicator itself
+      // anchors its star/bar, so this still needs to be set explicitly.
+      topOffset: AdminScaffold.contentPadding(context).top,
+      child: child,
+    );
+  }
+
   @override
   void dispose() {
     _searchController.dispose();
@@ -221,32 +236,34 @@ class _AdminSystemActivityScreenState extends State<AdminSystemActivityScreen> {
       onOpenProfile: widget.onOpenProfile,
       body: switch (_state) {
         AdminSystemActivityViewState.loading => const _LoadingSkeleton(),
-        AdminSystemActivityViewState.loaded => Column(
-          children: [
-            SizedBox(height: AdminScaffold.contentPadding(context).top),
-            Expanded(
-              child: CollapsibleListHeader(
-                header: _FilterChrome(
-                  filter: _filter,
-                  timeRange: _timeRange,
-                  searchController: _searchController,
-                  enabled: true,
-                  onFilterSelected: (f) => setState(() => _filter = f),
-                  onTimeRangeChanged: (r) => setState(() => _timeRange = r),
-                  onSearchChanged: (q) => setState(() => _searchQuery = q),
-                ),
-                child: _ActivityList(
-                  healthStats: _healthStats,
-                  items: _items,
-                  liveAudit: widget.items != null,
-                  filter: _filter,
-                  timeRange: _timeRange,
-                  searchQuery: _searchQuery,
-                  onClearFilters: _clearFilters,
+        AdminSystemActivityViewState.loaded => _wrapWithRefresh(
+          Column(
+            children: [
+              SizedBox(height: AdminScaffold.contentPadding(context).top),
+              Expanded(
+                child: CollapsibleListHeader(
+                  header: _FilterChrome(
+                    filter: _filter,
+                    timeRange: _timeRange,
+                    searchController: _searchController,
+                    enabled: true,
+                    onFilterSelected: (f) => setState(() => _filter = f),
+                    onTimeRangeChanged: (r) => setState(() => _timeRange = r),
+                    onSearchChanged: (q) => setState(() => _searchQuery = q),
+                  ),
+                  child: _ActivityList(
+                    healthStats: _healthStats,
+                    items: _items,
+                    liveAudit: widget.items != null,
+                    filter: _filter,
+                    timeRange: _timeRange,
+                    searchQuery: _searchQuery,
+                    onClearFilters: _clearFilters,
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         _ => Column(
           children: [

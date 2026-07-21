@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/ghana_refresh_indicator.dart';
 import '../widgets/civic_glass_card.dart';
 import '../models/civic_report.dart';
 import '../services/report_crud_service.dart';
@@ -110,43 +111,56 @@ class _CitizenReportsScreenState extends State<CitizenReportsScreen> {
       body: Stack(
         children: [
           Positioned.fill(
-            child: ValueListenableBuilder<List<CivicReport>>(
-              valueListenable: ReportCrudService.instance.reports,
-              builder: (context, reports, _) {
-                final visibleReports = _applyFilters(reports);
-                final chromeInset = civicContentPadding(context);
+            child: GhanaRefreshIndicator(
+              onRefresh: ReportCrudService.instance.refresh,
+              // CivicTopBar paints on top of this Positioned.fill (a later
+              // sibling in the outer Stack), so without this the pull
+              // indicator would grow in from behind it, invisible until it
+              // grew past the header's own height.
+              topOffset: civicContentPadding(context).top,
+              child: ValueListenableBuilder<List<CivicReport>>(
+                valueListenable: ReportCrudService.instance.reports,
+                builder: (context, reports, _) {
+                  final visibleReports = _applyFilters(reports);
+                  final chromeInset = civicContentPadding(context);
 
-                return ListView(
-                  padding: EdgeInsets.fromLTRB(
-                    horizontalPadding,
-                    chromeInset.top + AppSpacing.xl,
-                    horizontalPadding,
-                    chromeInset.bottom + AppSpacing.xl,
-                  ),
-                  children: [
-                    const _ReportsIntro(),
-                    const SizedBox(height: AppSpacing.lg),
-                    _ReportsStatsRow(reports: reports),
-                    const SizedBox(height: AppSpacing.lg),
-                    _ReportsSearchField(controller: _searchController),
-                    const SizedBox(height: AppSpacing.md),
-                    _ReportFilterBar(
-                      selected: _filter,
-                      onSelected: (filter) => setState(() => _filter = filter),
+                  return ListView(
+                    // Stays draggable even when a short list fits the
+                    // viewport — otherwise pull-to-refresh silently
+                    // wouldn't trigger whenever there are few reports.
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: EdgeInsets.fromLTRB(
+                      horizontalPadding,
+                      chromeInset.top + AppSpacing.xl,
+                      horizontalPadding,
+                      chromeInset.bottom + AppSpacing.xl,
                     ),
-                    const SizedBox(height: AppSpacing.lg),
-                    if (reports.isEmpty)
-                      _ReportsEmptyState(onCreateReport: _openCreateReport)
-                    else if (visibleReports.isEmpty)
-                      const _NoFilteredReports()
-                    else
-                      for (final report in visibleReports) ...[
-                        _ReportHistoryCard(report: report),
-                        const SizedBox(height: AppSpacing.md),
-                      ],
-                  ],
-                );
-              },
+                    children: [
+                      const _ReportsIntro(),
+                      const SizedBox(height: AppSpacing.lg),
+                      _ReportsStatsRow(reports: reports),
+                      const SizedBox(height: AppSpacing.lg),
+                      _ReportsSearchField(controller: _searchController),
+                      const SizedBox(height: AppSpacing.md),
+                      _ReportFilterBar(
+                        selected: _filter,
+                        onSelected: (filter) =>
+                            setState(() => _filter = filter),
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
+                      if (reports.isEmpty)
+                        _ReportsEmptyState(onCreateReport: _openCreateReport)
+                      else if (visibleReports.isEmpty)
+                        const _NoFilteredReports()
+                      else
+                        for (final report in visibleReports) ...[
+                          _ReportHistoryCard(report: report),
+                          const SizedBox(height: AppSpacing.md),
+                        ],
+                    ],
+                  );
+                },
+              ),
             ),
           ),
           const Align(

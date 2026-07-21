@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/ghana_refresh_indicator.dart';
 import '../../../models/region.dart';
 import '../../../widgets/app_state_message.dart';
 import '../../../widgets/collapsible_list_header.dart';
@@ -56,6 +57,7 @@ class MinistryReportsScreen extends StatefulWidget {
     this.onNotificationsTap,
     this.onViewReportInsights,
     this.data,
+    this.onRefresh,
   });
 
   final MinistryReportsViewState initialState;
@@ -76,6 +78,11 @@ class MinistryReportsScreen extends StatefulWidget {
   /// yet, matching this module's other unwired forward-references.
   final VoidCallback? onViewReportInsights;
   final MinistryReportsData? data;
+
+  /// Pull-to-refresh — omitted (falls back to a plain, non-refreshable
+  /// view) when there's no real backend session to refresh against, e.g.
+  /// tests/previews.
+  final Future<void> Function()? onRefresh;
 
   @override
   State<MinistryReportsScreen> createState() => _MinistryReportsScreenState();
@@ -121,6 +128,19 @@ class _MinistryReportsScreenState extends State<MinistryReportsScreen> {
     setState(() => _region = selected);
   }
 
+  Widget _wrapWithRefresh(Widget child) {
+    final onRefresh = widget.onRefresh;
+    if (onRefresh == null) return child;
+    return GhanaRefreshIndicator(
+      onRefresh: onRefresh,
+      // The header paints on top of this content (a later sibling in
+      // MinistryScaffold's own Stack), so without this the pull indicator
+      // would grow in from behind it.
+      topOffset: MinistryScaffold.contentPadding(context).top,
+      child: child,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     // Empty/No Results keep the chrome fixed (not collapsible) rather than
@@ -146,27 +166,29 @@ class _MinistryReportsScreenState extends State<MinistryReportsScreen> {
       },
       body: switch (_state) {
         MinistryReportsViewState.loading => const _LoadingSkeleton(),
-        MinistryReportsViewState.loaded => Padding(
-          padding: EdgeInsets.only(
-            top: MinistryScaffold.contentPadding(context).top,
-          ),
-          child: CollapsibleListHeader(
-            header: _FilterChrome(
-              controller: _searchController,
-              filter: _filter,
-              region: _region,
-              enabled: true,
-              onQueryChanged: (q) => setState(() => _query = q),
-              onFilterSelected: (f) => setState(() => _filter = f),
-              onRegionTap: _pickRegion,
+        MinistryReportsViewState.loaded => _wrapWithRefresh(
+          Padding(
+            padding: EdgeInsets.only(
+              top: MinistryScaffold.contentPadding(context).top,
             ),
-            child: _ReportsContent(
-              data: _data,
-              query: _query,
-              filter: _filter,
-              region: _region,
-              onClearFilters: _clearFilters,
-              onViewReportInsights: widget.onViewReportInsights,
+            child: CollapsibleListHeader(
+              header: _FilterChrome(
+                controller: _searchController,
+                filter: _filter,
+                region: _region,
+                enabled: true,
+                onQueryChanged: (q) => setState(() => _query = q),
+                onFilterSelected: (f) => setState(() => _filter = f),
+                onRegionTap: _pickRegion,
+              ),
+              child: _ReportsContent(
+                data: _data,
+                query: _query,
+                filter: _filter,
+                region: _region,
+                onClearFilters: _clearFilters,
+                onViewReportInsights: widget.onViewReportInsights,
+              ),
             ),
           ),
         ),
@@ -438,6 +460,9 @@ class _ReportsContent extends StatelessWidget {
         .toList();
 
     return ListView(
+      // Stays draggable even when a short/filtered list fits the viewport
+      // — otherwise pull-to-refresh silently wouldn't trigger.
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: EdgeInsets.fromLTRB(
         AppSpacing.md,
         0,

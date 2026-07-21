@@ -86,6 +86,8 @@ class CitizenAlertsScreen extends StatelessWidget {
                   onClearAll: () => NotificationDirectory.instance.clearAll(
                     notifications.map((n) => n.id),
                   ),
+                  onRefresh: ReportCrudService.instance.refresh,
+                  topOffset: chromeInset.top,
                 );
               },
             ),

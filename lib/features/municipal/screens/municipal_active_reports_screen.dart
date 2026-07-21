@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/ghana_refresh_indicator.dart';
 import '../../../models/report_status.dart';
 import '../models/active_report.dart';
 import '../models/incoming_report.dart';
@@ -89,21 +90,21 @@ class _MunicipalActiveReportsScreenState
     extends State<MunicipalActiveReportsScreen> {
   late MunicipalActiveReportsViewState _state = widget.initialState;
 
+  static List<IncomingReportItem> _activeReportsFromDirectory() =>
+      MunicipalReportDirectory.instance.reports.value
+          .where(
+            (r) =>
+                r.status == ReportStatus.assigned ||
+                r.status == ReportStatus.inProgress ||
+                r.status == ReportStatus.resolved,
+          )
+          .toList();
+
   /// Reads the live directory once per screen instance (same reactivity
   /// level as MaintenanceTeamDirectory's own consumers elsewhere) — only
   /// reports a team has actually taken on show up here, per the real
   /// Inbox/Active split.
-  List<IncomingReportItem> _data = MunicipalReportDirectory
-      .instance
-      .reports
-      .value
-      .where(
-        (r) =>
-            r.status == ReportStatus.assigned ||
-            r.status == ReportStatus.inProgress ||
-            r.status == ReportStatus.resolved,
-      )
-      .toList();
+  List<IncomingReportItem> _data = _activeReportsFromDirectory();
   final _searchController = TextEditingController();
   ActiveReportFilter _filter = ActiveReportFilter.all;
   ActiveReportSort _sort = ActiveReportSort.mostRecent;
@@ -196,14 +197,7 @@ class _MunicipalActiveReportsScreenState
       await MunicipalReportDirectory.instance.refresh();
       if (mounted) {
         setState(() {
-          _data = MunicipalReportDirectory.instance.reports.value
-              .where(
-                (report) =>
-                    report.status == ReportStatus.assigned ||
-                    report.status == ReportStatus.inProgress ||
-                    report.status == ReportStatus.resolved,
-              )
-              .toList();
+          _data = _activeReportsFromDirectory();
           _state = MunicipalActiveReportsViewState.loaded;
         });
       }
@@ -212,6 +206,14 @@ class _MunicipalActiveReportsScreenState
         setState(() => _state = MunicipalActiveReportsViewState.error);
       }
     }
+  }
+
+  /// Pull-to-refresh's silent counterpart to [_retryLoad] — see
+  /// municipal_inbox_screen.dart's identical [_pullToRefresh] for why this
+  /// doesn't drop into the full-screen loading state.
+  Future<void> _pullToRefresh() async {
+    await MunicipalReportDirectory.instance.refresh();
+    if (mounted) setState(() => _data = _activeReportsFromDirectory());
   }
 
   @override
@@ -238,23 +240,29 @@ class _MunicipalActiveReportsScreenState
             child: switch (_state) {
               MunicipalActiveReportsViewState.loading =>
                 const _LoadingSkeleton(),
-              MunicipalActiveReportsViewState.loaded => _ActiveReportsBody(
-                reports: _visibleReports,
-                cached: false,
-                searchController: _searchController,
-                filter: _filter,
-                onFilterChanged: (filter) => setState(() => _filter = filter),
-                onSortTap: _showSortMenu,
-                onReportTap: widget.onReportTap,
+              MunicipalActiveReportsViewState.loaded => GhanaRefreshIndicator(
+                onRefresh: _pullToRefresh,
+                child: _ActiveReportsBody(
+                  reports: _visibleReports,
+                  cached: false,
+                  searchController: _searchController,
+                  filter: _filter,
+                  onFilterChanged: (filter) => setState(() => _filter = filter),
+                  onSortTap: _showSortMenu,
+                  onReportTap: widget.onReportTap,
+                ),
               ),
-              MunicipalActiveReportsViewState.offline => _ActiveReportsBody(
-                reports: _visibleReports,
-                cached: true,
-                searchController: _searchController,
-                filter: _filter,
-                onFilterChanged: (filter) => setState(() => _filter = filter),
-                onSortTap: _showSortMenu,
-                onReportTap: widget.onReportTap,
+              MunicipalActiveReportsViewState.offline => GhanaRefreshIndicator(
+                onRefresh: _pullToRefresh,
+                child: _ActiveReportsBody(
+                  reports: _visibleReports,
+                  cached: true,
+                  searchController: _searchController,
+                  filter: _filter,
+                  onFilterChanged: (filter) => setState(() => _filter = filter),
+                  onSortTap: _showSortMenu,
+                  onReportTap: widget.onReportTap,
+                ),
               ),
               MunicipalActiveReportsViewState.empty => Padding(
                 padding: EdgeInsets.only(bottom: chromeInset.bottom),

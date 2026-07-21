@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/ghana_refresh_indicator.dart';
 import '../../../models/report_status.dart';
 import '../models/incoming_report.dart';
 import '../services/municipal_report_directory.dart';
@@ -83,16 +84,19 @@ class _MunicipalInboxScreenState extends State<MunicipalInboxScreen> {
   // Only new/reviewed-but-unassigned reports belong in the Inbox — once a
   // team is assigned, a report only shows on Active Reports (see
   // MunicipalReportDirectory.assignTeam).
+  static List<IncomingReportItem> _inboxReportsFromDirectory() =>
+      MunicipalReportDirectory.instance.reports.value
+          .where(
+            (r) =>
+                r.status == ReportStatus.submitted ||
+                r.status == ReportStatus.underReview,
+          )
+          .toList();
+
   late List<IncomingReportItem> _reports =
       widget.initialState == MunicipalInboxViewState.empty
       ? const []
-      : MunicipalReportDirectory.instance.reports.value
-            .where(
-              (r) =>
-                  r.status == ReportStatus.submitted ||
-                  r.status == ReportStatus.underReview,
-            )
-            .toList();
+      : _inboxReportsFromDirectory();
 
   @override
   void initState() {
@@ -138,19 +142,23 @@ class _MunicipalInboxScreenState extends State<MunicipalInboxScreen> {
       await MunicipalReportDirectory.instance.refresh();
       if (mounted) {
         setState(() {
-          _reports = MunicipalReportDirectory.instance.reports.value
-              .where(
-                (report) =>
-                    report.status == ReportStatus.submitted ||
-                    report.status == ReportStatus.underReview,
-              )
-              .toList();
+          _reports = _inboxReportsFromDirectory();
           _state = MunicipalInboxViewState.loaded;
         });
       }
     } catch (_) {
       if (mounted) setState(() => _state = MunicipalInboxViewState.error);
     }
+  }
+
+  /// Pull-to-refresh's silent counterpart to [_retry] — re-fetches and
+  /// updates the list in place without dropping into the full-screen
+  /// loading state, since GhanaRefreshIndicator's own bar is already the
+  /// loading affordance here; a network failure just leaves the list as it
+  /// was (GhanaRefreshIndicator swallows the exception itself).
+  Future<void> _pullToRefresh() async {
+    await MunicipalReportDirectory.instance.refresh();
+    if (mounted) setState(() => _reports = _inboxReportsFromDirectory());
   }
 
   @override
@@ -172,17 +180,26 @@ class _MunicipalInboxScreenState extends State<MunicipalInboxScreen> {
         MunicipalInboxViewState.loading => const _InboxContent(loading: true),
         MunicipalInboxViewState.loaded ||
         MunicipalInboxViewState.empty ||
-        MunicipalInboxViewState.noResults => _InboxContent(
-          loading: false,
-          rawReports: _reports,
-          filteredReports: _filtered,
-          hasActiveFilters: _hasActiveFilters,
-          searchController: _searchController,
-          selectedCategory: _selectedCategory,
-          onCategorySelected: (category) =>
-              setState(() => _selectedCategory = category),
-          onClearFilters: _clearFilters,
-          onReportTap: widget.onReportTap,
+        MunicipalInboxViewState.noResults => GhanaRefreshIndicator(
+          onRefresh: _pullToRefresh,
+          // The header paints on top of this content (a later sibling in
+          // MunicipalScaffold's own Stack), so without this the pull
+          // indicator would grow in from behind it — _InboxContent's own
+          // top spacer pushes its content down but doesn't move where
+          // GhanaRefreshIndicator itself anchors its star/bar.
+          topOffset: MunicipalScaffold.contentPadding(context).top,
+          child: _InboxContent(
+            loading: false,
+            rawReports: _reports,
+            filteredReports: _filtered,
+            hasActiveFilters: _hasActiveFilters,
+            searchController: _searchController,
+            selectedCategory: _selectedCategory,
+            onCategorySelected: (category) =>
+                setState(() => _selectedCategory = category),
+            onClearFilters: _clearFilters,
+            onReportTap: widget.onReportTap,
+          ),
         ),
         MunicipalInboxViewState.error => Padding(
           padding: MunicipalScaffold.contentPadding(context),
