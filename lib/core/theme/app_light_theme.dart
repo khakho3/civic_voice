@@ -13,6 +13,7 @@ import '../constants/app_dimensions.dart';
 import 'app_colors.dart';
 import 'app_elevation.dart';
 import 'app_icons.dart';
+import 'app_motion.dart';
 import 'app_radius.dart';
 import 'app_typography.dart';
 
@@ -67,6 +68,7 @@ abstract final class AppLightTheme {
     fontFamily: AppTypography.fontFamily,
     textTheme: _textTheme,
     splashFactory: InkSparkle.splashFactory,
+    pageTransitionsTheme: AppMotion.pageTransitionsTheme,
 
     extensions: const <ThemeExtension<dynamic>>[AppSemanticColors.light],
 
@@ -209,8 +211,15 @@ abstract final class AppLightTheme {
       ),
     ),
 
+    // Glass (AppColorsLight.glassSurface) rather than the opaque primary
+    // surface — §19.10 Glass Usage Rules names dialogs and bottom sheets
+    // as permitted glass surfaces alongside nav/cards, and neither holds
+    // the kind of long-form/input-heavy content the same rule prohibits
+    // glass on (confirms, short pickers — not forms). No bespoke override
+    // token exists for either yet (unlike glassNavSurface/glassCardSurface),
+    // so this uses the plain glassSurface baseline rather than inventing one.
     dialogTheme: DialogThemeData(
-      backgroundColor: AppColorsLight.primarySurface,
+      backgroundColor: AppColorsLight.glassSurface,
       surfaceTintColor: Colors.transparent,
       elevation: AppElevation.level2,
       shape: const RoundedRectangleBorder(
@@ -221,9 +230,9 @@ abstract final class AppLightTheme {
     ),
 
     bottomSheetTheme: BottomSheetThemeData(
-      backgroundColor: AppColorsLight.primarySurface,
+      backgroundColor: AppColorsLight.glassSurface,
       surfaceTintColor: Colors.transparent,
-      modalBackgroundColor: AppColorsLight.primarySurface,
+      modalBackgroundColor: AppColorsLight.glassSurface,
       elevation: AppElevation.level2,
       modalElevation: AppElevation.level2,
       shape: const RoundedRectangleBorder(

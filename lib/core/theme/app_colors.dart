@@ -60,9 +60,13 @@ abstract final class AppColorsLight {
   static const Color glassCardSurface = Color.fromRGBO(255, 255, 255, 0.88);
 
   /// Navigation-specific glass opacity (CL-001 "Navigation Opacity", pending
-  /// formal definition). Sourced from MUN-001 Dashboard (Header/BottomNav:
-  /// rgba(248,250,252,0.82), i.e. [canvas] at 0.82 alpha).
-  static const Color glassNavSurface = Color.fromRGBO(248, 250, 252, 0.82);
+  /// formal definition). Originally sourced from MUN-001 Dashboard at 0.82
+  /// alpha, which sat well above the ratified [glassSurface] baseline
+  /// (0.65) and made the frost effect barely perceptible in practice.
+  /// Lowered to 0.72 — still more opaque than [glassSurface] for chrome
+  /// legibility over scrolled content, but moving toward the standard
+  /// rather than further past it.
+  static const Color glassNavSurface = Color.fromRGBO(248, 250, 252, 0.72);
 
   static const Color primaryText = Color(0xFF0F172A);
   static const Color secondaryText = Color(0xFF475569);
@@ -95,9 +99,9 @@ abstract final class AppColorsDark {
   /// same 0.88 alpha. Confirmed against MUN-001 Dashboard (rgba(17,24,39,0.88)).
   static const Color glassCardSurface = Color.fromRGBO(17, 24, 39, 0.88);
 
-  /// See [AppColorsLight.glassNavSurface] — [canvas] tinted at 0.82 alpha.
-  /// Confirmed against MUN-001 Dashboard (rgba(15,23,42,0.82)).
-  static const Color glassNavSurface = Color.fromRGBO(15, 23, 42, 0.82);
+  /// See [AppColorsLight.glassNavSurface] — [canvas] tinted at 0.70 alpha
+  /// (lowered from 0.82; see that token's doc comment).
+  static const Color glassNavSurface = Color.fromRGBO(15, 23, 42, 0.70);
 
   static const Color primaryText = Color(0xFFF8FAFC);
   static const Color secondaryText = Color(0xFFCBD5E1);

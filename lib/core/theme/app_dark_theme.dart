@@ -13,6 +13,7 @@ import '../constants/app_dimensions.dart';
 import 'app_colors.dart';
 import 'app_elevation.dart';
 import 'app_icons.dart';
+import 'app_motion.dart';
 import 'app_radius.dart';
 import 'app_typography.dart';
 
@@ -61,6 +62,7 @@ abstract final class AppDarkTheme {
     fontFamily: AppTypography.fontFamily,
     textTheme: _textTheme,
     splashFactory: InkSparkle.splashFactory,
+    pageTransitionsTheme: AppMotion.pageTransitionsTheme,
 
     extensions: const <ThemeExtension<dynamic>>[AppSemanticColors.dark],
 
@@ -193,8 +195,10 @@ abstract final class AppDarkTheme {
       ),
     ),
 
+    // See AppLightTheme for why these are glass (AppColorsDark.glassSurface)
+    // rather than the opaque primary surface.
     dialogTheme: DialogThemeData(
-      backgroundColor: AppColorsDark.primarySurface,
+      backgroundColor: AppColorsDark.glassSurface,
       surfaceTintColor: Colors.transparent,
       elevation: AppElevation.level2,
       shape: const RoundedRectangleBorder(
@@ -205,9 +209,9 @@ abstract final class AppDarkTheme {
     ),
 
     bottomSheetTheme: BottomSheetThemeData(
-      backgroundColor: AppColorsDark.primarySurface,
+      backgroundColor: AppColorsDark.glassSurface,
       surfaceTintColor: Colors.transparent,
-      modalBackgroundColor: AppColorsDark.primarySurface,
+      modalBackgroundColor: AppColorsDark.glassSurface,
       elevation: AppElevation.level2,
       modalElevation: AppElevation.level2,
       shape: const RoundedRectangleBorder(

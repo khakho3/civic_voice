@@ -12,7 +12,7 @@
 /// are respected automatically.
 library;
 
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 
 /// Standard animation durations, aligned to the Material 3 motion scale.
 abstract final class AppMotionDuration {
@@ -57,4 +57,24 @@ abstract final class AppMotion {
         MediaQuery.maybeOf(context)?.disableAnimations ?? false;
     return disableAnimations ? Duration.zero : base;
   }
+
+  /// The one route-transition builder every platform target uses — wired
+  /// into both [AppLightTheme] and [AppDarkTheme] so it applies to every
+  /// `MaterialPageRoute` app-wide with no per-route changes. Material 3's
+  /// Fade-Forwards transition (incoming page fades+slides in from the
+  /// trailing edge, outgoing page fades back) — subtle and modern rather
+  /// than the platform-default zoom. Framework-level, so it honors
+  /// `MediaQuery.disableAnimations` automatically without needing
+  /// [duration] above.
+  static const PageTransitionsTheme pageTransitionsTheme =
+      PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: FadeForwardsPageTransitionsBuilder(),
+          TargetPlatform.iOS: FadeForwardsPageTransitionsBuilder(),
+          TargetPlatform.macOS: FadeForwardsPageTransitionsBuilder(),
+          TargetPlatform.windows: FadeForwardsPageTransitionsBuilder(),
+          TargetPlatform.linux: FadeForwardsPageTransitionsBuilder(),
+          TargetPlatform.fuchsia: FadeForwardsPageTransitionsBuilder(),
+        },
+      );
 }

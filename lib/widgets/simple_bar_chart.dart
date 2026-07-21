@@ -29,7 +29,18 @@ class SimpleBarChart extends StatelessWidget {
                 heightFactor: value / maxValue,
                 child: Container(
                   decoration: BoxDecoration(
-                    color: AppColors.primary,
+                    // A soft, single-hue gradient rather than a flat
+                    // fill — lighter at the top, full-strength primary
+                    // at the base, so each bar reads as "filling up"
+                    // rather than a block of flat color.
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        AppColors.primary.withValues(alpha: 0.55),
+                        AppColors.primary,
+                      ],
+                    ),
                     borderRadius: const BorderRadius.vertical(
                       top: Radius.circular(4),
                     ),

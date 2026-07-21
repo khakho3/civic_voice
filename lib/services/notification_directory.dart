@@ -32,6 +32,21 @@ class NotificationDirectory {
 
   final ValueNotifier<Set<String>> readIds = ValueNotifier(<String>{});
   static const _readIdsKey = 'notification_read_ids';
+
+  /// "Clear all" ledger — mirrors [readIds] exactly, but for dismissal
+  /// rather than read state. Notifications have no separate stored row to
+  /// delete (every `for*()` method computes them fresh from real report/
+  /// task/account state — see the class doc comment), so "clear" can't be
+  /// a real delete without risking the underlying record. Instead this
+  /// tracks which already-seen notification ids the user dismissed, and
+  /// every `for*()` result filters them out. Because ids encode status
+  /// (e.g. `citizen-report-<id>-<status>`), a later status change mints a
+  /// new id that isn't in this set, so a dismissed notification correctly
+  /// reappears once there's something genuinely new to say — clearing
+  /// never permanently silences a report/task/account going forward.
+  final ValueNotifier<Set<String>> dismissedIds = ValueNotifier(<String>{});
+  static const _dismissedIdsKey = 'notification_dismissed_ids';
+
   SharedPreferences? _preferences;
 
   Future<void> initialize() async {
@@ -39,6 +54,9 @@ class NotificationDirectory {
     _preferences = preferences;
     readIds.value = (preferences.getStringList(_readIdsKey) ?? const <String>[])
         .toSet();
+    dismissedIds.value =
+        (preferences.getStringList(_dismissedIdsKey) ?? const <String>[])
+            .toSet();
   }
 
   bool isRead(String id) => readIds.value.contains(id);
@@ -46,27 +64,39 @@ class NotificationDirectory {
   void markRead(String id) {
     if (readIds.value.contains(id)) return;
     readIds.value = {...readIds.value, id};
-    _persistReadIds();
+    _persist(_readIdsKey, readIds.value);
   }
 
   void markAllRead(Iterable<String> ids) {
     final updated = {...readIds.value, ...ids};
     if (updated.length == readIds.value.length) return;
     readIds.value = updated;
-    _persistReadIds();
+    _persist(_readIdsKey, readIds.value);
   }
 
-  void _persistReadIds() {
-    final values = readIds.value.toList()..sort();
+  bool isDismissed(String id) => dismissedIds.value.contains(id);
+
+  /// Dismisses every currently-visible notification in [ids] — "Clear
+  /// all". Pass the caller's own already-filtered id list (e.g.
+  /// `forCitizen().map((n) => n.id)`), never every id that's ever existed.
+  void clearAll(Iterable<String> ids) {
+    final updated = {...dismissedIds.value, ...ids};
+    if (updated.length == dismissedIds.value.length) return;
+    dismissedIds.value = updated;
+    _persist(_dismissedIdsKey, dismissedIds.value);
+  }
+
+  void _persist(String key, Set<String> values) {
+    final sorted = values.toList()..sort();
     final preferences = _preferences;
     if (preferences != null) {
-      unawaited(preferences.setStringList(_readIdsKey, values));
+      unawaited(preferences.setStringList(key, sorted));
       return;
     }
     unawaited(
       SharedPreferences.getInstance().then((instance) {
         _preferences = instance;
-        instance.setStringList(_readIdsKey, values);
+        instance.setStringList(key, sorted);
       }),
     );
   }
@@ -104,7 +134,7 @@ class NotificationDirectory {
   /// A citizen's own reports, mapped 1:1 by current status.
   List<NotificationItem> forCitizen() {
     final reports = ReportCrudService.instance.reports.value;
-    return [
+    final items = [
       for (final report in reports)
         _build(
           id: 'citizen-report-${report.id}-${report.status.name}',
@@ -153,6 +183,7 @@ class NotificationDirectory {
           referenceId: report.id,
         ),
     ];
+    return items.where((item) => !isDismissed(item.id)).toList();
   }
 
   /// Reports newly submitted to Municipal's Inbox, awaiting triage — the
@@ -162,7 +193,7 @@ class NotificationDirectory {
     final reports = MunicipalReportDirectory.instance.reports.value.where(
       (r) => r.status == ReportStatus.submitted,
     );
-    return [
+    final items = [
       for (final report in reports)
         _build(
           id: 'municipal-$officerId-report-${report.referenceId}',
@@ -216,13 +247,14 @@ class NotificationDirectory {
             referenceId: report.referenceId,
           ),
     ];
+    return items.where((item) => !isDismissed(item.id)).toList();
   }
 
   /// Live account events visible within the signed-in Admin's already scoped
   /// user directory. This is deliberately separate from the full audit log.
   List<NotificationItem> forAdmin() {
     final users = AdminUserDirectory.instance.users.value;
-    return [
+    final items = [
       for (final user in users)
         if (user.status == AdminUserStatus.inactive)
           _build(
@@ -249,12 +281,13 @@ class NotificationDirectory {
             referenceId: user.userId,
           ),
     ];
+    return items.where((item) => !isDismissed(item.id)).toList();
   }
 
   /// Current task events for the signed-in technician's exact team.
   List<NotificationItem> forMaintenance() {
     final tasks = MaintenanceTaskDirectory.instance.tasks.value;
-    return [
+    final items = [
       for (final task in tasks)
         _build(
           id:
@@ -301,6 +334,7 @@ class NotificationDirectory {
           referenceId: task.id,
         ),
     ];
+    return items.where((item) => !isDismissed(item.id)).toList();
   }
 
   /// Reports resolved anywhere in the country — Ministry's national
@@ -310,7 +344,7 @@ class NotificationDirectory {
     final reports = MunicipalReportDirectory.instance.reports.value.where(
       (r) => r.status == ReportStatus.resolved,
     );
-    return [
+    final items = [
       for (final report in reports)
         _build(
           id: 'ministry-report-${report.referenceId}',
@@ -324,5 +358,6 @@ class NotificationDirectory {
           referenceId: report.referenceId,
         ),
     ];
+    return items.where((item) => !isDismissed(item.id)).toList();
   }
 }

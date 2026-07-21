@@ -7,11 +7,10 @@ import '../services/notification_directory.dart';
 import '../features/citizen/services/notification_permission_service.dart';
 import 'glass_card.dart';
 
-/// Shared notification list content for Municipal, Maintenance, and
-/// Ministry's own notification screens — Citizen keeps its own richer,
-/// design-system-specific card (a deliberate split, not an oversight; see
-/// `citizen_alerts_screen.dart`). Tapping a card marks it read and, if
-/// [onTap] is given, navigates to whatever it's about.
+/// Shared notification list content for every module's notification
+/// screen (Admin, Municipal, Maintenance, Ministry, and Citizen Alerts).
+/// Tapping a card marks it read and, if [onTap] is given, navigates to
+/// whatever it's about.
 class NotificationListView extends StatefulWidget {
   const NotificationListView({
     super.key,
@@ -20,6 +19,7 @@ class NotificationListView extends StatefulWidget {
     required this.emptyMessage,
     this.onTap,
     this.padding,
+    this.onClearAll,
   });
 
   final List<NotificationItem> notifications;
@@ -27,6 +27,12 @@ class NotificationListView extends StatefulWidget {
   final String emptyMessage;
   final ValueChanged<NotificationItem>? onTap;
   final EdgeInsets? padding;
+
+  /// When given, a right-aligned "Clear all" button appears above the list
+  /// whenever it's non-empty — dismisses every currently-visible
+  /// notification (see `NotificationDirectory.clearAll`'s own doc comment
+  /// for why this can't be a real delete). Null hides the button entirely.
+  final VoidCallback? onClearAll;
 
   @override
   State<NotificationListView> createState() => _NotificationListViewState();
@@ -89,17 +95,44 @@ class _NotificationListViewState extends State<NotificationListView>
           ),
           const SizedBox(height: AppSpacing.md),
         ],
+        if (widget.onClearAll != null && notifications.isNotEmpty) ...[
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: widget.onClearAll,
+              child: const Text('Clear all'),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+        ],
         if (notifications.isEmpty)
           _EmptyState(title: widget.emptyTitle, message: widget.emptyMessage)
         else
           for (var index = 0; index < notifications.length; index++) ...[
-            _NotificationCard(
-              notification: notifications[index],
-              onTap: () {
-                final notification = notifications[index];
-                NotificationDirectory.instance.markRead(notification.id);
-                widget.onTap?.call(notification);
+            Dismissible(
+              key: ValueKey(notifications[index].id),
+              direction: DismissDirection.endToStart,
+              background: const _DismissBackground(),
+              // Same dismissal ledger "Clear all" uses — a single-id
+              // clearAll, not a second delete mechanism. If the underlying
+              // report/task/account later changes status, a fresh id is
+              // minted and the notification can reappear, same as Clear all.
+              onDismissed: (_) {
+                NotificationDirectory.instance.clearAll([
+                  notifications[index].id,
+                ]);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Notification deleted')),
+                );
               },
+              child: _NotificationCard(
+                notification: notifications[index],
+                onTap: () {
+                  final notification = notifications[index];
+                  NotificationDirectory.instance.markRead(notification.id);
+                  widget.onTap?.call(notification);
+                },
+              ),
             ),
             if (index != notifications.length - 1)
               const SizedBox(height: AppSpacing.sm),
@@ -238,6 +271,27 @@ class _NotificationCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _DismissBackground extends StatelessWidget {
+  const _DismissBackground();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      alignment: Alignment.centerRight,
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: AppColors.error.withValues(alpha: 0.12),
+        borderRadius: AppComponentRadius.card,
+      ),
+      child: Icon(
+        AppIcons.delete,
+        color: AppColors.error,
+        size: AppIconSize.standard,
       ),
     );
   }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/theme/app_theme.dart';
+import 'glass_dialog_backdrop.dart';
 
 /// Shows a confirm/cancel [AlertDialog] and resolves to whether the user
 /// confirmed — `false` for both "Cancel" and dismissing the dialog (tap
@@ -23,22 +24,24 @@ Future<bool> showConfirmDialog(
 }) async {
   final result = await showDialog<bool>(
     context: context,
-    builder: (context) => AlertDialog(
-      title: Text(title),
-      content: Text(message),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(false),
-          child: Text(cancelLabel),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.of(context).pop(true),
-          style: destructive
-              ? FilledButton.styleFrom(backgroundColor: AppColors.error)
-              : null,
-          child: Text(confirmLabel),
-        ),
-      ],
+    builder: (context) => GlassDialogBackdrop(
+      child: AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(cancelLabel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: destructive
+                ? FilledButton.styleFrom(backgroundColor: AppColors.error)
+                : null,
+            child: Text(confirmLabel),
+          ),
+        ],
+      ),
     ),
   );
   return result ?? false;
