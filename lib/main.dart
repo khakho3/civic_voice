@@ -101,6 +101,8 @@ import 'services/app_cache_service.dart';
 import 'services/idle_session_timer.dart';
 import 'services/mock_auth_service.dart';
 import 'services/notification_directory.dart';
+import 'widgets/glass_dialog_backdrop.dart';
+import 'widgets/in_app_notification_banner.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -119,6 +121,13 @@ Future<void> main() async {
 }
 
 bool _pushListenersConfigured = false;
+
+/// Global by design, not scoped to [_CivicVoiceAppState] — there is only
+/// ever one [CivicVoiceApp] in the whole process, and top-level code that
+/// lives outside any screen's widget tree (the `onMessage` push handler
+/// below, which can fire while any screen is on top) needs a [BuildContext]
+/// of its own to show an in-app banner or navigate.
+final _navigatorKey = GlobalKey<NavigatorState>();
 
 Future<void> _configurePushNotifications() async {
   final user = FirebaseAuth.instance.currentUser;
@@ -150,6 +159,7 @@ Future<void> _configurePushNotifications() async {
             await MaintenanceTaskDirectory.instance.refresh();
         }
       } catch (_) {}
+      _showInAppBannerFor(message);
     });
     messaging.onTokenRefresh.listen((token) async {
       final refreshedIdToken = await FirebaseAuth.instance.currentUser
@@ -167,6 +177,55 @@ Future<void> _configurePushNotifications() async {
   }
 }
 
+/// The in-app counterpart to a push notification arriving while the app is
+/// already open — `FirebaseMessaging.onMessage` only fires in that case (a
+/// backgrounded/closed app shows the OS's own notification instead), and
+/// without this the refreshed data above was the only visible effect: the
+/// screen would quietly update with nothing telling the user why.
+void _showInAppBannerFor(RemoteMessage message) {
+  final overlay = _navigatorKey.currentState?.overlay;
+  if (overlay == null) return;
+  final title = message.notification?.title;
+  final body = message.notification?.body ?? '';
+  if (title == null) return;
+  final type = message.data['type'];
+  InAppNotificationBanner.show(
+    overlay,
+    title: title,
+    message: body,
+    icon: _iconForPushType(type),
+    color: _colorForPushType(type),
+    onTap: () {
+      final route = _notificationsRouteForRole(MockAuthService().getCurrentRole());
+      if (route != null) _navigatorKey.currentState?.pushNamed(route);
+    },
+  );
+}
+
+IconData _iconForPushType(String? type) => switch (type) {
+  'report-status' => AppIcons.statusInProgress,
+  'municipal-report' => AppIcons.inbox,
+  'municipal-report-status' => AppIcons.statusInProgress,
+  'ministry-resolution' => AppIcons.statusResolved,
+  'maintenance-task' || 'maintenance-task-status' => AppIcons.statusAssigned,
+  _ => AppIcons.notifications,
+};
+
+Color _colorForPushType(String? type) => switch (type) {
+  'ministry-resolution' => ReportStatus.resolved.color,
+  'municipal-report' => AppColors.primary,
+  _ => AppColors.primary,
+};
+
+String? _notificationsRouteForRole(AppRole? role) => switch (role) {
+  AppRole.citizen => AppRoutes.citizenAlerts,
+  AppRole.municipalOfficer => AppRoutes.municipalNotifications,
+  AppRole.maintenanceTeam => AppRoutes.maintenanceNotifications,
+  AppRole.ministrySupervisor => AppRoutes.ministryNotifications,
+  AppRole.systemAdministrator => AppRoutes.adminNotifications,
+  null => null,
+};
+
 Future<void> _offerNotificationPermissionAfterLogin(
   BuildContext context,
 ) async {
@@ -180,23 +239,25 @@ Future<void> _offerNotificationPermissionAfterLogin(
   final allow = await showDialog<bool>(
     context: context,
     barrierDismissible: false,
-    builder: (context) => AlertDialog(
-      icon: const Icon(AppIcons.notifications, color: AppColors.primary),
-      title: const Text('Stay Updated'),
-      content: const Text(
-        'Allow notifications so CivicVoice can alert you about new tasks, '
-        'report decisions, and status changes even when the app is closed.',
+    builder: (context) => GlassDialogBackdrop(
+      child: AlertDialog(
+        icon: const Icon(AppIcons.notifications, color: AppColors.primary),
+        title: const Text('Stay Updated'),
+        content: const Text(
+          'Allow notifications so CivicVoice can alert you about new tasks, '
+          'report decisions, and status changes even when the app is closed.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Not Now'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Allow'),
+          ),
+        ],
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(false),
-          child: const Text('Not Now'),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.of(context).pop(true),
-          child: const Text('Allow'),
-        ),
-      ],
     ),
   );
   if (allow == true) {
@@ -337,8 +398,6 @@ class CivicVoiceApp extends StatefulWidget {
 }
 
 class _CivicVoiceAppState extends State<CivicVoiceApp> {
-  final _navigatorKey = GlobalKey<NavigatorState>();
-
   @override
   void initState() {
     super.initState();
@@ -374,23 +433,25 @@ class _CivicVoiceAppState extends State<CivicVoiceApp> {
     final allow = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        icon: const Icon(AppIcons.notifications, color: AppColors.primary),
-        title: const Text('Stay Updated'),
-        content: const Text(
-          'Allow notifications so CivicVoice can alert you about new tasks, '
-          'report decisions, and status changes even when the app is closed.',
+      builder: (context) => GlassDialogBackdrop(
+        child: AlertDialog(
+          icon: const Icon(AppIcons.notifications, color: AppColors.primary),
+          title: const Text('Stay Updated'),
+          content: const Text(
+            'Allow notifications so CivicVoice can alert you about new tasks, '
+            'report decisions, and status changes even when the app is closed.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Not Now'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Allow'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Not Now'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Allow'),
-          ),
-        ],
       ),
     );
     if (allow == true) {
@@ -1585,6 +1646,7 @@ Widget _adminSystemActivity(BuildContext context) {
           Navigator.of(context).pushNamed(AppRoutes.adminMaintenanceTeams),
       onOpenProfile: () =>
           Navigator.of(context).pushNamed(AppRoutes.adminProfile),
+      onNotificationsTap: () => _openAdminNotifications(context),
     ),
   );
 }

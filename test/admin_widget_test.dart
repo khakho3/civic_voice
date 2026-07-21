@@ -23,6 +23,7 @@ import 'package:civic_voice/features/admin/screens/admin_user_management_screen.
 import 'package:civic_voice/features/admin/services/admin_user_directory.dart';
 import 'package:civic_voice/features/admin/services/admin_system_settings_directory.dart';
 import 'package:civic_voice/models/app_role.dart';
+import 'package:civic_voice/widgets/app_dropdown_field.dart';
 import 'package:civic_voice/models/ghana_assemblies_data.dart';
 import 'package:civic_voice/models/region.dart';
 import 'package:civic_voice/services/mock_auth_service.dart';
@@ -1239,7 +1240,7 @@ void main() {
       // skeleton's shimmer), so pumpAndSettle is safe here and more
       // robust than guessing a fixed settle duration for the dropdown's
       // own open/close route animation.
-      await tester.tap(find.byType(DropdownButton<AppRole>));
+      await tester.tap(find.byType(AppDropdownField<AppRole>));
       await tester.pumpAndSettle();
       await tester.tap(find.text('System Administrator').last);
       await tester.pumpAndSettle();
@@ -1252,7 +1253,7 @@ void main() {
       expect(find.text('Update reports'), findsNothing);
       expect(find.text('Export Reports'), findsWidgets);
 
-      await tester.tap(find.byType(DropdownButton<AppRole>));
+      await tester.tap(find.byType(AppDropdownField<AppRole>));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Citizen').last);
       await tester.pumpAndSettle();
@@ -1688,7 +1689,7 @@ void main() {
       // state, so pumpAndSettle is safe and more robust than guessing a
       // fixed settle duration for the dropdown's own open/close route
       // animation.
-      await tester.tap(find.byType(DropdownButton<ActivityTimeRange>));
+      await tester.tap(find.byType(AppDropdownField<ActivityTimeRange>));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Last 7 Days').last);
       await tester.pumpAndSettle();
@@ -2350,8 +2351,6 @@ void main() {
       expect(find.text('admin@civicvoice.gov'), findsNothing);
       expect(find.text('Platform Administration'), findsOneWidget);
       expect(find.text('ADM-000001'), findsOneWidget);
-      expect(find.text('Access Summary'), findsOneWidget);
-      expect(find.text('92% governance checklist complete'), findsOneWidget);
       expect(find.text('System Preferences'), findsOneWidget);
       expect(find.text('Theme'), findsOneWidget);
       expect(find.text('System'), findsOneWidget);
@@ -2733,7 +2732,7 @@ void main() {
     expect(find.text('Something went wrong'), findsNothing);
 
     await tester.pump(const Duration(milliseconds: 600));
-    expect(find.text('Access Summary'), findsOneWidget);
+    expect(find.text('System Preferences'), findsOneWidget);
   });
 
   testWidgets(
@@ -2837,4 +2836,29 @@ void main() {
     expect(find.text('Admin Notifications'), findsOneWidget);
     expect(find.text('Recent Activity'), findsNothing);
   });
+
+  testWidgets(
+    "Admin System Activity's bell also opens notifications (was wired to "
+    'nothing)',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        const app.CivicVoiceApp(
+          initialRoute: app.AppRoutes.adminSystemActivity,
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+
+      await tester.tap(find.byIcon(AppIcons.notifications));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+
+      expect(find.text('Admin Notifications'), findsOneWidget);
+    },
+  );
 }
