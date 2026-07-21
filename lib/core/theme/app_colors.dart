@@ -36,6 +36,14 @@ abstract final class AppColors {
   static const Color statusInProgress = Color(0xFF0EA5E9);
   static const Color statusResolved = Color(0xFF16A34A);
   static const Color statusRejected = Color(0xFFDC2626);
+
+  // Ghana flag — used by GhanaRefreshIndicator's Black Star/flag-color
+  // sweep, not part of §19.3's semantic palette. Named here instead of
+  // inline so the same three colors used across that indicator's star and
+  // bar aren't three separate hex literals.
+  static const Color ghanaRed = Color(0xFFCE1126);
+  static const Color ghanaGold = Color(0xFFFCD116);
+  static const Color ghanaGreen = Color(0xFF006B3F);
 }
 
 /// Light theme surface, text, and border tokens — §19.3 "Light Theme".
