@@ -498,7 +498,7 @@ void main() {
     );
 
     expect(find.text('Paste Code'), findsNothing);
-    await tester.enterText(find.byType(TextField), '123456');
+    await tester.enterText(find.byType(TextField), '1234');
     await tester.pump();
     expect(find.widgetWithText(FilledButton, 'Verify Code'), findsOneWidget);
 
@@ -580,7 +580,7 @@ void main() {
       ),
     );
 
-    await tester.enterText(find.byType(TextField), '000000');
+    await tester.enterText(find.byType(TextField), '0000');
     await tester.pump();
     await tester.tap(find.widgetWithText(FilledButton, 'Verify Code'));
     await tester.pump();

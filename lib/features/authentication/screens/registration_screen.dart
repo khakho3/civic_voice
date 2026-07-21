@@ -110,6 +110,10 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     await showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
+        // Opaque, not the theme's glass default — this is a long,
+        // multi-paragraph scrollable policy, exactly the "long-form
+        // content" §19.10 prohibits glass on.
+        backgroundColor: Theme.of(context).colorScheme.surface,
         title: const Text('Privacy & Data Use'),
         content: const SingleChildScrollView(
           child: Text(
@@ -155,7 +159,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
               autofillHints: const [AutofillHints.name],
               decoration: authInputDecoration(
                 context,
-                hintText: 'John Doe',
+                hintText: 'Genny Amadapah',
                 prefixIcon: AppIcons.profile,
                 errorText: _showValidationErrors
                     ? 'Full name is required.'

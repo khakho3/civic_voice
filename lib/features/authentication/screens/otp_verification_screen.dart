@@ -51,7 +51,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
   bool get _expired => _timeToExpiry.inSeconds <= 0;
   bool get _canResend => _resendCooldown.inSeconds <= 0;
   bool get _canVerify =>
-      !_expired && !_verifying && _codeController.text.trim().length == 6;
+      !_expired && !_verifying && _codeController.text.trim().length == 4;
 
   @override
   void initState() {
@@ -129,7 +129,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
             enabled: !_verifying && !_expired,
             keyboardType: TextInputType.number,
             textInputAction: TextInputAction.done,
-            maxLength: 6,
+            maxLength: 4,
             textAlign: TextAlign.center,
             style: theme.textTheme.headlineSmall?.copyWith(
               letterSpacing: AppSpacing.xs,
@@ -137,12 +137,12 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
             ),
             inputFormatters: [
               FilteringTextInputFormatter.digitsOnly,
-              LengthLimitingTextInputFormatter(6),
+              LengthLimitingTextInputFormatter(4),
             ],
             onSubmitted: (_) => _verify(),
             decoration: authInputDecoration(
               context,
-              hintText: '000000',
+              hintText: '0000',
               prefixIcon: AppIcons.sms,
             ).copyWith(counterText: ''),
           ),

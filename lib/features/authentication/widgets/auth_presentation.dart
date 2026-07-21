@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import 'package:civic_voice/core/theme/app_theme.dart';
 
+import 'growing_underline_border.dart';
+
 /// Restrained brand atmosphere shared by the input-heavy authentication flow.
 class AuthBackdrop extends StatelessWidget {
   const AuthBackdrop({super.key, required this.child});
@@ -232,9 +234,43 @@ InputDecoration authInputDecoration(
   Widget? suffixIcon,
 }) {
   final colors = Theme.of(context).colorScheme;
-  final border = OutlineInputBorder(
-    borderRadius: AppComponentRadius.inputField,
+
+  // A flatter treatment: no filled container at all — just the prefix
+  // icon and text sitting directly on the page — with
+  // GrowingUnderlineBorder's radius zeroed out so its stroke is a plain
+  // straight line instead of following a (now-nonexistent) rounded
+  // container edge. Rest state's own accent stroke stays invisible
+  // (growth: 0); a faint constant baseline (see baselineColor's own doc
+  // comment) is what actually gives the field a visible edge at rest now
+  // that there's no container doing that job. Focusing animates the
+  // accent growing in left-to-right over that baseline (growth: 0 -> 1)
+  // via InputBorder.lerp, same mechanism as before. An error shows the
+  // underline immediately at full width since that's persistent, not a
+  // momentary focus cue.
+  final baselineColor = colors.outlineVariant.withValues(alpha: 0.5);
+  final atRest = GrowingUnderlineBorder(
     borderSide: BorderSide(color: colors.outlineVariant),
+    growth: 0,
+    radius: Radius.zero,
+    baselineColor: baselineColor,
+  );
+  final focused = GrowingUnderlineBorder(
+    borderSide: BorderSide(color: colors.primary, width: 2),
+    growth: 1,
+    radius: Radius.zero,
+    baselineColor: baselineColor,
+  );
+  final error = GrowingUnderlineBorder(
+    borderSide: BorderSide(color: colors.error),
+    growth: 1,
+    radius: Radius.zero,
+    baselineColor: baselineColor,
+  );
+  final focusedError = GrowingUnderlineBorder(
+    borderSide: BorderSide(color: colors.error, width: 2),
+    growth: 1,
+    radius: Radius.zero,
+    baselineColor: baselineColor,
   );
 
   return InputDecoration(
@@ -242,23 +278,13 @@ InputDecoration authInputDecoration(
     prefixIcon: Icon(prefixIcon, color: colors.onSurfaceVariant),
     suffixIcon: suffixIcon,
     errorText: errorText,
-    filled: true,
-    fillColor: colors.surfaceContainerHighest,
-    border: border,
-    enabledBorder: border,
-    disabledBorder: border,
-    focusedBorder: OutlineInputBorder(
-      borderRadius: AppComponentRadius.inputField,
-      borderSide: BorderSide(color: colors.primary, width: 2),
-    ),
-    errorBorder: OutlineInputBorder(
-      borderRadius: AppComponentRadius.inputField,
-      borderSide: BorderSide(color: colors.error),
-    ),
-    focusedErrorBorder: OutlineInputBorder(
-      borderRadius: AppComponentRadius.inputField,
-      borderSide: BorderSide(color: colors.error, width: 2),
-    ),
+    filled: false,
+    border: atRest,
+    enabledBorder: atRest,
+    disabledBorder: atRest,
+    focusedBorder: focused,
+    errorBorder: error,
+    focusedErrorBorder: focusedError,
   );
 }
 
