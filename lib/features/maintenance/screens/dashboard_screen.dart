@@ -281,17 +281,20 @@ class _WeeklyCompletionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-    final semantic = Theme.of(context).extension<AppSemanticColors>()!;
     final onPrimary = colorScheme.onPrimary;
 
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
+        // Same-hue depth, not two clashing colors — AppColors.primary
+        // fading to its own darker shade (primaryPressed), so this stays
+        // in the design system's existing brand palette rather than
+        // pulling in an unrelated accent.
+        gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [colorScheme.primary, semantic.statusAssigned],
+          colors: [AppColors.primary, AppColors.primaryPressed],
         ),
         borderRadius: AppComponentRadius.card,
       ),
@@ -353,16 +356,6 @@ class _DiscoveryBars extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final semantic = Theme.of(context).extension<AppSemanticColors>()!;
-    final barColors = [
-      semantic.success,
-      colorScheme.primaryContainer,
-      semantic.warning,
-      colorScheme.onPrimary,
-      semantic.statusInProgress,
-      semantic.success,
-      colorScheme.primaryContainer,
-    ];
 
     final maxBarHeight = height - AppSpacing.xxl;
     final maxCount = counts.fold<int>(
@@ -377,6 +370,10 @@ class _DiscoveryBars extends StatelessWidget {
         children: List.generate(_labels.length, (index) {
           final count = index < counts.length ? counts[index] : 0;
           final normalized = count / maxCount;
+          // Single hue (onPrimary, readable against the card's own
+          // gradient) — full strength on the peak day(s), muted
+          // elsewhere, rather than a different color per bar.
+          final isPeak = count == maxCount && maxCount > 0;
           return Expanded(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.end,
@@ -385,7 +382,9 @@ class _DiscoveryBars extends StatelessWidget {
                   width: AppSpacing.sm,
                   height: AppSpacing.xs + (normalized * maxBarHeight),
                   decoration: BoxDecoration(
-                    color: barColors[index],
+                    color: colorScheme.onPrimary.withValues(
+                      alpha: isPeak ? 1 : 0.45,
+                    ),
                     borderRadius: AppRadius.allXs,
                   ),
                 ),

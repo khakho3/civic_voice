@@ -6,6 +6,7 @@ import '../../../models/region.dart';
 import '../../../widgets/app_state_message.dart';
 import '../../../widgets/confirm_dialog.dart';
 import '../../../widgets/glass_card.dart';
+import '../../../widgets/glass_fab.dart';
 import '../../../widgets/kebab_menu_button.dart';
 import '../models/admin_maintenance_team_data.dart';
 import '../models/admin_user_management_data.dart';
@@ -114,11 +115,10 @@ class _AdminMaintenanceTeamsScreenState
               right: AppSpacing.md,
               bottom:
                   AdminScaffold.contentPadding(context).bottom + AppSpacing.md,
-              child: FloatingActionButton(
-                heroTag: 'admin-create-maintenance-team',
+              child: GlassFab(
                 tooltip: 'Create maintenance team',
                 onPressed: widget.onCreateTeam,
-                child: const Icon(AppIcons.add),
+                icon: AppIcons.add,
               ),
             ),
         ],
@@ -322,9 +322,9 @@ class _AdminMaintenanceTeamFormScreenState
       }
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.toString())),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
       return;
     }
     widget.onClose?.call();
@@ -651,7 +651,7 @@ class _TeamsChrome extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final semantic = Theme.of(context).extension<AppSemanticColors>()!;
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.md,
@@ -671,6 +671,7 @@ class _TeamsChrome extends StatelessWidget {
             controller: controller,
             enabled: enabled,
             onChanged: onQueryChanged,
+            // Glass — see MunicipalSearchField's doc comment.
             decoration: InputDecoration(
               hintText: 'Search teams',
               prefixIcon: const Icon(AppIcons.search),
@@ -686,7 +687,7 @@ class _TeamsChrome extends StatelessWidget {
                           : null,
                     ),
               filled: true,
-              fillColor: colorScheme.surfaceContainer,
+              fillColor: semantic.glassSurface,
             ),
           ),
           if (AdminSession.instance.isSuperAdmin) ...[
@@ -842,9 +843,9 @@ class _TeamDetailsBody extends StatelessWidget {
                           .deleteTeamOnServer(team);
                     } catch (error) {
                       if (!context.mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(error.toString())),
-                      );
+                      ScaffoldMessenger.of(
+                        context,
+                      ).showSnackBar(SnackBar(content: Text(error.toString())));
                       return;
                     }
                     onBackToTeams?.call();
@@ -960,15 +961,19 @@ class _MemberPicker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final semantic = Theme.of(context).extension<AppSemanticColors>()!;
     return Column(
       children: [
         TextField(
           controller: controller,
           enabled: queryEnabled,
           onChanged: onQueryChanged,
-          decoration: const InputDecoration(
+          // Glass — see MunicipalSearchField's doc comment.
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: semantic.glassSurface,
             hintText: 'Search maintenance staff',
-            prefixIcon: Icon(AppIcons.search),
+            prefixIcon: const Icon(AppIcons.search),
           ),
         ),
         const SizedBox(height: AppSpacing.sm),

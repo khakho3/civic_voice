@@ -5,6 +5,7 @@ import '../../../widgets/app_state_message.dart';
 import '../../../widgets/collapsible_list_header.dart';
 import '../../../widgets/detail_header.dart';
 import '../../../widgets/glass_card.dart';
+import '../../../widgets/glass_dialog_backdrop.dart';
 import '../models/ministry_report_insights_data.dart';
 
 /// MIN-005 — Report Insights.
@@ -115,19 +116,21 @@ class _MinistryReportInsightsScreenState
   Future<void> _pickDateRange() async {
     final selected = await showModalBottomSheet<InsightsDateRange>(
       context: context,
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (final option in InsightsDateRange.values)
-              ListTile(
-                title: Text(option.label),
-                trailing: option == _dateRange
-                    ? const Icon(AppIcons.success, color: AppColors.primary)
-                    : null,
-                onTap: () => Navigator.of(context).pop(option),
-              ),
-          ],
+      builder: (context) => GlassDialogBackdrop(
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final option in InsightsDateRange.values)
+                ListTile(
+                  title: Text(option.label),
+                  trailing: option == _dateRange
+                      ? const Icon(AppIcons.success, color: AppColors.primary)
+                      : null,
+                  onTap: () => Navigator.of(context).pop(option),
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -137,19 +140,21 @@ class _MinistryReportInsightsScreenState
   Future<void> _pickCategory() async {
     final selected = await showModalBottomSheet<InsightsCategoryFilter>(
       context: context,
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (final option in InsightsCategoryFilter.values)
-              ListTile(
-                title: Text(option.label),
-                trailing: option == _category
-                    ? const Icon(AppIcons.success, color: AppColors.primary)
-                    : null,
-                onTap: () => Navigator.of(context).pop(option),
-              ),
-          ],
+      builder: (context) => GlassDialogBackdrop(
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final option in InsightsCategoryFilter.values)
+                ListTile(
+                  title: Text(option.label),
+                  trailing: option == _category
+                      ? const Icon(AppIcons.success, color: AppColors.primary)
+                      : null,
+                  onTap: () => Navigator.of(context).pop(option),
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -159,19 +164,21 @@ class _MinistryReportInsightsScreenState
   Future<void> _pickStatus() async {
     final selected = await showModalBottomSheet<InsightsStatusFilter>(
       context: context,
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (final option in InsightsStatusFilter.values)
-              ListTile(
-                title: Text(option.label),
-                trailing: option == _status
-                    ? const Icon(AppIcons.success, color: AppColors.primary)
-                    : null,
-                onTap: () => Navigator.of(context).pop(option),
-              ),
-          ],
+      builder: (context) => GlassDialogBackdrop(
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final option in InsightsStatusFilter.values)
+                ListTile(
+                  title: Text(option.label),
+                  trailing: option == _status
+                      ? const Icon(AppIcons.success, color: AppColors.primary)
+                      : null,
+                  onTap: () => Navigator.of(context).pop(option),
+                ),
+            ],
+          ),
         ),
       ),
     );

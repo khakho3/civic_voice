@@ -7,6 +7,7 @@ import '../models/incoming_report.dart';
 import '../services/municipal_report_directory.dart';
 import '../../../widgets/collapsible_list_header.dart';
 import '../../../widgets/glass_card.dart';
+import '../../../widgets/glass_dialog_backdrop.dart';
 import '../widgets/municipal_scaffold.dart';
 import '../widgets/municipal_search_field.dart';
 import '../../../widgets/app_state_message.dart';
@@ -168,19 +169,21 @@ class _MunicipalActiveReportsScreenState
   Future<void> _showSortMenu() async {
     final selected = await showModalBottomSheet<ActiveReportSort>(
       context: context,
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (final option in ActiveReportSort.values)
-              ListTile(
-                title: Text(option.label),
-                trailing: option == _sort
-                    ? const Icon(AppIcons.success, color: AppColors.primary)
-                    : null,
-                onTap: () => Navigator.of(context).pop(option),
-              ),
-          ],
+      builder: (context) => GlassDialogBackdrop(
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final option in ActiveReportSort.values)
+                ListTile(
+                  title: Text(option.label),
+                  trailing: option == _sort
+                      ? const Icon(AppIcons.success, color: AppColors.primary)
+                      : null,
+                  onTap: () => Navigator.of(context).pop(option),
+                ),
+            ],
+          ),
         ),
       ),
     );

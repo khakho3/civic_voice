@@ -47,6 +47,7 @@ class _MaintenanceNotificationsScreenState
                 MaintenanceTaskDirectory.instance.tasks,
                 MaintenanceTeamDirectory.instance.teams,
                 NotificationDirectory.instance.readIds,
+                NotificationDirectory.instance.dismissedIds,
               ]),
               builder: (context, _) {
                 final notifications = NotificationDirectory.instance
@@ -65,6 +66,9 @@ class _MaintenanceNotificationsScreenState
                     final taskId = notification.referenceId;
                     if (taskId != null) widget.onOpenTask?.call(taskId);
                   },
+                  onClearAll: () => NotificationDirectory.instance.clearAll(
+                    notifications.map((n) => n.id),
+                  ),
                 );
               },
             ),

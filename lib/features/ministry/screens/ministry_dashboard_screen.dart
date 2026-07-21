@@ -250,66 +250,70 @@ class _StatsGrid extends StatelessWidget {
     // absolute height regardless of width — an aspect ratio tuned to fit
     // at 428px overflowed by a few pixels at 375px. Letting each card size
     // to its own natural content height sidesteps that entirely.
-    return Column(
-      children: [
-        IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(
-                child: StatTile(
-                  icon: AppIcons.report,
-                  iconColor: AppColors.primary,
-                  label: 'Total Reports',
-                  value: _formatCount(stats.totalReports),
-                  delta: '+${stats.totalReportsChangePercent}%',
-                  deltaColor: AppColors.primary,
+    // Grounded in one light card — four differently-colored stat icons
+    // floating loose on the canvas read as scattered, not clean.
+    return GlassCard(
+      child: Column(
+        children: [
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  child: StatTile(
+                    icon: AppIcons.report,
+                    iconColor: AppColors.primary,
+                    label: 'Total Reports',
+                    value: _formatCount(stats.totalReports),
+                    delta: '+${stats.totalReportsChangePercent}%',
+                    deltaColor: AppColors.primary,
+                  ),
                 ),
-              ),
-              const StatTileDivider(),
-              Expanded(
-                child: StatTile(
-                  icon: AppIcons.warning,
-                  iconColor: AppColors.statusUnderReview,
-                  label: 'Under Review',
-                  value: _formatCount(stats.underReview),
-                  delta: '${stats.underReviewPercent}%',
-                  deltaColor: AppColors.statusUnderReview,
+                const StatTileDivider(),
+                Expanded(
+                  child: StatTile(
+                    icon: AppIcons.warning,
+                    iconColor: AppColors.statusUnderReview,
+                    label: 'Under Review',
+                    value: _formatCount(stats.underReview),
+                    delta: '${stats.underReviewPercent}%',
+                    deltaColor: AppColors.statusUnderReview,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(
-                child: StatTile(
-                  icon: AppIcons.success,
-                  iconColor: AppColors.statusResolved,
-                  label: 'Resolved',
-                  value: _formatCount(stats.resolved),
-                  delta: '${stats.resolvedPercent}%',
-                  deltaColor: AppColors.statusResolved,
+          const SizedBox(height: AppSpacing.sm),
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  child: StatTile(
+                    icon: AppIcons.success,
+                    iconColor: AppColors.statusResolved,
+                    label: 'Resolved',
+                    value: _formatCount(stats.resolved),
+                    delta: '${stats.resolvedPercent}%',
+                    deltaColor: AppColors.statusResolved,
+                  ),
                 ),
-              ),
-              const StatTileDivider(),
-              Expanded(
-                child: StatTile(
-                  icon: AppIcons.municipality,
-                  iconColor: AppColors.statusAssigned,
-                  label: 'Municipalities',
-                  value: '${stats.activeMunicipalities}',
-                  delta: 'Active',
-                  deltaColor: AppColors.statusAssigned,
+                const StatTileDivider(),
+                Expanded(
+                  child: StatTile(
+                    icon: AppIcons.municipality,
+                    iconColor: AppColors.statusAssigned,
+                    label: 'Municipalities',
+                    value: '${stats.activeMunicipalities}',
+                    delta: 'Active',
+                    deltaColor: AppColors.statusAssigned,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -418,56 +422,61 @@ class _QuickInsightsGrid extends StatelessWidget {
     // Row/Expanded rather than GridView.count(childAspectRatio: ...) — see
     // _StatsGrid for why: an aspect ratio shrinks height together with
     // width on narrower phones, overflowing this card's fixed content.
-    return Column(
-      children: [
-        IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(
-                child: _QuickInsightCard(
-                  dotColor: AppColors.statusSubmitted,
-                  label: 'Submitted',
-                  sublabel: '${insights.submittedPercent}% of national reports',
+    // Grounded in one light card, same reasoning as _StatsGrid above.
+    return GlassCard(
+      child: Column(
+        children: [
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  child: _QuickInsightCard(
+                    dotColor: AppColors.statusSubmitted,
+                    label: 'Submitted',
+                    sublabel:
+                        '${insights.submittedPercent}% of national reports',
+                  ),
                 ),
-              ),
-              const StatTileDivider(),
-              Expanded(
-                child: _QuickInsightCard(
-                  dotColor: AppColors.statusUnderReview,
-                  label: 'Under Review',
-                  sublabel:
-                      '${insights.underReviewPercent}% of national reports',
+                const StatTileDivider(),
+                Expanded(
+                  child: _QuickInsightCard(
+                    dotColor: AppColors.statusUnderReview,
+                    label: 'Under Review',
+                    sublabel:
+                        '${insights.underReviewPercent}% of national reports',
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(
-                child: _QuickInsightCard(
-                  dotColor: AppColors.statusAssigned,
-                  label: 'Assigned',
-                  sublabel: '${insights.assignedPercent}% of national reports',
+          const SizedBox(height: AppSpacing.sm),
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  child: _QuickInsightCard(
+                    dotColor: AppColors.statusAssigned,
+                    label: 'Assigned',
+                    sublabel:
+                        '${insights.assignedPercent}% of national reports',
+                  ),
                 ),
-              ),
-              const StatTileDivider(),
-              Expanded(
-                child: _QuickInsightCard(
-                  dotColor: AppColors.statusInProgress,
-                  label: 'In Progress',
-                  sublabel:
-                      '${insights.inProgressPercent}% of national reports',
+                const StatTileDivider(),
+                Expanded(
+                  child: _QuickInsightCard(
+                    dotColor: AppColors.statusInProgress,
+                    label: 'In Progress',
+                    sublabel:
+                        '${insights.inProgressPercent}% of national reports',
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

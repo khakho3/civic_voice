@@ -4,6 +4,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../models/app_role.dart';
 import '../../../models/assembly.dart';
 import '../../../models/region.dart';
+import '../../../widgets/app_dropdown_field.dart';
 import '../../../widgets/app_state_message.dart';
 import '../../../widgets/confirm_dialog.dart';
 import '../models/admin_role_management_data.dart';
@@ -747,43 +748,17 @@ class _LabeledDropdown<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final colorScheme = Theme.of(context).colorScheme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: textTheme.bodySmall),
-        const SizedBox(height: AppSpacing.xs),
-        Material(
-          color: colorScheme.surfaceContainer,
-          borderRadius: AppComponentRadius.inputField,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<T>(
-                value: value,
-                isExpanded: true,
-                borderRadius: AppComponentRadius.inputField,
-                icon: Icon(
-                  AppIcons.chevronDown,
-                  size: AppIconSize.sm,
-                  color: colorScheme.onSurfaceVariant,
-                ),
-                style: textTheme.bodyLarge?.copyWith(
-                  color: colorScheme.onSurface,
-                ),
-                items: [
-                  for (final item in items)
-                    DropdownMenuItem(value: item, child: Text(itemLabel(item))),
-                ],
-                onChanged: (selected) {
-                  if (selected != null) onChanged(selected);
-                },
-              ),
-            ),
-          ),
-        ),
+    return AppDropdownField<T>(
+      label: label,
+      hint: '',
+      value: value,
+      items: [
+        for (final item in items)
+          AppDropdownItem(value: item, label: itemLabel(item)),
       ],
+      onChanged: (selected) {
+        if (selected != null) onChanged(selected);
+      },
     );
   }
 }

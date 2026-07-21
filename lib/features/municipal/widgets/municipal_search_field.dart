@@ -6,11 +6,21 @@ import '../../../core/theme/app_theme.dart';
 /// (Incoming Reports, Active Reports, Assign Team's team list, and any
 /// future screen that needs one).
 ///
-/// Deliberately uses only the app theme's `InputDecorationTheme` — no
-/// per-instance `border`/`fillColor` overrides — so every search bar in the
-/// module looks identical (same 12px radius, same fill, same focus/error
-/// treatment) without each screen having to remember to match the others by
-/// hand. Add new search UI here, not by copy-pasting a `TextField`.
+/// Otherwise uses only the app theme's `InputDecorationTheme` (border,
+/// radius, focus/error treatment) — no per-instance overrides beyond the
+/// one deliberate exception below — so every search bar in the module
+/// looks identical without each screen having to remember to match the
+/// others by hand. Add new search UI here, not by copy-pasting a
+/// `TextField`.
+///
+/// [fillColor] is the one exception: §19.10 Glass Usage Rules names
+/// "search containers" as a permitted glass surface, but the app's global
+/// `inputDecorationTheme` can't be made glass itself — that same theme
+/// backs every actual form field too (login, registration, report
+/// details), and glass is explicitly *prohibited* on input-heavy forms.
+/// So this search field carries its own `AppColorsLight/Dark.glassSurface`
+/// fill instead of inheriting the form fill, rather than the global theme
+/// trying to serve both permitted and prohibited surfaces at once.
 class MunicipalSearchField extends StatelessWidget {
   const MunicipalSearchField({
     super.key,
@@ -31,6 +41,7 @@ class MunicipalSearchField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = this.controller;
+    final semantic = Theme.of(context).extension<AppSemanticColors>()!;
     return ListenableBuilder(
       listenable: controller ?? _staticListenable,
       builder: (context, _) {
@@ -41,6 +52,8 @@ class MunicipalSearchField extends StatelessWidget {
             hintText: hintText,
             prefixIcon: const Icon(AppIcons.search, size: AppIconSize.md),
             suffixIcon: _buildSuffix(controller),
+            filled: true,
+            fillColor: semantic.glassSurface,
           ),
         );
       },

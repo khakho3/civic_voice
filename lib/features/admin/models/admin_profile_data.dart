@@ -25,7 +25,6 @@ class AdminProfileData {
     required this.department,
     required this.adminId,
     required this.lastActivity,
-    required this.governanceChecklistPercent,
     required this.administrativeScope,
     required this.governanceLevel,
   });
@@ -36,7 +35,6 @@ class AdminProfileData {
   final String department;
   final String adminId;
   final DateTime lastActivity;
-  final int governanceChecklistPercent;
 
   /// Which modules this admin account can reach — e.g. ["Users", "Roles",
   /// "Settings"]. Distinct from `AdminTier.grantedPermissionLabels` (a
@@ -55,7 +53,6 @@ class AdminProfileData {
       department: department ?? this.department,
       adminId: adminId,
       lastActivity: lastActivity,
-      governanceChecklistPercent: governanceChecklistPercent,
       administrativeScope: administrativeScope,
       governanceLevel: governanceLevel,
     );
@@ -84,7 +81,6 @@ AdminProfileData mockAdminProfile() {
     department: 'Platform Administration',
     adminId: 'ADM-000001',
     lastActivity: DateTime.now().subtract(const Duration(hours: 1)),
-    governanceChecklistPercent: 92,
     administrativeScope: const ['Users', 'Roles', 'Settings'],
     governanceLevel: 'Approved administrator',
   );
@@ -101,7 +97,6 @@ AdminProfileData adminProfileFromUser(AdminUserItem user) {
         : user.assembly?.fullName ?? 'Assembly Administration',
     adminId: user.userId,
     lastActivity: user.lastSignIn,
-    governanceChecklistPercent: 100,
     administrativeScope: superAdmin
         ? const ['Users', 'Roles', 'Settings']
         : const ['Users', 'Activity', 'Maintenance'],

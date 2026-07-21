@@ -47,6 +47,7 @@ class _MinistryNotificationsScreenState
               animation: Listenable.merge([
                 MunicipalReportDirectory.instance.reports,
                 NotificationDirectory.instance.readIds,
+                NotificationDirectory.instance.dismissedIds,
               ]),
               builder: (context, _) {
                 final notifications = NotificationDirectory.instance
@@ -63,6 +64,9 @@ class _MinistryNotificationsScreenState
                     DetailHeader.topInset(context) + AppSpacing.md,
                     AppSpacing.md,
                     AppSpacing.xl,
+                  ),
+                  onClearAll: () => NotificationDirectory.instance.clearAll(
+                    notifications.map((n) => n.id),
                   ),
                 );
               },

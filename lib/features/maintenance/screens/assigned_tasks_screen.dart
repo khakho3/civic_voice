@@ -121,6 +121,7 @@ class _AssignedTasksContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final semantic = Theme.of(context).extension<AppSemanticColors>()!;
     final chromeInset = MaintenanceScaffold.contentPadding(context);
     final filteredTasks = tasks
         .where((task) {
@@ -145,7 +146,10 @@ class _AssignedTasksContent extends StatelessWidget {
           children: [
             TextField(
               onChanged: onQueryChanged,
+              // Glass — see MunicipalSearchField's doc comment.
               decoration: InputDecoration(
+                filled: true,
+                fillColor: semantic.glassSurface,
                 hintText: 'Search assigned tasks...',
                 prefixIcon: const Icon(AppIcons.search),
                 border: OutlineInputBorder(

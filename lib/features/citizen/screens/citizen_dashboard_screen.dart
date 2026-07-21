@@ -10,6 +10,7 @@ import '../services/dashboard_state_service.dart';
 import '../services/location_service.dart';
 import '../services/profile_crud_service.dart';
 import '../services/report_crud_service.dart';
+import '../../../widgets/glass_dialog_backdrop.dart';
 import '../../../widgets/stat_tile.dart';
 import '../../../widgets/status_badge.dart';
 import '../widgets/civic_app_chrome.dart';
@@ -136,23 +137,25 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen>
       context: context,
       barrierDismissible: true,
       builder: (context) {
-        return AlertDialog(
-          icon: const Icon(AppIcons.location, color: AppColors.primary),
-          title: Text(title),
-          content: Text(message),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Not Now'),
-            ),
-            FilledButton(
-              onPressed: () async {
-                Navigator.of(context).pop();
-                await onAction();
-              },
-              child: Text(actionLabel),
-            ),
-          ],
+        return GlassDialogBackdrop(
+          child: AlertDialog(
+            icon: const Icon(AppIcons.location, color: AppColors.primary),
+            title: Text(title),
+            content: Text(message),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Not Now'),
+              ),
+              FilledButton(
+                onPressed: () async {
+                  Navigator.of(context).pop();
+                  await onAction();
+                },
+                child: Text(actionLabel),
+              ),
+            ],
+          ),
         );
       },
     );
@@ -491,23 +494,35 @@ class _ReportHeroCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final onPrimary = theme.colorScheme.onPrimary;
 
-    return CivicGlassCard(
+    return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: const BoxDecoration(
+        // Same-hue depth gradient (primary -> its own darker shade) —
+        // matches the treatment on Maintenance's Weekly Completion card
+        // and Ministry's bar charts, one consistent "soft hero" language
+        // rather than a different gradient per screen.
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [AppColors.primary, AppColors.primaryPressed],
+        ),
+        borderRadius: AppComponentRadius.card,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             'Report a Community Issue',
-            style: theme.textTheme.titleLarge?.copyWith(
-              color: AppColors.primary,
-            ),
+            style: theme.textTheme.titleLarge?.copyWith(color: onPrimary),
           ),
           const SizedBox(height: AppSpacing.md),
           Text(
             'Submit reports about roads, sanitation, lighting, water, security, or other public infrastructure issues.',
             style: theme.textTheme.bodyLarge?.copyWith(
-              color: theme.colorScheme.secondary,
+              color: onPrimary.withValues(alpha: 0.85),
             ),
           ),
           const SizedBox(height: AppSpacing.lg),
@@ -515,6 +530,18 @@ class _ReportHeroCard extends StatelessWidget {
             width: double.infinity,
             child: FilledButton(
               onPressed: actionsDisabled ? null : onReportNow,
+              style: FilledButton.styleFrom(
+                backgroundColor: onPrimary,
+                foregroundColor: AppColors.primary,
+                // Without these, a disabled FilledButton falls back to the
+                // global theme's default (a near-transparent dark overlay)
+                // — legible on the app's usual light backgrounds, but
+                // unreadable against this card's own blue gradient.
+                disabledBackgroundColor: onPrimary.withValues(alpha: 0.3),
+                disabledForegroundColor: AppColors.primary.withValues(
+                  alpha: 0.5,
+                ),
+              ),
               child: const Text('Report Now'),
             ),
           ),
@@ -523,6 +550,25 @@ class _ReportHeroCard extends StatelessWidget {
             width: double.infinity,
             child: OutlinedButton(
               onPressed: actionsDisabled ? null : onViewReports,
+              style:
+                  OutlinedButton.styleFrom(
+                    foregroundColor: onPrimary,
+                    side: BorderSide(color: onPrimary.withValues(alpha: 0.6)),
+                    // Same reasoning as FilledButton above — the global theme's
+                    // disabledForegroundColor is a dark slate, invisible on
+                    // this card's blue gradient.
+                    disabledForegroundColor: onPrimary.withValues(alpha: 0.45),
+                  ).copyWith(
+                    side: WidgetStateProperty.resolveWith(
+                      (states) => BorderSide(
+                        color: onPrimary.withValues(
+                          alpha: states.contains(WidgetState.disabled)
+                              ? 0.25
+                              : 0.6,
+                        ),
+                      ),
+                    ),
+                  ),
               child: const Text('View My Reports'),
             ),
           ),
@@ -560,94 +606,96 @@ class _QuickActionGrid extends StatelessWidget {
       context: context,
       showDragHandle: true,
       builder: (context) {
-        return SafeArea(
-          child: ValueListenableBuilder<List<CivicReport>>(
-            valueListenable: ReportCrudService.instance.reports,
-            builder: (context, reports, _) {
-              return Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.md,
-                  AppSpacing.sm,
-                  AppSpacing.md,
-                  AppSpacing.lg,
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Nearby Issues',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: AppFontWeight.bold,
+        return GlassDialogBackdrop(
+          child: SafeArea(
+            child: ValueListenableBuilder<List<CivicReport>>(
+              valueListenable: ReportCrudService.instance.reports,
+              builder: (context, reports, _) {
+                return Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.md,
+                    AppSpacing.sm,
+                    AppSpacing.md,
+                    AppSpacing.lg,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Nearby Issues',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: AppFontWeight.bold,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      'Recent report activity around your community.',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    if (reports.isEmpty)
-                      CivicGlassCard(
-                        child: Row(
-                          children: [
-                            const Icon(
-                              AppIcons.empty,
-                              color: AppColors.primary,
-                            ),
-                            const SizedBox(width: AppSpacing.md),
-                            Expanded(
-                              child: Text(
-                                'No nearby issues yet. Create the first report for your community.',
-                                style: Theme.of(context).textTheme.bodyMedium,
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        'Recent report activity around your community.',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      if (reports.isEmpty)
+                        CivicGlassCard(
+                          child: Row(
+                            children: [
+                              const Icon(
+                                AppIcons.empty,
+                                color: AppColors.primary,
                               ),
-                            ),
-                          ],
-                        ),
-                      )
-                    else
-                      Flexible(
-                        child: ListView.separated(
-                          shrinkWrap: true,
-                          itemCount: reports.take(5).length,
-                          separatorBuilder: (_, _) =>
-                              const SizedBox(height: AppSpacing.sm),
-                          itemBuilder: (context, index) {
-                            final report = reports[index];
-                            return _ReportListTile(
-                              report: report,
-                              onTap: () {
-                                Navigator.of(context).pop();
-                                Navigator.of(context).push(
-                                  MaterialPageRoute<void>(
-                                    builder: (_) => ReportTrackingScreen(
-                                      reportId: report.id,
+                              const SizedBox(width: AppSpacing.md),
+                              Expanded(
+                                child: Text(
+                                  'No nearby issues yet. Create the first report for your community.',
+                                  style: Theme.of(context).textTheme.bodyMedium,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      else
+                        Flexible(
+                          child: ListView.separated(
+                            shrinkWrap: true,
+                            itemCount: reports.take(5).length,
+                            separatorBuilder: (_, _) =>
+                                const SizedBox(height: AppSpacing.sm),
+                            itemBuilder: (context, index) {
+                              final report = reports[index];
+                              return _ReportListTile(
+                                report: report,
+                                onTap: () {
+                                  Navigator.of(context).pop();
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute<void>(
+                                      builder: (_) => ReportTrackingScreen(
+                                        reportId: report.id,
+                                      ),
                                     ),
-                                  ),
-                                );
-                              },
-                            );
+                                  );
+                                },
+                              );
+                            },
+                          ),
+                        ),
+                      const SizedBox(height: AppSpacing.md),
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                            Navigator.of(
+                              context,
+                            ).pushNamed(CitizenReportsScreen.routeName);
                           },
+                          icon: const Icon(AppIcons.report),
+                          label: const Text('View All Reports'),
                         ),
                       ),
-                    const SizedBox(height: AppSpacing.md),
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton.icon(
-                        onPressed: () {
-                          Navigator.of(context).pop();
-                          Navigator.of(
-                            context,
-                          ).pushNamed(CitizenReportsScreen.routeName);
-                        },
-                        icon: const Icon(AppIcons.report),
-                        label: const Text('View All Reports'),
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
+                    ],
+                  ),
+                );
+              },
+            ),
           ),
         );
       },
@@ -750,32 +798,36 @@ class _AnalyticsRow extends StatelessWidget {
         .where((report) => report.status == ReportStatus.resolved)
         .length;
 
-    return Row(
-      children: [
-        Expanded(
-          child: StatTile(
-            icon: AppIcons.statusSubmitted,
-            value: submittedCount.toString(),
-            label: 'Submitted',
+    // Grounded in one light card — three loose stat tiles on the canvas
+    // read as scattered, not clean.
+    return CivicGlassCard(
+      child: Row(
+        children: [
+          Expanded(
+            child: StatTile(
+              icon: AppIcons.statusSubmitted,
+              value: submittedCount.toString(),
+              label: 'Submitted',
+            ),
           ),
-        ),
-        const StatTileDivider(),
-        Expanded(
-          child: StatTile(
-            icon: AppIcons.statusUnderReview,
-            value: reviewCount.toString(),
-            label: 'In Review',
+          const StatTileDivider(),
+          Expanded(
+            child: StatTile(
+              icon: AppIcons.statusUnderReview,
+              value: reviewCount.toString(),
+              label: 'In Review',
+            ),
           ),
-        ),
-        const StatTileDivider(),
-        Expanded(
-          child: StatTile(
-            icon: AppIcons.statusResolved,
-            value: resolvedCount.toString(),
-            label: 'Resolved',
+          const StatTileDivider(),
+          Expanded(
+            child: StatTile(
+              icon: AppIcons.statusResolved,
+              value: resolvedCount.toString(),
+              label: 'Resolved',
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -785,32 +837,34 @@ class _EmptyAnalyticsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Row(
-      children: [
-        Expanded(
-          child: StatTile(
-            icon: AppIcons.statusSubmitted,
-            value: '0',
-            label: 'Submitted',
+    return CivicGlassCard(
+      child: const Row(
+        children: [
+          Expanded(
+            child: StatTile(
+              icon: AppIcons.statusSubmitted,
+              value: '0',
+              label: 'Submitted',
+            ),
           ),
-        ),
-        StatTileDivider(),
-        Expanded(
-          child: StatTile(
-            icon: AppIcons.statusUnderReview,
-            value: '0',
-            label: 'In Review',
+          StatTileDivider(),
+          Expanded(
+            child: StatTile(
+              icon: AppIcons.statusUnderReview,
+              value: '0',
+              label: 'In Review',
+            ),
           ),
-        ),
-        StatTileDivider(),
-        Expanded(
-          child: StatTile(
-            icon: AppIcons.statusResolved,
-            value: '0',
-            label: 'Resolved',
+          StatTileDivider(),
+          Expanded(
+            child: StatTile(
+              icon: AppIcons.statusResolved,
+              value: '0',
+              label: 'Resolved',
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../models/region.dart';
+import '../../../widgets/glass_dialog_backdrop.dart';
 
 /// Opens the "All Regions" + all 16 regions picker sheet, returning the
 /// selection (`null` for "All Regions") — shared by Municipal Performance
@@ -17,30 +18,32 @@ Future<Region?> pickRegion(BuildContext context, {required Region? current}) {
   return showModalBottomSheet<Region?>(
     context: context,
     isScrollControlled: true,
-    builder: (context) => SafeArea(
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.sizeOf(context).height * 0.7,
-        ),
-        child: ListView(
-          shrinkWrap: true,
-          children: [
-            ListTile(
-              title: const Text('All Regions'),
-              trailing: current == null
-                  ? const Icon(AppIcons.success, color: AppColors.primary)
-                  : null,
-              onTap: () => Navigator.of(context).pop<Region?>(null),
-            ),
-            for (final region in Region.values)
+    builder: (context) => GlassDialogBackdrop(
+      child: SafeArea(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.sizeOf(context).height * 0.7,
+          ),
+          child: ListView(
+            shrinkWrap: true,
+            children: [
               ListTile(
-                title: Text(region.label),
-                trailing: region == current
+                title: const Text('All Regions'),
+                trailing: current == null
                     ? const Icon(AppIcons.success, color: AppColors.primary)
                     : null,
-                onTap: () => Navigator.of(context).pop<Region?>(region),
+                onTap: () => Navigator.of(context).pop<Region?>(null),
               ),
-          ],
+              for (final region in Region.values)
+                ListTile(
+                  title: Text(region.label),
+                  trailing: region == current
+                      ? const Icon(AppIcons.success, color: AppColors.primary)
+                      : null,
+                  onTap: () => Navigator.of(context).pop<Region?>(region),
+                ),
+            ],
+          ),
         ),
       ),
     ),

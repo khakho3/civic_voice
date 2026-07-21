@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../widgets/app_dropdown_field.dart';
 import '../../../widgets/app_state_message.dart';
 import '../../../widgets/collapsible_list_header.dart';
 import '../../../widgets/glass_card.dart';
@@ -253,8 +254,6 @@ class _FilterChrome extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.md,
@@ -265,56 +264,23 @@ class _FilterChrome extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // A real DropdownButton — matches Admin System Activity's own
-          // date-range control (_TimeRangeDropdown) — rather than a modal
-          // bottom sheet, so the same kind of filter opens the same way
-          // everywhere in the app.
-          Material(
-            color: colorScheme.surfaceContainer,
-            borderRadius: AppComponentRadius.inputField,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<AnalyticsDateRange>(
-                  value: dateRange,
-                  isExpanded: true,
-                  borderRadius: AppComponentRadius.inputField,
-                  icon: Icon(
-                    AppIcons.chevronDown,
-                    size: AppIconSize.md,
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                  style: textTheme.bodyLarge?.copyWith(
-                    color: colorScheme.onSurface,
-                  ),
-                  selectedItemBuilder: (context) => [
-                    for (final range in AnalyticsDateRange.values)
-                      Row(
-                        children: [
-                          Icon(
-                            AppIcons.calendar,
-                            size: AppIconSize.md,
-                            color: colorScheme.onSurfaceVariant,
-                          ),
-                          const SizedBox(width: AppSpacing.sm),
-                          Text(range.label),
-                        ],
-                      ),
-                  ],
-                  items: [
-                    for (final range in AnalyticsDateRange.values)
-                      DropdownMenuItem(value: range, child: Text(range.label)),
-                  ],
-                  onChanged: enabled
-                      ? (selected) {
-                          if (selected != null) {
-                            onDateRangeChanged?.call(selected);
-                          }
-                        }
-                      : null,
-                ),
-              ),
-            ),
+          // Matches Admin System Activity's own date-range control
+          // (_TimeRangeDropdown) rather than a modal bottom sheet, so the
+          // same kind of filter opens the same way everywhere in the app.
+          AppDropdownField<AnalyticsDateRange>(
+            hint: '',
+            value: dateRange,
+            leadingIcon: AppIcons.calendar,
+            glass: true,
+            items: [
+              for (final range in AnalyticsDateRange.values)
+                AppDropdownItem(value: range, label: range.label),
+            ],
+            onChanged: enabled
+                ? (selected) {
+                    if (selected != null) onDateRangeChanged?.call(selected);
+                  }
+                : null,
           ),
           const SizedBox(height: AppSpacing.sm),
           SizedBox(

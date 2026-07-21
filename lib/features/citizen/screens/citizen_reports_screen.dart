@@ -185,12 +185,16 @@ class _ReportsSearchField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final semantic = theme.extension<AppSemanticColors>()!;
 
     return TextField(
       controller: controller,
       textInputAction: TextInputAction.search,
       style: theme.textTheme.bodySmall,
+      // Glass — see MunicipalSearchField's doc comment.
       decoration: InputDecoration(
+        filled: true,
+        fillColor: semantic.glassSurface,
         isDense: true,
         prefixIcon: const Icon(AppIcons.search, size: AppIconSize.md),
         hintText: 'Search your reports',

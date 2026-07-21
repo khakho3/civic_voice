@@ -10,6 +10,7 @@ import '../../../widgets/profile_edit_button.dart';
 import '../../../widgets/profile_field_row.dart';
 import '../../../widgets/profile_header_card.dart';
 import '../../../widgets/profile_section.dart';
+import '../../../widgets/status_badge.dart';
 import '../../../widgets/theme_preference_row.dart';
 import '../models/admin_profile_data.dart';
 import '../widgets/admin_scaffold.dart';
@@ -367,8 +368,6 @@ class _ProfileBody extends StatelessWidget {
           subtitle: 'Administrator account · Governance approved',
         ),
         const SizedBox(height: AppSpacing.lg),
-        _AccessSummaryCard(percent: draft.governanceChecklistPercent),
-        const SizedBox(height: AppSpacing.lg),
         if (saveState == AdminProfileSaveState.saved) ...[
           const _Banner(
             icon: AppIcons.success,
@@ -392,9 +391,7 @@ class _ProfileBody extends StatelessWidget {
         ProfileSection(
           icon: AppIcons.roleManagement,
           title: 'Administrator Information',
-          trailing: editing
-              ? null
-              : ProfileEditButton(onPressed: onStartEdit),
+          trailing: editing ? null : ProfileEditButton(onPressed: onStartEdit),
           children: [
             ProfileFieldRow(
               label: 'Full Name',
@@ -452,7 +449,12 @@ class _ProfileBody extends StatelessWidget {
               spacing: AppSpacing.xs,
               runSpacing: AppSpacing.xs,
               children: [
-                for (final scope in draft.administrativeScope) _TagChip(scope),
+                for (final scope in draft.administrativeScope)
+                  TintedBadge(
+                    label: scope,
+                    color: AppColors.primary,
+                    textColor: AppColors.primary,
+                  ),
               ],
             ),
             const SizedBox(height: AppSpacing.md),
@@ -503,61 +505,6 @@ class _ProfileBody extends StatelessWidget {
   }
 }
 
-class _AccessSummaryCard extends StatelessWidget {
-  const _AccessSummaryCard({required this.percent});
-
-  final int percent;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final colorScheme = Theme.of(context).colorScheme;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: AppComponentRadius.card,
-        border: Border.all(
-          color: colorScheme.outlineVariant.withValues(
-            alpha: colorScheme.outlineVariant.a * 0.6,
-          ),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Access Summary',
-            style: textTheme.bodySmall?.copyWith(
-              color: colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text('Full platform administration', style: textTheme.titleMedium),
-          const SizedBox(height: AppSpacing.sm),
-          ClipRRect(
-            borderRadius: AppRadius.allXl,
-            child: LinearProgressIndicator(
-              value: percent / 100,
-              minHeight: 8,
-              backgroundColor: colorScheme.surfaceContainer,
-              color: AppColors.primary,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            '$percent% governance checklist complete',
-            style: textTheme.bodySmall?.copyWith(
-              color: colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _Banner extends StatelessWidget {
   const _Banner({
     required this.icon,
@@ -601,28 +548,6 @@ class _Banner extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _TagChip extends StatelessWidget {
-  const _TagChip(this.label);
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xs,
-      ),
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainer,
-        borderRadius: AppRadius.allXl,
-      ),
-      child: Text(label, style: Theme.of(context).textTheme.labelMedium),
     );
   }
 }

@@ -36,6 +36,7 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
               animation: Listenable.merge([
                 AdminUserDirectory.instance.users,
                 NotificationDirectory.instance.readIds,
+                NotificationDirectory.instance.dismissedIds,
               ]),
               builder: (context, _) => NotificationListView(
                 notifications: NotificationDirectory.instance.forAdmin(),
@@ -51,6 +52,9 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
                   final id = notification.referenceId;
                   if (id != null) widget.onOpenUser?.call(id);
                 },
+                onClearAll: () => NotificationDirectory.instance.clearAll(
+                  NotificationDirectory.instance.forAdmin().map((n) => n.id),
+                ),
               ),
             ),
           ),

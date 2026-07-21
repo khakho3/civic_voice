@@ -452,61 +452,84 @@ class _LoadedContent extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
     final stats = data.stats;
 
+    final onSurfaceVariant = Theme.of(context).colorScheme.onSurfaceVariant;
+    // A zero delta (the real, unscored-yet path always reports 0 for both
+    // — see AdminDashboardData.fromX) is not "up 0%", it's "nothing to
+    // report" — coloring it success-green read as fake positive movement.
+    Color deltaColorFor(num changePercent) =>
+        changePercent > 0 ? AppColors.statusResolved : onSurfaceVariant;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+        // Grounded in one light card rather than four separate ones, and
+        // rather than floating loose on the canvas (the prior all-borderless
+        // pass) — four different accent-colored icons with no boundary read
+        // as scattered, not clean. Only Open Alerts keeps a semantic accent
+        // (warning); the rest share one neutral tone so the alert is what
+        // actually stands out.
+        GlassCard(
+          child: Column(
             children: [
-              Expanded(
-                child: StatTile(
-                  icon: AppIcons.team,
-                  iconColor: AppColors.primary,
-                  label: 'Total Users',
-                  value: _formatThousands(stats.totalUsers),
-                  delta: '+${stats.totalUsersChangePercent}%',
-                  deltaColor: AppColors.statusResolved,
+              IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(
+                      child: StatTile(
+                        icon: AppIcons.team,
+                        iconColor: AppColors.primary,
+                        label: 'Total Users',
+                        value: _formatThousands(stats.totalUsers),
+                        delta: '+${stats.totalUsersChangePercent}%',
+                        deltaColor: deltaColorFor(
+                          stats.totalUsersChangePercent,
+                        ),
+                      ),
+                    ),
+                    const StatTileDivider(),
+                    Expanded(
+                      child: StatTile(
+                        icon: AppIcons.shield,
+                        iconColor: AppColors.primary,
+                        label: 'Active Roles',
+                        value: '${stats.activeRoles}',
+                        delta: '+${stats.activeRolesChangePercent}%',
+                        deltaColor: deltaColorFor(
+                          stats.activeRolesChangePercent,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const StatTileDivider(),
-              Expanded(
-                child: StatTile(
-                  icon: AppIcons.shield,
-                  iconColor: AppColors.statusResolved,
-                  label: 'Active Roles',
-                  value: '${stats.activeRoles}',
-                  delta: '+${stats.activeRolesChangePercent}%',
-                  deltaColor: AppColors.statusResolved,
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(
-                child: StatTile(
-                  icon: AppIcons.activityPulse,
-                  iconColor: AppColors.primary,
-                  label: 'Admin Actions',
-                  value: stats.adminActionsLabel,
-                  delta: '24h',
-                  deltaColor: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const StatTileDivider(),
-              Expanded(
-                child: StatTile(
-                  icon: AppIcons.warning,
-                  iconColor: AppColors.warning,
-                  label: 'Open Alerts',
-                  value: '${stats.openAlerts}',
-                  delta: 'Review',
-                  deltaColor: AppColors.warning,
+              const SizedBox(height: AppSpacing.sm),
+              IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(
+                      child: StatTile(
+                        icon: AppIcons.activityPulse,
+                        iconColor: AppColors.primary,
+                        label: 'Admin Actions',
+                        value: stats.adminActionsLabel,
+                        delta: '24h',
+                        deltaColor: onSurfaceVariant,
+                      ),
+                    ),
+                    const StatTileDivider(),
+                    Expanded(
+                      child: StatTile(
+                        icon: AppIcons.warning,
+                        iconColor: AppColors.warning,
+                        label: 'Open Alerts',
+                        value: '${stats.openAlerts}',
+                        delta: 'Review',
+                        deltaColor: AppColors.warning,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -515,32 +538,47 @@ class _LoadedContent extends StatelessWidget {
         const SizedBox(height: AppSpacing.xl),
         Text('Management', style: textTheme.titleMedium),
         const SizedBox(height: AppSpacing.sm),
-        _ManagementRow(
-          icon: AppIcons.team,
-          title: 'User Management',
-          subtitle: 'Manage administrator and staff accounts',
-          onTap: onNavigateToUsers,
+        // One grouped card with hairline dividers between rows — same
+        // pattern SettingsSection uses — rather than three stacked cards.
+        // ClipRRect here (GlassCard itself doesn't clip) keeps each row's
+        // InkWell ripple from square-cornering past the card's rounded
+        // edges on the first/last row.
+        GlassCard(
+          padding: EdgeInsets.zero,
+          child: ClipRRect(
+            borderRadius: AppComponentRadius.card,
+            child: Column(
+              children: [
+                _ManagementRow(
+                  icon: AppIcons.team,
+                  title: 'User Management',
+                  subtitle: 'Manage administrator and staff accounts',
+                  onTap: onNavigateToUsers,
+                ),
+                // Role Management and System Settings are Super Admin-only —
+                // an assembly Admin has no tiers to review and no platform
+                // config to touch, so these rows are dropped for them rather
+                // than left as a tap-through to an Unauthorized screen.
+                if (AdminSession.instance.isSuperAdmin) ...[
+                  const Divider(height: 1),
+                  _ManagementRow(
+                    icon: AppIcons.roleManagement,
+                    title: 'Role Management',
+                    subtitle: 'Review privileges and access groups',
+                    onTap: onNavigateToRoles,
+                  ),
+                  const Divider(height: 1),
+                  _ManagementRow(
+                    icon: AppIcons.settings,
+                    title: 'System Settings',
+                    subtitle: 'Governance-approved configuration',
+                    onTap: onNavigateToSettings,
+                  ),
+                ],
+              ],
+            ),
+          ),
         ),
-        // Role Management and System Settings are Super Admin-only — an
-        // assembly Admin has no tiers to review and no platform config to
-        // touch, so these rows are dropped for them rather than left as a
-        // tap-through to an Unauthorized screen.
-        if (AdminSession.instance.isSuperAdmin) ...[
-          const SizedBox(height: AppSpacing.sm),
-          _ManagementRow(
-            icon: AppIcons.roleManagement,
-            title: 'Role Management',
-            subtitle: 'Review privileges and access groups',
-            onTap: onNavigateToRoles,
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          _ManagementRow(
-            icon: AppIcons.settings,
-            title: 'System Settings',
-            subtitle: 'Governance-approved configuration',
-            onTap: onNavigateToSettings,
-          ),
-        ],
         // This preview card's own content (AdminActivityItem, below) is
         // static, platform-wide-sounding mock copy, not scoped to any one
         // assembly — showing it to an assembly Admin would preview events
@@ -612,37 +650,44 @@ class _ManagementRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final colorScheme = Theme.of(context).colorScheme;
-    return GlassCard(
+    // Plain row, not its own GlassCard — this sits inside one shared
+    // grouping card (see _LoadedContent) with hairline Dividers between
+    // rows, so an individual row needs its own tap ripple but not its own
+    // boundary/background.
+    return InkWell(
       onTap: onTap,
-      child: Row(
-        children: [
-          Icon(icon, size: AppIconSize.lg, color: AppColors.primary),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: textTheme.titleSmall,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                Text(
-                  subtitle,
-                  style: textTheme.bodySmall,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Row(
+          children: [
+            Icon(icon, size: AppIconSize.lg, color: AppColors.primary),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: textTheme.titleSmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    subtitle,
+                    style: textTheme.bodySmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
             ),
-          ),
-          Icon(
-            AppIcons.chevronRight,
-            size: AppIconSize.sm,
-            color: colorScheme.onSurfaceVariant,
-          ),
-        ],
+            Icon(
+              AppIcons.chevronRight,
+              size: AppIconSize.sm,
+              color: colorScheme.onSurfaceVariant,
+            ),
+          ],
+        ),
       ),
     );
   }

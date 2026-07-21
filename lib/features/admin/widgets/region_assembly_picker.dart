@@ -4,6 +4,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../models/assembly.dart';
 import '../../../models/ghana_assemblies_data.dart';
 import '../../../models/region.dart';
+import '../../../widgets/app_dropdown_field.dart';
 
 /// Two-level jurisdiction picker — Region first, then the specific
 /// Metropolitan/Municipal/District Assembly within it. The Assembly
@@ -41,13 +42,13 @@ class RegionAssemblyPicker extends StatelessWidget {
 
     return Column(
       children: [
-        _Dropdown<Region>(
+        AppDropdownField<Region>(
           label: 'Region',
           hint: 'Select region',
           value: region,
           items: [
             for (final r in Region.values)
-              DropdownMenuItem(value: r, child: Text(r.label)),
+              AppDropdownItem(value: r, label: r.label),
           ],
           errorText: regionErrorText,
           onChanged: (selected) {
@@ -58,93 +59,17 @@ class RegionAssemblyPicker extends StatelessWidget {
           },
         ),
         const SizedBox(height: AppSpacing.sm),
-        _Dropdown<Assembly>(
+        AppDropdownField<Assembly>(
           label: 'Assembly',
           hint: region == null ? 'Select a region first' : 'Select assembly',
           value: assemblyOptions.contains(assembly) ? assembly : null,
           items: [
             for (final a in assemblyOptions)
-              DropdownMenuItem(value: a, child: Text(a.fullName)),
+              AppDropdownItem(value: a, label: a.fullName),
           ],
           errorText: assemblyErrorText,
           onChanged: assemblyOptions.isEmpty ? null : onAssemblyChanged,
         ),
-      ],
-    );
-  }
-}
-
-class _Dropdown<T> extends StatelessWidget {
-  const _Dropdown({
-    required this.label,
-    required this.hint,
-    required this.value,
-    required this.items,
-    required this.onChanged,
-    this.errorText,
-  });
-
-  final String label;
-  final String hint;
-  final T? value;
-  final List<DropdownMenuItem<T>> items;
-  final ValueChanged<T?>? onChanged;
-  final String? errorText;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final colorScheme = Theme.of(context).colorScheme;
-    final hasError = errorText != null;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: textTheme.bodySmall),
-        const SizedBox(height: AppSpacing.xs),
-        Material(
-          color: colorScheme.surfaceContainer,
-          borderRadius: AppComponentRadius.inputField,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-            decoration: hasError
-                ? BoxDecoration(
-                    borderRadius: AppComponentRadius.inputField,
-                    border: Border.all(color: AppColors.error),
-                  )
-                : null,
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<T>(
-                value: value,
-                isExpanded: true,
-                borderRadius: AppComponentRadius.inputField,
-                hint: Text(
-                  hint,
-                  style: textTheme.bodyLarge?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                icon: Icon(
-                  AppIcons.chevronDown,
-                  size: AppIconSize.sm,
-                  color: colorScheme.onSurfaceVariant,
-                ),
-                style: textTheme.bodyLarge?.copyWith(
-                  color: colorScheme.onSurface,
-                ),
-                items: items,
-                onChanged: onChanged,
-              ),
-            ),
-          ),
-        ),
-        if (hasError) ...[
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            errorText!,
-            style: textTheme.labelSmall?.copyWith(color: AppColors.error),
-          ),
-        ],
       ],
     );
   }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../widgets/app_dropdown_field.dart';
 import '../../../widgets/app_state_message.dart';
 import '../../../widgets/coming_soon_badge.dart';
 import '../../../widgets/confirm_dialog.dart';
@@ -104,7 +105,8 @@ class AdminSystemSettingsScreen extends StatefulWidget {
 class _AdminSystemSettingsScreenState extends State<AdminSystemSettingsScreen> {
   late AdminSystemSettingsViewState _state = widget.initialState;
   late SystemSettingsSaveState _saveState = widget.initialSaveState;
-  SystemSettingsData _original = AdminSystemSettingsDirectory.instance.settings.value;
+  SystemSettingsData _original =
+      AdminSystemSettingsDirectory.instance.settings.value;
   late SystemSettingsData _draft = _original;
 
   void _retry() {
@@ -453,39 +455,23 @@ class _InlineDropdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    // Deliberately not `isExpanded` — that forces the control to always
-    // fill its parent's full available width (`mainAxisSize.max`), which
-    // is exactly what stretched every short value ("English", "Daily")
-    // into an oversized pill with dead space before the chevron. Natural
-    // (`mainAxisSize.min`) sizing hugs whatever the selected value
-    // actually needs.
-    return Material(
-      color: colorScheme.surfaceContainer,
-      borderRadius: AppRadius.allXl,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-        child: DropdownButtonHideUnderline(
-          child: DropdownButton<String>(
-            value: value,
-            icon: Icon(
-              AppIcons.chevronDown,
-              size: AppIconSize.sm,
-              color: colorScheme.onSurfaceVariant,
-            ),
-            borderRadius: AppComponentRadius.inputField,
-            items: [
-              for (final option in options)
-                DropdownMenuItem(value: option, child: Text(option)),
-            ],
-            onChanged: onChanged == null
-                ? null
-                : (selected) {
-                    if (selected != null) onChanged!(selected);
-                  },
-          ),
-        ),
-      ),
+    // expanded: false — hugs whatever the selected value actually needs
+    // ("English", "Daily") instead of stretching to fill the row, which
+    // used to turn every short value into an oversized pill with dead
+    // space before the chevron.
+    return AppDropdownField<String>(
+      hint: '',
+      value: value,
+      expanded: false,
+      items: [
+        for (final option in options)
+          AppDropdownItem(value: option, label: option),
+      ],
+      onChanged: onChanged == null
+          ? null
+          : (selected) {
+              if (selected != null) onChanged!(selected);
+            },
     );
   }
 }

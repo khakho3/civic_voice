@@ -5,6 +5,7 @@ import '../../../widgets/app_state_message.dart';
 import '../../../widgets/collapsible_list_header.dart';
 import '../../../widgets/confirm_dialog.dart';
 import '../../../widgets/glass_card.dart';
+import '../../../widgets/glass_fab.dart';
 import '../../../widgets/kebab_menu_button.dart';
 import '../models/admin_user_management_data.dart';
 import '../services/admin_session.dart';
@@ -247,11 +248,10 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
               right: AppSpacing.md,
               bottom:
                   AdminScaffold.contentPadding(context).bottom + AppSpacing.md,
-              child: FloatingActionButton(
-                heroTag: 'admin-create-user',
+              child: GlassFab(
                 tooltip: 'Add user',
                 onPressed: widget.onCreateUser,
-                child: const Icon(AppIcons.add),
+                icon: AppIcons.add,
               ),
             ),
         ],
@@ -406,6 +406,7 @@ class _FilterChrome extends StatelessWidget {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final colorScheme = Theme.of(context).colorScheme;
+    final semantic = Theme.of(context).extension<AppSemanticColors>()!;
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.md,
@@ -419,7 +420,10 @@ class _FilterChrome extends StatelessWidget {
           Text(subtitle, style: textTheme.bodyMedium),
           const SizedBox(height: AppSpacing.md),
           Material(
-            color: colorScheme.surfaceContainer,
+            // Glass — §19.10 names search containers as a permitted glass
+            // surface; see MunicipalSearchField's doc comment for why this
+            // is a per-instance fill rather than a global theme change.
+            color: semantic.glassSurface,
             borderRadius: AppComponentRadius.inputField,
             child: TextField(
               controller: controller,

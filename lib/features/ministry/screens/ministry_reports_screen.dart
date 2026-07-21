@@ -288,6 +288,7 @@ class _FilterChrome extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final semantic = Theme.of(context).extension<AppSemanticColors>()!;
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.md,
@@ -299,7 +300,8 @@ class _FilterChrome extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Material(
-            color: colorScheme.surfaceContainer,
+            // Glass — see MunicipalSearchField's doc comment.
+            color: semantic.glassSurface,
             borderRadius: AppComponentRadius.inputField,
             child: TextField(
               controller: controller,

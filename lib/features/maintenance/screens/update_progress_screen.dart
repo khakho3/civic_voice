@@ -8,6 +8,7 @@ import 'package:civic_voice/core/theme/app_theme.dart';
 import '../../../widgets/confirm_dialog.dart';
 import '../../../widgets/detail_header.dart';
 import '../../../widgets/glass_card.dart';
+import '../../../widgets/glass_dialog_backdrop.dart';
 import '../../admin/services/admin_user_directory.dart';
 import '../models/maintenance_task.dart';
 import '../services/maintenance_task_directory.dart';
@@ -105,21 +106,23 @@ class _UpdateProgressScreenState extends State<UpdateProgressScreen> {
   Future<bool> _confirmCameraUse() async {
     final allowed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Allow camera access?'),
-        content: const Text(
-          'Civic Voice will open your phone camera so you can capture real-time completion evidence.',
+      builder: (context) => GlassDialogBackdrop(
+        child: AlertDialog(
+          title: const Text('Allow camera access?'),
+          content: const Text(
+            'Civic Voice will open your phone camera so you can capture real-time completion evidence.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Not Now'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Allow Camera'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Not Now'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Allow Camera'),
-          ),
-        ],
       ),
     );
     return allowed ?? false;

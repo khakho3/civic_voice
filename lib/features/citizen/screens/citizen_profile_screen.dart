@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../services/api_client.dart';
 import '../../../widgets/confirm_dialog.dart';
+import '../../../widgets/glass_dialog_backdrop.dart';
 import '../../../widgets/language_preference_row.dart';
 import '../../../widgets/profile_edit_action_bar.dart';
 import '../../../widgets/profile_edit_button.dart';
@@ -127,51 +128,53 @@ class _CitizenProfileScreenState extends State<CitizenProfileScreen> {
       context: context,
       showDragHandle: true,
       builder: (context) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.md,
-              AppSpacing.sm,
-              AppSpacing.md,
-              AppSpacing.lg,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  'Profile picture',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: AppFontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                FilledButton.icon(
-                  onPressed: () =>
-                      Navigator.of(context).pop(_PhotoSheetAction.camera),
-                  icon: const Icon(AppIcons.camera),
-                  label: const Text('Take Photo'),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                OutlinedButton.icon(
-                  onPressed: () =>
-                      Navigator.of(context).pop(_PhotoSheetAction.gallery),
-                  icon: const Icon(AppIcons.upload),
-                  label: const Text('Choose from Gallery'),
-                ),
-                if (_profileCrudService.profile.value.photoPath != null) ...[
-                  const SizedBox(height: AppSpacing.sm),
-                  TextButton.icon(
-                    onPressed: () =>
-                        Navigator.of(context).pop(_PhotoSheetAction.remove),
-                    icon: const Icon(AppIcons.close, color: AppColors.error),
-                    label: const Text(
-                      'Remove Photo',
-                      style: TextStyle(color: AppColors.error),
+        return GlassDialogBackdrop(
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.md,
+                AppSpacing.sm,
+                AppSpacing.md,
+                AppSpacing.lg,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Profile picture',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: AppFontWeight.bold,
                     ),
                   ),
+                  const SizedBox(height: AppSpacing.md),
+                  FilledButton.icon(
+                    onPressed: () =>
+                        Navigator.of(context).pop(_PhotoSheetAction.camera),
+                    icon: const Icon(AppIcons.camera),
+                    label: const Text('Take Photo'),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  OutlinedButton.icon(
+                    onPressed: () =>
+                        Navigator.of(context).pop(_PhotoSheetAction.gallery),
+                    icon: const Icon(AppIcons.upload),
+                    label: const Text('Choose from Gallery'),
+                  ),
+                  if (_profileCrudService.profile.value.photoPath != null) ...[
+                    const SizedBox(height: AppSpacing.sm),
+                    TextButton.icon(
+                      onPressed: () =>
+                          Navigator.of(context).pop(_PhotoSheetAction.remove),
+                      icon: const Icon(AppIcons.close, color: AppColors.error),
+                      label: const Text(
+                        'Remove Photo',
+                        style: TextStyle(color: AppColors.error),
+                      ),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         );
@@ -295,7 +298,9 @@ class _CitizenProfileScreenState extends State<CitizenProfileScreen> {
                               children: [
                                 ProfileHeaderCard(
                                   name: _displayName,
-                                  subtitle: 'Verified citizen',
+                                  subtitle: profile.isGuest
+                                      ? 'Browsing as guest'
+                                      : 'Verified citizen',
                                   photoPath: profile.photoPath,
                                   photoUpdating: _photoUpdating,
                                   onEditPhoto: _chooseProfilePhoto,
@@ -346,8 +351,9 @@ class _CitizenProfileScreenState extends State<CitizenProfileScreen> {
                                           style: OutlinedButton.styleFrom(
                                             foregroundColor: AppColors.error,
                                             side: BorderSide(
-                                              color: AppColors.error
-                                                  .withValues(alpha: 0.4),
+                                              color: AppColors.error.withValues(
+                                                alpha: 0.4,
+                                              ),
                                             ),
                                           ),
                                           child: const Text('Log Out'),
