@@ -53,6 +53,7 @@ class _CitizenProfileScreenState extends State<CitizenProfileScreen> {
   bool _isEditing = false;
   bool _photoUpdating = false;
   bool _showSaveSuccess = false;
+  bool _saving = false;
 
   @override
   void initState() {
@@ -97,6 +98,7 @@ class _CitizenProfileScreenState extends State<CitizenProfileScreen> {
 
   Future<void> _saveProfile() async {
     FocusManager.instance.primaryFocus?.unfocus();
+    setState(() => _saving = true);
     await _profileCrudService.updateProfile(
       _profileCrudService.profile.value.copyWith(
         fullName: _nameController.text.trim(),
@@ -104,6 +106,7 @@ class _CitizenProfileScreenState extends State<CitizenProfileScreen> {
     );
     if (!mounted) return;
     setState(() {
+      _saving = false;
       _isEditing = false;
       _showSaveSuccess = true;
     });
@@ -373,6 +376,7 @@ class _CitizenProfileScreenState extends State<CitizenProfileScreen> {
                     ProfileEditActionBar(
                       onSave: _saveProfile,
                       onCancel: _cancelEditing,
+                      saving: _saving,
                     ),
                 ],
               ),

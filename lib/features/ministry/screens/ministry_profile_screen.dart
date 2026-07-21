@@ -104,6 +104,7 @@ class _MinistryProfileScreenState extends State<MinistryProfileScreen> {
   late final TextEditingController _nameController;
   late final TextEditingController _phoneController;
   Map<String, String> _fieldErrors = {};
+  bool _saving = false;
 
   @override
   void initState() {
@@ -155,15 +156,25 @@ class _MinistryProfileScreenState extends State<MinistryProfileScreen> {
     });
     if (errors.isNotEmpty) return;
 
-    setState(() => _state = MinistryProfileViewState.loading);
+    // The form and its Save/Cancel controls stay on screen through the
+    // save attempt (ProfileEditActionBar's own `saving` shows the button
+    // spinner) instead of swapping to the full-page loading skeleton —
+    // that skeleton is reserved for the initial profile fetch, not for
+    // save, which previously made the whole form (and its buttons) vanish
+    // mid-save with nothing left to show progress.
+    setState(() => _saving = true);
     final saved =
         await (widget.onSaveProfile?.call(name) ?? Future<bool>.value(true));
     if (!mounted) return;
     if (!saved) {
-      setState(() => _state = MinistryProfileViewState.error);
+      setState(() {
+        _saving = false;
+        _state = MinistryProfileViewState.error;
+      });
       return;
     }
     setState(() {
+      _saving = false;
       _profile = _profile.copyWith(name: name);
       _state = MinistryProfileViewState.success;
     });
@@ -235,6 +246,7 @@ class _MinistryProfileScreenState extends State<MinistryProfileScreen> {
                             ProfileEditActionBar(
                               onCancel: _cancelEdit,
                               onSave: _save,
+                              saving: _saving,
                             ),
                         ],
                       ),
@@ -299,9 +311,20 @@ class _MinistryProfileScreenState extends State<MinistryProfileScreen> {
             child: DetailHeader(
               title: 'My Profile',
               leadingIcon: isEditing ? AppIcons.close : AppIcons.back,
-              onBack: isEditing ? _cancelEdit : widget.onBack,
+              onBack: isEditing
+                  ? (_saving ? null : _cancelEdit)
+                  : widget.onBack,
               trailing: isEditing
-                  ? TextButton(onPressed: _save, child: const Text('Save'))
+                  ? TextButton(
+                      onPressed: _saving ? null : _save,
+                      child: _saving
+                          ? const SizedBox(
+                              width: AppIconSize.sm,
+                              height: AppIconSize.sm,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Text('Save'),
+                    )
                   : Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [

@@ -129,6 +129,7 @@ class _AdminUserDetailsScreenState extends State<AdminUserDetailsScreen> {
   late Region? _region = widget.user.region;
   late Assembly? _assembly = widget.user.assembly;
   bool _showSuccess = false;
+  bool _saving = false;
 
   void _retry() {
     setState(() => _state = AdminUserDetailsViewState.loading);
@@ -198,23 +199,33 @@ class _AdminUserDetailsScreenState extends State<AdminUserDetailsScreen> {
           ? _assembly
           : null,
     );
+    setState(() => _saving = true);
     try {
       await AdminUserDirectory.instance.saveOnServer(updated);
     } catch (_) {
-      if (mounted) setState(() => _state = AdminUserDetailsViewState.error);
+      if (mounted) {
+        setState(() {
+          _saving = false;
+          _state = AdminUserDetailsViewState.error;
+        });
+      }
       return;
     }
     if (!mounted) return;
     widget.onSaveChanges?.call(updated);
     final returnToUsers = widget.onNavigateToUsers;
     if (returnToUsers != null) {
+      setState(() => _saving = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Changes to ${widget.user.name} were saved.')),
       );
       returnToUsers();
       return;
     }
-    setState(() => _showSuccess = true);
+    setState(() {
+      _saving = false;
+      _showSuccess = true;
+    });
   }
 
   @override
@@ -282,6 +293,7 @@ class _AdminUserDetailsScreenState extends State<AdminUserDetailsScreen> {
           }),
           onCancel: _handleCancel,
           onSave: _save,
+          saving: _saving,
         ),
         _ => Column(
           children: [
@@ -351,6 +363,7 @@ class _DetailsForm extends StatelessWidget {
     required this.onAssemblyChanged,
     required this.onSave,
     this.onCancel,
+    this.saving = false,
   });
 
   final AdminUserItem user;
@@ -374,6 +387,7 @@ class _DetailsForm extends StatelessWidget {
   final ValueChanged<Region?> onRegionChanged;
   final ValueChanged<Assembly?> onAssemblyChanged;
   final VoidCallback? onCancel;
+  final bool saving;
   final VoidCallback onSave;
 
   @override
@@ -517,15 +531,24 @@ class _DetailsForm extends StatelessWidget {
           children: [
             Expanded(
               child: OutlinedButton(
-                onPressed: onCancel,
+                onPressed: saving ? null : onCancel,
                 child: const Text('Cancel'),
               ),
             ),
             const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: FilledButton(
-                onPressed: onSave,
-                child: const Text('Save Changes'),
+                onPressed: saving ? null : onSave,
+                child: saving
+                    ? const SizedBox(
+                        width: AppIconSize.sm,
+                        height: AppIconSize.sm,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text('Save Changes'),
               ),
             ),
           ],

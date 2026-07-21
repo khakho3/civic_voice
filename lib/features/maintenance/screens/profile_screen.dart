@@ -76,6 +76,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _isEditing = false;
   String? _nameError;
   bool _changesSaved = false;
+  bool _saving = false;
 
   @override
   void dispose() {
@@ -106,14 +107,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
       setState(() => _nameError = 'Full name is required.');
       return;
     }
+    setState(() => _saving = true);
     final saved = await widget.onSaveProfile?.call(name) ?? true;
     if (!mounted) return;
     if (!saved) {
-      setState(() => _nameError = 'Could not save changes. Try again.');
+      setState(() {
+        _saving = false;
+        _nameError = 'Could not save changes. Try again.';
+      });
       return;
     }
     MaintenanceSession.instance.updateProfile(fullName: name);
     setState(() {
+      _saving = false;
       _nameError = null;
       _isEditing = false;
       _changesSaved = true;
@@ -196,6 +202,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       onCancel: disabled ? null : _cancelEditing,
       onChangePassword: disabled ? null : widget.onChangePassword,
       onLogOut: disabled ? null : _confirmLogOut,
+      saving: _saving,
     );
   }
 }
@@ -224,10 +231,12 @@ class _ProfileForm extends StatelessWidget {
     required this.onCancel,
     required this.onChangePassword,
     required this.onLogOut,
+    this.saving = false,
   });
 
   final bool disabled;
   final bool editing;
+  final bool saving;
   final TextEditingController nameController;
   final TextEditingController phoneController;
   final String employeeId;
@@ -393,7 +402,11 @@ class _ProfileForm extends StatelessWidget {
             // screen this long, a Save button that only appears after
             // scrolling all the way down is easy to miss entirely.
             if (editing)
-              ProfileEditActionBar(onCancel: onCancel, onSave: onSave),
+              ProfileEditActionBar(
+                onCancel: onCancel,
+                onSave: onSave,
+                saving: saving,
+              ),
           ],
         ),
       ),

@@ -79,6 +79,7 @@ class _MunicipalProfileScreenState extends State<MunicipalProfileScreen> {
   late OfficerProfile _profile = widget.initialProfile ?? OfficerProfile.mock();
   late final _nameController = TextEditingController(text: _profile.name);
   Map<String, String> _fieldErrors = {};
+  bool _saving = false;
 
   @override
   void initState() {
@@ -125,14 +126,24 @@ class _MunicipalProfileScreenState extends State<MunicipalProfileScreen> {
     });
     if (errors.isNotEmpty) return;
 
-    setState(() => _state = MunicipalProfileViewState.loading);
+    // The form and its Save/Cancel controls stay on screen through the
+    // save attempt (ProfileEditActionBar's own `saving` shows the button
+    // spinner) instead of swapping to the full-page loading skeleton —
+    // that skeleton is reserved for the initial profile fetch, not for
+    // save, which previously made the whole form (and its buttons) vanish
+    // mid-save with nothing left to show progress.
+    setState(() => _saving = true);
     final saved = await widget.onSaveProfile?.call(name) ?? true;
     if (!mounted) return;
     if (!saved) {
-      setState(() => _state = MunicipalProfileViewState.error);
+      setState(() {
+        _saving = false;
+        _state = MunicipalProfileViewState.error;
+      });
       return;
     }
     setState(() {
+      _saving = false;
       _profile = _profile.copyWith(name: name);
       _state = MunicipalProfileViewState.success;
     });
@@ -193,7 +204,11 @@ class _MunicipalProfileScreenState extends State<MunicipalProfileScreen> {
                     },
                   ),
                   if (isEditing)
-                    ProfileEditActionBar(onCancel: _cancel, onSave: _save),
+                    ProfileEditActionBar(
+                      onCancel: _cancel,
+                      onSave: _save,
+                      saving: _saving,
+                    ),
                 ],
               ),
             ),
@@ -205,9 +220,18 @@ class _MunicipalProfileScreenState extends State<MunicipalProfileScreen> {
               referenceId: _profile.employeeId,
               subtitlePrefix: 'ID ',
               leadingIcon: isEditing ? AppIcons.close : AppIcons.back,
-              onBack: isEditing ? _cancel : widget.onBack,
+              onBack: isEditing ? (_saving ? null : _cancel) : widget.onBack,
               trailing: isEditing
-                  ? TextButton(onPressed: _save, child: const Text('Save'))
+                  ? TextButton(
+                      onPressed: _saving ? null : _save,
+                      child: _saving
+                          ? const SizedBox(
+                              width: AppIconSize.sm,
+                              height: AppIconSize.sm,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Text('Save'),
+                    )
                   : KebabMenuButton<void>(
                       itemBuilder: (context) => [
                         PopupMenuItem(
