@@ -296,7 +296,6 @@ class _ProfileForm extends StatelessWidget {
                         textColor: AppColors.primary,
                       ),
                     ],
-                    editing: editing,
                   ),
                   const SizedBox(height: AppSpacing.lg),
                   ProfileSection(

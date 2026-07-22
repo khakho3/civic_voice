@@ -101,13 +101,11 @@ class MinistryOfficerContact {
     required this.publicId,
     required this.name,
     required this.phone,
-    this.avatarUrl,
   });
 
   final String publicId;
   final String name;
   final String phone;
-  final String? avatarUrl;
 }
 
 /// Data backing MIN-003 Municipal Performance's loaded state.

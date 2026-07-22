@@ -8,7 +8,6 @@ class MinistryProfileData {
     required this.phone,
     required this.metadataBadges,
     this.publicId = 'MIN-000001',
-    this.avatarUrl,
   });
 
   final String name;
@@ -23,7 +22,6 @@ class MinistryProfileData {
   /// tags in the Account Metadata card, not user-editable.
   final List<String> metadataBadges;
   final String publicId;
-  final String? avatarUrl;
 
   MinistryProfileData copyWith({String? name, String? email, String? phone}) {
     return MinistryProfileData(
@@ -34,7 +32,6 @@ class MinistryProfileData {
       phone: phone ?? this.phone,
       metadataBadges: metadataBadges,
       publicId: publicId,
-      avatarUrl: avatarUrl,
     );
   }
 

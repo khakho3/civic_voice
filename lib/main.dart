@@ -912,7 +912,6 @@ Future<void> _selectSyncedRole(
       phone: user.phone ?? 'Phone unavailable',
       region: region?.label ?? user.region ?? 'Region not assigned',
       assembly: assembly?.fullName ?? user.assembly ?? 'Assembly not assigned',
-      avatarUrl: user.avatarUrl,
     );
   }
   if (role == AppRole.maintenanceTeam) {
@@ -925,7 +924,6 @@ Future<void> _selectSyncedRole(
       teamId: user.maintenanceTeamId,
       teamName: user.maintenanceTeamName,
       teamLeadUserId: user.maintenanceTeamLeadUserId,
-      avatarUrl: user.avatarUrl,
     );
   }
   if (role == AppRole.ministrySupervisor) {
@@ -933,7 +931,6 @@ Future<void> _selectSyncedRole(
       publicId: user.publicId,
       fullName: user.fullName,
       phone: user.phone ?? 'Phone unavailable',
-      avatarUrl: user.avatarUrl,
     );
   }
   await auth.selectRole(
@@ -1907,7 +1904,6 @@ Widget _ministryProfile(BuildContext context) {
           );
           MinistrySession.instance.updateProfile(
             fullName: json['fullName'] as String? ?? fullName,
-            avatarUrl: json['avatarUrl'] as String?,
           );
           return true;
         } catch (_) {
@@ -2270,7 +2266,6 @@ Widget _maintenanceProfile(BuildContext context) {
         );
         MaintenanceSession.instance.updateProfile(
           fullName: json['fullName'] as String? ?? fullName,
-          avatarUrl: json['avatarUrl'] as String?,
         );
         return true;
       } catch (_) {

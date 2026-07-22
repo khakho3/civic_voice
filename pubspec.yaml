@@ -52,6 +52,7 @@ dependencies:
   firebase_messaging: ^16.1.2
   custom_refresh_indicator: ^4.0.1
   local_auth: ^3.0.2
+  native_exif: ^0.8.0
 
 dev_dependencies:
   flutter_test:

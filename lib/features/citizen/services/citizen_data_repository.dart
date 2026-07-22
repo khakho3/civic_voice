@@ -24,7 +24,6 @@ abstract interface class ProfileRepository {
   Future<CitizenProfile> readProfile();
   Future<CitizenProfile> createProfile(CitizenProfile newProfile);
   Future<CitizenProfile> updateProfile(CitizenProfile updatedProfile);
-  Future<CitizenProfile> updateProfilePhoto(String? photoPath);
   Future<CitizenProfile> updateTwoStep(bool enabled);
   Future<void> deleteProfile();
 }

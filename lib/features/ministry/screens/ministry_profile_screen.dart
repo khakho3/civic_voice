@@ -418,7 +418,6 @@ class _ProfileBody extends StatelessWidget {
               textColor: AppColors.primary,
             ),
           ],
-          editing: editing,
         ),
         if (showSuccessBanner) ...[
           const SizedBox(height: AppSpacing.md),

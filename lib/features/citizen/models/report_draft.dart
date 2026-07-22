@@ -12,6 +12,7 @@ class ReportDraft {
     this.region,
     this.assembly,
     this.photoPaths = const <String>[],
+    this.photoIsFromCamera = const <bool>[],
   });
 
   final String title;
@@ -24,6 +25,7 @@ class ReportDraft {
   final Region? region;
   final String? assembly;
   final List<String> photoPaths;
+  final List<bool> photoIsFromCamera;
 
   int get photoCount => photoPaths.length;
 
@@ -38,6 +40,7 @@ class ReportDraft {
     Region? region,
     String? assembly,
     List<String>? photoPaths,
+    List<bool>? photoIsFromCamera,
   }) {
     return ReportDraft(
       title: title ?? this.title,
@@ -50,11 +53,18 @@ class ReportDraft {
       region: region ?? this.region,
       assembly: assembly ?? this.assembly,
       photoPaths: photoPaths ?? this.photoPaths,
+      photoIsFromCamera: photoIsFromCamera ?? this.photoIsFromCamera,
     );
   }
 
   factory ReportDraft.fromMap(Map<String, dynamic> map) {
     final regionName = map['region'] as String?;
+    final photoPaths =
+        (map['photoPaths'] as List<dynamic>?)?.whereType<String>().toList() ??
+        const <String>[];
+    final encodedSources = (map['photoIsFromCamera'] as List<dynamic>?)
+        ?.whereType<bool>()
+        .toList();
     return ReportDraft(
       title: map['title'] as String? ?? '',
       description: map['description'] as String? ?? '',
@@ -70,9 +80,13 @@ class ReportDraft {
               orElse: () => null,
             ),
       assembly: map['assembly'] as String?,
-      photoPaths:
-          (map['photoPaths'] as List<dynamic>?)?.whereType<String>().toList() ??
-          const <String>[],
+      photoPaths: photoPaths,
+      photoIsFromCamera: [
+        for (var index = 0; index < photoPaths.length; index++)
+          encodedSources != null && index < encodedSources.length
+              ? encodedSources[index]
+              : false,
+      ],
     );
   }
 
@@ -88,6 +102,7 @@ class ReportDraft {
       'region': region?.name,
       'assembly': assembly,
       'photoPaths': photoPaths,
+      'photoIsFromCamera': photoIsFromCamera,
       'photoCount': photoCount,
     };
   }

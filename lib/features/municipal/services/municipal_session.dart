@@ -18,7 +18,6 @@ class MunicipalSession {
     required String phone,
     required String region,
     required String assembly,
-    String? avatarUrl,
   }) {
     profile.value = OfficerProfile(
       name: fullName,
@@ -28,7 +27,6 @@ class MunicipalSession {
       phone: phone,
       department: assembly,
       region: region,
-      avatarUrl: avatarUrl,
     );
   }
 

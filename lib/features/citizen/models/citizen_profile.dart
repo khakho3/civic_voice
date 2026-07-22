@@ -5,7 +5,6 @@ class CitizenProfile {
     required this.email,
     required this.phone,
     required this.primaryLocation,
-    this.photoPath,
     this.twoStepEnabled = true,
     this.isGuest = false,
   });
@@ -15,7 +14,6 @@ class CitizenProfile {
   final String email;
   final String phone;
   final String primaryLocation;
-  final String? photoPath;
   final bool twoStepEnabled;
   /// True for a "Continue as Guest" session (Firebase Anonymous Auth, no
   /// phone/password of their own yet) — see ApiClient.SyncedUser.isGuest.
@@ -30,7 +28,6 @@ class CitizenProfile {
       email: map['email'] as String? ?? '',
       phone: map['phone'] as String? ?? '',
       primaryLocation: map['primaryLocation'] as String? ?? '',
-      photoPath: map['photoPath'] as String?,
       twoStepEnabled: map['twoStepEnabled'] as bool? ?? true,
       isGuest: map['isGuest'] as bool? ?? false,
     );
@@ -43,7 +40,6 @@ class CitizenProfile {
       'email': email,
       'phone': phone,
       'primaryLocation': primaryLocation,
-      'photoPath': photoPath,
       'twoStepEnabled': twoStepEnabled,
       'isGuest': isGuest,
     };
@@ -55,8 +51,6 @@ class CitizenProfile {
     String? email,
     String? phone,
     String? primaryLocation,
-    String? photoPath,
-    bool? clearPhoto,
     bool? twoStepEnabled,
     bool? isGuest,
   }) {
@@ -66,7 +60,6 @@ class CitizenProfile {
       email: email ?? this.email,
       phone: phone ?? this.phone,
       primaryLocation: primaryLocation ?? this.primaryLocation,
-      photoPath: clearPhoto == true ? null : photoPath ?? this.photoPath,
       twoStepEnabled: twoStepEnabled ?? this.twoStepEnabled,
       isGuest: isGuest ?? this.isGuest,
     );

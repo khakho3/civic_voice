@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -10,11 +11,12 @@ import '../../../services/app_cache_service.dart';
 import '../../../services/api_client.dart';
 import '../widgets/civic_glass_card.dart';
 import '../services/report_crud_service.dart';
+import '../services/location_service.dart';
 import '../widgets/civic_app_chrome.dart';
 import 'citizen_tab_routes.dart';
 import 'report_submitted_screen.dart';
 
-class ReviewReportScreen extends StatelessWidget {
+class ReviewReportScreen extends StatefulWidget {
   const ReviewReportScreen({
     super.key,
     this.reportTitle,
@@ -27,6 +29,8 @@ class ReviewReportScreen extends StatelessWidget {
     this.reportRegion,
     this.reportAssembly,
     this.photos = const [],
+    this.photoIsFromCamera = const [],
+    this.locationService = const LocationService(),
   });
 
   static const String routeName = '/citizen/review-report';
@@ -41,46 +45,89 @@ class ReviewReportScreen extends StatelessWidget {
   final Region? reportRegion;
   final String? reportAssembly;
   final List<XFile> photos;
+  final List<bool> photoIsFromCamera;
+  final LocationService locationService;
 
-  Future<void> _submit(BuildContext context) async {
+  @override
+  State<ReviewReportScreen> createState() => _ReviewReportScreenState();
+}
+
+class _ReviewReportScreenState extends State<ReviewReportScreen> {
+  Position? _submissionPosition;
+  double? _pinDistanceMeters;
+
+  @override
+  void initState() {
+    super.initState();
+    _captureSubmissionPosition();
+  }
+
+  Future<void> _captureSubmissionPosition() async {
+    final result = await widget.locationService.requestCurrentPosition();
+    if (!mounted || result.position == null) return;
+    final position = result.position!;
+    final latitude = widget.reportLatitude;
+    final longitude = widget.reportLongitude;
+    setState(() {
+      _submissionPosition = position;
+      _pinDistanceMeters = latitude != null && longitude != null
+          ? Geolocator.distanceBetween(
+              latitude,
+              longitude,
+              position.latitude,
+              position.longitude,
+            )
+          : null;
+    });
+  }
+
+  Future<void> _submit() async {
     try {
       final report = await ReportCrudService.instance.createReport(
         ReportDraft(
-          title: reportTitle ?? '',
-          description: reportDescription ?? '',
-          category: reportCategory ?? '',
-          location: reportLocationLabel ?? '',
-          community: reportCommunity ?? '',
-          latitude: reportLatitude,
-          longitude: reportLongitude,
-          region: reportRegion,
-          assembly: reportAssembly,
-          photoPaths: [for (final photo in photos) photo.path],
+          title: widget.reportTitle ?? '',
+          description: widget.reportDescription ?? '',
+          category: widget.reportCategory ?? '',
+          location: widget.reportLocationLabel ?? '',
+          community: widget.reportCommunity ?? '',
+          latitude: widget.reportLatitude,
+          longitude: widget.reportLongitude,
+          region: widget.reportRegion,
+          assembly: widget.reportAssembly,
+          photoPaths: [for (final photo in widget.photos) photo.path],
+          photoIsFromCamera: [
+            for (var index = 0; index < widget.photos.length; index++)
+              index < widget.photoIsFromCamera.length
+                  ? widget.photoIsFromCamera[index]
+                  : false,
+          ],
         ),
+        submissionLatitude: _submissionPosition?.latitude,
+        submissionLongitude: _submissionPosition?.longitude,
       );
       await AppCacheService.instance.clearReportDraft();
-      if (!context.mounted) return;
+      if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute<void>(
           builder: (_) => ReportSubmittedScreen(
             referenceNumber: report.referenceNumber,
             reportId: report.id,
-            reportTitle: reportTitle,
-            reportCategory: reportCategory,
-            reportLocationLabel: reportLocationLabel,
-            photoCount: photos.length,
+            reportTitle: widget.reportTitle,
+            reportCategory: widget.reportCategory,
+            reportLocationLabel: widget.reportLocationLabel,
+            photoCount: widget.photos.length,
             hasMunicipalCoverage: report.hasMunicipalCoverage,
           ),
         ),
         (route) => route.isFirst,
       );
     } on ApiException catch (error) {
-      if (!context.mounted) return;
+      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(error.message)));
     } catch (_) {
-      if (!context.mounted) return;
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
@@ -91,7 +138,7 @@ class ReviewReportScreen extends StatelessWidget {
     }
   }
 
-  void _editPreviousStep(BuildContext context) {
+  void _editPreviousStep() {
     Navigator.of(context).maybePop();
   }
 
@@ -121,25 +168,28 @@ class ReviewReportScreen extends StatelessWidget {
                 const _ReviewProgress(),
                 const SizedBox(height: AppSpacing.xl),
                 _ReportDetailsCard(
-                  title: reportTitle,
-                  description: reportDescription,
+                  title: widget.reportTitle,
+                  description: widget.reportDescription,
                 ),
                 const SizedBox(height: AppSpacing.lg),
-                _CategoryCard(category: reportCategory),
+                _CategoryCard(category: widget.reportCategory),
                 const SizedBox(height: AppSpacing.lg),
                 _LocationCard(
-                  locationLabel: reportLocationLabel,
-                  community: reportCommunity,
-                  latitude: reportLatitude,
-                  longitude: reportLongitude,
+                  locationLabel: widget.reportLocationLabel,
+                  community: widget.reportCommunity,
+                  latitude: widget.reportLatitude,
+                  longitude: widget.reportLongitude,
                 ),
+                if ((_pinDistanceMeters ?? 0) > 300) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  _LocationDiscrepancyBanner(
+                    distanceMeters: _pinDistanceMeters!,
+                  ),
+                ],
                 const SizedBox(height: AppSpacing.lg),
-                _PhotosCard(photos: photos),
+                _PhotosCard(photos: widget.photos),
                 const SizedBox(height: AppSpacing.lg),
-                _SubmitCard(
-                  onSubmit: () => _submit(context),
-                  onBack: () => _editPreviousStep(context),
-                ),
+                _SubmitCard(onSubmit: _submit, onBack: _editPreviousStep),
               ],
             ),
           ),
@@ -448,6 +498,41 @@ class _PhotosCard extends StatelessWidget {
                 );
               },
             ),
+    );
+  }
+}
+
+class _LocationDiscrepancyBanner extends StatelessWidget {
+  const _LocationDiscrepancyBanner({required this.distanceMeters});
+
+  final double distanceMeters;
+
+  @override
+  Widget build(BuildContext context) {
+    final roundedDistance = (distanceMeters / 10).round() * 10;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.warning.withValues(alpha: 0.1),
+        borderRadius: AppRadius.allLg,
+        border: Border.all(color: AppColors.warning.withValues(alpha: 0.28)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(AppIcons.info, color: AppColors.warning),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              'Your current location is ~${roundedDistance}m from the pinned '
+              'issue. That\'s okay if you\'re reporting something nearby — '
+              'just confirm the pin is accurate.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

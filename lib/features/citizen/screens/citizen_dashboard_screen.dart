@@ -1,7 +1,10 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/ghana_refresh_indicator.dart';
+import '../../../services/api_client.dart';
+import '../../../services/app_cache_service.dart';
 import '../widgets/civic_glass_card.dart';
 import '../widgets/civic_status_panel.dart';
 import '../models/citizen_profile.dart';
@@ -15,18 +18,32 @@ import '../../../widgets/glass_dialog_backdrop.dart';
 import '../../../widgets/stat_tile.dart';
 import '../../../widgets/status_badge.dart';
 import '../widgets/civic_app_chrome.dart';
+import '../widgets/nearby_seconding_card.dart';
 import 'citizen_tab_routes.dart';
 import 'report_tracking_screen.dart';
+
+typedef NearbySecondingLoader =
+    Future<List<NearbySecondingReport>> Function(
+      double latitude,
+      double longitude,
+    );
+typedef NearbySecondingConfirmer = Future<void> Function(String reportId);
 
 class CitizenDashboardScreen extends StatefulWidget {
   const CitizenDashboardScreen({
     super.key,
     this.initialState = DashboardViewState.empty,
+    this.locationService = const LocationService(),
+    this.nearbySecondingLoader,
+    this.nearbySecondingConfirmer,
   });
 
   static const String routeName = '/citizen/dashboard';
 
   final DashboardViewState initialState;
+  final LocationService locationService;
+  final NearbySecondingLoader? nearbySecondingLoader;
+  final NearbySecondingConfirmer? nearbySecondingConfirmer;
 
   @override
   State<CitizenDashboardScreen> createState() => _CitizenDashboardScreenState();
@@ -40,7 +57,9 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen>
       DashboardStateService.instance;
   final ReportCrudService _reportCrudService = ReportCrudService.instance;
   final ProfileCrudService _profileCrudService = ProfileCrudService.instance;
-  final LocationService _locationService = const LocationService();
+  NearbySecondingReport? _nearbySecondingReport;
+  bool _secondingBusy = false;
+  bool _loadingNearbySeconding = false;
 
   @override
   void initState() {
@@ -67,7 +86,7 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen>
 
   Future<void> _checkLocationAccess({required bool requestPermission}) async {
     try {
-      final status = await _locationService.checkAccessStatus(
+      final status = await widget.locationService.checkAccessStatus(
         requestPermission: requestPermission,
       );
       if (!mounted) return;
@@ -79,7 +98,7 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen>
             message:
                 'CivicVoice needs your phone location to show nearby reports and capture accurate report GPS.',
             actionLabel: 'Turn On Location',
-            onAction: _locationService.openLocationSettings,
+            onAction: widget.locationService.openLocationSettings,
           );
         case LocationAccessStatus.permissionDenied:
           _dashboardStateService.setState(
@@ -101,7 +120,7 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen>
             message:
                 'Location permission is blocked. Open app settings and allow location access.',
             actionLabel: 'Open Settings',
-            onAction: _locationService.openAppSettings,
+            onAction: widget.locationService.openAppSettings,
           );
         case LocationAccessStatus.ready:
           if (_dashboardStateService.state.value ==
@@ -112,6 +131,7 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen>
                 : widget.initialState;
             _dashboardStateService.setState(restoredState);
           }
+          await _loadNearbySeconding();
         case LocationAccessStatus.unavailable:
         // Transient — leave dashboard state as-is; the next resume or
         // manual retry will re-check.
@@ -119,6 +139,105 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen>
     } catch (_) {
       // In tests or unsupported platforms the plugin can be unavailable; keep
       // the dashboard usable instead of blocking the app.
+    }
+  }
+
+  Future<List<NearbySecondingReport>> _fetchNearbySeconding(
+    double latitude,
+    double longitude,
+  ) async {
+    final override = widget.nearbySecondingLoader;
+    if (override != null) return override(latitude, longitude);
+    final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+    if (token == null) return const <NearbySecondingReport>[];
+    final raw = await ApiClient.instance.fetchNearbySeconding(
+      idToken: token,
+      latitude: latitude,
+      longitude: longitude,
+    );
+    return raw.map(NearbySecondingReport.fromApi).toList();
+  }
+
+  Future<void> _loadNearbySeconding() async {
+    if (_loadingNearbySeconding ||
+        !AppCacheService.instance.nearbySecondingEnabled) {
+      return;
+    }
+    _loadingNearbySeconding = true;
+    try {
+      final location = await widget.locationService.requestCurrentPosition();
+      final position = location.position;
+      if (location.status != LocationAccessStatus.ready || position == null) {
+        return;
+      }
+      final reports = await _fetchNearbySeconding(
+        position.latitude,
+        position.longitude,
+      );
+      final seen = AppCacheService.instance.secondingSeenIds;
+      NearbySecondingReport? next;
+      for (final report in reports) {
+        if (!seen.contains(report.id)) {
+          next = report;
+          break;
+        }
+      }
+      if (mounted) setState(() => _nearbySecondingReport = next);
+    } catch (_) {
+      // Nearby confirmation is optional; location/network failures must never
+      // block or replace the citizen dashboard.
+    } finally {
+      _loadingNearbySeconding = false;
+    }
+  }
+
+  Future<void> _dismissNearbySeconding() async {
+    final report = _nearbySecondingReport;
+    if (report == null) return;
+    await AppCacheService.instance.markSecondingSeen(report.id);
+    if (mounted) setState(() => _nearbySecondingReport = null);
+  }
+
+  Future<void> _confirmNearbySeconding() async {
+    final report = _nearbySecondingReport;
+    if (report == null || _secondingBusy) return;
+    setState(() => _secondingBusy = true);
+    await AppCacheService.instance.markSecondingSeen(report.id);
+    try {
+      final override = widget.nearbySecondingConfirmer;
+      if (override != null) {
+        await override(report.id);
+      } else {
+        final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+        if (token == null) {
+          throw const ApiException(
+            statusCode: 401,
+            message: 'Sign in required',
+          );
+        }
+        await ApiClient.instance.secondReport(report.id, idToken: token);
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Thanks for confirming this report.')),
+      );
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not confirm this report.')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _nearbySecondingReport = null;
+          _secondingBusy = false;
+        });
+      }
     }
   }
 
@@ -192,7 +311,12 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen>
                             reports: reports,
                             displayName: profile.fullName,
                             onReset: _dashboardStateService.reset,
-                            onOpenSettings: _locationService.openAppSettings,
+                            onOpenSettings:
+                                widget.locationService.openAppSettings,
+                            nearbySecondingReport: _nearbySecondingReport,
+                            secondingBusy: _secondingBusy,
+                            onConfirmNearby: _confirmNearbySeconding,
+                            onDismissNearby: _dismissNearbySeconding,
                             onCreateReport: () => Navigator.of(
                               context,
                             ).push(citizenCreateReportTabRoute(context)),
@@ -255,6 +379,10 @@ class _DashboardBody extends StatelessWidget {
     required this.onOpenSettings,
     required this.onCreateReport,
     required this.onViewReports,
+    required this.nearbySecondingReport,
+    required this.secondingBusy,
+    required this.onConfirmNearby,
+    required this.onDismissNearby,
   });
 
   final DashboardViewState state;
@@ -264,6 +392,10 @@ class _DashboardBody extends StatelessWidget {
   final VoidCallback onOpenSettings;
   final VoidCallback onCreateReport;
   final VoidCallback onViewReports;
+  final NearbySecondingReport? nearbySecondingReport;
+  final bool secondingBusy;
+  final VoidCallback onConfirmNearby;
+  final VoidCallback onDismissNearby;
 
   @override
   Widget build(BuildContext context) {
@@ -281,10 +413,18 @@ class _DashboardBody extends StatelessWidget {
           reports: reports,
           displayName: displayName,
           onViewReports: onViewReports,
+          nearbySecondingReport: nearbySecondingReport,
+          secondingBusy: secondingBusy,
+          onConfirmNearby: onConfirmNearby,
+          onDismissNearby: onDismissNearby,
         ),
         DashboardViewState.empty => _DashboardEmptyContent(
           displayName: displayName,
           onCreateReport: onCreateReport,
+          nearbySecondingReport: nearbySecondingReport,
+          secondingBusy: secondingBusy,
+          onConfirmNearby: onConfirmNearby,
+          onDismissNearby: onDismissNearby,
         ),
         DashboardViewState.success => _DashboardStatePanel(
           icon: AppIcons.success,
@@ -320,6 +460,10 @@ class _DashboardBody extends StatelessWidget {
           displayName: displayName,
           actionsDisabled: true,
           onViewReports: null,
+          nearbySecondingReport: null,
+          secondingBusy: false,
+          onConfirmNearby: onConfirmNearby,
+          onDismissNearby: onDismissNearby,
         ),
       },
     );
@@ -332,12 +476,20 @@ class _DashboardContent extends StatelessWidget {
     required this.displayName,
     required this.onViewReports,
     this.actionsDisabled = false,
+    required this.nearbySecondingReport,
+    required this.secondingBusy,
+    required this.onConfirmNearby,
+    required this.onDismissNearby,
   });
 
   final List<CivicReport> reports;
   final String displayName;
   final VoidCallback? onViewReports;
   final bool actionsDisabled;
+  final NearbySecondingReport? nearbySecondingReport;
+  final bool secondingBusy;
+  final VoidCallback onConfirmNearby;
+  final VoidCallback onDismissNearby;
 
   @override
   Widget build(BuildContext context) {
@@ -372,8 +524,9 @@ class _DashboardContent extends StatelessWidget {
             const SizedBox(height: AppSpacing.xl),
             _ReportHeroCard(
               actionsDisabled: actionsDisabled,
-              onReportNow: () =>
-                  Navigator.of(context).push(citizenCreateReportTabRoute(context)),
+              onReportNow: () => Navigator.of(
+                context,
+              ).push(citizenCreateReportTabRoute(context)),
               onViewReports: onViewReports,
             ),
             const SizedBox(height: AppSpacing.xl),
@@ -406,6 +559,15 @@ class _DashboardContent extends StatelessWidget {
                 );
               },
             ),
+            if (nearbySecondingReport != null) ...[
+              NearbySecondingCard(
+                report: nearbySecondingReport!,
+                busy: secondingBusy,
+                onConfirm: onConfirmNearby,
+                onNotSure: onDismissNearby,
+              ),
+              const SizedBox(height: AppSpacing.xl),
+            ],
             const _QuickActionGrid(),
             const SizedBox(height: AppSpacing.xl),
             _AnalyticsRow(reports: reports),
@@ -425,10 +587,18 @@ class _DashboardEmptyContent extends StatelessWidget {
   const _DashboardEmptyContent({
     required this.displayName,
     required this.onCreateReport,
+    required this.nearbySecondingReport,
+    required this.secondingBusy,
+    required this.onConfirmNearby,
+    required this.onDismissNearby,
   });
 
   final String displayName;
   final VoidCallback onCreateReport;
+  final NearbySecondingReport? nearbySecondingReport;
+  final bool secondingBusy;
+  final VoidCallback onConfirmNearby;
+  final VoidCallback onDismissNearby;
 
   @override
   Widget build(BuildContext context) {
@@ -468,6 +638,15 @@ class _DashboardEmptyContent extends StatelessWidget {
               onViewReports: null,
             ),
             const SizedBox(height: AppSpacing.xl),
+            if (nearbySecondingReport != null) ...[
+              NearbySecondingCard(
+                report: nearbySecondingReport!,
+                busy: secondingBusy,
+                onConfirm: onConfirmNearby,
+                onNotSure: onDismissNearby,
+              ),
+              const SizedBox(height: AppSpacing.xl),
+            ],
             const _QuickActionGrid(),
             const SizedBox(height: AppSpacing.xl),
             const _EmptyAnalyticsRow(),

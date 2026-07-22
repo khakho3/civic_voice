@@ -136,46 +136,65 @@ class _UpdateProgressScreenState extends State<UpdateProgressScreen> {
     });
   }
 
+  /// Surfaces a validation failure two ways at once: the inline error text
+  /// next to the field it's about (already there), plus a SnackBar, since
+  /// this form is long enough that a Save tap from the bottom (where the
+  /// button lives) can leave the inline error scrolled off-screen and
+  /// effectively invisible.
+  void _showValidationSnackBar(String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
   Future<void> _handleSave() async {
     final notes = _notesController.text.trim();
     if (_selectedStatus == MaintenanceTaskStatus.completed &&
         notes.length < _minNotesLength) {
+      final message =
+          'Completion notes are required. Describe the work completed in at least $_minNotesLength characters.';
       setState(() {
-        _validationError =
-            'Completion notes are required. Describe the work completed in at least $_minNotesLength characters.';
+        _validationError = message;
         _evidenceError = null;
         _saved = false;
       });
+      _showValidationSnackBar(message);
       return;
     }
     if (_selectedStatus == MaintenanceTaskStatus.failed &&
         notes.length < _minNotesLength) {
+      const message = 'Failure note must explain why the task failed.';
       setState(() {
-        _validationError = 'Failure note must explain why the task failed.';
+        _validationError = message;
         _evidenceError = null;
         _saved = false;
       });
+      _showValidationSnackBar(message);
       return;
     }
 
     if (_selectedStatus == MaintenanceTaskStatus.completed &&
         !MaintenanceTaskDirectory.instance.canSubmitEvidence(widget.task)) {
+      final message = _leadOnlyMessage(context);
       setState(() {
         _validationError = null;
-        _evidenceError = _leadOnlyMessage(context);
+        _evidenceError = message;
         _saved = false;
       });
+      _showValidationSnackBar(message);
       return;
     }
 
     if (_selectedStatus == MaintenanceTaskStatus.completed &&
         _evidencePhotos.length < _requiredEvidencePhotos) {
+      final message =
+          'Attach $_requiredEvidencePhotos photos to mark this completed.';
       setState(() {
         _validationError = null;
-        _evidenceError =
-            'Attach $_requiredEvidencePhotos photos to mark this completed.';
+        _evidenceError = message;
         _saved = false;
       });
+      _showValidationSnackBar(message);
       return;
     }
 
@@ -267,6 +286,7 @@ class _UpdateProgressScreenState extends State<UpdateProgressScreen> {
               disabled: readOnly,
               selectedStatus: _selectedStatus,
               notesController: _notesController,
+              minNotesLength: _minNotesLength,
               validationError: _validationError,
               saved: _saved,
               submitting: _submitting,
@@ -321,6 +341,7 @@ class _UpdateProgressForm extends StatelessWidget {
     required this.disabled,
     required this.selectedStatus,
     required this.notesController,
+    required this.minNotesLength,
     required this.validationError,
     required this.evidencePhotos,
     required this.requiredEvidencePhotos,
@@ -348,6 +369,7 @@ class _UpdateProgressForm extends StatelessWidget {
   final String leadOnlyMessage;
   final MaintenanceTaskStatus selectedStatus;
   final TextEditingController notesController;
+  final int minNotesLength;
   final String? validationError;
   final List<XFile> evidencePhotos;
   final int requiredEvidencePhotos;
@@ -429,9 +451,9 @@ class _UpdateProgressForm extends StatelessWidget {
             const SizedBox(height: AppSpacing.lg),
             Text(
               selectedStatus == MaintenanceTaskStatus.failed
-                  ? 'Failure Note'
+                  ? 'Failure Note (required)'
                   : selectedStatus == MaintenanceTaskStatus.completed
-                  ? 'Completion Notes'
+                  ? 'Completion Notes (required)'
                   : 'Work Notes',
               style: textTheme.titleSmall,
             ),
@@ -455,9 +477,7 @@ class _UpdateProgressForm extends StatelessWidget {
                 (selectedStatus == MaintenanceTaskStatus.failed ||
                     selectedStatus == MaintenanceTaskStatus.completed))
               Text(
-                selectedStatus == MaintenanceTaskStatus.failed
-                    ? 'Required for failed tasks — minimum 10 characters'
-                    : 'Required for completion — minimum 10 characters',
+                'Minimum $minNotesLength characters',
                 style: textTheme.bodySmall?.copyWith(
                   color: colorScheme.onSurfaceVariant,
                 ),

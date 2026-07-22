@@ -21,6 +21,7 @@ class PhotoUploadScreen extends StatefulWidget {
     super.key,
     this.initialState = PhotoUploadViewState.uploadComplete,
     this.initialPhotos = const [],
+    this.initialPhotoIsFromCamera = const [],
     this.reportTitle,
     this.reportDescription,
     this.reportCategory,
@@ -36,6 +37,7 @@ class PhotoUploadScreen extends StatefulWidget {
 
   final PhotoUploadViewState initialState;
   final List<XFile> initialPhotos;
+  final List<bool> initialPhotoIsFromCamera;
   final String? reportTitle;
   final String? reportDescription;
   final String? reportCategory;
@@ -57,6 +59,7 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
   final ImagePicker _picker = ImagePicker();
   late PhotoUploadViewState _state;
   late final List<XFile> _photos;
+  late final List<bool> _photoIsFromCamera;
 
   bool get _hasMinimumPhotos => _photos.length >= _minPhotos;
   bool get _isBlocked => _state == PhotoUploadViewState.offline;
@@ -65,9 +68,18 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
   void initState() {
     super.initState();
     final cachedPaths = AppCacheService.instance.reportDraft?.photoPaths;
+    final cachedSources =
+        AppCacheService.instance.reportDraft?.photoIsFromCamera;
     _photos = widget.initialPhotos.isNotEmpty
         ? List<XFile>.of(widget.initialPhotos)
         : [for (final path in cachedPaths ?? const <String>[]) XFile(path)];
+    final sourceValues = widget.initialPhotos.isNotEmpty
+        ? widget.initialPhotoIsFromCamera
+        : cachedSources ?? const <bool>[];
+    _photoIsFromCamera = [
+      for (var index = 0; index < _photos.length; index++)
+        index < sourceValues.length ? sourceValues[index] : false,
+    ];
     _state = _photos.isEmpty ? PhotoUploadViewState.empty : widget.initialState;
     WidgetsBinding.instance.addPostFrameCallback((_) => _recoverLostData());
   }
@@ -90,7 +102,11 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
       if (remaining <= 0) return;
 
       setState(() {
-        _photos.addAll(recovered.take(remaining));
+        final recoveredPhotos = recovered.take(remaining).toList();
+        _photos.addAll(recoveredPhotos);
+        _photoIsFromCamera.addAll(
+          List<bool>.filled(recoveredPhotos.length, false),
+        );
         _state = PhotoUploadViewState.uploadComplete;
       });
       unawaited(_persistPhotos());
@@ -121,6 +137,7 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
       }
       setState(() {
         _photos.add(photo);
+        _photoIsFromCamera.add(true);
         _state = PhotoUploadViewState.uploadComplete;
       });
       await _persistPhotos();
@@ -153,7 +170,11 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
         return;
       }
       setState(() {
-        _photos.addAll(selected.take(remaining));
+        final selectedPhotos = selected.take(remaining).toList();
+        _photos.addAll(selectedPhotos);
+        _photoIsFromCamera.addAll(
+          List<bool>.filled(selectedPhotos.length, false),
+        );
         _state = PhotoUploadViewState.uploadComplete;
       });
       await _persistPhotos();
@@ -168,7 +189,10 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
 
   void _removePhoto(XFile photo) {
     setState(() {
-      _photos.remove(photo);
+      final index = _photos.indexOf(photo);
+      if (index < 0) return;
+      _photos.removeAt(index);
+      _photoIsFromCamera.removeAt(index);
       _state = _photos.isEmpty
           ? PhotoUploadViewState.empty
           : PhotoUploadViewState.uploadComplete;
@@ -191,9 +215,10 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
           region: widget.reportRegion,
           assembly: widget.reportAssembly,
         );
-    await AppCacheService.instance.saveReportPhotos(draft, [
-      for (final photo in _photos) photo.path,
-    ]);
+    await AppCacheService.instance.saveReportPhotos(
+      draft.copyWith(photoIsFromCamera: List<bool>.of(_photoIsFromCamera)),
+      [for (final photo in _photos) photo.path],
+    );
   }
 
   void _openReview() {
@@ -210,6 +235,7 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
           reportRegion: widget.reportRegion,
           reportAssembly: widget.reportAssembly,
           photos: List<XFile>.of(_photos),
+          photoIsFromCamera: List<bool>.of(_photoIsFromCamera),
         ),
       ),
     );
@@ -268,6 +294,7 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
                     const SizedBox(height: AppSpacing.xl),
                     _UploadedPhotosSection(
                       photos: _photos,
+                      photoIsFromCamera: _photoIsFromCamera,
                       maxPhotos: _maxPhotos,
                       onRemovePhoto: _removePhoto,
                     ),
@@ -499,11 +526,13 @@ class _UploadActions extends StatelessWidget {
 class _UploadedPhotosSection extends StatelessWidget {
   const _UploadedPhotosSection({
     required this.photos,
+    required this.photoIsFromCamera,
     required this.maxPhotos,
     required this.onRemovePhoto,
   });
 
   final List<XFile> photos;
+  final List<bool> photoIsFromCamera;
   final int maxPhotos;
   final ValueChanged<XFile> onRemovePhoto;
 
@@ -546,12 +575,16 @@ class _UploadedPhotosSection extends StatelessWidget {
                 spacing: AppSpacing.sm,
                 runSpacing: AppSpacing.sm,
                 children: [
-                  for (final photo in photos)
+                  for (var index = 0; index < photos.length; index++)
                     SizedBox(
                       width: itemWidth,
                       child: _PhotoPreview(
-                        photo: photo,
-                        onRemove: () => onRemovePhoto(photo),
+                        key: ValueKey(
+                          'photo-${photos[index].path}-'
+                          '${photoIsFromCamera[index] ? 'camera' : 'gallery'}',
+                        ),
+                        photo: photos[index],
+                        onRemove: () => onRemovePhoto(photos[index]),
                       ),
                     ),
                 ],
@@ -579,7 +612,7 @@ class _UploadedPhotosSection extends StatelessWidget {
 }
 
 class _PhotoPreview extends StatelessWidget {
-  const _PhotoPreview({required this.photo, required this.onRemove});
+  const _PhotoPreview({super.key, required this.photo, required this.onRemove});
 
   final XFile photo;
   final VoidCallback onRemove;

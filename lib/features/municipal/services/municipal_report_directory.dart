@@ -5,6 +5,7 @@ import 'package:firebase_core/firebase_core.dart';
 import '../../../models/report_status.dart';
 import '../../../services/api_client.dart';
 import '../models/incoming_report.dart';
+import '../models/verification_data.dart';
 
 /// The live, shared report list every Municipal screen reads from — the
 /// same "single source of truth" pattern as `AdminUserDirectory`/
@@ -82,11 +83,15 @@ class MunicipalReportDirectory {
   Future<void> verifyOnServer(String referenceId) =>
       _updateOnServer(referenceId, const {'status': 'UNDER_REVIEW'});
 
-  Future<void> rejectOnServer(String referenceId, String reason) =>
-      _updateOnServer(referenceId, {
-        'status': 'REJECTED',
-        'rejectionReason': reason,
-      });
+  Future<void> rejectOnServer(
+    String referenceId,
+    String reason,
+    QuickRejectionReason? category,
+  ) => _updateOnServer(referenceId, {
+    'status': 'REJECTED',
+    'rejectionReason': reason,
+    if (category != null) 'rejectionCategory': category.apiValue,
+  });
 
   Future<IncomingReportItem> claimReviewOnServer(String referenceId) async {
     final current = byReferenceId(referenceId);

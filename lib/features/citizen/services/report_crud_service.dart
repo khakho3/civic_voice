@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:native_exif/native_exif.dart';
 
 import '../models/civic_report.dart';
 import '../models/report_draft.dart';
@@ -75,7 +76,12 @@ class ReportCrudService implements ReportsRepository {
   }
 
   @override
-  Future<CivicReport> createReport(ReportDraft draft) async {
+  Future<CivicReport> createReport(
+    ReportDraft draft, {
+    double? submissionLatitude,
+    double? submissionLongitude,
+  }) async {
+    final photoExif = await _firstPhotoExif(draft.photoPaths);
     final raw = await ApiClient.instance.createReport(
       idToken: await _token(),
       fields: {
@@ -94,6 +100,18 @@ class ReportCrudService implements ReportsRepository {
         if (draft.longitude != null) 'longitude': '${draft.longitude}',
         if (draft.region != null) 'region': draft.region!.name,
         if (draft.assembly != null) 'assembly': draft.assembly!,
+        if (submissionLatitude != null)
+          'submissionLatitude': '$submissionLatitude',
+        if (submissionLongitude != null)
+          'submissionLongitude': '$submissionLongitude',
+        'hasLiveCameraPhoto':
+            '${draft.photoIsFromCamera.any((isFromCamera) => isFromCamera)}',
+        if (photoExif != null) ...{
+          'photoExifLatitude': '${photoExif.latitude}',
+          'photoExifLongitude': '${photoExif.longitude}',
+          if (photoExif.capturedAt != null)
+            'photoExifCapturedAt': photoExif.capturedAt!.toIso8601String(),
+        },
       },
       photoPaths: draft.photoPaths,
     );
@@ -101,6 +119,31 @@ class ReportCrudService implements ReportsRepository {
 
     _publishReports(<CivicReport>[report, ...reports.value]);
     return report;
+  }
+
+  Future<_PhotoExifData?> _firstPhotoExif(List<String> photoPaths) async {
+    for (final path in photoPaths) {
+      Exif? exif;
+      try {
+        exif = await Exif.fromPath(path);
+        final coordinates = await exif.getLatLong();
+        if (coordinates == null) continue;
+        return _PhotoExifData(
+          latitude: coordinates.latitude,
+          longitude: coordinates.longitude,
+          capturedAt: await exif.getOriginalDate(),
+        );
+      } catch (_) {
+        // Missing/invalid EXIF is explicitly neutral and never blocks a report.
+      } finally {
+        if (exif != null) {
+          try {
+            await exif.close();
+          } catch (_) {}
+        }
+      }
+    }
+    return null;
   }
 
   @override
@@ -204,6 +247,18 @@ class ReportCrudService implements ReportsRepository {
       hasMunicipalCoverage: json['hasMunicipalCoverage'] as bool?,
     );
   }
+}
+
+class _PhotoExifData {
+  const _PhotoExifData({
+    required this.latitude,
+    required this.longitude,
+    this.capturedAt,
+  });
+
+  final double latitude;
+  final double longitude;
+  final DateTime? capturedAt;
 }
 
 Region? _region(String? name) {

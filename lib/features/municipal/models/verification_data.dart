@@ -18,6 +18,12 @@ enum QuickRejectionReason {
   const QuickRejectionReason(this.label);
 
   final String label;
+
+  String get apiValue => switch (this) {
+    QuickRejectionReason.duplicateReport => 'DUPLICATE_REPORT',
+    QuickRejectionReason.falseReport => 'FALSE_REPORT',
+    QuickRejectionReason.insufficientEvidence => 'INSUFFICIENT_EVIDENCE',
+  };
 }
 
 /// Full data payload for MUN-004 Verify / Reject Report.
@@ -31,6 +37,7 @@ class VerificationData {
     required this.officerName,
     required this.officerPhone,
     required this.checklist,
+    this.confidence,
   });
 
   final String referenceId;
@@ -43,6 +50,7 @@ class VerificationData {
   final String officerName;
   final String officerPhone;
   final List<ChecklistItem> checklist;
+  final ReportConfidence? confidence;
 
   /// Placeholder content matching the approved MUN-004 design, used until
   /// the Cloud Firestore-backed service (Issue 03 dependency) is wired up.
@@ -77,6 +85,12 @@ class VerificationData {
           description: 'Optional — for follow-up questions',
         ),
       ],
+      confidence: ReportConfidence(
+        score: 75,
+        baseScore: 67,
+        seconderContribution: 8,
+        seconderCount: 2,
+      ),
     );
   }
 
@@ -111,6 +125,7 @@ class VerificationData {
           description: 'Optional — for follow-up questions',
         ),
       ],
+      confidence: report.confidence,
     );
   }
 }

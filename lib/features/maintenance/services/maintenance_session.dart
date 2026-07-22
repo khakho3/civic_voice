@@ -21,7 +21,6 @@ class MaintenanceSession {
     String? teamId,
     String? teamName,
     String? teamLeadUserId,
-    String? avatarUrl,
   }) {
     authenticated = true;
     profile.value = MaintenanceProfile(
@@ -33,14 +32,10 @@ class MaintenanceSession {
       teamId: teamId,
       teamName: teamName,
       teamLeadUserId: teamLeadUserId,
-      avatarUrl: avatarUrl,
     );
   }
 
-  void updateProfile({required String fullName, String? avatarUrl}) {
-    profile.value = profile.value.copyWith(
-      fullName: fullName,
-      avatarUrl: avatarUrl,
-    );
+  void updateProfile({required String fullName}) {
+    profile.value = profile.value.copyWith(fullName: fullName);
   }
 }

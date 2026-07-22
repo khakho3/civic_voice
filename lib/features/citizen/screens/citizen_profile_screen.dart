@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 
 import '../../../core/theme/app_theme.dart';
-import '../../../services/api_client.dart';
 import '../../../widgets/confirm_dialog.dart';
-import '../../../widgets/glass_dialog_backdrop.dart';
 import '../../../widgets/language_preference_row.dart';
 import '../../../widgets/profile_edit_action_bar.dart';
 import '../../../widgets/profile_edit_button.dart';
@@ -15,9 +12,8 @@ import '../../../widgets/theme_preference_row.dart';
 import '../models/citizen_profile.dart';
 import '../services/profile_crud_service.dart';
 import '../widgets/civic_app_chrome.dart';
+import '../widgets/nearby_seconding_preference_row.dart';
 import 'citizen_tab_routes.dart';
-
-enum _PhotoSheetAction { camera, gallery, remove }
 
 /// CIT-006 — Citizen Profile.
 ///
@@ -27,8 +23,6 @@ enum _PhotoSheetAction { camera, gallery, remove }
 /// design system (`CivicGlassCard`, a bespoke edit action bar, a large
 /// "Edit Profile" `FilledButton`), which is what "sudoku"-clutter and the
 /// oversized edit affordance both trace back to on this specific screen.
-/// The real photo picker stays — `ProfileHeaderCard` gained real
-/// photo/loading-spinner support specifically for this migration.
 class CitizenProfileScreen extends StatefulWidget {
   const CitizenProfileScreen({super.key, this.onLogOut});
 
@@ -45,11 +39,9 @@ class CitizenProfileScreen extends StatefulWidget {
 class _CitizenProfileScreenState extends State<CitizenProfileScreen> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
-  final ImagePicker _imagePicker = ImagePicker();
   final ProfileCrudService _profileCrudService = ProfileCrudService.instance;
 
   bool _isEditing = false;
-  bool _photoUpdating = false;
   bool _showSaveSuccess = false;
   bool _saving = false;
 
@@ -124,105 +116,6 @@ class _CitizenProfileScreenState extends State<CitizenProfileScreen> {
     if (confirmed) widget.onLogOut?.call();
   }
 
-  Future<void> _chooseProfilePhoto() async {
-    final action = await showModalBottomSheet<_PhotoSheetAction>(
-      context: context,
-      showDragHandle: true,
-      builder: (context) {
-        return GlassDialogBackdrop(
-          child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.md,
-                AppSpacing.sm,
-                AppSpacing.md,
-                AppSpacing.lg,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    'Profile picture',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: AppFontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  FilledButton.icon(
-                    onPressed: () =>
-                        Navigator.of(context).pop(_PhotoSheetAction.camera),
-                    icon: const Icon(AppIcons.camera),
-                    label: const Text('Take Photo'),
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  OutlinedButton.icon(
-                    onPressed: () =>
-                        Navigator.of(context).pop(_PhotoSheetAction.gallery),
-                    icon: const Icon(AppIcons.upload),
-                    label: const Text('Choose from Gallery'),
-                  ),
-                  if (_profileCrudService.profile.value.photoPath != null) ...[
-                    const SizedBox(height: AppSpacing.sm),
-                    TextButton.icon(
-                      onPressed: () =>
-                          Navigator.of(context).pop(_PhotoSheetAction.remove),
-                      icon: const Icon(AppIcons.close, color: AppColors.error),
-                      label: const Text(
-                        'Remove Photo',
-                        style: TextStyle(color: AppColors.error),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-
-    if (!mounted || action == null) return;
-
-    if (action == _PhotoSheetAction.remove) {
-      final confirmed = await showConfirmDialog(
-        context,
-        title: 'Remove profile photo?',
-        message: 'Your profile will show your initials instead.',
-        confirmLabel: 'Remove',
-        destructive: true,
-      );
-      if (!confirmed || !mounted) return;
-      await _profileCrudService.updateProfilePhoto(null);
-      return;
-    }
-
-    setState(() => _photoUpdating = true);
-    try {
-      final pickedPhoto = await _imagePicker.pickImage(
-        source: action == _PhotoSheetAction.camera
-            ? ImageSource.camera
-            : ImageSource.gallery,
-        imageQuality: 85,
-        maxWidth: 900,
-      );
-      if (!mounted || pickedPhoto == null) return;
-      await _profileCrudService.updateProfilePhoto(pickedPhoto.path);
-    } on ApiException catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error.message)));
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not add profile picture.')),
-      );
-    } finally {
-      if (mounted) setState(() => _photoUpdating = false);
-    }
-  }
-
   String get _displayName {
     final value = _nameController.text.trim();
     return value.isEmpty ? 'Citizen' : value;
@@ -233,9 +126,10 @@ class _CitizenProfileScreenState extends State<CitizenProfileScreen> {
   }
 
   void _openReports(BuildContext context) {
-    Navigator.of(
-      context,
-    ).pushAndRemoveUntil(citizenReportsTabRoute(context), (route) => route.isFirst);
+    Navigator.of(context).pushAndRemoveUntil(
+      citizenReportsTabRoute(context),
+      (route) => route.isFirst,
+    );
   }
 
   void _openCreateReport(BuildContext context) {
@@ -246,9 +140,10 @@ class _CitizenProfileScreenState extends State<CitizenProfileScreen> {
   }
 
   void _openAlerts(BuildContext context) {
-    Navigator.of(
-      context,
-    ).pushAndRemoveUntil(citizenAlertsTabRoute(context), (route) => route.isFirst);
+    Navigator.of(context).pushAndRemoveUntil(
+      citizenAlertsTabRoute(context),
+      (route) => route.isFirst,
+    );
   }
 
   @override
@@ -300,9 +195,6 @@ class _CitizenProfileScreenState extends State<CitizenProfileScreen> {
                                   subtitle: profile.isGuest
                                       ? 'Browsing as guest'
                                       : 'Verified citizen',
-                                  photoPath: profile.photoPath,
-                                  photoUpdating: _photoUpdating,
-                                  onEditPhoto: _chooseProfilePhoto,
                                 ),
                                 const SizedBox(height: AppSpacing.lg),
                                 ProfileSection(
@@ -335,6 +227,8 @@ class _CitizenProfileScreenState extends State<CitizenProfileScreen> {
                                     ThemePreferenceRow(),
                                     Divider(height: AppSpacing.lg),
                                     LanguagePreferenceRow(),
+                                    Divider(height: AppSpacing.lg),
+                                    NearbySecondingPreferenceRow(),
                                   ],
                                 ),
                                 if (!_isEditing) ...[
@@ -380,10 +274,13 @@ class _CitizenProfileScreenState extends State<CitizenProfileScreen> {
           ),
           Align(
             alignment: Alignment.topCenter,
+            // No onBack — this is a bottom-nav destination (index 4), not a
+            // drill-down, matching every other primary tab in the module.
+            // Exiting edit mode goes through the Cancel button in the edit
+            // action bar below, not a header back arrow.
             child: CivicTopBar(
               title: _isEditing ? 'Edit Profile' : 'Profile',
               showNotifications: false,
-              onBack: () => _openDashboard(context),
             ),
           ),
           if (!_isEditing && !keyboardVisible)

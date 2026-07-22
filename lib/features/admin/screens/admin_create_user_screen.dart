@@ -263,6 +263,19 @@ class _AdminCreateUserScreenState extends State<AdminCreateUserScreen> {
           chromeInset.bottom + AppSpacing.xl,
         ),
         children: [
+          // Same inline back affordance as every other Admin drill-down
+          // screen (e.g. Maintenance Team Details) — AdminScaffold's own
+          // header has no back-button slot, so each screen under it that
+          // isn't a bare tab root supplies its own.
+          Row(
+            children: [
+              IconButton(
+                onPressed: widget.onNavigateToUsers,
+                icon: const Icon(AppIcons.back),
+                tooltip: 'Back to user management',
+              ),
+            ],
+          ),
           if (creationDisabled) ...[
             const _AccountCreationFrozenBanner(),
             const SizedBox(height: AppSpacing.lg),

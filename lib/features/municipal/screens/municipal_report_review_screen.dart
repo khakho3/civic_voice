@@ -306,6 +306,14 @@ class _ReviewBody extends StatelessWidget {
           title: 'Report Details',
           child: _ReportDetails(data: data),
         ),
+        if (data.confidence != null) ...[
+          const SizedBox(height: AppSpacing.md),
+          _SectionCard(
+            icon: AppIcons.verify,
+            title: 'Confidence Signals',
+            child: _ConfidenceSignals(data: data),
+          ),
+        ],
         const SizedBox(height: AppSpacing.md),
         _SectionCard(
           icon: AppIcons.camera,
@@ -407,12 +415,18 @@ class _CitizenInfo extends StatelessWidget {
               ),
             ),
             const SizedBox(width: AppSpacing.sm),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(data.citizenName, style: textTheme.titleSmall),
-                Text(data.citizenPhone, style: textTheme.bodySmall),
-              ],
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(data.citizenName, style: textTheme.titleSmall),
+                  Text(data.citizenPhone, style: textTheme.bodySmall),
+                  if (data.citizenLowTrust) ...[
+                    const SizedBox(height: AppSpacing.xs),
+                    const _NeutralTag(label: 'Low-trust account'),
+                  ],
+                ],
+              ),
             ),
           ],
         ),
@@ -488,6 +502,100 @@ class _NeutralTag extends StatelessWidget {
         borderRadius: AppRadius.allXl,
       ),
       child: Text(label, style: Theme.of(context).textTheme.labelMedium),
+    );
+  }
+}
+
+class _ConfidenceSignals extends StatelessWidget {
+  const _ConfidenceSignals({required this.data});
+
+  final ReportReviewData data;
+
+  @override
+  Widget build(BuildContext context) {
+    final confidence = data.confidence!;
+    final score = confidence.score ?? 0;
+    final (label, color) = switch (score) {
+      < 40 => ('Low', AppColors.error),
+      < 70 => ('Moderate', AppColors.warning),
+      _ => ('High', AppColors.success),
+    };
+    final textTheme = Theme.of(context).textTheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.sm,
+            vertical: AppSpacing.xs,
+          ),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.12),
+            borderRadius: AppRadius.allXl,
+            border: Border.all(color: color.withValues(alpha: 0.3)),
+          ),
+          child: Text(
+            '$label confidence · $score/95',
+            style: textTheme.labelLarge?.copyWith(color: color),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Text(
+          'No automated check can certify certainty — this signal never '
+          'reaches 100%.',
+          style: textTheme.bodySmall,
+        ),
+        const SizedBox(height: AppSpacing.md),
+        _ConfidenceSignalLine(
+          icon: AppIcons.myLocation,
+          text:
+              'Live GPS vs pin: ${_formatDistance(confidence.liveGpsDistanceMeters, missing: 'no live GPS fix')}',
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        _ConfidenceSignalLine(
+          icon: AppIcons.camera,
+          text:
+              'Photo EXIF vs pin: ${_formatDistance(confidence.photoExifDistanceMeters, missing: 'no EXIF data found')}',
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        _ConfidenceSignalLine(
+          icon: AppIcons.team,
+          text:
+              'Community confirmations: ${confidence.seconderCount ?? 0} of 5 cap — contributed ${confidence.seconderContribution ?? 0}/20 pts',
+        ),
+      ],
+    );
+  }
+
+  static String _formatDistance(double? meters, {required String missing}) {
+    if (meters == null) return missing;
+    if (meters < 1000) return '${meters.round()}m';
+    return '${(meters / 1000).toStringAsFixed(1)}km';
+  }
+}
+
+class _ConfidenceSignalLine extends StatelessWidget {
+  const _ConfidenceSignalLine({required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(
+          icon,
+          size: AppIconSize.sm,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
+        const SizedBox(width: AppSpacing.xs),
+        Expanded(
+          child: Text(text, style: Theme.of(context).textTheme.bodySmall),
+        ),
+      ],
     );
   }
 }

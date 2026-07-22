@@ -61,9 +61,6 @@ class MinistryDataDirectory {
                 publicId: json['publicId'] as String? ?? 'Municipal Officer',
                 name: json['fullName'] as String? ?? 'Municipal Officer',
                 phone: phone,
-                avatarUrl: (json['avatarUrl'] as String?) == null
-                    ? null
-                    : ApiClient.assetUrl(json['avatarUrl'] as String),
               ),
             );
       }

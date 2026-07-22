@@ -513,11 +513,12 @@ class _CreateReportScreenState extends State<CreateReportScreen>
           ),
           Align(
             alignment: Alignment.topCenter,
-            child: CivicTopBar(
-              title: 'Create Report',
-              showNotifications: false,
-              onBack: () => Navigator.of(context).maybePop(),
-            ),
+            // No onBack — this is a bottom-nav destination (index 2), not a
+            // drill-down; tapping Home in the bottom nav below already does
+            // the exact same maybePop(), so a header back arrow here was
+            // pure redundancy, matching the same fix applied to every other
+            // primary tab in this module.
+            child: CivicTopBar(title: 'Create Report', showNotifications: false),
           ),
           if (!keyboardVisible)
             Align(

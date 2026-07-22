@@ -1,14 +1,260 @@
 import 'package:civic_voice/core/theme/app_theme.dart';
 import 'package:civic_voice/features/citizen/models/civic_report.dart';
 import 'package:civic_voice/features/citizen/screens/citizen_dashboard_screen.dart';
+import 'package:civic_voice/features/citizen/screens/photo_upload_screen.dart';
 import 'package:civic_voice/features/citizen/screens/report_tracking_screen.dart';
+import 'package:civic_voice/features/citizen/screens/review_report_screen.dart';
+import 'package:civic_voice/features/citizen/services/location_service.dart';
 import 'package:civic_voice/features/citizen/services/report_crud_service.dart';
+import 'package:civic_voice/features/citizen/widgets/nearby_seconding_card.dart';
 import 'package:civic_voice/main.dart' as app;
+import 'package:civic_voice/services/app_cache_service.dart';
 import 'package:civic_voice/widgets/evidence_image_viewer.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+class _FakeLocationService extends LocationService {
+  const _FakeLocationService(this.result);
+
+  final LocationAccessResult result;
+
+  @override
+  Future<LocationAccessResult> requestCurrentPosition() async => result;
+
+  @override
+  Future<LocationAccessStatus> checkAccessStatus({
+    required bool requestPermission,
+  }) async => result.status;
+}
+
+Position _position(double latitude, double longitude) => Position(
+  longitude: longitude,
+  latitude: latitude,
+  timestamp: DateTime.utc(2026, 7, 22),
+  accuracy: 5,
+  altitude: 0,
+  altitudeAccuracy: 0,
+  heading: 0,
+  headingAccuracy: 0,
+  speed: 0,
+  speedAccuracy: 0,
+);
+
+const _nearbyReports = [
+  NearbySecondingReport(
+    id: 'nearby-1',
+    reference: 'CV-2026-000001',
+    title: 'Broken streetlight',
+    category: 'Street Lighting',
+    distanceMeters: 84.4,
+    seconderCount: 1,
+  ),
+  NearbySecondingReport(
+    id: 'nearby-2',
+    reference: 'CV-2026-000002',
+    title: 'Blocked drain',
+    category: 'Sanitation',
+    distanceMeters: 110,
+    seconderCount: 0,
+  ),
+];
 
 void main() {
+  testWidgets(
+    'nearby confirmation shows one card and never resurfaces a dismissed report',
+    (WidgetTester tester) async {
+      SharedPreferences.setMockInitialValues(<String, Object>{});
+      await AppCacheService.instance.initialize();
+      tester.view.physicalSize = const Size(428, 1800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final location = _FakeLocationService(
+        LocationAccessResult(
+          status: LocationAccessStatus.ready,
+          position: _position(5.6, -0.2),
+        ),
+      );
+      Future<List<NearbySecondingReport>> load(_, _) async => _nearbyReports;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: CitizenDashboardScreen(
+            locationService: location,
+            nearbySecondingLoader: load,
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+
+      expect(find.byType(NearbySecondingCard), findsOneWidget);
+      expect(find.text('Broken streetlight'), findsOneWidget);
+      expect(find.text('Blocked drain'), findsNothing);
+
+      await tester.tap(find.text('Not sure'));
+      await tester.pump();
+      expect(find.byType(NearbySecondingCard), findsNothing);
+      expect(AppCacheService.instance.secondingSeenIds, contains('nearby-1'));
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: CitizenDashboardScreen(
+            key: const ValueKey('reopened-dashboard'),
+            locationService: location,
+            nearbySecondingLoader: load,
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+
+      expect(find.byType(NearbySecondingCard), findsOneWidget);
+      expect(find.text('Broken streetlight'), findsNothing);
+      expect(find.text('Blocked drain'), findsOneWidget);
+    },
+  );
+
+  testWidgets('confirm seconds the report once and remembers it locally', (
+    WidgetTester tester,
+  ) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    await AppCacheService.instance.initialize();
+    tester.view.physicalSize = const Size(428, 1800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final confirmed = <String>[];
+    Future<List<NearbySecondingReport>> load(_, _) async => _nearbyReports;
+    Future<void> confirm(String id) async => confirmed.add(id);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: CitizenDashboardScreen(
+          locationService: _FakeLocationService(
+            LocationAccessResult(
+              status: LocationAccessStatus.ready,
+              position: _position(5.6, -0.2),
+            ),
+          ),
+          nearbySecondingLoader: load,
+          nearbySecondingConfirmer: confirm,
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    await tester.tap(find.text("Confirm it's still there"));
+    await tester.pump();
+    await tester.pump();
+
+    expect(confirmed, ['nearby-1']);
+    expect(AppCacheService.instance.secondingSeenIds, contains('nearby-1'));
+    expect(find.byType(NearbySecondingCard), findsNothing);
+    expect(find.text('Thanks for confirming this report.'), findsOneWidget);
+  });
+
+  testWidgets(
+    'photo source flags stay aligned when the first photo is removed',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: PhotoUploadScreen(
+            initialPhotos: [XFile('a.jpg'), XFile('b.jpg'), XFile('c.jpg')],
+            initialPhotoIsFromCamera: const [true, false, true],
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final firstPhoto = find.byKey(const ValueKey('photo-a.jpg-camera'));
+      expect(firstPhoto, findsOneWidget);
+      expect(find.byKey(const ValueKey('photo-b.jpg-gallery')), findsOneWidget);
+      expect(find.byKey(const ValueKey('photo-c.jpg-camera')), findsOneWidget);
+
+      await tester.tap(
+        find.descendant(of: firstPhoto, matching: find.byIcon(AppIcons.close)),
+      );
+      await tester.pump();
+
+      expect(firstPhoto, findsNothing);
+      expect(find.byKey(const ValueKey('photo-b.jpg-gallery')), findsOneWidget);
+      expect(find.byKey(const ValueKey('photo-c.jpg-camera')), findsOneWidget);
+      expect(find.text('2 / 5 photos'), findsOneWidget);
+    },
+  );
+
+  testWidgets('review warns when live submission GPS is over 300m from pin', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: ReviewReportScreen(
+          reportLatitude: 5.6,
+          reportLongitude: -0.2,
+          locationService: _FakeLocationService(
+            LocationAccessResult(
+              status: LocationAccessStatus.ready,
+              position: _position(5.604, -0.2),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.textContaining('from the pinned issue'), findsOneWidget);
+    expect(find.text('Submit Report'), findsOneWidget);
+  });
+
+  testWidgets('review omits discrepancy warning within 300m of pin', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: ReviewReportScreen(
+          reportLatitude: 5.6,
+          reportLongitude: -0.2,
+          locationService: _FakeLocationService(
+            LocationAccessResult(
+              status: LocationAccessStatus.ready,
+              position: _position(5.6001, -0.2),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.textContaining('from the pinned issue'), findsNothing);
+    expect(find.text('Submit Report'), findsOneWidget);
+  });
+
   testWidgets(
     'Citizen Dashboard shows the signed-in citizen and quick actions',
     (WidgetTester tester) async {

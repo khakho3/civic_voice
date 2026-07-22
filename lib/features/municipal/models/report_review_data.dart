@@ -45,6 +45,8 @@ class ReportReviewData {
     required this.longitude,
     required this.timeline,
     required this.canCurrentOfficerReview,
+    this.confidence,
+    this.citizenLowTrust = false,
   });
 
   final String referenceId;
@@ -79,6 +81,8 @@ class ReportReviewData {
   final double longitude;
   final List<ReportTimelineStep> timeline;
   final bool canCurrentOfficerReview;
+  final ReportConfidence? confidence;
+  final bool citizenLowTrust;
 
   /// Placeholder content matching the approved MUN-003 design, used until
   /// the Cloud Firestore-backed service (Issue 03 dependency) is wired up.
@@ -122,6 +126,16 @@ class ReportReviewData {
         ),
       ],
       canCurrentOfficerReview: true,
+      confidence: const ReportConfidence(
+        score: 75,
+        baseScore: 67,
+        seconderContribution: 8,
+        seconderCount: 2,
+        hasLiveCameraPhoto: true,
+        photoCount: 2,
+        liveGpsDistanceMeters: 42,
+        photoExifDistanceMeters: 86,
+      ),
     );
   }
 
@@ -173,6 +187,8 @@ class ReportReviewData {
         ),
       ],
       canCurrentOfficerReview: report.canCurrentOfficerReview,
+      confidence: report.confidence,
+      citizenLowTrust: report.citizenLowTrust,
     );
   }
 }

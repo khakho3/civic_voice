@@ -5,6 +5,48 @@ import '../../../services/api_client.dart';
 
 export '../../../models/report_category.dart';
 
+class ReportConfidence {
+  const ReportConfidence({
+    this.score,
+    this.baseScore,
+    this.seconderContribution,
+    this.seconderCount,
+    this.hasLiveCameraPhoto,
+    this.photoCount,
+    this.liveGpsDistanceMeters,
+    this.photoExifDistanceMeters,
+    this.photoExifCapturedAt,
+  });
+
+  final int? score;
+  final int? baseScore;
+  final int? seconderContribution;
+  final int? seconderCount;
+  final bool? hasLiveCameraPhoto;
+  final int? photoCount;
+  final double? liveGpsDistanceMeters;
+  final double? photoExifDistanceMeters;
+  final DateTime? photoExifCapturedAt;
+
+  factory ReportConfidence.fromApi(Map<String, dynamic> json) {
+    return ReportConfidence(
+      score: (json['score'] as num?)?.round(),
+      baseScore: (json['baseScore'] as num?)?.round(),
+      seconderContribution: (json['seconderContribution'] as num?)?.round(),
+      seconderCount: (json['seconderCount'] as num?)?.round(),
+      hasLiveCameraPhoto: json['hasLiveCameraPhoto'] as bool?,
+      photoCount: (json['photoCount'] as num?)?.round(),
+      liveGpsDistanceMeters: (json['liveGpsDistanceMeters'] as num?)
+          ?.toDouble(),
+      photoExifDistanceMeters: (json['photoExifDistanceMeters'] as num?)
+          ?.toDouble(),
+      photoExifCapturedAt: DateTime.tryParse(
+        json['photoExifCapturedAt'] as String? ?? '',
+      ),
+    );
+  }
+}
+
 /// A single report, shared by every Municipal list that shows one — MUN-002
 /// Incoming Reports, MUN-001 Dashboard's Recent Reports, and MUN-006 Active
 /// Reports. One model instead of separate per-screen mocks means a report's
@@ -47,6 +89,8 @@ class IncomingReportItem {
     this.reviewedAt,
     this.maintenanceContactName,
     this.maintenanceContactPhone,
+    this.confidence,
+    this.citizenLowTrust = false,
   });
 
   /// Internal database identifier used for API calls. [referenceId] remains
@@ -104,6 +148,8 @@ class IncomingReportItem {
   /// team has actually acted on the report at least once.
   final String? maintenanceContactName;
   final String? maintenanceContactPhone;
+  final ReportConfidence? confidence;
+  final bool citizenLowTrust;
 
   bool get hasReviewer => reviewerPublicId != null;
   bool get canCurrentOfficerReview => !hasReviewer || reviewedByCurrentUser;
@@ -169,6 +215,10 @@ class IncomingReportItem {
       maintenanceContactPhone:
           (json['maintenanceContact'] as Map<String, dynamic>?)?['phone']
               as String?,
+      confidence: json['confidence'] is Map<String, dynamic>
+          ? ReportConfidence.fromApi(json['confidence'] as Map<String, dynamic>)
+          : null,
+      citizenLowTrust: json['citizenLowTrust'] as bool? ?? false,
     );
   }
 
@@ -215,6 +265,8 @@ class IncomingReportItem {
       reviewedAt: reviewedAt,
       maintenanceContactName: maintenanceContactName,
       maintenanceContactPhone: maintenanceContactPhone,
+      confidence: confidence,
+      citizenLowTrust: citizenLowTrust,
     );
   }
 

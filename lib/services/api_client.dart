@@ -298,6 +298,25 @@ class ApiClient {
     return (result['reports'] as List).cast<Map<String, dynamic>>();
   }
 
+  Future<List<Map<String, dynamic>>> fetchNearbySeconding({
+    required String idToken,
+    required double latitude,
+    required double longitude,
+  }) async {
+    final query = Uri(
+      queryParameters: {'latitude': '$latitude', 'longitude': '$longitude'},
+    ).query;
+    final result = await _get(
+      '/api/reports/nearby-seconding?$query',
+      idToken: idToken,
+    );
+    return (result['reports'] as List).cast<Map<String, dynamic>>();
+  }
+
+  Future<void> secondReport(String reportId, {required String idToken}) async {
+    await _post('/api/reports/$reportId/second', const {}, idToken: idToken);
+  }
+
   Future<List<Map<String, dynamic>>> listMunicipalMaintenanceOptions({
     required String idToken,
   }) async {
@@ -428,7 +447,9 @@ class ApiClient {
     return _get('/api/admin/health', idToken: idToken);
   }
 
-  Future<Map<String, dynamic>> getAdminSettings({required String idToken}) async {
+  Future<Map<String, dynamic>> getAdminSettings({
+    required String idToken,
+  }) async {
     final result = await _get('/api/admin/settings', idToken: idToken);
     return result['settings'] as Map<String, dynamic>;
   }
@@ -486,8 +507,6 @@ class ApiClient {
   Future<Map<String, dynamic>> updateProfile({
     required String idToken,
     String? fullName,
-    String? avatarPath,
-    bool removeAvatar = false,
   }) async {
     final result = await _multipart(
       'PATCH',
@@ -495,11 +514,8 @@ class ApiClient {
       idToken: idToken,
       fields: {
         ...fullName == null ? const {} : {'fullName': fullName},
-        if (removeAvatar) 'removeAvatar': 'true',
       },
-      files: {
-        if (avatarPath != null) 'avatar': [avatarPath],
-      },
+      files: const {},
     );
     return result['user'] as Map<String, dynamic>;
   }
@@ -513,7 +529,6 @@ class SyncedUser {
     required this.fullName,
     required this.mustChangePassword,
     required this.phone,
-    required this.avatarUrl,
     required this.adminTier,
     required this.region,
     required this.assembly,
@@ -529,7 +544,6 @@ class SyncedUser {
   final String fullName;
   final bool mustChangePassword;
   final String? phone;
-  final String? avatarUrl;
   final String? adminTier;
   final String? region;
   final String? assembly;
@@ -546,7 +560,6 @@ class SyncedUser {
       fullName: json['fullName'] as String,
       mustChangePassword: json['mustChangePassword'] as bool? ?? false,
       phone: json['phone'] as String?,
-      avatarUrl: json['avatarUrl'] as String?,
       adminTier: json['adminTier'] as String?,
       region: json['region'] as String?,
       assembly: json['assembly'] as String?,

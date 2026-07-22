@@ -42,12 +42,6 @@ abstract final class AppMotionCurve {
   static const Curve decelerate = Curves.easeOut;
   static const Curve accelerate = Curves.easeIn;
   static const Curve emphasized = Curves.easeInOutCubicEmphasized;
-
-  /// A gentle overshoot — settles slightly past 100% before easing back.
-  /// Reserved for Citizen's central "Report" tab (see `tabRoute`'s
-  /// `primary` flag) so that one destination's transition reads as more
-  /// emphatic than the plain settle every other bottom-nav tab uses.
-  static const Curve overshoot = Curves.easeOutBack;
 }
 
 /// Motion helpers that honor the platform's "reduce motion" accessibility

@@ -434,11 +434,7 @@ class _ProfileEditForm extends StatelessWidget {
         AppSpacing.xl,
       ),
       children: [
-        ProfileHeaderCard(
-          name: profile.name,
-          subtitle: profile.role,
-          editing: true,
-        ),
+        ProfileHeaderCard(name: profile.name, subtitle: profile.role),
         const SizedBox(height: AppSpacing.lg),
         ProfileSection(
           icon: AppIcons.profile,

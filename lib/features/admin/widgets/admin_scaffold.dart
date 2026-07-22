@@ -304,13 +304,45 @@ class _Header extends StatelessWidget {
                                 overflow: TextOverflow.ellipsis,
                               ),
                       ),
-                      _IconButton(
-                        icon: AppIcons.profile,
-                        onPressed: onOpenProfile,
-                        semantic: semantic,
-                      ),
+                      _ProfileButton(onTap: onOpenProfile),
                     ],
                   ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Opens Admin Profile — a small circular avatar rather than a plain icon,
+/// so it visually reads as "your account", matching Ministry/Municipal/
+/// Maintenance's own header avatar.
+class _ProfileButton extends StatelessWidget {
+  const _ProfileButton({this.onTap});
+
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: AppDimensions.controlHeightStandard,
+      height: AppDimensions.controlHeightStandard,
+      child: Material(
+        color: Colors.transparent,
+        shape: const CircleBorder(),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: onTap,
+          child: Center(
+            child: CircleAvatar(
+              radius: AppIconSize.md / 2 + 2,
+              backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+              child: Icon(
+                AppIcons.profile,
+                size: AppIconSize.sm,
+                color: AppColors.primary,
+              ),
+            ),
           ),
         ),
       ),

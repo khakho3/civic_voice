@@ -21,6 +21,7 @@ import 'package:civic_voice/features/municipal/screens/municipal_resolved_report
 import 'package:civic_voice/features/municipal/screens/municipal_verification_screen.dart';
 import 'package:civic_voice/models/ghana_assemblies_data.dart';
 import 'package:civic_voice/models/region.dart';
+import 'package:civic_voice/models/report_status.dart';
 import 'package:civic_voice/models/team_availability.dart';
 import 'package:civic_voice/services/notification_directory.dart';
 import 'package:civic_voice/widgets/collapsible_list_header.dart';
@@ -417,11 +418,72 @@ void main() {
       expect(find.text('John Smith'), findsNWidgets(2));
       expect(find.text('Contact Citizen'), findsOneWidget);
       expect(find.text('Pothole on Main St.'), findsOneWidget);
+      expect(find.text('Confidence Signals'), findsOneWidget);
+      expect(find.text('High confidence · 75/95'), findsOneWidget);
+      expect(find.text('Live GPS vs pin: 42m'), findsOneWidget);
+      expect(find.text('Photo EXIF vs pin: 86m'), findsOneWidget);
+      expect(
+        find.text('Community confirmations: 2 of 5 cap — contributed 8/20 pts'),
+        findsOneWidget,
+      );
       expect(find.text('Evidence (2)'), findsOneWidget);
       expect(find.text('Reject'), findsOneWidget);
       expect(find.text('Verify Report'), findsOneWidget);
     },
   );
+
+  testWidgets('Municipal Report Review renders all confidence badge tiers', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    _preserveMunicipalReportDirectory();
+
+    for (final (score, tier) in [(39, 'Low'), (40, 'Moderate'), (70, 'High')]) {
+      final reference = 'CV-TIER-$score';
+      MunicipalReportDirectory.instance.reports.value = [
+        IncomingReportItem(
+          apiId: 'internal-$score',
+          referenceId: reference,
+          title: 'Confidence tier report',
+          description: 'Tier boundary verification',
+          locationLabel: 'Boundary Road',
+          category: ReportCategory.infrastructure,
+          status: ReportStatus.submitted,
+          timeAgo: 'Just now',
+          reviewerPublicId: 'MUN-TEST',
+          reviewedByCurrentUser: true,
+          citizenName: 'Test Citizen',
+          citizenPhone: '+233500000000',
+          citizenLowTrust: score == 39,
+          confidence: ReportConfidence(
+            score: score,
+            seconderContribution: 0,
+            seconderCount: 0,
+          ),
+        ),
+      ];
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: MunicipalReportReviewScreen(
+            key: ValueKey(reference),
+            referenceId: reference,
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('$tier confidence · $score/95'), findsOneWidget);
+      if (score == 39) {
+        expect(find.text('Low-trust account'), findsOneWidget);
+      }
+      expect(tester.takeException(), isNull);
+    }
+  });
 
   testWidgets(
     'Municipal Report Review No-Evidence shows the inline empty state',
@@ -507,6 +569,12 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+
+    expect(find.text('High'), findsOneWidget);
+    expect(
+      find.text('75/95 confidence signal · 2 community confirmations'),
+      findsOneWidget,
+    );
 
     Widget verifyButton() => tester.widget<FilledButton>(
       find.ancestor(

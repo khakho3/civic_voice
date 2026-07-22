@@ -16,6 +16,8 @@ class AppCacheService {
   static const _onboardingCompleteKey = 'onboarding_complete_v1';
   static const _keepSignedInKey = 'keep_signed_in_v1';
   static const _reportDraftKey = 'citizen_report_draft_v1';
+  static const _secondingSeenReportIdsKey = 'seconding_seen_report_ids_v1';
+  static const _nearbySecondingEnabledKey = 'nearby_seconding_enabled_v1';
 
   SharedPreferences? _preferences;
   ReportDraft? _reportDraft;
@@ -23,6 +25,12 @@ class AppCacheService {
   bool get onboardingComplete =>
       _preferences?.getBool(_onboardingCompleteKey) ?? false;
   bool get keepSignedIn => _preferences?.getBool(_keepSignedInKey) ?? false;
+  bool get nearbySecondingEnabled =>
+      _preferences?.getBool(_nearbySecondingEnabledKey) ?? true;
+  Set<String> get secondingSeenIds =>
+      (_preferences?.getStringList(_secondingSeenReportIdsKey) ??
+              const <String>[])
+          .toSet();
   ReportDraft? get reportDraft => _reportDraft;
 
   Future<void> initialize() async {
@@ -35,10 +43,22 @@ class AppCacheService {
         jsonDecode(encoded) as Map<String, dynamic>,
       );
       final existingPhotos = <String>[];
-      for (final path in decoded.photoPaths) {
-        if (await File(path).exists()) existingPhotos.add(path);
+      final existingPhotoSources = <bool>[];
+      for (var index = 0; index < decoded.photoPaths.length; index++) {
+        final path = decoded.photoPaths[index];
+        if (await File(path).exists()) {
+          existingPhotos.add(path);
+          existingPhotoSources.add(
+            index < decoded.photoIsFromCamera.length
+                ? decoded.photoIsFromCamera[index]
+                : false,
+          );
+        }
       }
-      _reportDraft = decoded.copyWith(photoPaths: existingPhotos);
+      _reportDraft = decoded.copyWith(
+        photoPaths: existingPhotos,
+        photoIsFromCamera: existingPhotoSources,
+      );
       if (existingPhotos.length != decoded.photoPaths.length) {
         await _preferences?.setString(
           _reportDraftKey,
@@ -62,6 +82,22 @@ class AppCacheService {
     await preferences.setBool(_keepSignedInKey, value);
   }
 
+  Future<void> setNearbySecondingEnabled(bool value) async {
+    final preferences = _preferences ?? await SharedPreferences.getInstance();
+    _preferences = preferences;
+    await preferences.setBool(_nearbySecondingEnabledKey, value);
+  }
+
+  Future<void> markSecondingSeen(String reportId) async {
+    final preferences = _preferences ?? await SharedPreferences.getInstance();
+    _preferences = preferences;
+    final seenIds = secondingSeenIds..add(reportId);
+    await preferences.setStringList(
+      _secondingSeenReportIdsKey,
+      seenIds.toList()..sort(),
+    );
+  }
+
   Future<void> saveReportDraft(ReportDraft draft) async {
     final preferences = _preferences ?? await SharedPreferences.getInstance();
     _preferences = preferences;
@@ -80,11 +116,17 @@ class AppCacheService {
     await photoDirectory.create(recursive: true);
 
     final persisted = <String>[];
+    final persistedPhotoSources = <bool>[];
     for (var index = 0; index < sourcePaths.length; index++) {
       final source = File(sourcePaths[index]);
       if (!await source.exists()) continue;
       if (source.path.startsWith(photoDirectory.path)) {
         persisted.add(source.path);
+        persistedPhotoSources.add(
+          index < draft.photoIsFromCamera.length
+              ? draft.photoIsFromCamera[index]
+              : false,
+        );
         continue;
       }
       final extensionIndex = source.path.lastIndexOf('.');
@@ -97,6 +139,11 @@ class AppCacheService {
       );
       await source.copy(target.path);
       persisted.add(target.path);
+      persistedPhotoSources.add(
+        index < draft.photoIsFromCamera.length
+            ? draft.photoIsFromCamera[index]
+            : false,
+      );
     }
 
     final retained = persisted.toSet();
@@ -111,7 +158,10 @@ class AppCacheService {
       }
     }
 
-    final saved = draft.copyWith(photoPaths: persisted);
+    final saved = draft.copyWith(
+      photoPaths: persisted,
+      photoIsFromCamera: persistedPhotoSources,
+    );
     await saveReportDraft(saved);
     return saved;
   }

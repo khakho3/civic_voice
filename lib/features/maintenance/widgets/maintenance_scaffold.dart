@@ -108,6 +108,7 @@ class MaintenanceScaffold extends StatelessWidget {
               child: _Header(
                 tab: selectedTab,
                 onNotificationsTap: onNotificationsTap,
+                onProfileTap: onProfileTap,
               ),
             ),
             if (!keyboardVisible && !hideBottomNav)
@@ -126,10 +127,11 @@ class MaintenanceScaffold extends StatelessWidget {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({required this.tab, this.onNotificationsTap});
+  const _Header({required this.tab, this.onNotificationsTap, this.onProfileTap});
 
   final MaintenanceTab tab;
   final VoidCallback? onNotificationsTap;
+  final VoidCallback? onProfileTap;
 
   @override
   Widget build(BuildContext context) {
@@ -191,6 +193,8 @@ class _Header extends StatelessWidget {
                     ),
                   ),
                 ),
+                const SizedBox(width: AppSpacing.xs),
+                _ProfileButton(onTap: onProfileTap),
               ],
             ),
           ),
@@ -226,6 +230,42 @@ class _IconButton extends StatelessWidget {
             icon,
             size: AppIconSize.md,
             color: Theme.of(context).colorScheme.onSurface,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Opens Maintenance Profile — a small circular avatar rather than a plain
+/// icon, so it visually reads as "your account" distinct from the bell,
+/// matching Ministry/Municipal's own header avatar.
+class _ProfileButton extends StatelessWidget {
+  const _ProfileButton({this.onTap});
+
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: AppDimensions.controlHeightStandard,
+      height: AppDimensions.controlHeightStandard,
+      child: Material(
+        color: Colors.transparent,
+        shape: const CircleBorder(),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: onTap,
+          child: Center(
+            child: CircleAvatar(
+              radius: AppIconSize.md / 2 + 2,
+              backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+              child: Icon(
+                AppIcons.profile,
+                size: AppIconSize.sm,
+                color: AppColors.primary,
+              ),
+            ),
           ),
         ),
       ),

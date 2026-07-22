@@ -208,11 +208,14 @@ void main() {
     await tester.tap(find.text('Save Update'));
     await tester.pumpAndSettle();
 
+    // Shown twice by design — the inline field error plus a SnackBar, since
+    // this form is long enough that the inline error can be scrolled
+    // off-screen from where the Save button lives.
     expect(
       find.text(
         'Completion notes are required. Describe the work completed in at least 10 characters.',
       ),
-      findsOneWidget,
+      findsWidgets,
     );
 
     await tester.enterText(
@@ -225,7 +228,7 @@ void main() {
 
     expect(
       find.text('Attach 3 photos to mark this completed.'),
-      findsOneWidget,
+      findsWidgets,
     );
 
     await tester.enterText(find.byType(EditableText).first, '');
@@ -237,7 +240,7 @@ void main() {
 
     expect(
       find.text('Failure note must explain why the task failed.'),
-      findsOneWidget,
+      findsWidgets,
     );
   });
 

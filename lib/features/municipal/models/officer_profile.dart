@@ -9,7 +9,6 @@ class OfficerProfile {
     required this.phone,
     required this.department,
     required this.region,
-    this.avatarUrl,
   });
 
   final String name;
@@ -23,9 +22,8 @@ class OfficerProfile {
   /// the edit form rather than as an editable field.
   final String department;
   final String region;
-  final String? avatarUrl;
 
-  OfficerProfile copyWith({String? name, String? phone, String? avatarUrl}) {
+  OfficerProfile copyWith({String? name, String? phone}) {
     return OfficerProfile(
       name: name ?? this.name,
       role: role,
@@ -34,7 +32,6 @@ class OfficerProfile {
       phone: phone ?? this.phone,
       department: department,
       region: region,
-      avatarUrl: avatarUrl ?? this.avatarUrl,
     );
   }
 

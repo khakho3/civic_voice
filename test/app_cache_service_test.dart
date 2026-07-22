@@ -34,6 +34,31 @@ void main() {
     expect(AppCacheService.instance.keepSignedIn, isFalse);
   });
 
+  test(
+    'persists nearby-confirmation preference with a default of on',
+    () async {
+      expect(AppCacheService.instance.nearbySecondingEnabled, isTrue);
+
+      await AppCacheService.instance.setNearbySecondingEnabled(false);
+      await AppCacheService.instance.initialize();
+      expect(AppCacheService.instance.nearbySecondingEnabled, isFalse);
+
+      await AppCacheService.instance.setNearbySecondingEnabled(true);
+      expect(AppCacheService.instance.nearbySecondingEnabled, isTrue);
+    },
+  );
+
+  test('persists report ids already seen for nearby confirmation', () async {
+    expect(AppCacheService.instance.secondingSeenIds, isEmpty);
+
+    await AppCacheService.instance.markSecondingSeen('report-b');
+    await AppCacheService.instance.markSecondingSeen('report-a');
+    await AppCacheService.instance.markSecondingSeen('report-a');
+    await AppCacheService.instance.initialize();
+
+    expect(AppCacheService.instance.secondingSeenIds, {'report-a', 'report-b'});
+  });
+
   testWidgets('keep signed in prevents the idle timer from expiring', (
     tester,
   ) async {
@@ -74,6 +99,28 @@ void main() {
     expect(restored?.region, Region.greaterAccra);
     expect(restored?.assembly, 'Accra');
   });
+
+  test(
+    'report draft preserves photo-source order and defaults legacy entries',
+    () {
+      final current = ReportDraft.fromMap({
+        'title': 'Drain',
+        'description': '',
+        'category': 'Sanitation',
+        'location': 'Accra',
+        'community': 'Accra',
+        'photoPaths': ['camera.jpg', 'gallery.jpg'],
+        'photoIsFromCamera': [true, false],
+      });
+      final legacy = ReportDraft.fromMap({
+        'photoPaths': ['legacy-a.jpg', 'legacy-b.jpg'],
+      });
+
+      expect(current.photoIsFromCamera, [true, false]);
+      expect(current.toMap()['photoIsFromCamera'], [true, false]);
+      expect(legacy.photoIsFromCamera, [false, false]);
+    },
+  );
 
   test('clears a submitted report draft', () async {
     await AppCacheService.instance.saveReportDraft(

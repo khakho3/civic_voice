@@ -1,10 +1,20 @@
 import 'package:civic_voice/features/municipal/models/incoming_report.dart';
 import 'package:civic_voice/features/municipal/models/resolved_report.dart';
+import 'package:civic_voice/features/municipal/models/verification_data.dart';
 import 'package:civic_voice/models/report_status.dart';
 import 'package:civic_voice/services/api_client.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('maps quick rejection reasons to backend enum values', () {
+    expect(QuickRejectionReason.duplicateReport.apiValue, 'DUPLICATE_REPORT');
+    expect(QuickRejectionReason.falseReport.apiValue, 'FALSE_REPORT');
+    expect(
+      QuickRejectionReason.insufficientEvidence.apiValue,
+      'INSUFFICIENT_EVIDENCE',
+    );
+  });
+
   test('maps a backend report without exposing its internal id', () {
     ApiClient.baseUrl = 'http://192.168.100.8:4000';
     final report = IncomingReportItem.fromApi({
@@ -43,6 +53,47 @@ void main() {
     expect(report.reviewerName, 'Latif');
     expect(report.reviewedByCurrentUser, isTrue);
     expect(report.canCurrentOfficerReview, isTrue);
+    expect(report.confidence, isNull);
+    expect(report.citizenLowTrust, isFalse);
+  });
+
+  test('maps officer-only confidence data when the API includes it', () {
+    final report = IncomingReportItem.fromApi({
+      'id': 'internal-confidence',
+      'publicReference': 'CV-2026-CONFIDENCE',
+      'title': 'Blocked drain',
+      'location': 'Market Road',
+      'category': 'Sanitation',
+      'status': 'SUBMITTED',
+      'photoUrls': <String>[],
+      'resolutionPhotoUrls': <String>[],
+      'citizenLowTrust': true,
+      'confidence': {
+        'score': 68,
+        'baseScore': 60,
+        'seconderContribution': 8,
+        'seconderCount': 2,
+        'hasLiveCameraPhoto': true,
+        'photoCount': 2,
+        'liveGpsDistanceMeters': 42.4,
+        'photoExifDistanceMeters': null,
+        'photoExifCapturedAt': '2026-07-21T12:00:00.000Z',
+      },
+    });
+
+    expect(report.confidence, isNotNull);
+    expect(report.confidence!.score, 68);
+    expect(report.confidence!.baseScore, 60);
+    expect(report.confidence!.seconderContribution, 8);
+    expect(report.confidence!.seconderCount, 2);
+    expect(report.confidence!.hasLiveCameraPhoto, isTrue);
+    expect(report.confidence!.liveGpsDistanceMeters, 42.4);
+    expect(report.confidence!.photoExifDistanceMeters, isNull);
+    expect(
+      report.confidence!.photoExifCapturedAt,
+      DateTime.utc(2026, 7, 21, 12),
+    );
+    expect(report.citizenLowTrust, isTrue);
   });
 
   test('a report claimed by another officer remains visible but read-only', () {

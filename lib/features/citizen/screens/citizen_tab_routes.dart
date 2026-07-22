@@ -24,13 +24,10 @@ Route<void> citizenReportsTabRoute(BuildContext context) => tabRoute(
   routeName: CitizenReportsScreen.routeName,
 );
 
-/// The big central Report action — [tabRoute]'s `primary` flag gives it a
-/// bouncier, more emphatic settle than the plain tabs below.
 Route<void> citizenCreateReportTabRoute(BuildContext context) => tabRoute(
   context,
   (_) => const CreateReportScreen(),
   routeName: CreateReportScreen.routeName,
-  primary: true,
 );
 
 Route<void> citizenAlertsTabRoute(BuildContext context) => tabRoute(

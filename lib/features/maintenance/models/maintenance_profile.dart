@@ -8,7 +8,6 @@ class MaintenanceProfile {
     this.teamId,
     this.teamName,
     this.teamLeadUserId,
-    this.avatarUrl,
   });
 
   final String publicId;
@@ -19,11 +18,10 @@ class MaintenanceProfile {
   final String? teamId;
   final String? teamName;
   final String? teamLeadUserId;
-  final String? avatarUrl;
 
   String get firstName => fullName.trim().split(RegExp(r'\s+')).first;
 
-  MaintenanceProfile copyWith({String? fullName, String? avatarUrl}) {
+  MaintenanceProfile copyWith({String? fullName}) {
     return MaintenanceProfile(
       publicId: publicId,
       fullName: fullName ?? this.fullName,
@@ -33,7 +31,6 @@ class MaintenanceProfile {
       teamId: teamId,
       teamName: teamName,
       teamLeadUserId: teamLeadUserId,
-      avatarUrl: avatarUrl ?? this.avatarUrl,
     );
   }
 

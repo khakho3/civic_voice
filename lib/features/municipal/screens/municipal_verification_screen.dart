@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../models/report_status.dart';
+import '../models/incoming_report.dart';
 import '../models/verification_data.dart';
 import '../services/municipal_report_directory.dart';
 import '../../../widgets/app_state_message.dart';
@@ -72,6 +73,7 @@ class _MunicipalVerificationScreenState
   late final VerificationData _data;
   final Set<int> _checked = {};
   final _reasonController = TextEditingController();
+  QuickRejectionReason? _selectedQuickReason;
 
   bool get _allConfirmed => _checked.length == _data.checklist.length;
 
@@ -100,9 +102,9 @@ class _MunicipalVerificationScreenState
 
   void _selectQuickReason(QuickRejectionReason reason) {
     setState(() {
-      _reasonController.text = _reasonController.text == reason.label
-          ? ''
-          : reason.label;
+      final deselecting = _selectedQuickReason == reason;
+      _selectedQuickReason = deselecting ? null : reason;
+      _reasonController.text = deselecting ? '' : reason.label;
     });
   }
 
@@ -148,6 +150,7 @@ class _MunicipalVerificationScreenState
       await MunicipalReportDirectory.instance.rejectOnServer(
         widget.referenceId,
         reason,
+        _selectedQuickReason,
       );
       if (mounted) {
         setState(() => _state = MunicipalVerificationViewState.rejected);
@@ -411,6 +414,10 @@ class _VerificationForm extends StatelessWidget {
               Text(data.title, style: textTheme.headlineSmall),
               const SizedBox(height: AppSpacing.xs),
               Text(data.locationSummary, style: textTheme.bodySmall),
+              if (data.confidence != null) ...[
+                const SizedBox(height: AppSpacing.sm),
+                _CompactConfidenceSummary(confidence: data.confidence!),
+              ],
               const SizedBox(height: AppSpacing.md),
               _LabeledValue(
                 label: 'CATEGORY',
@@ -547,6 +554,50 @@ class _VerificationForm extends StatelessWidget {
                 onTap: enabled ? () => onQuickReasonSelected(reason) : null,
               );
             },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _CompactConfidenceSummary extends StatelessWidget {
+  const _CompactConfidenceSummary({required this.confidence});
+
+  final ReportConfidence confidence;
+
+  @override
+  Widget build(BuildContext context) {
+    final score = confidence.score ?? 0;
+    final (label, color) = switch (score) {
+      < 40 => ('Low', AppColors.error),
+      < 70 => ('Moderate', AppColors.warning),
+      _ => ('High', AppColors.success),
+    };
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.sm,
+            vertical: 4,
+          ),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.12),
+            borderRadius: AppRadius.allXl,
+          ),
+          child: Text(
+            label,
+            style: Theme.of(
+              context,
+            ).textTheme.labelMedium?.copyWith(color: color),
+          ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: Text(
+            '$score/95 confidence signal · '
+            '${confidence.seconderCount ?? 0} community confirmations',
+            style: Theme.of(context).textTheme.bodySmall,
           ),
         ),
       ],

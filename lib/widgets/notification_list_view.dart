@@ -6,6 +6,7 @@ import '../core/widgets/ghana_refresh_indicator.dart';
 import '../models/notification_item.dart';
 import '../services/notification_directory.dart';
 import '../features/citizen/services/notification_permission_service.dart';
+import 'app_state_message.dart';
 import 'glass_card.dart';
 
 /// Shared notification list content for every module's notification
@@ -101,61 +102,67 @@ class _NotificationListViewState extends State<NotificationListView>
   Widget build(BuildContext context) {
     final notifications = widget.notifications;
     final padding = widget.padding ?? const EdgeInsets.all(AppSpacing.md);
+    // A permission problem is its own exclusive state — same rule as every
+    // other Permission-state screen in the app (e.g. Municipal Report
+    // Review's "Access Restricted"), never stacked with Empty/loaded
+    // content underneath it.
+    final permissionBlocked =
+        _permissionStatus != null && !_permissionStatus!.isGranted;
     final list = ListView(
       // Stays draggable even when a short list fits the viewport — same
       // fix already applied to every other list screen in this app.
       physics: const AlwaysScrollableScrollPhysics(),
       padding: padding,
       children: [
-        if (_permissionStatus != null && !_permissionStatus!.isGranted) ...[
+        if (permissionBlocked)
           _PermissionBanner(
             settingsRequired: _permissionStatus!.isPermanentlyDenied,
             onPressed: _enableNotifications,
-          ),
-          const SizedBox(height: AppSpacing.md),
-        ],
-        if (widget.onClearAll != null && notifications.isNotEmpty) ...[
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton(
-              onPressed: widget.onClearAll,
-              child: const Text('Clear all'),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.xs),
-        ],
-        if (notifications.isEmpty)
-          _EmptyState(title: widget.emptyTitle, message: widget.emptyMessage)
-        else
-          for (var index = 0; index < notifications.length; index++) ...[
-            Dismissible(
-              key: ValueKey(notifications[index].id),
-              direction: DismissDirection.endToStart,
-              background: const _DismissBackground(),
-              // Same dismissal ledger "Clear all" uses — a single-id
-              // clearAll, not a second delete mechanism. If the underlying
-              // report/task/account later changes status, a fresh id is
-              // minted and the notification can reappear, same as Clear all.
-              onDismissed: (_) {
-                NotificationDirectory.instance.clearAll([
-                  notifications[index].id,
-                ]);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Notification deleted')),
-                );
-              },
-              child: _NotificationCard(
-                notification: notifications[index],
-                onTap: () {
-                  final notification = notifications[index];
-                  NotificationDirectory.instance.markRead(notification.id);
-                  widget.onTap?.call(notification);
-                },
+          )
+        else ...[
+          if (widget.onClearAll != null && notifications.isNotEmpty) ...[
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: widget.onClearAll,
+                child: const Text('Clear all'),
               ),
             ),
-            if (index != notifications.length - 1)
-              const SizedBox(height: AppSpacing.sm),
+            const SizedBox(height: AppSpacing.xs),
           ],
+          if (notifications.isEmpty)
+            _EmptyState(title: widget.emptyTitle, message: widget.emptyMessage)
+          else
+            for (var index = 0; index < notifications.length; index++) ...[
+              Dismissible(
+                key: ValueKey(notifications[index].id),
+                direction: DismissDirection.endToStart,
+                background: const _DismissBackground(),
+                // Same dismissal ledger "Clear all" uses — a single-id
+                // clearAll, not a second delete mechanism. If the underlying
+                // report/task/account later changes status, a fresh id is
+                // minted and the notification can reappear, same as Clear all.
+                onDismissed: (_) {
+                  NotificationDirectory.instance.clearAll([
+                    notifications[index].id,
+                  ]);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Notification deleted')),
+                  );
+                },
+                child: _NotificationCard(
+                  notification: notifications[index],
+                  onTap: () {
+                    final notification = notifications[index];
+                    NotificationDirectory.instance.markRead(notification.id);
+                    widget.onTap?.call(notification);
+                  },
+                ),
+              ),
+              if (index != notifications.length - 1)
+                const SizedBox(height: AppSpacing.sm),
+            ],
+        ],
       ],
     );
     final onRefresh = widget.onRefresh;
@@ -171,6 +178,10 @@ class _NotificationListViewState extends State<NotificationListView>
   }
 }
 
+/// Same icon-badge/title/message/action shape as [AppStateMessage]'s other
+/// uses across the app (e.g. Municipal Report Review's "Access Restricted"
+/// state) — this screen's OS-notifications-off state is a permission state
+/// too, so it gets the same visual mood instead of its own bespoke banner.
 class _PermissionBanner extends StatelessWidget {
   const _PermissionBanner({
     required this.settingsRequired,
@@ -182,24 +193,15 @@ class _PermissionBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GlassCard(
-      child: Row(
-        children: [
-          const Icon(AppIcons.notifications, color: AppColors.warning),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Text(
-              'OS notifications are off. Enable them to receive updates '
-              'when CivicVoice is closed.',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ),
-          TextButton(
-            onPressed: onPressed,
-            child: Text(settingsRequired ? 'Settings' : 'Enable'),
-          ),
-        ],
-      ),
+    return AppStateMessage(
+      icon: AppIcons.notificationsOff,
+      badgeColor: AppColors.warning,
+      title: 'Notifications Are Off',
+      message:
+          'Turn them on to get updates when CivicVoice is closed.',
+      primaryActionLabel: settingsRequired ? 'Settings' : 'Enable',
+      onPrimaryAction: onPressed,
+      bordered: true,
     );
   }
 }

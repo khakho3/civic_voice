@@ -47,9 +47,6 @@ class ProfileCrudService implements ProfileRepository {
         email: '',
         phone: user.phone ?? '',
         primaryLocation: '',
-        photoPath: user.avatarUrl == null
-            ? null
-            : ApiClient.assetUrl(user.avatarUrl!),
         twoStepEnabled: false,
         isGuest: user.isGuest,
       ),
@@ -72,25 +69,6 @@ class ProfileCrudService implements ProfileRepository {
       );
     }
     _publishProfile(updatedProfile);
-    return profile.value;
-  }
-
-  @override
-  Future<CitizenProfile> updateProfilePhoto(String? photoPath) async {
-    final token = await FirebaseAuth.instance.currentUser?.getIdToken();
-    if (token != null) {
-      await ApiClient.instance.updateProfile(
-        idToken: token,
-        avatarPath: photoPath,
-        removeAvatar: photoPath == null,
-      );
-    }
-    _publishProfile(
-      profile.value.copyWith(
-        photoPath: photoPath,
-        clearPhoto: photoPath == null,
-      ),
-    );
     return profile.value;
   }
 

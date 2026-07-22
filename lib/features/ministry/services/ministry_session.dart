@@ -15,7 +15,6 @@ class MinistrySession {
     required String publicId,
     required String fullName,
     required String phone,
-    String? avatarUrl,
   }) {
     profile.value = MinistryProfileData(
       name: fullName,
@@ -24,7 +23,6 @@ class MinistrySession {
       email: '',
       phone: phone,
       publicId: publicId,
-      avatarUrl: avatarUrl,
       metadataBadges: const [
         'Ministry Supervisor',
         'National visibility',
@@ -33,7 +31,7 @@ class MinistrySession {
     );
   }
 
-  void updateProfile({required String fullName, String? avatarUrl}) {
+  void updateProfile({required String fullName}) {
     profile.value = profile.value.copyWith(name: fullName);
   }
 }

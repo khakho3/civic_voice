@@ -46,6 +46,7 @@ abstract final class AppIcons {
   static const IconData chevronRight = LucideIcons.chevronRight;
   static const IconData notifications = LucideIcons.bell;
   static const IconData notificationsActive = LucideIcons.bellRing;
+  static const IconData notificationsOff = LucideIcons.bellOff;
   static const IconData profile = LucideIcons.user;
   static const IconData settings = LucideIcons.settings;
   static const IconData sun = LucideIcons.sun;
