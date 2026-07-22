@@ -28,6 +28,7 @@ import 'features/admin/services/admin_session.dart';
 import 'features/admin/services/admin_user_directory.dart';
 import 'features/admin/services/admin_system_activity_directory.dart';
 import 'features/admin/services/admin_system_settings_directory.dart';
+import 'features/authentication/screens/about_screen.dart';
 import 'features/authentication/screens/change_password_screen.dart';
 import 'features/authentication/screens/bio_lock_screen.dart';
 import 'features/authentication/screens/forgot_password_screen.dart';
@@ -328,6 +329,7 @@ abstract final class AppRoutes {
   static const registration = '/registration';
   static const forgotPassword = '/forgot-password';
   static const biometricLock = '/biometric-lock';
+  static const about = '/about';
 
   /// Shared across every already-authenticated role's Profile screen —
   /// see [ChangePasswordScreen]'s own doc comment for why this is a
@@ -619,12 +621,19 @@ class _CivicVoiceAppState extends State<CivicVoiceApp>
                     : null,
                 onSaved: () => _finishChangePassword(context),
               ),
+              AppRoutes.about: (context) => AboutScreen(
+                onBack: Navigator.canPop(context)
+                    ? () => Navigator.of(context).maybePop()
+                    : null,
+              ),
               AppRoutes.forcePasswordReset: _forcedPasswordReset,
               AppRoutes.citizenDashboard: (context) =>
                   const CitizenDashboardScreen(),
               AppRoutes.citizenAlerts: (_) => const CitizenAlertsScreen(),
-              AppRoutes.citizenProfile: (context) =>
-                  CitizenProfileScreen(onLogOut: () => signOut(context)),
+              AppRoutes.citizenProfile: (context) => CitizenProfileScreen(
+                onAbout: () => Navigator.of(context).pushNamed(AppRoutes.about),
+                onLogOut: () => signOut(context),
+              ),
               AppRoutes.citizenReports: (_) => const CitizenReportsScreen(),
               AppRoutes.citizenCreateReport: (_) => const CreateReportScreen(),
               AppRoutes.citizenLocationPicker: (_) =>
@@ -1801,6 +1810,7 @@ Widget _adminProfile(BuildContext context) {
         _replaceWith(context, AppRoutes.adminSystemActivity),
     onChangePassword: () =>
         Navigator.of(context).pushNamed(AppRoutes.changePassword),
+    onAbout: () => Navigator.of(context).pushNamed(AppRoutes.about),
     onNavigateToMaintenanceTeams: () =>
         Navigator.of(context).pushNamed(AppRoutes.adminMaintenanceTeams),
     onNotificationsTap: () => _openAdminNotifications(context),
@@ -1956,6 +1966,7 @@ Widget _ministryProfile(BuildContext context) {
       onBack: () => _popOrReplaceWith(context, AppRoutes.ministryDashboard),
       onChangePassword: () =>
           Navigator.of(context).pushNamed(AppRoutes.changePassword),
+      onAbout: () => Navigator.of(context).pushNamed(AppRoutes.about),
       onNotificationsTap: () =>
           Navigator.of(context).pushNamed(AppRoutes.ministryNotifications),
       onLogOut: () => signOut(context),
@@ -2216,6 +2227,7 @@ Widget _municipalProfile(BuildContext context) {
     onBack: () => _popOrReplaceWith(context, AppRoutes.municipalDashboard),
     onChangePassword: () =>
         Navigator.of(context).pushNamed(AppRoutes.changePassword),
+    onAbout: () => Navigator.of(context).pushNamed(AppRoutes.about),
     onLogOut: () => signOut(context),
     onSaveProfile: (fullName) async {
       try {
@@ -2320,6 +2332,7 @@ Widget _maintenanceProfile(BuildContext context) {
         Navigator.of(context).pushNamed(AppRoutes.maintenanceNotifications),
     onChangePassword: () =>
         Navigator.of(context).pushNamed(AppRoutes.changePassword),
+    onAbout: () => Navigator.of(context).pushNamed(AppRoutes.about),
     onLogOut: () => signOut(context),
     onSaveProfile: (fullName) async {
       try {

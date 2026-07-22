@@ -73,6 +73,7 @@ class MinistryProfileScreen extends StatefulWidget {
     this.onBack,
     this.onNotificationsTap,
     this.onChangePassword,
+    this.onAbout,
     this.onLogOut,
     this.profile,
     this.onSaveProfile,
@@ -90,6 +91,7 @@ class MinistryProfileScreen extends StatefulWidget {
 
   /// Opens the shared Change Password screen (AppRoutes.changePassword).
   final VoidCallback? onChangePassword;
+  final VoidCallback? onAbout;
 
   /// Fired after the log-out confirmation dialog is accepted. Nullable:
   /// there's no real authentication flow to sign out of yet.
@@ -242,6 +244,7 @@ class _MinistryProfileScreenState extends State<MinistryProfileScreen> {
                                 phoneController: _phoneController,
                                 fieldErrors: _fieldErrors,
                                 onChangePassword: widget.onChangePassword,
+                                onAbout: widget.onAbout,
                                 onLogOut: _confirmLogOut,
                               ),
                             },
@@ -381,6 +384,7 @@ class _ProfileBody extends StatelessWidget {
     required this.phoneController,
     this.fieldErrors = const {},
     this.onChangePassword,
+    this.onAbout,
     this.onLogOut,
   });
 
@@ -391,6 +395,7 @@ class _ProfileBody extends StatelessWidget {
   final TextEditingController phoneController;
   final Map<String, String> fieldErrors;
   final VoidCallback? onChangePassword;
+  final VoidCallback? onAbout;
   final VoidCallback? onLogOut;
 
   @override
@@ -462,6 +467,18 @@ class _ProfileBody extends StatelessWidget {
             LanguagePreferenceRow(),
             Divider(height: AppSpacing.lg),
             BiometricLockPreferenceRow(),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        ProfileSection(
+          icon: AppIcons.info,
+          title: 'About',
+          children: [
+            ProfileActionRow(
+              icon: AppIcons.info,
+              label: 'About CivicVoice',
+              onTap: onAbout,
+            ),
           ],
         ),
         const SizedBox(height: AppSpacing.lg),

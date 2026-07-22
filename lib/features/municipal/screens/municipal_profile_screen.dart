@@ -51,6 +51,7 @@ class MunicipalProfileScreen extends StatefulWidget {
     this.initialState = MunicipalProfileViewState.loaded,
     this.onBack,
     this.onChangePassword,
+    this.onAbout,
     this.onLogOut,
     this.initialProfile,
     this.onSaveProfile,
@@ -65,6 +66,7 @@ class MunicipalProfileScreen extends StatefulWidget {
 
   /// Opens the shared Change Password screen (AppRoutes.changePassword).
   final VoidCallback? onChangePassword;
+  final VoidCallback? onAbout;
 
   /// Fired after the log-out confirmation dialog is accepted. Nullable:
   /// there's no real authentication flow to sign out of yet.
@@ -188,16 +190,19 @@ class _MunicipalProfileScreenState extends State<MunicipalProfileScreen> {
                       MunicipalProfileViewState.loaded => _ProfileView(
                         profile: _profile,
                         onChangePassword: widget.onChangePassword,
+                        onAbout: widget.onAbout,
                         onLogOut: _confirmLogOut,
                       ),
                       MunicipalProfileViewState.success => _ProfileView(
                         profile: _profile,
                         onChangePassword: widget.onChangePassword,
+                        onAbout: widget.onAbout,
                         onLogOut: _confirmLogOut,
                       ),
                       MunicipalProfileViewState.offline => _ProfileView(
                         profile: _profile,
                         onChangePassword: widget.onChangePassword,
+                        onAbout: widget.onAbout,
                         onLogOut: _confirmLogOut,
                       ),
                       MunicipalProfileViewState.editing ||
@@ -333,11 +338,13 @@ class _ProfileView extends StatelessWidget {
   const _ProfileView({
     required this.profile,
     this.onChangePassword,
+    this.onAbout,
     this.onLogOut,
   });
 
   final OfficerProfile profile;
   final VoidCallback? onChangePassword;
+  final VoidCallback? onAbout;
   final VoidCallback? onLogOut;
 
   @override
@@ -391,6 +398,18 @@ class _ProfileView extends StatelessWidget {
             LanguagePreferenceRow(),
             Divider(height: AppSpacing.lg),
             BiometricLockPreferenceRow(),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        ProfileSection(
+          icon: AppIcons.info,
+          title: 'About',
+          children: [
+            ProfileActionRow(
+              icon: AppIcons.info,
+              label: 'About CivicVoice',
+              onTap: onAbout,
+            ),
           ],
         ),
         const SizedBox(height: AppSpacing.lg),

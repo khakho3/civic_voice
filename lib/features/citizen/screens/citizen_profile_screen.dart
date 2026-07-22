@@ -4,6 +4,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../widgets/confirm_dialog.dart';
 import '../../../widgets/biometric_lock_preference_row.dart';
 import '../../../widgets/language_preference_row.dart';
+import '../../../widgets/profile_action_row.dart';
 import '../../../widgets/profile_edit_action_bar.dart';
 import '../../../widgets/profile_edit_button.dart';
 import '../../../widgets/profile_field_row.dart';
@@ -26,9 +27,11 @@ import 'citizen_tab_routes.dart';
 /// "Edit Profile" `FilledButton`), which is what "sudoku"-clutter and the
 /// oversized edit affordance both trace back to on this specific screen.
 class CitizenProfileScreen extends StatefulWidget {
-  const CitizenProfileScreen({super.key, this.onLogOut});
+  const CitizenProfileScreen({super.key, this.onAbout, this.onLogOut});
 
   static const String routeName = '/citizen/profile';
+
+  final VoidCallback? onAbout;
 
   /// Fired after the sign-out confirmation dialog is accepted. Nullable:
   /// there's no real auth session to end yet.
@@ -233,6 +236,18 @@ class _CitizenProfileScreenState extends State<CitizenProfileScreen> {
                                     NearbySecondingPreferenceRow(),
                                     Divider(height: AppSpacing.lg),
                                     BiometricLockPreferenceRow(),
+                                  ],
+                                ),
+                                const SizedBox(height: AppSpacing.lg),
+                                ProfileSection(
+                                  icon: AppIcons.info,
+                                  title: 'About',
+                                  children: [
+                                    ProfileActionRow(
+                                      icon: AppIcons.info,
+                                      label: 'About CivicVoice',
+                                      onTap: widget.onAbout,
+                                    ),
                                   ],
                                 ),
                                 if (!_isEditing) ...[

@@ -6,8 +6,8 @@ import '../core/theme/app_theme.dart';
 /// default, a real [TextFormField] when [editable]. [locked] is the
 /// distinct third state for fields that can never change at all (Employee
 /// ID, Assembly) as opposed to fields merely not editable *right now*
-/// (admin-set Email/Phone, which get [caption] instead) — things you can't
-/// change should visibly say so, not just silently omit an input.
+/// (admin-set Email/Phone, which get [caption] instead). Locked values stay
+/// subtly muted without adding a padlock beside every field label.
 class ProfileFieldRow extends StatelessWidget {
   const ProfileFieldRow({
     super.key,
@@ -36,8 +36,8 @@ class ProfileFieldRow extends StatelessWidget {
   final TextEditingController? controller;
   final bool editable;
 
-  /// Visibly muted value text + a small lock glyph next to the label — for
-  /// fields that structurally can never change, not just admin-only ones.
+  /// Visibly muted value text for fields that structurally can never change,
+  /// not just admin-only ones.
   final bool locked;
   final ValueChanged<String>? onChanged;
   final String? errorText;
@@ -57,19 +57,7 @@ class ProfileFieldRow extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Text(label, style: textTheme.bodySmall),
-            if (locked) ...[
-              const SizedBox(width: 4),
-              Icon(
-                AppIcons.security,
-                size: AppIconSize.sm,
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ],
-          ],
-        ),
+        Text(label, style: textTheme.bodySmall),
         const SizedBox(height: AppSpacing.xs),
         editable
             ? TextFormField(

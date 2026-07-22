@@ -40,6 +40,7 @@ class ProfileScreen extends StatefulWidget {
     this.onNavigateToTasks,
     this.onNotificationsTap,
     this.onChangePassword,
+    this.onAbout,
     this.onLogOut,
     this.onSaveProfile,
   });
@@ -52,6 +53,7 @@ class ProfileScreen extends StatefulWidget {
 
   /// Opens the shared Change Password screen (AppRoutes.changePassword).
   final VoidCallback? onChangePassword;
+  final VoidCallback? onAbout;
 
   /// Fired after the log-out confirmation dialog is accepted. Nullable:
   /// there's no real authentication flow to sign out of yet.
@@ -203,6 +205,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       onSave: disabled ? null : _handleSave,
       onCancel: disabled ? null : _cancelEditing,
       onChangePassword: disabled ? null : widget.onChangePassword,
+      onAbout: disabled ? null : widget.onAbout,
       onLogOut: disabled ? null : _confirmLogOut,
       saving: _saving,
     );
@@ -232,6 +235,7 @@ class _ProfileForm extends StatelessWidget {
     required this.onSave,
     required this.onCancel,
     required this.onChangePassword,
+    required this.onAbout,
     required this.onLogOut,
     this.saving = false,
   });
@@ -252,6 +256,7 @@ class _ProfileForm extends StatelessWidget {
   final VoidCallback? onSave;
   final VoidCallback? onCancel;
   final VoidCallback? onChangePassword;
+  final VoidCallback? onAbout;
   final VoidCallback? onLogOut;
 
   @override
@@ -359,6 +364,18 @@ class _ProfileForm extends StatelessWidget {
                       LanguagePreferenceRow(),
                       Divider(height: AppSpacing.lg),
                       BiometricLockPreferenceRow(),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  ProfileSection(
+                    icon: AppIcons.info,
+                    title: 'About',
+                    children: [
+                      ProfileActionRow(
+                        icon: AppIcons.info,
+                        label: 'About CivicVoice',
+                        onTap: onAbout,
+                      ),
                     ],
                   ),
                   const SizedBox(height: AppSpacing.lg),

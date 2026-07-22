@@ -68,6 +68,7 @@ class AdminProfileScreen extends StatefulWidget {
     this.onNavigateToSettings,
     this.onNavigateToActivity,
     this.onChangePassword,
+    this.onAbout,
     this.onNavigateToMaintenanceTeams,
     this.onSignOut,
     this.onNotificationsTap,
@@ -94,6 +95,7 @@ class AdminProfileScreen extends StatefulWidget {
 
   /// Opens the shared Change Password screen (AppRoutes.changePassword).
   final VoidCallback? onChangePassword;
+  final VoidCallback? onAbout;
 
   /// Fired by the "Log Out" button. Nullable: there's no real
   /// authentication flow to sign out of yet.
@@ -215,6 +217,7 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
           onCancel: _cancelEdit,
           onSave: _saveChanges,
           onChangePassword: widget.onChangePassword,
+          onAbout: widget.onAbout,
           onSignOut: widget.onSignOut,
         ),
         _ => Center(
@@ -280,6 +283,7 @@ class _ProfileBody extends StatelessWidget {
     required this.onCancel,
     required this.onSave,
     this.onChangePassword,
+    this.onAbout,
     this.onSignOut,
   });
 
@@ -292,6 +296,7 @@ class _ProfileBody extends StatelessWidget {
   final VoidCallback onCancel;
   final VoidCallback onSave;
   final VoidCallback? onChangePassword;
+  final VoidCallback? onAbout;
   final VoidCallback? onSignOut;
 
   @override
@@ -418,6 +423,18 @@ class _ProfileBody extends StatelessWidget {
             LanguagePreferenceRow(),
             Divider(height: AppSpacing.lg),
             BiometricLockPreferenceRow(),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        ProfileSection(
+          icon: AppIcons.info,
+          title: 'About',
+          children: [
+            ProfileActionRow(
+              icon: AppIcons.info,
+              label: 'About CivicVoice',
+              onTap: onAbout,
+            ),
           ],
         ),
         const SizedBox(height: AppSpacing.lg),
