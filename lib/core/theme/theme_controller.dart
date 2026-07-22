@@ -22,6 +22,7 @@ abstract final class ThemeController {
     mode.value = switch (savedMode) {
       _darkValue => ThemeMode.dark,
       _lightValue => ThemeMode.light,
+      _systemValue => ThemeMode.system,
       _ => ThemeMode.light,
     };
   }
