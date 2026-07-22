@@ -291,6 +291,7 @@ class _AdminUserDetailsScreenState extends State<AdminUserDetailsScreen> {
             _assembly = assembly;
             _showSuccess = false;
           }),
+          onBack: _handleCancel,
           onCancel: _handleCancel,
           onSave: _save,
           saving: _saving,
@@ -362,6 +363,7 @@ class _DetailsForm extends StatelessWidget {
     required this.onRegionChanged,
     required this.onAssemblyChanged,
     required this.onSave,
+    this.onBack,
     this.onCancel,
     this.saving = false,
   });
@@ -386,6 +388,7 @@ class _DetailsForm extends StatelessWidget {
   final ValueChanged<AdminTier> onTierChanged;
   final ValueChanged<Region?> onRegionChanged;
   final ValueChanged<Assembly?> onAssemblyChanged;
+  final VoidCallback? onBack;
   final VoidCallback? onCancel;
   final bool saving;
   final VoidCallback onSave;
@@ -411,6 +414,15 @@ class _DetailsForm extends StatelessWidget {
         chromeInset.bottom + AppSpacing.xl,
       ),
       children: [
+        Row(
+          children: [
+            IconButton(
+              onPressed: onBack,
+              icon: const Icon(AppIcons.back),
+              tooltip: 'Back to user management',
+            ),
+          ],
+        ),
         if (showSuccess) ...[
           const _SuccessBanner(),
           const SizedBox(height: AppSpacing.sm),

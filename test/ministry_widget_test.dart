@@ -15,6 +15,7 @@ import 'package:civic_voice/features/ministry/screens/ministry_profile_screen.da
 import 'package:civic_voice/features/ministry/screens/ministry_report_insights_screen.dart';
 import 'package:civic_voice/features/ministry/screens/ministry_reports_screen.dart';
 import 'package:civic_voice/models/region.dart';
+import 'package:civic_voice/widgets/glass_dialog_backdrop.dart';
 
 /// Stands in for the real platform channel implementation, which never
 /// resolves in a widget test — there's no host app registered to answer
@@ -1737,15 +1738,24 @@ void main() {
     expect(find.text('Language'), findsOneWidget);
     expect(find.text('Coming Soon'), findsOneWidget);
 
-    expect(find.text('Account Metadata'), findsOneWidget);
+    expect(find.text('Account Metadata'), findsNothing);
+    expect(find.byTooltip('About Account Access'), findsOneWidget);
+    expect(find.text('Supervisor'), findsNothing);
+    expect(find.text('Read-only module'), findsNothing);
+    expect(find.text('Analytics access'), findsNothing);
+
+    expect(find.text('Session'), findsOneWidget);
+    expect(find.text('Log Out'), findsOneWidget);
+    expect(find.text('Save'), findsNothing);
+
+    await tester.tap(find.byTooltip('About Account Access'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(GlassDialogBackdrop), findsOneWidget);
+    expect(find.text('Account Access'), findsOneWidget);
     expect(find.text('Supervisor'), findsOneWidget);
     expect(find.text('Read-only module'), findsOneWidget);
     expect(find.text('Analytics access'), findsOneWidget);
-
-    // Log Out lives in the header kebab menu now, not a standalone row —
-    // not visible until the menu is opened.
-    expect(find.text('Log Out'), findsNothing);
-    expect(find.text('Save'), findsNothing);
   });
 
   testWidgets('Ministry Profile kebab menu Edit Profile enters edit mode', (
@@ -1941,8 +1951,8 @@ void main() {
   );
 
   testWidgets(
-    'Ministry Profile kebab menu Log Out asks for confirmation before '
-    'firing the callback',
+    'Ministry Profile Session Log Out asks for confirmation before firing '
+    'the callback',
     (WidgetTester tester) async {
       tester.view.physicalSize = const Size(428, 2600);
       tester.view.devicePixelRatio = 1.0;
@@ -1958,16 +1968,14 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byIcon(AppIcons.more));
-      await tester.pumpAndSettle();
       await tester.tap(find.text('Log Out'));
       await tester.pumpAndSettle();
 
       expect(find.text('Log out?'), findsOneWidget);
       expect(loggedOut, isFalse);
 
-      // "Log Out" appears both on the (now closed) kebab item and as the
-      // dialog's confirm button — the confirm button is built last.
+      // The Session button remains behind the dialog, so the dialog's
+      // confirm action is the last matching label.
       await tester.tap(find.text('Log Out').last);
       await tester.pumpAndSettle();
 
@@ -1992,8 +2000,6 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byIcon(AppIcons.more));
-      await tester.pumpAndSettle();
       await tester.tap(find.text('Log Out'));
       await tester.pumpAndSettle();
 

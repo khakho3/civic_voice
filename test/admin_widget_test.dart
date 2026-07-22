@@ -24,6 +24,7 @@ import 'package:civic_voice/features/admin/services/admin_user_directory.dart';
 import 'package:civic_voice/features/admin/services/admin_system_settings_directory.dart';
 import 'package:civic_voice/models/app_role.dart';
 import 'package:civic_voice/widgets/app_dropdown_field.dart';
+import 'package:civic_voice/widgets/glass_dialog_backdrop.dart';
 import 'package:civic_voice/models/ghana_assemblies_data.dart';
 import 'package:civic_voice/models/region.dart';
 import 'package:civic_voice/services/mock_auth_service.dart';
@@ -1328,6 +1329,33 @@ void main() {
     expect(backTapped, isTrue);
   });
 
+  testWidgets('Admin User Details back arrow returns to User Management', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    var backTapped = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: AdminUserDetailsScreen(
+          user: findMockUser('Yaw Asare'),
+          onNavigateToUsers: () => backTapped = true,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byTooltip('Back to user management'), findsOneWidget);
+    await tester.tap(find.byTooltip('Back to user management'));
+    await tester.pump();
+
+    expect(backTapped, isTrue);
+  });
+
   testWidgets(
     'Admin User Details Save returns to User Management with confirmation',
     (WidgetTester tester) async {
@@ -2359,20 +2387,29 @@ void main() {
       expect(find.text('Language'), findsOneWidget);
       expect(find.text('English'), findsOneWidget);
       expect(find.text('Coming Soon'), findsOneWidget);
-      expect(find.text('Security Settings'), findsOneWidget);
+      expect(find.text('Security'), findsOneWidget);
       expect(find.text('Change Password'), findsOneWidget);
       expect(find.text('Two-factor authentication'), findsNothing);
-      expect(find.text('Administrative Scope'), findsOneWidget);
-      expect(find.text('Users'), findsWidgets);
-      expect(find.text('Roles'), findsWidgets);
+      expect(find.byTooltip('About Administrative Scope'), findsOneWidget);
+      expect(find.text('Roles'), findsNothing);
       expect(find.text('Governance Level'), findsOneWidget);
       expect(find.text('Approved administrator'), findsOneWidget);
       expect(find.text('Session'), findsOneWidget);
-      expect(find.text('Sign Out'), findsOneWidget);
+      expect(find.text('Last activity'), findsNothing);
+      expect(find.text('Log Out'), findsOneWidget);
 
       expect(find.byType(TextFormField), findsNothing);
       expect(find.text('Save Changes'), findsNothing);
       expect(find.text('Cancel'), findsNothing);
+
+      await tester.tap(find.byTooltip('About Administrative Scope'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(GlassDialogBackdrop), findsOneWidget);
+      expect(find.text('Administrative Scope'), findsOneWidget);
+      expect(find.text('Users'), findsWidgets);
+      expect(find.text('Roles'), findsOneWidget);
+      expect(find.text('Settings'), findsWidgets);
     },
   );
 
@@ -2481,7 +2518,7 @@ void main() {
     },
   );
 
-  testWidgets('Admin Profile Sign Out asks for confirmation before firing the '
+  testWidgets('Admin Profile Log Out asks for confirmation before firing the '
       'callback', (WidgetTester tester) async {
     tester.view.physicalSize = const Size(428, 2600);
     tester.view.devicePixelRatio = 1.0;
@@ -2497,11 +2534,11 @@ void main() {
     );
     await tester.pump();
 
-    await tester.tap(find.text('Sign Out'));
+    await tester.tap(find.text('Log Out'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.text('Sign out?'), findsOneWidget);
+    expect(find.text('Log out?'), findsOneWidget);
     expect(signedOut, isFalse);
 
     // Dismissing via Cancel doesn't sign out.
@@ -2509,14 +2546,14 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
     expect(signedOut, isFalse);
-    expect(find.text('Sign out?'), findsNothing);
+    expect(find.text('Log out?'), findsNothing);
 
     // Confirming via the dialog's own button (shares the trigger
     // button's label, hence .last) does sign out.
-    await tester.tap(find.text('Sign Out'));
+    await tester.tap(find.text('Log Out'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
-    await tester.tap(find.text('Sign Out').last);
+    await tester.tap(find.text('Log Out').last);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
@@ -2631,13 +2668,12 @@ void main() {
       await tester.pump();
 
       expect(find.text('Home'), findsOneWidget);
-      // "Users"/"Settings" also appear as Administrative Scope pills.
-      expect(find.text('Users'), findsWidgets);
-      expect(find.text('Settings'), findsWidgets);
+      // Administrative scope details stay behind the info action, so these
+      // are now the unambiguous bottom-nav destinations.
+      expect(find.text('Users'), findsOneWidget);
+      expect(find.text('Settings'), findsOneWidget);
 
-      // The Administrative Scope pill ("Users") is built before the
-      // bottom-nav tab of the same name.
-      await tester.tap(find.text('Users').last);
+      await tester.tap(find.text('Users'));
       await tester.pump();
       expect(usersTapped, isTrue);
     },

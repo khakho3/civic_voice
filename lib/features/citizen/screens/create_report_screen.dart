@@ -53,6 +53,7 @@ class _CreateReportScreenState extends State<CreateReportScreen>
   String? _locationError;
   int _locationLookupId = 0;
   Timer? _draftSaveTimer;
+  late final int _draftClearGeneration;
 
   ReportCategory get _classifiedCategory => ReportCategoryClassifier.classify(
     title: _titleController.text,
@@ -70,6 +71,7 @@ class _CreateReportScreenState extends State<CreateReportScreen>
   void initState() {
     super.initState();
     _state = widget.initialState;
+    _draftClearGeneration = AppCacheService.instance.reportDraftClearGeneration;
     final cached = AppCacheService.instance.reportDraft;
     _titleController = TextEditingController(text: cached?.title ?? '');
     _descriptionController = TextEditingController(
@@ -100,7 +102,13 @@ class _CreateReportScreenState extends State<CreateReportScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _draftSaveTimer?.cancel();
-    unawaited(_saveDraft());
+    // A successful submission clears the persisted draft while this screen
+    // is still underneath Photos/Review. Do not let disposal resurrect those
+    // completed fields; ordinary unfinished navigation still flushes them.
+    if (AppCacheService.instance.reportDraftClearGeneration ==
+        _draftClearGeneration) {
+      unawaited(_saveDraft());
+    }
     _titleController.dispose();
     _descriptionController.dispose();
     super.dispose();
@@ -518,7 +526,10 @@ class _CreateReportScreenState extends State<CreateReportScreen>
             // the exact same maybePop(), so a header back arrow here was
             // pure redundancy, matching the same fix applied to every other
             // primary tab in this module.
-            child: CivicTopBar(title: 'Create Report', showNotifications: false),
+            child: CivicTopBar(
+              title: 'Create Report',
+              showNotifications: false,
+            ),
           ),
           if (!keyboardVisible)
             Align(

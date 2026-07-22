@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../widgets/app_state_message.dart';
+import '../../../widgets/biometric_lock_preference_row.dart';
 import '../../../widgets/confirm_dialog.dart';
 import '../../../widgets/detail_header.dart';
 import '../../../widgets/kebab_menu_button.dart';
@@ -10,7 +11,9 @@ import '../../../widgets/profile_action_row.dart';
 import '../../../widgets/profile_edit_action_bar.dart';
 import '../../../widgets/profile_field_row.dart';
 import '../../../widgets/profile_header_card.dart';
+import '../../../widgets/profile_info_button.dart';
 import '../../../widgets/profile_section.dart';
+import '../../../widgets/profile_session_section.dart';
 import '../../../widgets/status_badge.dart';
 import '../../../widgets/theme_preference_row.dart';
 import '../models/ministry_profile_data.dart';
@@ -46,7 +49,7 @@ import '../models/ministry_profile_data.dart';
 /// affordance. Once editing, the header's leading icon becomes a close (X)
 /// that cancels rather than navigating away.
 ///
-/// Log Out lives in the same kebab menu as Edit Profile, confirmed via
+/// Log Out lives in the shared Session section, confirmed via
 /// [showConfirmDialog] before firing — the spec lists a "Logout Button"
 /// component and a "Logout" user action but no exported frame shows one
 /// anywhere, so there was no original placement to be faithful to; this
@@ -239,6 +242,7 @@ class _MinistryProfileScreenState extends State<MinistryProfileScreen> {
                                 phoneController: _phoneController,
                                 fieldErrors: _fieldErrors,
                                 onChangePassword: widget.onChangePassword,
+                                onLogOut: _confirmLogOut,
                               ),
                             },
                           ),
@@ -352,10 +356,6 @@ class _MinistryProfileScreenState extends State<MinistryProfileScreen> {
                               onTap: _startEditing,
                               child: const Text('Edit Profile'),
                             ),
-                            PopupMenuItem(
-                              onTap: _confirmLogOut,
-                              child: const Text('Log Out'),
-                            ),
                           ],
                         ),
                       ],
@@ -381,6 +381,7 @@ class _ProfileBody extends StatelessWidget {
     required this.phoneController,
     this.fieldErrors = const {},
     this.onChangePassword,
+    this.onLogOut,
   });
 
   final MinistryProfileData profile;
@@ -390,6 +391,7 @@ class _ProfileBody extends StatelessWidget {
   final TextEditingController phoneController;
   final Map<String, String> fieldErrors;
   final VoidCallback? onChangePassword;
+  final VoidCallback? onLogOut;
 
   @override
   Widget build(BuildContext context) {
@@ -427,6 +429,12 @@ class _ProfileBody extends StatelessWidget {
         ProfileSection(
           icon: AppIcons.profile,
           title: 'Personal Information',
+          trailing: ProfileInfoButton(
+            title: 'Account Access',
+            message:
+                'Permissions are managed by administrators for this account:',
+            items: profile.metadataBadges,
+          ),
           children: [
             ProfileFieldRow(
               label: 'Full Name',
@@ -452,6 +460,8 @@ class _ProfileBody extends StatelessWidget {
             ThemePreferenceRow(),
             Divider(height: AppSpacing.lg),
             LanguagePreferenceRow(),
+            Divider(height: AppSpacing.lg),
+            BiometricLockPreferenceRow(),
           ],
         ),
         const SizedBox(height: AppSpacing.lg),
@@ -466,31 +476,10 @@ class _ProfileBody extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: AppSpacing.lg),
-        ProfileSection(
-          icon: AppIcons.shieldAlert,
-          title: 'Account Metadata',
-          children: [
-            Text(
-              'Permissions are managed by administrators. This screen only '
-              'allows editing your own profile.',
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Wrap(
-              spacing: AppSpacing.xs,
-              runSpacing: AppSpacing.xs,
-              children: [
-                for (final badge in profile.metadataBadges)
-                  TintedBadge(
-                    label: badge,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    textColor: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-              ],
-            ),
-          ],
-        ),
+        if (!editing) ...[
+          const SizedBox(height: AppSpacing.lg),
+          ProfileSessionSection(onLogOut: onLogOut),
+        ],
       ],
     );
   }

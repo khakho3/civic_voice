@@ -7,9 +7,11 @@ import 'package:civic_voice/features/citizen/screens/review_report_screen.dart';
 import 'package:civic_voice/features/citizen/services/location_service.dart';
 import 'package:civic_voice/features/citizen/services/report_crud_service.dart';
 import 'package:civic_voice/features/citizen/widgets/nearby_seconding_card.dart';
+import 'package:civic_voice/features/citizen/widgets/nearby_seconding_preference_row.dart';
 import 'package:civic_voice/main.dart' as app;
 import 'package:civic_voice/services/app_cache_service.dart';
 import 'package:civic_voice/widgets/evidence_image_viewer.dart';
+import 'package:civic_voice/widgets/glass_dialog_backdrop.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:geolocator/geolocator.dart';
@@ -63,6 +65,41 @@ const _nearbyReports = [
 ];
 
 void main() {
+  testWidgets('Nearby Reports preference stays compact and explains on help', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    await AppCacheService.instance.initialize();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: const Scaffold(body: NearbySecondingPreferenceRow()),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Nearby Reports'), findsOneWidget);
+    expect(
+      find.text(
+        "Show a card when you're near an unconfirmed report you could help verify",
+      ),
+      findsNothing,
+    );
+
+    await tester.tap(find.byTooltip('About Nearby Reports'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text(
+        'Shows one nearby report you can help confirm when you open the dashboard. Your location is not tracked in the background.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.byType(GlassDialogBackdrop), findsOneWidget);
+    expect(find.text('Close'), findsOneWidget);
+  });
+
   testWidgets(
     'nearby confirmation shows one card and never resurfaces a dismissed report',
     (WidgetTester tester) async {
@@ -331,6 +368,10 @@ void main() {
 
       expect(find.text('Submitted'), findsWidgets);
       expect(find.text('Track My Report'), findsOneWidget);
+      expect(find.text('Review Estimate'), findsNothing);
+      expect(find.text('Within 24-48 hours'), findsNothing);
+      expect(find.textContaining('Estimated:'), findsNothing);
+      expect(find.text('Pending initial validation'), findsOneWidget);
 
       await pumpRoute(
         '${app.AppRoutes.citizenReportTracking}?reportId=missing',

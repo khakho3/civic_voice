@@ -29,6 +29,7 @@ import 'features/admin/services/admin_user_directory.dart';
 import 'features/admin/services/admin_system_activity_directory.dart';
 import 'features/admin/services/admin_system_settings_directory.dart';
 import 'features/authentication/screens/change_password_screen.dart';
+import 'features/authentication/screens/bio_lock_screen.dart';
 import 'features/authentication/screens/forgot_password_screen.dart';
 import 'features/authentication/screens/login_screen.dart';
 import 'features/authentication/screens/otp_verification_screen.dart';
@@ -198,7 +199,9 @@ void _showInAppBannerFor(RemoteMessage message) {
     icon: _iconForPushType(type),
     color: _colorForPushType(type),
     onTap: () {
-      final route = _notificationsRouteForRole(MockAuthService().getCurrentRole());
+      final route = _notificationsRouteForRole(
+        MockAuthService().getCurrentRole(),
+      );
       if (route != null) _navigatorKey.currentState?.pushNamed(route);
     },
   );
@@ -324,6 +327,7 @@ abstract final class AppRoutes {
   static const login = '/login';
   static const registration = '/registration';
   static const forgotPassword = '/forgot-password';
+  static const biometricLock = '/biometric-lock';
 
   /// Shared across every already-authenticated role's Profile screen —
   /// see [ChangePasswordScreen]'s own doc comment for why this is a
@@ -400,10 +404,16 @@ class CivicVoiceApp extends StatefulWidget {
   State<CivicVoiceApp> createState() => _CivicVoiceAppState();
 }
 
-class _CivicVoiceAppState extends State<CivicVoiceApp> {
+class _CivicVoiceAppState extends State<CivicVoiceApp>
+    with WidgetsBindingObserver {
+  DateTime? _backgroundedAt;
+  bool _biometricLockShowing = false;
+  static const _reLockThreshold = Duration(seconds: 60);
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     IdleSessionTimer.instance.onExpire = _handleIdleTimeout;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _promptForNotificationPermission();
@@ -472,9 +482,47 @@ class _CivicVoiceAppState extends State<CivicVoiceApp> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     IdleSessionTimer.instance.onExpire = null;
     IdleSessionTimer.instance.cancel();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) {
+      _backgroundedAt ??= DateTime.now();
+      return;
+    }
+    final backgroundedAt = _backgroundedAt;
+    _backgroundedAt = null;
+    if (backgroundedAt == null) return;
+    if (DateTime.now().difference(backgroundedAt) < _reLockThreshold) return;
+    _presentBiometricLockIfDue();
+  }
+
+  void _presentBiometricLockIfDue() {
+    if (_biometricLockShowing) return;
+    if (MockAuthService().getCurrentRole() == null) return;
+    if (!AppCacheService.instance.biometricLockEnabled) return;
+    final navigator = _navigatorKey.currentState;
+    if (navigator == null) return;
+    _biometricLockShowing = true;
+    navigator.push(
+      MaterialPageRoute<void>(
+        settings: const RouteSettings(name: AppRoutes.biometricLock),
+        builder: (context) => BioLockScreen(
+          onAuthenticated: () {
+            _biometricLockShowing = false;
+            Navigator.of(context).pop();
+          },
+          onLogOut: () {
+            _biometricLockShowing = false;
+            signOut(context);
+          },
+        ),
+      ),
+    );
   }
 
   /// Fires when [IdleSessionTimer] expires with no activity — real
@@ -506,9 +554,13 @@ class _CivicVoiceAppState extends State<CivicVoiceApp> {
         // distinguishes "never seen this app before" (show the full
         // onboarding carousel) from "has an account, just needs to sign
         // back in" (go straight to Login).
+        final signedInRoute = _routeForRole(MockAuthService().getCurrentRole());
         final effectiveInitialRoute =
             widget.initialRoute ??
-            _routeForRole(MockAuthService().getCurrentRole()) ??
+            (signedInRoute != null &&
+                    AppCacheService.instance.biometricLockEnabled
+                ? AppRoutes.biometricLock
+                : signedInRoute) ??
             (AppCacheService.instance.onboardingComplete
                 ? AppRoutes.login
                 : AppRoutes.welcome);
@@ -560,6 +612,7 @@ class _CivicVoiceAppState extends State<CivicVoiceApp> {
               AppRoutes.registration: (context) => const _RegistrationRoute(),
               AppRoutes.forgotPassword: (context) =>
                   const _ForgotPasswordRoute(),
+              AppRoutes.biometricLock: _biometricLock,
               AppRoutes.changePassword: (context) => ChangePasswordScreen(
                 onBack: Navigator.canPop(context)
                     ? () => Navigator.of(context).maybePop()
@@ -1317,6 +1370,16 @@ Widget _forcedPasswordReset(BuildContext context) {
   );
 }
 
+Widget _biometricLock(BuildContext context) {
+  return BioLockScreen(
+    onAuthenticated: () => Navigator.of(context).pushNamedAndRemoveUntil(
+      _routeForRole(MockAuthService().getCurrentRole()) ?? AppRoutes.login,
+      (_) => false,
+    ),
+    onLogOut: () => signOut(context),
+  );
+}
+
 /// Real Firebase Anonymous Auth session (not just "push the dashboard
 /// with no session at all") — this is what lets a guest actually submit
 /// and track reports via the same authenticated API every real citizen
@@ -1754,7 +1817,8 @@ Widget _ministryDashboard(BuildContext context) {
         data: Firebase.apps.isEmpty || FirebaseAuth.instance.currentUser == null
             ? null
             : MinistryDataDirectory.instance.dashboard,
-        onRefresh: Firebase.apps.isEmpty || FirebaseAuth.instance.currentUser == null
+        onRefresh:
+            Firebase.apps.isEmpty || FirebaseAuth.instance.currentUser == null
             ? null
             : MinistryDataDirectory.instance.refresh,
         onNavigateToAnalytics: () =>
@@ -1841,7 +1905,8 @@ Widget _ministryReports(BuildContext context) {
       data: Firebase.apps.isEmpty || FirebaseAuth.instance.currentUser == null
           ? null
           : MinistryDataDirectory.instance.reportOverview,
-      onRefresh: Firebase.apps.isEmpty || FirebaseAuth.instance.currentUser == null
+      onRefresh:
+          Firebase.apps.isEmpty || FirebaseAuth.instance.currentUser == null
           ? null
           : MinistryDataDirectory.instance.refresh,
       onNavigateToDashboard: () =>

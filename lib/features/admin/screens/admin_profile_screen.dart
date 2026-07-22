@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../widgets/app_state_message.dart';
+import '../../../widgets/biometric_lock_preference_row.dart';
 import '../../../widgets/confirm_dialog.dart';
 import '../../../widgets/language_preference_row.dart';
 import '../../../widgets/profile_action_row.dart';
@@ -9,43 +10,12 @@ import '../../../widgets/profile_edit_action_bar.dart';
 import '../../../widgets/profile_edit_button.dart';
 import '../../../widgets/profile_field_row.dart';
 import '../../../widgets/profile_header_card.dart';
+import '../../../widgets/profile_info_button.dart';
 import '../../../widgets/profile_section.dart';
-import '../../../widgets/status_badge.dart';
+import '../../../widgets/profile_session_section.dart';
 import '../../../widgets/theme_preference_row.dart';
 import '../models/admin_profile_data.dart';
 import '../widgets/admin_scaffold.dart';
-
-const _kMonthNames = [
-  'Jan',
-  'Feb',
-  'Mar',
-  'Apr',
-  'May',
-  'Jun',
-  'Jul',
-  'Aug',
-  'Sep',
-  'Oct',
-  'Nov',
-  'Dec',
-];
-
-String _formatDate(DateTime date) =>
-    '${date.day} ${_kMonthNames[date.month - 1]} ${date.year}';
-
-String _formatActivity(DateTime date) {
-  final now = DateTime.now();
-  if (date.year == now.year && date.month == now.month && date.day == now.day) {
-    return 'Today';
-  }
-  final yesterday = now.subtract(const Duration(days: 1));
-  if (date.year == yesterday.year &&
-      date.month == yesterday.month &&
-      date.day == yesterday.day) {
-    return 'Yesterday';
-  }
-  return _formatDate(date);
-}
 
 /// ADM-008 — Admin Profile.
 ///
@@ -78,16 +48,13 @@ String _formatActivity(DateTime date) {
 /// bottom (the same shape System Settings already uses for its own
 /// dirty-state bar), rather than two controls doing the same job. Only
 /// "Administrator Information" (Full Name/Email/Department) is ever
-/// editable — Admin ID, Security Settings, Administrative Scope, and
-/// Session are all read-only, matching what the export's own Edit/
+/// editable — Admin ID, Security, Administrative Scope, and Session are all
+/// read-only, matching what the export's own Edit/
 /// Validation frames actually show changing.
 ///
-/// "Change Password" opens the shared, cross-module Change Password
-/// screen (see that screen's own doc comment). "Two-factor
-/// authentication" and "Last activity" stay unwired placeholders — no
-/// management workflow or session-list screen is spec'd yet — and render
-/// as plain rows with no chevron rather than a dead tappable affordance
-/// (see [_NavRow]'s own doc comment).
+/// "Change Password" opens the shared, cross-module Change Password screen
+/// (see that screen's own doc comment). Session contains only the explicit
+/// Log Out action rather than read-only activity metadata.
 enum AdminProfileViewState { loading, loaded, offline, error, unauthorized }
 
 class AdminProfileScreen extends StatefulWidget {
@@ -128,7 +95,7 @@ class AdminProfileScreen extends StatefulWidget {
   /// Opens the shared Change Password screen (AppRoutes.changePassword).
   final VoidCallback? onChangePassword;
 
-  /// Fired by the "Sign Out" button. Nullable: there's no real
+  /// Fired by the "Log Out" button. Nullable: there's no real
   /// authentication flow to sign out of yet.
   final VoidCallback? onSignOut;
 
@@ -391,7 +358,20 @@ class _ProfileBody extends StatelessWidget {
         ProfileSection(
           icon: AppIcons.roleManagement,
           title: 'Administrator Information',
-          trailing: editing ? null : ProfileEditButton(onPressed: onStartEdit),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ProfileInfoButton(
+                title: 'Administrative Scope',
+                message: 'This account can access these administrative areas:',
+                items: draft.administrativeScope,
+              ),
+              if (!editing) ...[
+                const SizedBox(width: AppSpacing.xs),
+                ProfileEditButton(onPressed: onStartEdit),
+              ],
+            ],
+          ),
           children: [
             ProfileFieldRow(
               label: 'Full Name',
@@ -420,86 +400,57 @@ class _ProfileBody extends StatelessWidget {
               value: draft.adminId,
               locked: true,
             ),
+            const SizedBox(height: AppSpacing.sm),
+            ProfileFieldRow(
+              label: 'Governance Level',
+              value: draft.governanceLevel,
+              locked: true,
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        const ProfileSection(
+          icon: AppIcons.systemTheme,
+          title: 'System Preferences',
+          children: [
+            ThemePreferenceRow(),
+            Divider(height: AppSpacing.lg),
+            LanguagePreferenceRow(),
+            Divider(height: AppSpacing.lg),
+            BiometricLockPreferenceRow(),
           ],
         ),
         const SizedBox(height: AppSpacing.lg),
         ProfileSection(
           icon: AppIcons.shield,
-          title: 'Security Settings',
+          title: 'Security',
           children: [
             ProfileActionRow(
               icon: AppIcons.password,
               label: 'Change Password',
               onTap: onChangePassword,
             ),
-            const _SubGroupDivider(),
-            const _SubGroupLabel('System Preferences'),
-            const SizedBox(height: AppSpacing.sm),
-            const ThemePreferenceRow(),
-            const Divider(height: AppSpacing.lg),
-            const LanguagePreferenceRow(),
           ],
         ),
-        const SizedBox(height: AppSpacing.lg),
-        ProfileSection(
-          icon: AppIcons.shieldAlert,
-          title: 'Administrative Scope',
-          children: [
-            Wrap(
-              spacing: AppSpacing.xs,
-              runSpacing: AppSpacing.xs,
-              children: [
-                for (final scope in draft.administrativeScope)
-                  TintedBadge(
-                    label: scope,
-                    color: AppColors.primary,
-                    textColor: AppColors.primary,
-                  ),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.md),
-            ProfileFieldRow(
-              label: 'Governance Level',
-              value: draft.governanceLevel,
-              locked: true,
-            ),
-            const _SubGroupDivider(),
-            const _SubGroupLabel('Session'),
-            const SizedBox(height: AppSpacing.sm),
-            ProfileActionRow(
-              icon: AppIcons.activityPulse,
-              label: 'Last activity',
-              trailingLabel: _formatActivity(draft.lastActivity),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton(
-                onPressed: onSignOut == null
-                    ? null
-                    : () async {
-                        final confirmed = await showConfirmDialog(
-                          context,
-                          title: 'Sign out?',
-                          message:
-                              'You\'ll need to sign back in to access the '
-                              'admin console.',
-                          confirmLabel: 'Sign Out',
-                          destructive: true,
-                        );
-                        if (confirmed) onSignOut!();
-                      },
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.error,
-                  side: BorderSide(
-                    color: AppColors.error.withValues(alpha: 0.4),
-                  ),
-                ),
-                child: const Text('Sign Out'),
-              ),
-            ),
-          ],
-        ),
+        if (!editing) ...[
+          const SizedBox(height: AppSpacing.lg),
+          ProfileSessionSection(
+            onLogOut: onSignOut == null
+                ? null
+                : () async {
+                    final confirmed = await showConfirmDialog(
+                      context,
+                      title: 'Log out?',
+                      message:
+                          'You\'ll need to sign back in to access the admin '
+                          'console.',
+                      confirmLabel: 'Log Out',
+                      destructive: true,
+                    );
+                    if (confirmed) onSignOut!();
+                  },
+          ),
+        ],
       ],
     );
   }
@@ -547,42 +498,6 @@ class _Banner extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// A light separator + small caption used to divide two logically distinct
-/// groups sharing one [ProfileSection] card (e.g. Security Settings +
-/// System Preferences) — cuts the section-card count on this screen from
-/// 6 down to 4 without dropping any of the original group labels.
-class _SubGroupDivider extends StatelessWidget {
-  const _SubGroupDivider();
-
-  @override
-  Widget build(BuildContext context) {
-    final outline = Theme.of(context).colorScheme.outlineVariant;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-      child: Divider(
-        height: 1,
-        color: outline.withValues(alpha: outline.a * 0.6),
-      ),
-    );
-  }
-}
-
-class _SubGroupLabel extends StatelessWidget {
-  const _SubGroupLabel(this.text);
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: Theme.of(context).textTheme.labelMedium?.copyWith(
-        color: Theme.of(context).colorScheme.onSurfaceVariant,
       ),
     );
   }

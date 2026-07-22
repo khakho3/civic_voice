@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../widgets/confirm_dialog.dart';
+import '../../../widgets/biometric_lock_preference_row.dart';
 import '../../../widgets/language_preference_row.dart';
 import '../../../widgets/profile_edit_action_bar.dart';
 import '../../../widgets/profile_edit_button.dart';
 import '../../../widgets/profile_field_row.dart';
 import '../../../widgets/profile_header_card.dart';
 import '../../../widgets/profile_section.dart';
+import '../../../widgets/profile_session_section.dart';
 import '../../../widgets/theme_preference_row.dart';
 import '../models/citizen_profile.dart';
 import '../services/profile_crud_service.dart';
@@ -229,30 +231,14 @@ class _CitizenProfileScreenState extends State<CitizenProfileScreen> {
                                     LanguagePreferenceRow(),
                                     Divider(height: AppSpacing.lg),
                                     NearbySecondingPreferenceRow(),
+                                    Divider(height: AppSpacing.lg),
+                                    BiometricLockPreferenceRow(),
                                   ],
                                 ),
                                 if (!_isEditing) ...[
                                   const SizedBox(height: AppSpacing.lg),
-                                  ProfileSection(
-                                    icon: AppIcons.shield,
-                                    title: 'Session',
-                                    children: [
-                                      SizedBox(
-                                        width: double.infinity,
-                                        child: OutlinedButton(
-                                          onPressed: _confirmLogOut,
-                                          style: OutlinedButton.styleFrom(
-                                            foregroundColor: AppColors.error,
-                                            side: BorderSide(
-                                              color: AppColors.error.withValues(
-                                                alpha: 0.4,
-                                              ),
-                                            ),
-                                          ),
-                                          child: const Text('Log Out'),
-                                        ),
-                                      ),
-                                    ],
+                                  ProfileSessionSection(
+                                    onLogOut: _confirmLogOut,
                                   ),
                                 ],
                               ],

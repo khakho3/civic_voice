@@ -6,6 +6,7 @@ import 'package:civic_voice/features/admin/models/admin_role_management_data.dar
 import 'package:civic_voice/features/admin/screens/admin_dashboard_screen.dart';
 import 'package:civic_voice/features/authentication/screens/forgot_password_screen.dart';
 import 'package:civic_voice/features/authentication/screens/change_password_screen.dart';
+import 'package:civic_voice/features/authentication/screens/bio_lock_screen.dart';
 import 'package:civic_voice/features/authentication/screens/login_screen.dart';
 import 'package:civic_voice/features/authentication/screens/otp_verification_screen.dart';
 import 'package:civic_voice/features/authentication/screens/registration_screen.dart';
@@ -18,12 +19,14 @@ import 'package:civic_voice/models/app_role.dart';
 import 'package:civic_voice/models/ghana_assemblies_data.dart';
 import 'package:civic_voice/models/region.dart';
 import 'package:civic_voice/services/api_client.dart';
+import 'package:civic_voice/services/app_cache_service.dart';
 import 'package:civic_voice/services/mock_auth_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
+    await AppCacheService.instance.initialize();
     await MockAuthService().initialize();
     await MockAuthService().clearUser();
     // Widget tests must never hit the real dev backend — point at an
@@ -55,6 +58,32 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Resolve.'), findsOneWidget);
   }
+
+  testWidgets('cold start gates a signed-in user when app lock is enabled', (
+    tester,
+  ) async {
+    await MockAuthService().selectRole(AppRole.citizen);
+    await AppCacheService.instance.setBiometricLockEnabled(true);
+
+    await tester.pumpWidget(const CivicVoiceApp());
+    await tester.pump();
+
+    expect(find.byType(BioLockScreen), findsOneWidget);
+    expect(find.byType(CitizenDashboardScreen), findsNothing);
+  });
+
+  testWidgets('cold start skips app lock when the preference is disabled', (
+    tester,
+  ) async {
+    await MockAuthService().selectRole(AppRole.citizen);
+    await AppCacheService.instance.setBiometricLockEnabled(false);
+
+    await tester.pumpWidget(const CivicVoiceApp());
+    await tester.pump();
+
+    expect(find.byType(BioLockScreen), findsNothing);
+    expect(find.byType(CitizenDashboardScreen), findsOneWidget);
+  });
 
   testWidgets('Mock auth selector chooses Admin dashboard', (
     WidgetTester tester,
@@ -172,15 +201,15 @@ void main() {
       await tester.pump();
 
       // find.byTooltip resolves to Flutter's internal tooltip widget, not
-    // IconButton itself, so casting it directly can throw a bad-cast error
-    // depending on the SDK's tooltip implementation — find the IconButton
-    // by its icon instead, which is stable regardless of that internal.
-    final backButton = tester.widget<IconButton>(
-      find.ancestor(
-        of: find.byIcon(AppIcons.back),
-        matching: find.byType(IconButton),
-      ),
-    );
+      // IconButton itself, so casting it directly can throw a bad-cast error
+      // depending on the SDK's tooltip implementation — find the IconButton
+      // by its icon instead, which is stable regardless of that internal.
+      final backButton = tester.widget<IconButton>(
+        find.ancestor(
+          of: find.byIcon(AppIcons.back),
+          matching: find.byType(IconButton),
+        ),
+      );
       expect(backButton.onPressed, isNull);
       expect(tester.takeException(), isNull);
     }

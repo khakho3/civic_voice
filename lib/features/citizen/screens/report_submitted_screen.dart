@@ -210,8 +210,6 @@ class _ReferenceCard extends StatelessWidget {
           const _StatusPill(),
           const SizedBox(height: AppSpacing.sm),
           Text('Submitted just now', style: theme.textTheme.bodySmall),
-          const SizedBox(height: AppSpacing.lg),
-          const _EstimateBox(),
         ],
       ),
     );
@@ -239,44 +237,6 @@ class _StatusPill extends StatelessWidget {
           color: AppColors.success,
           fontWeight: AppFontWeight.bold,
         ),
-      ),
-    );
-  }
-}
-
-class _EstimateBox extends StatelessWidget {
-  const _EstimateBox();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerLow,
-        borderRadius: AppRadius.allMd,
-      ),
-      child: Row(
-        children: [
-          const Icon(AppIcons.statusUnderReview, color: AppColors.primary),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Review Estimate', style: theme.textTheme.bodyMedium),
-                Text(
-                  'Within 24-48 hours',
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: AppFontWeight.semiBold,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -310,7 +270,7 @@ class _TimelineSection extends StatelessWidget {
         const _TimelineStep(
           status: _TimelineStatus.current,
           title: 'Under Review',
-          subtitle: 'Estimated: Pending initial validation',
+          subtitle: 'Pending initial validation',
         ),
         const _TimelineStep(
           status: _TimelineStatus.future,

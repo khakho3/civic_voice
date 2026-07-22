@@ -99,6 +99,7 @@ abstract final class AppIcons {
   static const IconData visibilityOn = LucideIcons.eye;
   static const IconData visibilityOff = LucideIcons.eyeOff;
   static const IconData idCard = LucideIcons.idCard;
+  static const IconData biometricLock = LucideIcons.fingerprintPattern;
 
   // Role & module iconography (Screen Specifications Standard role prefixes).
   static const IconData citizen = LucideIcons.user;

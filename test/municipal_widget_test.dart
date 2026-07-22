@@ -1786,6 +1786,8 @@ void main() {
     expect(find.text('Springfield District'), findsOneWidget);
     expect(find.text('Greater Accra'), findsOneWidget);
     expect(find.text('Change Password'), findsOneWidget);
+    expect(find.text('Session'), findsOneWidget);
+    expect(find.text('Log Out'), findsOneWidget);
     expect(find.text('Two-Factor Authentication'), findsNothing);
     expect(find.text('Login Sessions'), findsNothing);
 
@@ -1881,7 +1883,7 @@ void main() {
   );
 
   testWidgets(
-    'Municipal Profile kebab menu offers only Edit Profile and Log Out',
+    'Municipal Profile kebab menu keeps only the Edit Profile action',
     (WidgetTester tester) async {
       tester.view.physicalSize = const Size(428, 2600);
       tester.view.devicePixelRatio = 1.0;
@@ -1901,6 +1903,8 @@ void main() {
 
       expect(find.text('Edit Profile'), findsOneWidget);
       expect(find.text('Settings'), findsNothing);
+      // Log Out remains a single, dedicated Session-section action rather
+      // than being duplicated in the profile menu.
       expect(find.text('Log Out'), findsOneWidget);
     },
   );
@@ -1923,8 +1927,6 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byIcon(AppIcons.more));
-      await tester.pumpAndSettle();
       await tester.tap(find.text('Log Out'));
       await tester.pumpAndSettle();
 
@@ -1939,8 +1941,6 @@ void main() {
 
       // Confirming via the dialog's own button (shares the trigger item's
       // label, hence .last) does log out.
-      await tester.tap(find.byIcon(AppIcons.more));
-      await tester.pumpAndSettle();
       await tester.tap(find.text('Log Out'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Log Out').last);

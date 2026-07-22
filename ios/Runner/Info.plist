@@ -32,6 +32,8 @@
 		<string>Civic Voice uses your current location to send the exact report location to municipal teams.</string>
 		<key>NSPhotoLibraryUsageDescription</key>
 		<string>Civic Voice needs photo library access so you can attach existing photos to civic reports.</string>
+		<key>NSFaceIDUsageDescription</key>
+		<string>Civic Voice uses Face ID to verify it's you when you open or return to the app.</string>
 		<key>GoogleMapsApiKey</key>
 		<string>$(GOOGLE_MAPS_API_KEY)</string>
 		<key>UIApplicationSceneManifest</key>

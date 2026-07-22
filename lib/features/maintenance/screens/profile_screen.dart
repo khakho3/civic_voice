@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:civic_voice/core/theme/app_theme.dart';
 
 import '../../../widgets/confirm_dialog.dart';
+import '../../../widgets/biometric_lock_preference_row.dart';
 import '../../../widgets/language_preference_row.dart';
 import '../../../widgets/profile_action_row.dart';
 import '../../../widgets/profile_edit_action_bar.dart';
@@ -9,6 +10,7 @@ import '../../../widgets/profile_edit_button.dart';
 import '../../../widgets/profile_field_row.dart';
 import '../../../widgets/profile_header_card.dart';
 import '../../../widgets/profile_section.dart';
+import '../../../widgets/profile_session_section.dart';
 import '../../../widgets/status_badge.dart';
 import '../../../widgets/theme_preference_row.dart';
 import '../models/maintenance_profile.dart';
@@ -254,8 +256,6 @@ class _ProfileForm extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final colorScheme = Theme.of(context).colorScheme;
     final semantic = Theme.of(context).extension<AppSemanticColors>()!;
     final chromeInset = MaintenanceScaffold.contentPadding(context);
 
@@ -274,15 +274,6 @@ class _ProfileForm extends StatelessWidget {
                   editing ? AppSpacing.md : chromeInset.bottom + AppSpacing.xl,
                 ),
                 children: [
-                  Text('My Profile', style: textTheme.headlineSmall),
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(
-                    'Manage professional credentials',
-                    style: textTheme.bodyMedium?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
                   if (changesSaved) ...[
                     _SavedBanner(semantic: semantic),
                     const SizedBox(height: AppSpacing.md),
@@ -360,6 +351,18 @@ class _ProfileForm extends StatelessWidget {
                   ),
                   const SizedBox(height: AppSpacing.lg),
                   ProfileSection(
+                    icon: AppIcons.systemTheme,
+                    title: 'System Preferences',
+                    children: const [
+                      ThemePreferenceRow(),
+                      Divider(height: AppSpacing.lg),
+                      LanguagePreferenceRow(),
+                      Divider(height: AppSpacing.lg),
+                      BiometricLockPreferenceRow(),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  ProfileSection(
                     icon: AppIcons.shield,
                     title: 'Security',
                     children: [
@@ -368,32 +371,12 @@ class _ProfileForm extends StatelessWidget {
                         label: 'Change Password',
                         onTap: onChangePassword,
                       ),
-                      const SizedBox(height: AppSpacing.md),
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton(
-                          onPressed: onLogOut,
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: AppColors.error,
-                            side: BorderSide(
-                              color: AppColors.error.withValues(alpha: 0.4),
-                            ),
-                          ),
-                          child: const Text('Log Out'),
-                        ),
-                      ),
                     ],
                   ),
-                  const SizedBox(height: AppSpacing.lg),
-                  ProfileSection(
-                    icon: AppIcons.systemTheme,
-                    title: 'System Preferences',
-                    children: const [
-                      ThemePreferenceRow(),
-                      Divider(height: AppSpacing.lg),
-                      LanguagePreferenceRow(),
-                    ],
-                  ),
+                  if (!editing) ...[
+                    const SizedBox(height: AppSpacing.lg),
+                    ProfileSessionSection(onLogOut: onLogOut),
+                  ],
                 ],
               ),
             ),

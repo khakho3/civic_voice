@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/theme/app_theme.dart';
 import '../../../services/app_cache_service.dart';
+import '../../../widgets/glass_dialog_backdrop.dart';
 
 class NearbySecondingPreferenceRow extends StatefulWidget {
   const NearbySecondingPreferenceRow({super.key});
@@ -25,6 +27,26 @@ class _NearbySecondingPreferenceRowState
     await AppCacheService.instance.setNearbySecondingEnabled(value);
   }
 
+  Future<void> _showHelp() async {
+    await showDialog<void>(
+      context: context,
+      builder: (context) => GlassDialogBackdrop(
+        child: AlertDialog(
+          title: const Text('Nearby Reports'),
+          content: const Text(
+            'Shows one nearby report you can help confirm when you open the dashboard. Your location is not tracked in the background.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Close'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
@@ -34,9 +56,29 @@ class _NearbySecondingPreferenceRowState
         contentPadding: EdgeInsets.zero,
         value: _enabled,
         onChanged: _setEnabled,
-        title: Text('Nearby report confirmations', style: textTheme.bodyLarge),
-        subtitle: const Text(
-          "Show a card when you're near an unconfirmed report you could help verify",
+        title: Row(
+          children: [
+            Flexible(
+              child: Text(
+                'Nearby Reports',
+                style: textTheme.bodyLarge,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            IconButton(
+              onPressed: _showHelp,
+              tooltip: 'About Nearby Reports',
+              iconSize: AppIconSize.sm,
+              visualDensity: VisualDensity.compact,
+              constraints: const BoxConstraints.tightFor(
+                width: AppSpacing.xl,
+                height: AppSpacing.xl,
+              ),
+              icon: const Icon(AppIcons.info),
+            ),
+          ],
         ),
       ),
     );

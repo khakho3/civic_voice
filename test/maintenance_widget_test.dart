@@ -226,10 +226,7 @@ void main() {
     await tester.tap(find.text('Save Update'));
     await tester.pumpAndSettle();
 
-    expect(
-      find.text('Attach 3 photos to mark this completed.'),
-      findsWidgets,
-    );
+    expect(find.text('Attach 3 photos to mark this completed.'), findsWidgets);
 
     await tester.enterText(find.byType(EditableText).first, '');
     await tester.tap(find.text('Failed'));
@@ -449,7 +446,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('My Profile'), findsOneWidget);
+    expect(find.text('Profile'), findsWidgets);
     // Matches both the header's name display and the now-editable Full
     // Name field's current value — the real Admin-provisioned account
     // (Yaw Asare, MNT-000004) this screen now reads from.
@@ -640,6 +637,11 @@ void main() {
       expect(find.text('Save Changes'), findsNothing);
       expect(find.text('Cancel'), findsNothing);
       expect(find.byIcon(AppIcons.edit), findsOneWidget);
+      expect(find.text('System Preferences'), findsOneWidget);
+      expect(find.text('Security'), findsOneWidget);
+      expect(find.text('Session'), findsOneWidget);
+      expect(find.text('Change Password'), findsOneWidget);
+      expect(find.text('Log Out'), findsOneWidget);
 
       await tester.tap(find.byIcon(AppIcons.edit));
       await tester.pumpAndSettle();

@@ -19,7 +19,7 @@ class MinistryProfileData {
   final String phone;
 
   /// "Supervisor" / "Read-only module" / "Analytics access" — read-only
-  /// tags in the Account Metadata card, not user-editable.
+  /// details in the Account Access info dialog, not user-editable.
   final List<String> metadataBadges;
   final String publicId;
 

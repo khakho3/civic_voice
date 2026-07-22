@@ -94,6 +94,22 @@ class ReportCategoryClassifier {
       'drown',
       'trapped',
       'emergency',
+      // Plain-language words for infrastructure that's become actively
+      // hazardous — a citizen describing a dangerous wire/cable/pole
+      // almost never says "electrocution risk", they say "unprotected",
+      // "exposed", "bare", "downed", "dangling", "sparking", "faulty".
+      // Without these, a report like "unprotected electric wire" scores
+      // 0 here but 1 on Infrastructure's own 'wire' keyword and loses
+      // outright — these close that gap via the tie-break rule below
+      // ('live' is deliberately excluded: too many citizens open a
+      // report with "I live near/at ..." for it to be a safe signal).
+      'unprotected',
+      'exposed',
+      'bare',
+      'downed',
+      'dangling',
+      'sparking',
+      'faulty',
     ],
     ReportCategory.infrastructure: [
       'road',

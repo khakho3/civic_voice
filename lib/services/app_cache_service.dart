@@ -18,20 +18,30 @@ class AppCacheService {
   static const _reportDraftKey = 'citizen_report_draft_v1';
   static const _secondingSeenReportIdsKey = 'seconding_seen_report_ids_v1';
   static const _nearbySecondingEnabledKey = 'nearby_seconding_enabled_v1';
+  static const _biometricLockEnabledKey = 'biometric_lock_enabled_v1';
 
   SharedPreferences? _preferences;
   ReportDraft? _reportDraft;
+  int _reportDraftClearGeneration = 0;
 
   bool get onboardingComplete =>
       _preferences?.getBool(_onboardingCompleteKey) ?? false;
   bool get keepSignedIn => _preferences?.getBool(_keepSignedInKey) ?? false;
   bool get nearbySecondingEnabled =>
       _preferences?.getBool(_nearbySecondingEnabledKey) ?? true;
+  bool get biometricLockEnabled =>
+      _preferences?.getBool(_biometricLockEnabledKey) ?? false;
   Set<String> get secondingSeenIds =>
       (_preferences?.getStringList(_secondingSeenReportIdsKey) ??
               const <String>[])
           .toSet();
   ReportDraft? get reportDraft => _reportDraft;
+
+  /// Changes whenever a completed report explicitly clears its draft. A
+  /// report form can capture this value when it opens and avoid saving stale
+  /// in-memory fields during disposal if completion cleared the draft while
+  /// that form was still underneath the submission flow.
+  int get reportDraftClearGeneration => _reportDraftClearGeneration;
 
   Future<void> initialize() async {
     _preferences = await SharedPreferences.getInstance();
@@ -86,6 +96,12 @@ class AppCacheService {
     final preferences = _preferences ?? await SharedPreferences.getInstance();
     _preferences = preferences;
     await preferences.setBool(_nearbySecondingEnabledKey, value);
+  }
+
+  Future<void> setBiometricLockEnabled(bool value) async {
+    final preferences = _preferences ?? await SharedPreferences.getInstance();
+    _preferences = preferences;
+    await preferences.setBool(_biometricLockEnabledKey, value);
   }
 
   Future<void> markSecondingSeen(String reportId) async {
@@ -169,6 +185,7 @@ class AppCacheService {
   Future<void> clearReportDraft() async {
     final cachedPaths = _reportDraft?.photoPaths ?? const <String>[];
     _reportDraft = null;
+    _reportDraftClearGeneration++;
     final preferences = _preferences ?? await SharedPreferences.getInstance();
     _preferences = preferences;
     await preferences.remove(_reportDraftKey);

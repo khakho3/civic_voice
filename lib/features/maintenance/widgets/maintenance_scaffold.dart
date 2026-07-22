@@ -18,9 +18,7 @@ import '../services/maintenance_task_directory.dart';
 enum MaintenanceTab {
   dashboard(label: 'Home', icon: AppIcons.home, headerTitle: 'CivicVoice'),
   tasks(label: 'Tasks', icon: AppIcons.task, headerTitle: 'Assigned Tasks'),
-  // Deliberately just "Profile", not "My Profile" — the profile body's own
-  // headline already reads "My Profile"; a matching header title would
-  // duplicate that text on-screen for no reason.
+  // Matches the concise title used by the other module profile screens.
   profile(label: 'Profile', icon: AppIcons.profile, headerTitle: 'Profile');
 
   const MaintenanceTab({
@@ -127,7 +125,11 @@ class MaintenanceScaffold extends StatelessWidget {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({required this.tab, this.onNotificationsTap, this.onProfileTap});
+  const _Header({
+    required this.tab,
+    this.onNotificationsTap,
+    this.onProfileTap,
+  });
 
   final MaintenanceTab tab;
   final VoidCallback? onNotificationsTap;

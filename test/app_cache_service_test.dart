@@ -48,6 +48,20 @@ void main() {
     },
   );
 
+  test(
+    'persists biometric app-lock preference with a default of off',
+    () async {
+      expect(AppCacheService.instance.biometricLockEnabled, isFalse);
+
+      await AppCacheService.instance.setBiometricLockEnabled(true);
+      await AppCacheService.instance.initialize();
+      expect(AppCacheService.instance.biometricLockEnabled, isTrue);
+
+      await AppCacheService.instance.setBiometricLockEnabled(false);
+      expect(AppCacheService.instance.biometricLockEnabled, isFalse);
+    },
+  );
+
   test('persists report ids already seen for nearby confirmation', () async {
     expect(AppCacheService.instance.secondingSeenIds, isEmpty);
 
@@ -169,4 +183,38 @@ void main() {
     expect(values, contains('The junction is unsafe at night.'));
     expect(find.text('Independence Avenue, Accra'), findsWidgets);
   });
+
+  testWidgets(
+    'completed report disposal does not resurrect the cleared draft',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(theme: AppTheme.light, home: const CreateReportScreen()),
+      );
+      await tester.pump();
+
+      final fields = find.byType(TextField);
+      await tester.enterText(fields.at(0), 'Already submitted title');
+      await tester.enterText(fields.at(1), 'Already submitted description');
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(AppCacheService.instance.reportDraft?.title, isNotEmpty);
+
+      await AppCacheService.instance.clearReportDraft();
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+
+      expect(AppCacheService.instance.reportDraft, isNull);
+
+      await tester.pumpWidget(
+        MaterialApp(theme: AppTheme.light, home: const CreateReportScreen()),
+      );
+      await tester.pump();
+
+      final restoredValues = tester
+          .widgetList<TextField>(find.byType(TextField))
+          .map((field) => field.controller?.text)
+          .toList();
+      expect(restoredValues, isNot(contains('Already submitted title')));
+      expect(restoredValues, isNot(contains('Already submitted description')));
+    },
+  );
 }

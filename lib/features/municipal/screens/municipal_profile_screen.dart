@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../widgets/confirm_dialog.dart';
+import '../../../widgets/biometric_lock_preference_row.dart';
 import '../../../widgets/kebab_menu_button.dart';
 import '../../../widgets/language_preference_row.dart';
 import '../../../widgets/profile_action_row.dart';
@@ -9,6 +10,7 @@ import '../../../widgets/profile_edit_action_bar.dart';
 import '../../../widgets/profile_field_row.dart';
 import '../../../widgets/profile_header_card.dart';
 import '../../../widgets/profile_section.dart';
+import '../../../widgets/profile_session_section.dart';
 import '../../../widgets/status_badge.dart';
 import '../../../widgets/theme_preference_row.dart';
 import '../models/officer_profile.dart';
@@ -186,14 +188,17 @@ class _MunicipalProfileScreenState extends State<MunicipalProfileScreen> {
                       MunicipalProfileViewState.loaded => _ProfileView(
                         profile: _profile,
                         onChangePassword: widget.onChangePassword,
+                        onLogOut: _confirmLogOut,
                       ),
                       MunicipalProfileViewState.success => _ProfileView(
                         profile: _profile,
                         onChangePassword: widget.onChangePassword,
+                        onLogOut: _confirmLogOut,
                       ),
                       MunicipalProfileViewState.offline => _ProfileView(
                         profile: _profile,
                         onChangePassword: widget.onChangePassword,
+                        onLogOut: _confirmLogOut,
                       ),
                       MunicipalProfileViewState.editing ||
                       MunicipalProfileViewState.error => _ProfileEditForm(
@@ -237,10 +242,6 @@ class _MunicipalProfileScreenState extends State<MunicipalProfileScreen> {
                         PopupMenuItem(
                           onTap: _startEditing,
                           child: const Text('Edit Profile'),
-                        ),
-                        PopupMenuItem(
-                          onTap: _confirmLogOut,
-                          child: const Text('Log Out'),
                         ),
                       ],
                     ),
@@ -329,10 +330,15 @@ class _SuccessBanner extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _ProfileView extends StatelessWidget {
-  const _ProfileView({required this.profile, this.onChangePassword});
+  const _ProfileView({
+    required this.profile,
+    this.onChangePassword,
+    this.onLogOut,
+  });
 
   final OfficerProfile profile;
   final VoidCallback? onChangePassword;
+  final VoidCallback? onLogOut;
 
   @override
   Widget build(BuildContext context) {
@@ -383,6 +389,8 @@ class _ProfileView extends StatelessWidget {
             ThemePreferenceRow(),
             Divider(height: AppSpacing.lg),
             LanguagePreferenceRow(),
+            Divider(height: AppSpacing.lg),
+            BiometricLockPreferenceRow(),
           ],
         ),
         const SizedBox(height: AppSpacing.lg),
@@ -397,6 +405,8 @@ class _ProfileView extends StatelessWidget {
             ),
           ],
         ),
+        const SizedBox(height: AppSpacing.lg),
+        ProfileSessionSection(onLogOut: onLogOut),
       ],
     );
   }
