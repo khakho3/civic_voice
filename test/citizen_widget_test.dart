@@ -10,6 +10,7 @@ import 'package:civic_voice/features/citizen/widgets/nearby_seconding_card.dart'
 import 'package:civic_voice/features/citizen/widgets/nearby_seconding_preference_row.dart';
 import 'package:civic_voice/main.dart' as app;
 import 'package:civic_voice/services/app_cache_service.dart';
+import 'package:civic_voice/utils/time_greeting.dart';
 import 'package:civic_voice/widgets/evidence_image_viewer.dart';
 import 'package:civic_voice/widgets/glass_dialog_backdrop.dart';
 import 'package:flutter/material.dart';
@@ -303,7 +304,7 @@ void main() {
       );
       await tester.pump();
 
-      expect(find.text('Good Morning, Citizen'), findsOneWidget);
+      expect(find.text('${timeBasedGreeting()}, Citizen'), findsOneWidget);
       expect(find.text('Report a Community Issue'), findsOneWidget);
       expect(find.text('Report Now'), findsOneWidget);
     },
@@ -330,7 +331,7 @@ void main() {
       );
       await tester.pump();
 
-      expect(find.text('Good Morning, Citizen'), findsOneWidget);
+      expect(find.text('${timeBasedGreeting()}, Citizen'), findsOneWidget);
 
       await tester.tap(find.text('View My Reports').first);
       await tester.pumpAndSettle();

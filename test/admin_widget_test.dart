@@ -23,6 +23,7 @@ import 'package:civic_voice/features/admin/screens/admin_user_management_screen.
 import 'package:civic_voice/features/admin/services/admin_user_directory.dart';
 import 'package:civic_voice/features/admin/services/admin_system_settings_directory.dart';
 import 'package:civic_voice/models/app_role.dart';
+import 'package:civic_voice/utils/time_greeting.dart';
 import 'package:civic_voice/widgets/app_dropdown_field.dart';
 import 'package:civic_voice/widgets/glass_dialog_backdrop.dart';
 import 'package:civic_voice/models/ghana_assemblies_data.dart';
@@ -369,7 +370,7 @@ void main() {
 
       expect(find.text('Platform Overview'), findsNothing);
       // "Efua Darko" is the seeded Admin-tier account for Kumasi.
-      expect(find.text('Good Morning, Efua Darko'), findsOneWidget);
+      expect(find.text('${timeBasedGreeting()}, Efua Darko'), findsOneWidget);
       expect(find.text('Kumasi Metropolitan Assembly'), findsOneWidget);
       expect(find.textContaining('API:'), findsNothing);
     },

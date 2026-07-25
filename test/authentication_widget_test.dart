@@ -13,6 +13,7 @@ import 'package:civic_voice/features/authentication/screens/registration_screen.
 import 'package:civic_voice/features/authentication/screens/set_new_password_screen.dart';
 import 'package:civic_voice/features/authentication/screens/test_role_selector_screen.dart';
 import 'package:civic_voice/features/authentication/screens/welcome_screen.dart';
+import 'package:civic_voice/features/authentication/widgets/auth_presentation.dart';
 import 'package:civic_voice/features/citizen/screens/citizen_dashboard_screen.dart';
 import 'package:civic_voice/main.dart';
 import 'package:civic_voice/models/app_role.dart';
@@ -369,6 +370,7 @@ void main() {
 
     final createAccount = find.widgetWithText(FilledButton, 'Create Account');
     await tester.ensureVisible(createAccount);
+    await tester.pumpAndSettle();
     await tester.tap(createAccount);
     await tester.pumpAndSettle();
 
@@ -491,7 +493,10 @@ void main() {
         .resolve(TextDirection.ltr);
     expect(keyboardPadding.bottom, AppSpacing.lg + 340);
 
-    await tester.tap(find.byType(TextFormField).last);
+    final finalField = find.byType(TextFormField).last;
+    await tester.ensureVisible(finalField);
+    await tester.pumpAndSettle();
+    await tester.tap(finalField);
     await tester.pump();
     final createAccount = find.widgetWithText(FilledButton, 'Create Account');
     await tester.ensureVisible(createAccount);
@@ -507,6 +512,79 @@ void main() {
         .resolve(TextDirection.ltr);
     expect(closedPadding.bottom, AppSpacing.lg);
     expect(tester.getSize(scrollView).height, fullHeight);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Only Login and Registration use the illustration hero', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(428, 1200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    Finder imageUsing(String assetName) => find.byWidgetPredicate(
+      (widget) =>
+          widget is Image &&
+          widget.image is AssetImage &&
+          (widget.image as AssetImage).assetName == assetName,
+    );
+
+    final cases = [
+      (screen: const LoginScreen(), theme: AppTheme.light),
+      (screen: const RegistrationScreen(), theme: AppTheme.dark),
+    ];
+
+    for (final testCase in cases) {
+      await tester.pumpWidget(
+        MaterialApp(theme: testCase.theme, home: testCase.screen),
+      );
+      await tester.pump();
+
+      expect(find.byType(AuthIllustrationHero), findsOneWidget);
+      expect(imageUsing(AppAssets.authHero), findsOneWidget);
+      expect(imageUsing(AppAssets.logoApp), findsNothing);
+      expect(
+        tester.getSize(imageUsing(AppAssets.authHero)),
+        tester.getSize(find.byType(Scaffold)),
+      );
+      final heroImage = tester.widget<Image>(imageUsing(AppAssets.authHero));
+      expect(heroImage.fit, BoxFit.cover);
+      expect(heroImage.alignment, Alignment.topCenter);
+      expect(find.byType(BackdropFilter), findsNWidgets(2));
+      expect(find.byType(AuthFormSurface), findsNothing);
+      final resolvedSemantic = Theme.of(
+        tester.element(find.byType(AuthIllustrationHero)),
+      ).extension<AppSemanticColors>()!;
+      final glassSurface = find.byWidgetPredicate(
+        (widget) =>
+            widget is ColoredBox &&
+            widget.color == resolvedSemantic.glassSurface,
+      );
+      expect(glassSurface, findsOneWidget);
+      final expectedBackSurface = resolvedSemantic.glassSurface.withValues(
+        alpha: resolvedSemantic.glassBorder.a,
+      );
+      final glassBackSurface = find.byWidgetPredicate(
+        (widget) =>
+            widget is DecoratedBox &&
+            widget.decoration is BoxDecoration &&
+            (widget.decoration as BoxDecoration).color == expectedBackSurface,
+      );
+      expect(glassBackSurface, findsOneWidget);
+      expect(tester.takeException(), isNull);
+    }
+
+    await tester.pumpWidget(
+      MaterialApp(theme: AppTheme.dark, home: const ForgotPasswordScreen()),
+    );
+    await tester.pump();
+
+    expect(find.byType(AuthIllustrationHero), findsNothing);
+    expect(imageUsing(AppAssets.authHero), findsNothing);
+    expect(imageUsing(AppAssets.logoApp), findsOneWidget);
+    expect(find.byType(BackdropFilter), findsNothing);
+    expect(find.byType(AuthFormSurface), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

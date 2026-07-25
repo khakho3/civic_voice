@@ -23,6 +23,7 @@ import 'package:civic_voice/models/ghana_assemblies_data.dart';
 import 'package:civic_voice/models/region.dart';
 import 'package:civic_voice/models/report_status.dart';
 import 'package:civic_voice/models/team_availability.dart';
+import 'package:civic_voice/utils/time_greeting.dart';
 import 'package:civic_voice/services/notification_directory.dart';
 import 'package:civic_voice/widgets/collapsible_list_header.dart';
 
@@ -139,7 +140,10 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Good Morning, Alex Johnston'), findsOneWidget);
+      expect(
+        find.text('${timeBasedGreeting()}, Alex Johnston'),
+        findsOneWidget,
+      );
       expect(find.text('Springfield District'), findsOneWidget);
       // A chevron-down is the "tap to open a picker" affordance — it must
       // not be present now that officers can't self-select a municipality.

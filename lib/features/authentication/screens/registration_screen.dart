@@ -142,6 +142,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       title: 'Create Account',
       supportingText:
           'Create your Citizen account to report and track civic issues.',
+      showIllustrationHero: true,
       form: Form(
         key: _formKey,
         child: Column(

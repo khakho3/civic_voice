@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/ghana_refresh_indicator.dart';
 import '../../../models/assembly.dart';
+import '../../../utils/time_greeting.dart';
 import '../../../widgets/app_state_message.dart';
 import '../../../widgets/glass_card.dart';
 import '../../../widgets/stat_tile.dart';
@@ -395,8 +396,9 @@ class _ApiStatusBadgeState extends State<_ApiStatusBadge>
 }
 
 /// Assembly-scoped ("normal", non-Super) Admin sessions get the same
-/// "Good Morning" + jurisdiction treatment Municipal Officer's own Dashboard
-/// greeting already has — Super Admin keeps "Platform Overview" instead
+/// time-based greeting + jurisdiction treatment Municipal Officer's own
+/// Dashboard greeting already has — Super Admin keeps "Platform Overview"
+/// instead
 /// (see the switch above), since a national session has no single assembly
 /// to greet them with.
 class _AdminGreeting extends StatelessWidget {
@@ -419,7 +421,7 @@ class _AdminGreeting extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Good Morning, $name', style: textTheme.headlineSmall),
+        Text('${timeBasedGreeting()}, $name', style: textTheme.headlineSmall),
         if (assembly != null) ...[
           const SizedBox(height: AppSpacing.xs),
           Row(

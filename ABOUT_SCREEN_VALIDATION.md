@@ -5,7 +5,7 @@ Date: 2026-07-22
 ## Completed Work
 
 - Added the shared `AboutScreen` at `lib/features/authentication/screens/about_screen.dart`.
-- Added the CivicVoice logo, the supplied tagline and paragraphs verbatim, the Built By team section, five linked LinkedIn names, the linked `eraxis.com` acknowledgment, and the live app version/build footer.
+- Added the CivicVoice logo, the supplied tagline and paragraphs verbatim, the Built By team section, five linked LinkedIn names, the linked `eraaxis.com` acknowledgment, and the live app version/build footer.
 - Added `package_info_plus: ^10.2.1` as a direct dependency and resolved the lockfile.
 - Added `AppRoutes.about` and registered the route beside the shared Change Password route.
 - Added an About section and `About CivicVoice` action to the Admin, Municipal, Ministry, Maintenance, and Citizen profile screens.

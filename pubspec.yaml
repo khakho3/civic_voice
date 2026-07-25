@@ -112,6 +112,7 @@ flutter:
     - assets/branding/logo.svg
     - assets/branding/logo.png
     - assets/branding/logo_app.png
+    - assets/branding/auth_hero.png
     - assets/branding/icon_flat.png
     - assets/branding/favicon.png
     - assets/branding/onboarding_report.jpg

@@ -29,7 +29,7 @@ class AboutScreen extends StatefulWidget {
 }
 
 class _AboutScreenState extends State<AboutScreen> {
-  static final Uri _eraAxisUrl = Uri.parse('https://eraxis.com');
+  static final Uri _eraAxisUrl = Uri.parse('https://eraaxis.com');
   static final Uri _lecturerUrl = Uri.parse(
     'https://www.linkedin.com/in/mark-kofi-amoani-mensah-7a7072b1',
   );

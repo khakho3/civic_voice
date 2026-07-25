@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:civic_voice/core/theme/app_theme.dart';
 
 import '../../../core/widgets/ghana_refresh_indicator.dart';
+import '../../../utils/time_greeting.dart';
 import '../../../widgets/glass_card.dart';
 import '../../../widgets/status_badge.dart';
 import '../models/maintenance_task.dart';
@@ -134,7 +135,7 @@ class _DashboardContent extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      'Good Morning, '
+                      '${timeBasedGreeting()}, '
                       '${MaintenanceSession.instance.profile.value.firstName}',
                       style: textTheme.headlineSmall,
                       overflow: TextOverflow.ellipsis,

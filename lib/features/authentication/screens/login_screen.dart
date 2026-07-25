@@ -82,6 +82,7 @@ class _LoginScreenState extends State<LoginScreen> {
       onBack: widget.onBack,
       title: 'Welcome Back',
       supportingText: 'Sign in to continue to CivicVoice.',
+      showIllustrationHero: true,
       form: Form(
         key: _formKey,
         child: Column(

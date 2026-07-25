@@ -5,6 +5,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/ghana_refresh_indicator.dart';
 import '../../../services/api_client.dart';
 import '../../../services/app_cache_service.dart';
+import '../../../utils/time_greeting.dart';
 import '../widgets/civic_glass_card.dart';
 import '../widgets/civic_status_panel.dart';
 import '../models/citizen_profile.dart';
@@ -509,7 +510,7 @@ class _DashboardContent extends StatelessWidget {
           ),
           children: [
             Text(
-              'Good Morning, ${displayName.trim().isEmpty ? 'Citizen' : displayName.trim()}',
+              '${timeBasedGreeting()}, ${displayName.trim().isEmpty ? 'Citizen' : displayName.trim()}',
               style: compact
                   ? theme.textTheme.headlineMedium
                   : theme.textTheme.headlineLarge,
@@ -619,7 +620,7 @@ class _DashboardEmptyContent extends StatelessWidget {
           ),
           children: [
             Text(
-              'Good Morning, ${displayName.trim().isEmpty ? 'Citizen' : displayName.trim()}',
+              '${timeBasedGreeting()}, ${displayName.trim().isEmpty ? 'Citizen' : displayName.trim()}',
               style: compact
                   ? theme.textTheme.headlineMedium
                   : theme.textTheme.headlineLarge,

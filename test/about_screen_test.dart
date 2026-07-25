@@ -66,7 +66,7 @@ void main() {
     }
     expect(find.text('Acknowledgments'), findsOneWidget);
     expect(find.text('Mark Kofi Amoani Mensah'), findsOneWidget);
-    expect(find.text('eraxis.com'), findsOneWidget);
+    expect(find.text('eraaxis.com'), findsOneWidget);
     expect(find.text('Version 1.2.3 (45)'), findsOneWidget);
     expect(find.textContaining('https://'), findsNothing);
   });
@@ -94,13 +94,13 @@ void main() {
 
     await tester.tap(find.text('Kingsley Anorful'));
     await tester.tap(find.text('Mark Kofi Amoani Mensah'));
-    await tester.tap(find.text('eraxis.com'));
+    await tester.tap(find.text('eraaxis.com'));
     await tester.pump();
 
     expect(launched, [
       Uri.parse('https://www.linkedin.com/in/kingsley-anorful-9070a3350'),
       Uri.parse('https://www.linkedin.com/in/mark-kofi-amoani-mensah-7a7072b1'),
-      Uri.parse('https://eraxis.com'),
+      Uri.parse('https://eraaxis.com'),
     ]);
     expect(launched.every((uri) => !uri.hasQuery), isTrue);
   });

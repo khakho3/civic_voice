@@ -10,6 +10,7 @@ import 'package:civic_voice/features/maintenance/models/maintenance_task.dart';
 import 'package:civic_voice/features/maintenance/screens/task_details_screen.dart';
 import 'package:civic_voice/features/maintenance/services/maintenance_task_directory.dart';
 import 'package:civic_voice/main.dart' as app;
+import 'package:civic_voice/utils/time_greeting.dart';
 
 class _FakeImagePickerPlatform extends ImagePickerPlatform {
   int _counter = 0;
@@ -130,7 +131,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Good Morning, Yaw'), findsOneWidget);
+    expect(find.text('${timeBasedGreeting()}, Yaw'), findsOneWidget);
     expect(find.text('Weekly Completion'), findsOneWidget);
     expect(find.text('Scheduled Work'), findsOneWidget);
     expect(tester.takeException(), isNull);
@@ -362,7 +363,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Good Morning, Yaw'), findsOneWidget);
+    expect(find.text('${timeBasedGreeting()}, Yaw'), findsOneWidget);
     expect(find.text('Scheduled Work'), findsOneWidget);
 
     await tester.tap(find.text('Tasks'));

@@ -18,6 +18,9 @@ abstract final class AppAssets {
   /// In-app usage logo (e.g. app bar, splash, empty states).
   static const String logoApp = 'assets/branding/logo_app.png';
 
+  /// Illustration hero used by the Login and Registration screens.
+  static const String authHero = 'assets/branding/auth_hero.png';
+
   /// The same source as the app's launcher icon, for full-bleed in-app branding.
   static const String iconFlat = 'assets/branding/icon_flat.png';
 

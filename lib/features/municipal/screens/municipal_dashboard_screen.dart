@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../utils/time_greeting.dart';
 import '../models/dashboard_data.dart';
 import '../models/incoming_report.dart';
 import '../services/municipal_report_directory.dart';
@@ -280,7 +281,7 @@ class _DashboardGreeting extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Good Morning, $officerName',
+          '${timeBasedGreeting()}, $officerName',
           style: compact ? textTheme.headlineSmall : textTheme.headlineMedium,
         ),
         const SizedBox(height: AppSpacing.xs),
