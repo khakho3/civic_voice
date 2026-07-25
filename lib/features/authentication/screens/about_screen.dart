@@ -208,7 +208,7 @@ class _AboutScreenState extends State<AboutScreen> {
                         child: InkWell(
                           onTap: () => _openLink(_eraAxisUrl),
                           child: Text(
-                            'eraxis.com',
+                            'eraaxis.com',
                             style: textTheme.bodyLarge?.copyWith(
                               color: colorScheme.primary,
                               decoration: TextDecoration.underline,
