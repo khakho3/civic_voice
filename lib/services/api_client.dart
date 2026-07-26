@@ -139,8 +139,9 @@ class ApiClient {
   /// Sends a real SMS verification code to confirm the citizen owns this
   /// phone number before any account gets created for it. Must succeed
   /// before [registerCitizen] will accept the matching otp.
-  Future<void> sendRegistrationOtp(String phone) async {
-    await _post('/api/auth/registration-otp', {'phone': phone});
+  Future<DateTime?> sendRegistrationOtp(String phone) async {
+    final result = await _post('/api/auth/registration-otp', {'phone': phone});
+    return _otpExpiryFrom(result);
   }
 
   /// Completes Citizen self-registration — creates the Firebase Auth
@@ -234,17 +235,21 @@ class ApiClient {
     }, idToken: idToken);
   }
 
-  Future<void> sendForgotPasswordOtp(String phone) async {
-    await _post('/api/auth/forgot-password-otp', {'phone': phone});
+  Future<DateTime?> sendForgotPasswordOtp(String phone) async {
+    final result = await _post('/api/auth/forgot-password-otp', {
+      'phone': phone,
+    });
+    return _otpExpiryFrom(result);
   }
 
-  Future<void> sendAuthenticatedPasswordChangeOtp({
+  Future<DateTime?> sendAuthenticatedPasswordChangeOtp({
     required String idToken,
     required String phone,
   }) async {
-    await _post('/api/auth/change-password-otp', {
+    final result = await _post('/api/auth/change-password-otp', {
       'phone': phone,
     }, idToken: idToken);
+    return _otpExpiryFrom(result);
   }
 
   Future<String> verifyAuthenticatedPasswordChangeOtp({
@@ -518,6 +523,11 @@ class ApiClient {
       files: const {},
     );
     return result['user'] as Map<String, dynamic>;
+  }
+
+  DateTime? _otpExpiryFrom(Map<String, dynamic> result) {
+    final value = result['expiresAt'];
+    return value is String ? DateTime.tryParse(value) : null;
   }
 }
 

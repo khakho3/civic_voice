@@ -728,6 +728,7 @@ void main() {
           screen: OtpVerificationScreen(
             phoneNumber: '+233 24 555 0100',
             purpose: OtpPurpose.forgotPassword,
+            expiresAt: DateTime.now().add(const Duration(minutes: 10)),
             onBack: () => backTapCount++,
             onVerify: (_) async => true,
           ),
@@ -838,7 +839,7 @@ void main() {
         home: OtpVerificationScreen(
           phoneNumber: '+233 24 555 0100',
           purpose: OtpPurpose.registration,
-          codeExpiryDuration: const Duration(seconds: 1),
+          expiresAt: DateTime.now().add(const Duration(seconds: 1)),
           resendCooldownDuration: const Duration(seconds: 3),
           onVerify: (_) async => true,
         ),
@@ -846,6 +847,7 @@ void main() {
     );
 
     expect(find.text('Paste Code'), findsNothing);
+    expect(find.text('Codes expire after 15 minutes.'), findsNothing);
     expect(
       find.text(
         'SMS delayed? Dial *920*331# from your phone to view your code instantly.',
@@ -899,11 +901,12 @@ void main() {
         home: OtpVerificationScreen(
           phoneNumber: '+233 24 555 0100',
           purpose: OtpPurpose.forgotPassword,
-          codeExpiryDuration: const Duration(seconds: 10),
+          expiresAt: DateTime.now().add(const Duration(seconds: 10)),
           resendCooldownDuration: const Duration(seconds: 1),
           onVerify: (_) async => true,
           onResend: () async {
             resendCount++;
+            return DateTime.now().add(const Duration(seconds: 10));
           },
         ),
       ),
@@ -919,6 +922,41 @@ void main() {
     expect(find.text('Code Resent'), findsOneWidget);
   });
 
+  testWidgets('OTP resend surfaces a provider rate-limit message', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: OtpVerificationScreen(
+          phoneNumber: '+233 24 555 0100',
+          purpose: OtpPurpose.forgotPassword,
+          expiresAt: DateTime.now().add(const Duration(minutes: 10)),
+          resendCooldownDuration: const Duration(seconds: 1),
+          onVerify: (_) async => true,
+          onResend: () async {
+            throw const ApiException(
+              statusCode: 429,
+              message: 'Please wait before requesting another OTP.',
+            );
+          },
+        ),
+      ),
+    );
+
+    await tester.pump(const Duration(seconds: 2));
+    final resendButton = find.widgetWithText(TextButton, 'Resend Code');
+    await tester.ensureVisible(resendButton);
+    await tester.tap(resendButton);
+    await tester.pump();
+
+    expect(find.text('Could Not Resend'), findsOneWidget);
+    expect(
+      find.text('Please wait before requesting another OTP.'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('invalid OTP remains on verification and shows an error', (
     WidgetTester tester,
   ) async {
@@ -929,6 +967,7 @@ void main() {
         home: OtpVerificationScreen(
           phoneNumber: '+233 24 555 0100',
           purpose: OtpPurpose.forgotPassword,
+          expiresAt: DateTime.now().add(const Duration(minutes: 10)),
           onVerify: (_) async {
             verificationAttempts++;
             return false;

@@ -1107,6 +1107,7 @@ class _RegistrationRoute extends StatefulWidget {
 
 class _RegistrationRouteState extends State<_RegistrationRoute> {
   RegistrationViewState _state = RegistrationViewState.ready;
+  String? _errorMessage;
 
   Future<void> _handleCreateAccount(
     BuildContext context,
@@ -1114,9 +1115,12 @@ class _RegistrationRouteState extends State<_RegistrationRoute> {
     String phone,
     String password,
   ) async {
-    setState(() => _state = RegistrationViewState.loading);
+    setState(() {
+      _state = RegistrationViewState.loading;
+      _errorMessage = null;
+    });
     try {
-      await ApiClient.instance.sendRegistrationOtp(phone);
+      final expiresAt = await ApiClient.instance.sendRegistrationOtp(phone);
       if (!context.mounted) return;
       setState(() => _state = RegistrationViewState.ready);
       Navigator.of(context).push(
@@ -1125,6 +1129,7 @@ class _RegistrationRouteState extends State<_RegistrationRoute> {
             fullName: fullName,
             phone: phone,
             password: password,
+            expiresAt: expiresAt,
           ),
         ),
       );
@@ -1134,6 +1139,7 @@ class _RegistrationRouteState extends State<_RegistrationRoute> {
         _state = error.statusCode == 409
             ? RegistrationViewState.phoneAlreadyRegistered
             : RegistrationViewState.error;
+        _errorMessage = error.statusCode == 409 ? null : error.message;
       });
     } catch (_) {
       if (!mounted) return;
@@ -1145,6 +1151,7 @@ class _RegistrationRouteState extends State<_RegistrationRoute> {
   Widget build(BuildContext context) {
     return RegistrationScreen(
       state: _state,
+      errorMessage: _errorMessage,
       onBack: Navigator.canPop(context)
           ? () => Navigator.of(context).maybePop()
           : null,
@@ -1164,11 +1171,13 @@ class _RegistrationOtpRoute extends StatefulWidget {
     required this.fullName,
     required this.phone,
     required this.password,
+    required this.expiresAt,
   });
 
   final String fullName;
   final String phone;
   final String password;
+  final DateTime? expiresAt;
 
   @override
   State<_RegistrationOtpRoute> createState() => _RegistrationOtpRouteState();
@@ -1229,13 +1238,8 @@ class _RegistrationOtpRouteState extends State<_RegistrationOtpRoute> {
     }
   }
 
-  Future<void> _handleResend() async {
-    try {
-      await ApiClient.instance.sendRegistrationOtp(widget.phone);
-    } on ApiException {
-      // The screen's own resend-cooldown UI already covers the retry —
-      // nothing else actionable to surface here.
-    }
+  Future<DateTime?> _handleResend() {
+    return ApiClient.instance.sendRegistrationOtp(widget.phone);
   }
 
   @override
@@ -1243,6 +1247,7 @@ class _RegistrationOtpRouteState extends State<_RegistrationOtpRoute> {
     return OtpVerificationScreen(
       phoneNumber: widget.phone,
       purpose: OtpPurpose.registration,
+      expiresAt: widget.expiresAt,
       onBack: () => Navigator.of(context).maybePop(),
       onVerify: (code) => _handleVerify(context, code),
       onResend: _handleResend,
@@ -1268,12 +1273,17 @@ void _completeSignIn(BuildContext context) {
   Navigator.of(context).pushNamedAndRemoveUntil(routeName, (_) => false);
 }
 
-void _startForgotPasswordOtp(BuildContext context, String phoneNumber) {
+void _startForgotPasswordOtp(
+  BuildContext context,
+  String phoneNumber,
+  DateTime? expiresAt,
+) {
   Navigator.of(context).push(
     MaterialPageRoute<void>(
       builder: (context) => OtpVerificationScreen(
         phoneNumber: phoneNumber,
         purpose: OtpPurpose.forgotPassword,
+        expiresAt: expiresAt,
         onBack: () => Navigator.of(context).maybePop(),
         onResend: () => ApiClient.instance.sendForgotPasswordOtp(phoneNumber),
         onVerify: (code) async {
@@ -1328,27 +1338,33 @@ class _ForgotPasswordRoute extends StatefulWidget {
 
 class _ForgotPasswordRouteState extends State<_ForgotPasswordRoute> {
   ForgotPasswordViewState _state = ForgotPasswordViewState.ready;
+  String? _errorMessage;
 
   Future<void> _send(String phone) async {
-    setState(() => _state = ForgotPasswordViewState.loading);
+    setState(() {
+      _state = ForgotPasswordViewState.loading;
+      _errorMessage = null;
+    });
     try {
-      await ApiClient.instance.sendForgotPasswordOtp(phone);
+      final expiresAt = await ApiClient.instance.sendForgotPasswordOtp(phone);
       if (!mounted) return;
-      _startForgotPasswordOtp(context, phone);
+      _startForgotPasswordOtp(context, phone, expiresAt);
       setState(() => _state = ForgotPasswordViewState.ready);
     } on ApiException catch (error) {
       if (!mounted) return;
-      setState(
-        () => _state = error.statusCode == 404
+      setState(() {
+        _state = error.statusCode == 404
             ? ForgotPasswordViewState.phoneNotFound
-            : ForgotPasswordViewState.recoveryError,
-      );
+            : ForgotPasswordViewState.recoveryError;
+        _errorMessage = error.statusCode == 404 ? null : error.message;
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) => ForgotPasswordScreen(
     state: _state,
+    errorMessage: _errorMessage,
     onBack: () => Navigator.of(context).maybePop(),
     onSendCode: _send,
     onBackToLogin: () => Navigator.of(context).maybePop(),

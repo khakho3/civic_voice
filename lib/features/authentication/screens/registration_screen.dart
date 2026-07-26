@@ -22,12 +22,14 @@ class RegistrationScreen extends StatefulWidget {
   const RegistrationScreen({
     super.key,
     this.state = RegistrationViewState.ready,
+    this.errorMessage,
     this.onBack,
     this.onCreateAccount,
     this.onLogin,
   });
 
   final RegistrationViewState state;
+  final String? errorMessage;
   final VoidCallback? onBack;
   final void Function(String fullName, String phone, String password)?
   onCreateAccount;
@@ -382,7 +384,10 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
             if (_showStatusPanel) ...[
               const SizedBox(height: AppSpacing.md),
-              _RegistrationStatusPanel(state: widget.state),
+              _RegistrationStatusPanel(
+                state: widget.state,
+                errorMessage: widget.errorMessage,
+              ),
             ],
           ],
         ),
@@ -452,9 +457,13 @@ class _FieldLabel extends StatelessWidget {
 
 /// Status panel displayed below the Create Account button.
 class _RegistrationStatusPanel extends StatelessWidget {
-  const _RegistrationStatusPanel({required this.state});
+  const _RegistrationStatusPanel({
+    required this.state,
+    required this.errorMessage,
+  });
 
   final RegistrationViewState state;
+  final String? errorMessage;
 
   @override
   Widget build(BuildContext context) {
@@ -505,7 +514,7 @@ class _RegistrationStatusPanel extends StatelessWidget {
 
       case RegistrationViewState.error:
         title = 'Registration Error';
-        message = 'Something went wrong. Please try again.';
+        message = errorMessage ?? 'Something went wrong. Please try again.';
         icon = AppIcons.error;
         statusColor = semanticColors.error;
 

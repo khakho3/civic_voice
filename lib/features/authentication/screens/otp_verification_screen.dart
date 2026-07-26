@@ -14,25 +14,24 @@ class OtpVerificationScreen extends StatefulWidget {
     required this.phoneNumber,
     required this.purpose,
     required this.onVerify,
+    required this.expiresAt,
     this.onResend,
     this.onBack,
-    this.codeExpiryDuration = _defaultCodeExpiry,
     this.resendCooldownDuration = _defaultResendCooldown,
   });
 
-  static const _defaultCodeExpiry = Duration(minutes: 15);
   static const _defaultResendCooldown = Duration(minutes: 2);
 
   final String phoneNumber;
   final OtpPurpose purpose;
+  final DateTime? expiresAt;
 
   /// Returns true on a correct code, false on a wrong/expired one — the
   /// screen shows an inline error for false rather than the caller
   /// silently proceeding.
   final Future<bool> Function(String code) onVerify;
-  final Future<void> Function()? onResend;
+  final Future<DateTime?> Function()? onResend;
   final VoidCallback? onBack;
-  final Duration codeExpiryDuration;
   final Duration resendCooldownDuration;
 
   @override
@@ -42,14 +41,18 @@ class OtpVerificationScreen extends StatefulWidget {
 class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
   final _codeController = TextEditingController();
   Timer? _timer;
-  late Duration _timeToExpiry = widget.codeExpiryDuration;
+  late DateTime? _expiresAt = widget.expiresAt;
+  late Duration? _timeToExpiry = _remainingUntil(_expiresAt);
   late Duration _resendCooldown = widget.resendCooldownDuration;
   bool _verifying = false;
+  bool _resending = false;
   bool _resent = false;
   bool _invalidCode = false;
+  String? _resendError;
 
-  bool get _expired => _timeToExpiry.inSeconds <= 0;
-  bool get _canResend => _resendCooldown.inSeconds <= 0;
+  bool get _expired => _timeToExpiry != null && _timeToExpiry!.inSeconds <= 0;
+  bool get _canResend =>
+      widget.onResend != null && !_resending && _resendCooldown.inSeconds <= 0;
   bool get _canVerify =>
       !_expired && !_verifying && _codeController.text.trim().length == 4;
 
@@ -70,9 +73,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
   void _tick() {
     if (!mounted) return;
     setState(() {
-      if (_timeToExpiry.inSeconds > 0) {
-        _timeToExpiry -= const Duration(seconds: 1);
-      }
+      _timeToExpiry = _remainingUntil(_expiresAt);
       if (_resendCooldown.inSeconds > 0) {
         _resendCooldown -= const Duration(seconds: 1);
       }
@@ -81,15 +82,29 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
 
   Future<void> _resend() async {
     if (!_canResend) return;
-    await widget.onResend?.call();
-    if (!mounted) return;
     setState(() {
-      _resent = true;
-      _invalidCode = false;
-      _codeController.clear();
-      _timeToExpiry = widget.codeExpiryDuration;
-      _resendCooldown = widget.resendCooldownDuration;
+      _resending = true;
+      _resendError = null;
     });
+    try {
+      final expiresAt = await widget.onResend!.call();
+      if (!mounted) return;
+      setState(() {
+        _expiresAt = expiresAt;
+        _timeToExpiry = _remainingUntil(expiresAt);
+        _resending = false;
+        _resent = true;
+        _invalidCode = false;
+        _codeController.clear();
+        _resendCooldown = widget.resendCooldownDuration;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _resending = false;
+        _resendError = error.toString();
+      });
+    }
   }
 
   Future<void> _verify() async {
@@ -148,13 +163,20 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
             ).copyWith(counterText: ''),
           ),
           const SizedBox(height: AppSpacing.xs),
-          _TimerLine(
-            icon: AppIcons.eta,
-            text: _expired
-                ? 'Code expired'
-                : 'Code expires in ${_formatDuration(_timeToExpiry)}',
-            color: _expired ? semantic.error : semantic.info,
-          ),
+          if (_timeToExpiry case final timeToExpiry?)
+            _TimerLine(
+              icon: AppIcons.eta,
+              text: _expired
+                  ? 'Code expired'
+                  : 'Code expires in ${_formatDuration(timeToExpiry)}',
+              color: _expired ? semantic.error : semantic.info,
+            )
+          else
+            _TimerLine(
+              icon: AppIcons.info,
+              text: 'Use the latest code sent to your phone.',
+              color: semantic.info,
+            ),
           const SizedBox(height: AppSpacing.md),
           const _UssdFallbackNotice(),
           const SizedBox(height: AppSpacing.md),
@@ -172,6 +194,13 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
               icon: AppIcons.error,
               statusColor: semantic.error,
             )
+          else if (_resendError != null)
+            AuthStatusAlert(
+              title: 'Could Not Resend',
+              message: _resendError!,
+              icon: AppIcons.error,
+              statusColor: semantic.error,
+            )
           else if (_resent)
             AuthStatusAlert(
               title: 'Code Resent',
@@ -179,7 +208,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
               icon: AppIcons.success,
               statusColor: semantic.success,
             ),
-          if (_expired || _invalidCode || _resent)
+          if (_expired || _invalidCode || _resendError != null || _resent)
             const SizedBox(height: AppSpacing.md),
           SizedBox(
             width: double.infinity,
@@ -201,20 +230,15 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
             child: TextButton(
               onPressed: _canResend ? _resend : null,
               child: Text(
-                _canResend
+                _resending
+                    ? 'Resending...'
+                    : _canResend
                     ? 'Resend Code'
                     : 'Resend code in ${_formatDuration(_resendCooldown)}',
               ),
             ),
           ),
         ],
-      ),
-      footer: Text(
-        'Codes expire after 15 minutes.',
-        textAlign: TextAlign.center,
-        style: theme.textTheme.bodySmall?.copyWith(
-          color: theme.colorScheme.onSurfaceVariant,
-        ),
       ),
     );
   }
@@ -226,6 +250,12 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
       OtpPurpose.changePassword => 'Verify Security Code',
     };
   }
+}
+
+Duration? _remainingUntil(DateTime? expiresAt) {
+  if (expiresAt == null) return null;
+  final remaining = expiresAt.difference(DateTime.now());
+  return remaining.isNegative ? Duration.zero : remaining;
 }
 
 class _UssdFallbackNotice extends StatelessWidget {
