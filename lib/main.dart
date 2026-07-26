@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -79,6 +80,7 @@ import 'features/maintenance/screens/update_progress_screen.dart'
 import 'features/maintenance/services/maintenance_task_directory.dart';
 import 'features/maintenance/services/maintenance_session.dart';
 import 'features/municipal/models/incoming_report.dart';
+import 'features/municipal/models/dashboard_data.dart';
 import 'features/municipal/models/resolved_report.dart';
 import 'features/municipal/services/municipal_report_directory.dart';
 import 'features/municipal/services/municipal_session.dart';
@@ -112,19 +114,19 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   await ThemeController.loadSavedTheme();
-  await AppCacheService.instance.initialize();
+  final cachedAccountId = FirebaseAuth.instance.currentUser?.uid;
+  await AppCacheService.instance.initialize(accountId: cachedAccountId);
   await MockAuthService().initialize();
-  await NotificationDirectory.instance.initialize();
-  await _restorePersistedSession();
+  await NotificationDirectory.instance.initialize(accountId: cachedAccountId);
   if (MockAuthService().getCurrentRole() != null &&
       !AppCacheService.instance.onboardingComplete) {
     await AppCacheService.instance.markOnboardingComplete();
   }
-  await _configurePushNotifications();
   runApp(const CivicVoiceApp());
 }
 
 bool _pushListenersConfigured = false;
+RemoteMessage? _pendingOpenedPush;
 
 /// Global by design, not scoped to [_CivicVoiceAppState] — there is only
 /// ever one [CivicVoiceApp] in the whole process, and top-level code that
@@ -138,47 +140,88 @@ Future<void> _configurePushNotifications() async {
   if (user == null) return;
   try {
     final messaging = FirebaseMessaging.instance;
+    if (!_pushListenersConfigured) {
+      _pushListenersConfigured = true;
+      FirebaseMessaging.onMessage.listen((message) async {
+        try {
+          await _refreshForPush(message);
+        } catch (_) {}
+        _showInAppBannerFor(message);
+      });
+      FirebaseMessaging.onMessageOpenedApp.listen(_handleOpenedPush);
+      messaging.onTokenRefresh.listen((token) async {
+        try {
+          final refreshedIdToken = await FirebaseAuth.instance.currentUser
+              ?.getIdToken();
+          if (refreshedIdToken != null) {
+            await ApiClient.instance.registerPushToken(
+              idToken: refreshedIdToken,
+              token: token,
+              platform: _pushPlatform,
+            );
+          }
+        } catch (_) {
+          // A later app open or token refresh retries registration.
+        }
+      });
+      _pendingOpenedPush = await messaging.getInitialMessage();
+    }
     final token = await messaging.getToken();
     final idToken = await user.getIdToken();
     if (token != null && idToken != null) {
       await ApiClient.instance.registerPushToken(
         idToken: idToken,
         token: token,
-        platform: 'android',
+        platform: _pushPlatform,
       );
     }
-    if (_pushListenersConfigured) return;
-    _pushListenersConfigured = true;
-    FirebaseMessaging.onMessage.listen((message) async {
-      try {
-        switch (message.data['type']) {
-          case 'report-status':
-            await ReportCrudService.instance.refresh();
-          case 'municipal-report':
-          case 'municipal-report-status':
-          case 'ministry-resolution':
-            await MunicipalReportDirectory.instance.refresh();
-          case 'maintenance-task':
-          case 'maintenance-task-status':
-            await MaintenanceTaskDirectory.instance.refresh();
-        }
-      } catch (_) {}
-      _showInAppBannerFor(message);
-    });
-    messaging.onTokenRefresh.listen((token) async {
-      final refreshedIdToken = await FirebaseAuth.instance.currentUser
-          ?.getIdToken();
-      if (refreshedIdToken != null) {
-        await ApiClient.instance.registerPushToken(
-          idToken: refreshedIdToken,
-          token: token,
-          platform: 'android',
-        );
-      }
-    });
   } catch (_) {
     // Notifications never block sign-in or application startup.
   }
+}
+
+String get _pushPlatform => defaultTargetPlatform.name.toLowerCase();
+
+Future<void> _refreshForPush(RemoteMessage message) async {
+  switch (message.data['type']) {
+    case 'report-status':
+      await ReportCrudService.instance.refresh();
+    case 'municipal-report':
+    case 'municipal-report-status':
+    case 'ministry-resolution':
+      await MunicipalReportDirectory.instance.refresh();
+    case 'maintenance-task':
+    case 'maintenance-task-status':
+      await MaintenanceTaskDirectory.instance.refresh();
+    case 'admin-coverage-gap':
+    case 'admin-team-readiness':
+    case 'admin-access-change':
+      await AdminSystemActivityDirectory.instance.refresh();
+  }
+}
+
+void _handleOpenedPush(RemoteMessage message) {
+  final route = _notificationsRouteForRole(MockAuthService().getCurrentRole());
+  final navigator = _navigatorKey.currentState;
+  if (route == null || navigator == null) {
+    _pendingOpenedPush = message;
+    return;
+  }
+  unawaited(_refreshForPushSafely(message));
+  navigator.pushNamed(route);
+}
+
+Future<void> _refreshForPushSafely(RemoteMessage message) async {
+  try {
+    await _refreshForPush(message);
+  } catch (_) {}
+}
+
+void _deliverPendingPushTap() {
+  final message = _pendingOpenedPush;
+  if (message == null) return;
+  _pendingOpenedPush = null;
+  _handleOpenedPush(message);
 }
 
 /// The in-app counterpart to a push notification arriving while the app is
@@ -215,12 +258,15 @@ IconData _iconForPushType(String? type) => switch (type) {
   'ministry-resolution' => AppIcons.statusResolved,
   'maintenance-task' || 'maintenance-task-status' => AppIcons.statusAssigned,
   'maintenance-team-membership' => AppIcons.profile,
+  'admin-coverage-gap' || 'admin-team-readiness' => AppIcons.warning,
+  'admin-access-change' => AppIcons.shield,
   _ => AppIcons.notifications,
 };
 
 Color _colorForPushType(String? type) => switch (type) {
   'ministry-resolution' => ReportStatus.resolved.color,
   'municipal-report' => AppColors.primary,
+  'admin-coverage-gap' || 'admin-team-readiness' => AppColors.warning,
   _ => AppColors.primary,
 };
 
@@ -293,8 +339,33 @@ Future<void> _restorePersistedSession() async {
     final role = _appRoleForBackendRole(syncedUser.role);
     if (role == null) return;
     await _selectSyncedRole(auth, role, syncedUser);
+    _primeRoleIdentity(role, syncedUser);
+    unawaited(_refreshRoleData(role));
+  } on ApiException catch (error) {
+    if ([401, 403, 404].contains(error.statusCode)) {
+      await endSession();
+    }
+    // Network/timeouts preserve the last known local role so a temporary
+    // outage does not silently log out an otherwise valid account.
+  }
+}
+
+void _primeRoleIdentity(AppRole role, SyncedUser syncedUser) {
+  if (role == AppRole.citizen) {
+    ProfileCrudService.instance.loadSignedInUser(syncedUser);
+  } else if (role == AppRole.systemAdministrator) {
+    AdminUserDirectory.instance.currentApiUserId = syncedUser.id;
+  }
+}
+
+Future<void> _refreshRoleData(AppRole role) async {
+  try {
+    await AdminSystemSettingsDirectory.instance.refreshSessionTimeout();
+  } catch (_) {
+    // The default timeout remains safe; role data should still refresh.
+  }
+  try {
     if (role == AppRole.citizen) {
-      ProfileCrudService.instance.loadSignedInUser(syncedUser);
       await ReportCrudService.instance.refresh();
     } else if (role == AppRole.municipalOfficer) {
       await MunicipalReportDirectory.instance.refresh();
@@ -304,15 +375,20 @@ Future<void> _restorePersistedSession() async {
     } else if (role == AppRole.ministrySupervisor) {
       await MinistryDataDirectory.instance.refresh();
     } else if (role == AppRole.systemAdministrator) {
-      AdminUserDirectory.instance.currentApiUserId = syncedUser.id;
       await AdminUserDirectory.instance.refresh();
       await MaintenanceTeamDirectory.instance.refreshForAdmin();
       await AdminSystemActivityDirectory.instance.refresh();
       await AdminSystemSettingsDirectory.instance.refresh();
     }
-  } catch (_) {
-    // Firebase keeps the credential. Preserve the last known role so a
-    // temporary backend outage does not silently log the user out.
+  } catch (_) {}
+}
+
+Future<void> _finishPostLoginNotifications() async {
+  await Future<void>.delayed(Duration.zero);
+  await _configurePushNotifications();
+  final context = _navigatorKey.currentContext;
+  if (context != null && context.mounted) {
+    await _offerNotificationPermissionAfterLogin(context);
   }
 }
 
@@ -410,15 +486,35 @@ class _CivicVoiceAppState extends State<CivicVoiceApp>
     with WidgetsBindingObserver {
   DateTime? _backgroundedAt;
   bool _biometricLockShowing = false;
+  late bool _sessionRestoreComplete;
   static const _reLockThreshold = Duration(seconds: 60);
 
   @override
   void initState() {
     super.initState();
+    _sessionRestoreComplete =
+        widget.initialRoute != null || Firebase.apps.isEmpty;
     WidgetsBinding.instance.addObserver(this);
-    IdleSessionTimer.instance.onExpire = _handleIdleTimeout;
+    IdleSessionTimer.instance.onExpire = () {
+      unawaited(_handleIdleTimeout());
+    };
+    if (_sessionRestoreComplete) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _promptForNotificationPermission();
+      });
+    } else {
+      unawaited(_finishSessionRestore());
+    }
+  }
+
+  Future<void> _finishSessionRestore() async {
+    await _restorePersistedSession();
+    await _configurePushNotifications();
+    if (!mounted) return;
+    setState(() => _sessionRestoreComplete = true);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _promptForNotificationPermission();
+      _deliverPendingPushTap();
     });
   }
 
@@ -531,10 +627,10 @@ class _CivicVoiceAppState extends State<CivicVoiceApp>
   /// app-wide session timeout, driven by ADM-007's Session Timeout
   /// setting. A no-op if nobody's actually signed in (Welcome/onboarding,
   /// or already signed out) — there's no session to time out of.
-  void _handleIdleTimeout() {
+  Future<void> _handleIdleTimeout() async {
     if (MockAuthService().getCurrentRole() == null) return;
-    FirebaseAuth.instance.signOut();
-    MockAuthService().clearUser();
+    await endSession();
+    if (!mounted) return;
     // Straight to Login, not the onboarding carousel — this device has
     // been used before, so re-showing onboarding (and letting them scroll
     // back through slides they've already seen) is exactly the confusing
@@ -550,6 +646,18 @@ class _CivicVoiceAppState extends State<CivicVoiceApp>
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: ThemeController.mode,
       builder: (context, themeMode, _) {
+        if (!_sessionRestoreComplete) {
+          return MaterialApp(
+            title: 'CivicVoice',
+            debugShowCheckedModeBanner: false,
+            theme: AppTheme.light,
+            darkTheme: AppTheme.dark,
+            themeMode: themeMode,
+            home: const Scaffold(
+              body: Center(child: CircularProgressIndicator()),
+            ),
+          );
+        }
         // A cold start with no active role isn't necessarily a fresh
         // device — it's just as often someone reopening the app after an
         // earlier sign-out/timeout. onboardingComplete is what actually
@@ -599,17 +707,18 @@ class _CivicVoiceAppState extends State<CivicVoiceApp>
                 onContinueAsGuest: () => _continueAsGuest(context),
                 onLogin: () => Navigator.of(context).pushNamed(AppRoutes.login),
               ),
-              AppRoutes.testRoleSelector: (context) => TestRoleSelectorScreen(
-                // MockAuthService().selectRole(...) already ran by the time
-                // this fires (TestRoleSelectorScreen._continue awaits it
-                // first) — reusing _completeSignIn's routing means the
-                // "Simulate first login" checkbox actually gets honored here
-                // too, not just on the real LoginScreen's onSignIn.
-                onRoleSelected: (role) => _completeSignIn(context),
-                onSkip: () => Navigator.of(
-                  context,
-                ).pushNamedAndRemoveUntil(AppRoutes.welcome, (_) => false),
-              ),
+              if (kDebugMode)
+                AppRoutes.testRoleSelector: (context) => TestRoleSelectorScreen(
+                  // MockAuthService().selectRole(...) already ran by the time
+                  // this fires (TestRoleSelectorScreen._continue awaits it
+                  // first) — reusing _completeSignIn's routing means the
+                  // "Simulate first login" checkbox actually gets honored here
+                  // too, not just on the real LoginScreen's onSignIn.
+                  onRoleSelected: (role) => _completeSignIn(context),
+                  onSkip: () => Navigator.of(
+                    context,
+                  ).pushNamedAndRemoveUntil(AppRoutes.welcome, (_) => false),
+                ),
               AppRoutes.login: (context) => const _LoginRoute(),
               AppRoutes.registration: (context) => const _RegistrationRoute(),
               AppRoutes.forgotPassword: (context) =>
@@ -672,7 +781,7 @@ class _CivicVoiceAppState extends State<CivicVoiceApp>
                     context,
                     _maintenanceTeamFromSettings(
                       ModalRoute.of(context)?.settings,
-                    )!,
+                    ),
                   ),
               AppRoutes.ministryDashboard: _ministryDashboard,
               AppRoutes.ministryReports: _ministryReports,
@@ -776,7 +885,7 @@ class _CivicVoiceAppState extends State<CivicVoiceApp>
                   settings: settings,
                   builder: (context) => _adminMaintenanceTeamDetails(
                     context,
-                    _maintenanceTeamFromSettings(settings)!,
+                    _maintenanceTeamFromSettings(settings),
                   ),
                 );
               }
@@ -1034,43 +1143,39 @@ class _LoginRouteState extends State<_LoginRoute> {
         email: email,
         password: password,
       );
+      await AppCacheService.instance.activateAccount(credential.user?.uid);
+      await NotificationDirectory.instance.activateAccount(
+        credential.user?.uid,
+      );
       final idToken = await credential.user?.getIdToken();
       if (idToken == null) throw Exception('No ID token after sign-in');
       final syncedUser = await ApiClient.instance.syncUser(idToken: idToken);
       final appRole = _appRoleForBackendRole(syncedUser.role);
       if (appRole == null) throw Exception('Unknown role: ${syncedUser.role}');
       await _selectSyncedRole(MockAuthService(), appRole, syncedUser);
-      if (context.mounted) {
-        await _offerNotificationPermissionAfterLogin(context);
-      }
-      await _configurePushNotifications();
-      if (appRole == AppRole.citizen) {
-        ProfileCrudService.instance.loadSignedInUser(syncedUser);
-        await ReportCrudService.instance.refresh();
-      } else if (appRole == AppRole.municipalOfficer) {
-        await MunicipalReportDirectory.instance.refresh();
-        await MaintenanceTeamDirectory.instance.refreshForMunicipal();
-      } else if (appRole == AppRole.maintenanceTeam) {
-        await MaintenanceTaskDirectory.instance.refresh();
-      } else if (appRole == AppRole.ministrySupervisor) {
-        await MinistryDataDirectory.instance.refresh();
-      } else if (appRole == AppRole.systemAdministrator) {
-        AdminUserDirectory.instance.currentApiUserId = syncedUser.id;
-        await AdminUserDirectory.instance.refresh();
-        await MaintenanceTeamDirectory.instance.refreshForAdmin();
-        await AdminSystemActivityDirectory.instance.refresh();
-      }
+      _primeRoleIdentity(appRole, syncedUser);
       if (!context.mounted) return;
       await AppCacheService.instance.setKeepSignedIn(keepSignedIn);
       if (!context.mounted) return;
       _completeSignIn(context);
+      unawaited(_refreshRoleData(appRole));
+      unawaited(_finishPostLoginNotifications());
     } on FirebaseAuthException {
+      await endSession();
       if (!mounted) return;
       setState(() => _state = LoginViewState.invalidCredentials);
-    } on ApiException {
+    } on ApiException catch (error) {
+      await endSession();
       if (!mounted) return;
-      setState(() => _state = LoginViewState.invalidCredentials);
+      setState(() {
+        _state = switch (error.statusCode) {
+          0 || 408 => LoginViewState.offline,
+          401 || 404 => LoginViewState.invalidCredentials,
+          _ => LoginViewState.error,
+        };
+      });
     } catch (_) {
+      await endSession();
       if (!mounted) return;
       setState(() => _state = LoginViewState.error);
     }
@@ -1259,9 +1364,10 @@ void _completeSignIn(BuildContext context) {
   final auth = MockAuthService();
   final routeName = _routeForRole(auth.getCurrentRole());
   if (routeName == null) {
-    Navigator.of(
-      context,
-    ).pushNamedAndRemoveUntil(AppRoutes.testRoleSelector, (_) => false);
+    Navigator.of(context).pushNamedAndRemoveUntil(
+      kDebugMode ? AppRoutes.testRoleSelector : AppRoutes.login,
+      (_) => false,
+    );
     return;
   }
   if (auth.mustChangePasswordOnFirstLogin()) {
@@ -1389,7 +1495,8 @@ Widget _forcedPasswordReset(BuildContext context) {
       await auth.clearMustChangePasswordOnFirstLogin();
       if (!context.mounted) return true;
       Navigator.of(context).pushNamedAndRemoveUntil(
-        _routeForRole(auth.getCurrentRole()) ?? AppRoutes.testRoleSelector,
+        _routeForRole(auth.getCurrentRole()) ??
+            (kDebugMode ? AppRoutes.testRoleSelector : AppRoutes.login),
         (_) => false,
       );
       return true;
@@ -1415,6 +1522,8 @@ Widget _biometricLock(BuildContext context) {
 Future<void> _continueAsGuest(BuildContext context) async {
   try {
     final credential = await FirebaseAuth.instance.signInAnonymously();
+    await AppCacheService.instance.activateAccount(credential.user?.uid);
+    await NotificationDirectory.instance.activateAccount(credential.user?.uid);
     final idToken = await credential.user?.getIdToken();
     if (idToken == null) throw Exception('No ID token after guest sign-in');
     final syncedUser = await ApiClient.instance.syncUser(idToken: idToken);
@@ -1423,6 +1532,7 @@ Future<void> _continueAsGuest(BuildContext context) async {
     if (!context.mounted) return;
     Navigator.of(context).pushNamed(AppRoutes.citizenDashboard);
   } catch (_) {
+    await endSession();
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -1435,8 +1545,7 @@ Future<void> _continueAsGuest(BuildContext context) async {
 }
 
 Future<void> _finishChangePassword(BuildContext context) async {
-  await FirebaseAuth.instance.signOut();
-  await MockAuthService().clearUser();
+  await endSession();
   if (!context.mounted) return;
   Navigator.of(context).pushNamedAndRemoveUntil(AppRoutes.login, (_) => false);
 }
@@ -1462,7 +1571,7 @@ void _pushAdminUserDetails(BuildContext context, AdminUserItem user) {
   Navigator.of(context).pushNamed(route, arguments: user);
 }
 
-AdminUserItem _adminUserFromSettings(RouteSettings? settings) {
+AdminUserItem? _adminUserFromSettings(RouteSettings? settings) {
   final argument = settings?.arguments;
   if (argument is AdminUserItem) return argument;
 
@@ -1474,7 +1583,7 @@ AdminUserItem _adminUserFromSettings(RouteSettings? settings) {
       if (user.userId == userId) return user;
     }
   }
-  return users.first;
+  return users.isEmpty ? null : users.first;
 }
 
 void _pushMinistryMunicipalityDetail(
@@ -1488,11 +1597,11 @@ void _pushMinistryMunicipalityDetail(
   Navigator.of(context).pushNamed(route, arguments: municipality);
 }
 
-RegionalLeaderItem _regionalLeaderFromSettings(RouteSettings? settings) {
+RegionalLeaderItem? _regionalLeaderFromSettings(RouteSettings? settings) {
   final argument = settings?.arguments;
   if (argument is RegionalLeaderItem) return argument;
 
-  final leaders = MunicipalPerformanceData.mock().regionalLeaders;
+  final leaders = MinistryDataDirectory.instance.performance.regionalLeaders;
   final uri = Uri.tryParse(settings?.name ?? '');
   final name = uri?.queryParameters['name'];
   if (name != null) {
@@ -1500,7 +1609,7 @@ RegionalLeaderItem _regionalLeaderFromSettings(RouteSettings? settings) {
       if (leader.name == name) return leader;
     }
   }
-  return leaders.first;
+  return leaders.isEmpty ? null : leaders.first;
 }
 
 void _pushAdminMaintenanceTeamDetails(
@@ -1541,7 +1650,8 @@ MaintenanceTeam? _maintenanceTeamFromSettings(
     if (team != null) return team;
   }
   if (optional) return null;
-  return MaintenanceTeamDirectory.instance.teams.value.first;
+  final teams = MaintenanceTeamDirectory.instance.teams.value;
+  return teams.isEmpty ? null : teams.first;
 }
 
 Widget _adminDashboard(BuildContext context) {
@@ -1611,7 +1721,49 @@ Widget _adminCreateUser(BuildContext context) {
   );
 }
 
-Widget _adminUserDetails(BuildContext context, AdminUserItem user) {
+Widget _missingRouteRecord(
+  BuildContext context, {
+  required String title,
+  required String returnRoute,
+}) {
+  return Scaffold(
+    appBar: AppBar(
+      leading: BackButton(
+        onPressed: () => _popOrReplaceWith(context, returnRoute),
+      ),
+      title: Text(title),
+    ),
+    body: Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'This item is no longer available.',
+              style: Theme.of(context).textTheme.titleMedium,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            FilledButton(
+              onPressed: () => _replaceWith(context, returnRoute),
+              child: const Text('Go back'),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+Widget _adminUserDetails(BuildContext context, AdminUserItem? user) {
+  if (user == null) {
+    return _missingRouteRecord(
+      context,
+      title: 'User not found',
+      returnRoute: AppRoutes.adminUserManagement,
+    );
+  }
   return AdminUserDetailsScreen(
     user: user,
     onNavigateToDashboard: () =>
@@ -1678,8 +1830,15 @@ Widget _adminMaintenanceTeamForm(BuildContext context, MaintenanceTeam? team) {
 
 Widget _adminMaintenanceTeamDetails(
   BuildContext context,
-  MaintenanceTeam team,
+  MaintenanceTeam? team,
 ) {
+  if (team == null) {
+    return _missingRouteRecord(
+      context,
+      title: 'Team not found',
+      returnRoute: AppRoutes.adminMaintenanceTeams,
+    );
+  }
   return AdminMaintenanceTeamDetailsScreen(
     team: team,
     onNavigateToDashboard: () =>
@@ -1732,31 +1891,41 @@ Widget _adminSystemActivity(BuildContext context) {
     animation: Listenable.merge([
       AdminSystemActivityDirectory.instance.items,
       AdminSystemActivityDirectory.instance.health,
+      AdminSystemActivityDirectory.instance.loading,
+      AdminSystemActivityDirectory.instance.error,
     ]),
-    builder: (context, _) => AdminSystemActivityScreen(
-      items: AdminSystemActivityDirectory.instance.hasLiveSnapshot
-          ? AdminSystemActivityDirectory.instance.items.value
-          : null,
-      healthStats: AdminSystemActivityDirectory.instance.health.value,
-      onRefresh: AdminSystemActivityDirectory.instance.refresh,
-      // Both tiers reach a real loaded feed — an assembly Admin's own is
-      // scoped down to their jurisdiction and drops the health stats, both
-      // handled inside the screen itself via AdminSession. See
-      // AdminSystemActivityScreen's own doc comment.
-      onNavigateToDashboard: () =>
-          _replaceWith(context, AppRoutes.adminDashboard),
-      onNavigateToUsers: () =>
-          _replaceWith(context, AppRoutes.adminUserManagement),
-      onNavigateToRoles: () =>
-          Navigator.of(context).pushNamed(AppRoutes.adminRoleManagement),
-      onNavigateToSettings: () =>
-          _replaceWith(context, AppRoutes.adminSystemSettings),
-      onNavigateToMaintenanceTeams: () =>
-          Navigator.of(context).pushNamed(AppRoutes.adminMaintenanceTeams),
-      onOpenProfile: () =>
-          Navigator.of(context).pushNamed(AppRoutes.adminProfile),
-      onNotificationsTap: () => _openAdminNotifications(context),
-    ),
+    builder: (context, _) {
+      final directory = AdminSystemActivityDirectory.instance;
+      return AdminSystemActivityScreen(
+        initialState: directory.hasLiveSnapshot
+            ? directory.items.value.isEmpty
+                  ? AdminSystemActivityViewState.empty
+                  : AdminSystemActivityViewState.loaded
+            : directory.error.value != null
+            ? AdminSystemActivityViewState.error
+            : AdminSystemActivityViewState.loading,
+        items: directory.items.value,
+        healthStats: directory.health.value,
+        onRefresh: AdminSystemActivityDirectory.instance.refresh,
+        // Both tiers reach a real loaded feed — an assembly Admin's own is
+        // scoped down to their jurisdiction and drops the health stats, both
+        // handled inside the screen itself via AdminSession. See
+        // AdminSystemActivityScreen's own doc comment.
+        onNavigateToDashboard: () =>
+            _replaceWith(context, AppRoutes.adminDashboard),
+        onNavigateToUsers: () =>
+            _replaceWith(context, AppRoutes.adminUserManagement),
+        onNavigateToRoles: () =>
+            Navigator.of(context).pushNamed(AppRoutes.adminRoleManagement),
+        onNavigateToSettings: () =>
+            _replaceWith(context, AppRoutes.adminSystemSettings),
+        onNavigateToMaintenanceTeams: () =>
+            Navigator.of(context).pushNamed(AppRoutes.adminMaintenanceTeams),
+        onOpenProfile: () =>
+            Navigator.of(context).pushNamed(AppRoutes.adminProfile),
+        onNotificationsTap: () => _openAdminNotifications(context),
+      );
+    },
   );
 }
 
@@ -1799,40 +1968,58 @@ Widget _adminSystemSettings(BuildContext context) {
 }
 
 Widget _adminProfile(BuildContext context) {
-  final currentUser = AdminUserDirectory.instance.currentUser;
-  return admin.AdminProfileScreen(
-    initialData: currentUser == null ? null : adminProfileFromUser(currentUser),
-    onSaveProfile: (fullName) async {
-      try {
-        final token = await FirebaseAuth.instance.currentUser?.getIdToken();
-        if (token == null) return false;
-        await ApiClient.instance.updateProfile(
-          idToken: token,
-          fullName: fullName,
-        );
-        await AdminUserDirectory.instance.refresh();
-        return true;
-      } catch (_) {
-        return false;
-      }
+  final directory = AdminUserDirectory.instance;
+  return AnimatedBuilder(
+    animation: Listenable.merge([
+      directory.users,
+      directory.loading,
+      directory.error,
+    ]),
+    builder: (context, _) {
+      final currentUser = directory.currentUser;
+      return admin.AdminProfileScreen(
+        initialData: currentUser == null
+            ? null
+            : adminProfileFromUser(currentUser),
+        initialState: currentUser != null
+            ? admin.AdminProfileViewState.loaded
+            : directory.error.value != null
+            ? admin.AdminProfileViewState.error
+            : admin.AdminProfileViewState.loading,
+        onRetry: directory.refresh,
+        onSaveProfile: (fullName) async {
+          try {
+            final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+            if (token == null) return false;
+            await ApiClient.instance.updateProfile(
+              idToken: token,
+              fullName: fullName,
+            );
+            await AdminUserDirectory.instance.refresh();
+            return true;
+          } catch (_) {
+            return false;
+          }
+        },
+        onNavigateToDashboard: () =>
+            _replaceWith(context, AppRoutes.adminDashboard),
+        onNavigateToUsers: () =>
+            _replaceWith(context, AppRoutes.adminUserManagement),
+        onNavigateToRoles: () =>
+            Navigator.of(context).pushNamed(AppRoutes.adminRoleManagement),
+        onNavigateToSettings: () =>
+            _replaceWith(context, AppRoutes.adminSystemSettings),
+        onNavigateToActivity: () =>
+            _replaceWith(context, AppRoutes.adminSystemActivity),
+        onChangePassword: () =>
+            Navigator.of(context).pushNamed(AppRoutes.changePassword),
+        onAbout: () => Navigator.of(context).pushNamed(AppRoutes.about),
+        onNavigateToMaintenanceTeams: () =>
+            Navigator.of(context).pushNamed(AppRoutes.adminMaintenanceTeams),
+        onNotificationsTap: () => _openAdminNotifications(context),
+        onSignOut: () => signOut(context),
+      );
     },
-    onNavigateToDashboard: () =>
-        _replaceWith(context, AppRoutes.adminDashboard),
-    onNavigateToUsers: () =>
-        _replaceWith(context, AppRoutes.adminUserManagement),
-    onNavigateToRoles: () =>
-        Navigator.of(context).pushNamed(AppRoutes.adminRoleManagement),
-    onNavigateToSettings: () =>
-        _replaceWith(context, AppRoutes.adminSystemSettings),
-    onNavigateToActivity: () =>
-        _replaceWith(context, AppRoutes.adminSystemActivity),
-    onChangePassword: () =>
-        Navigator.of(context).pushNamed(AppRoutes.changePassword),
-    onAbout: () => Navigator.of(context).pushNamed(AppRoutes.about),
-    onNavigateToMaintenanceTeams: () =>
-        Navigator.of(context).pushNamed(AppRoutes.adminMaintenanceTeams),
-    onNotificationsTap: () => _openAdminNotifications(context),
-    onSignOut: () => signOut(context),
   );
 }
 
@@ -1918,8 +2105,15 @@ Widget _ministryMunicipalPerformance(BuildContext context) {
 
 Widget _ministryMunicipalityDetail(
   BuildContext context,
-  RegionalLeaderItem municipality,
+  RegionalLeaderItem? municipality,
 ) {
+  if (municipality == null) {
+    return _missingRouteRecord(
+      context,
+      title: 'Municipality not found',
+      returnRoute: AppRoutes.ministryMunicipalPerformance,
+    );
+  }
   return MinistryMunicipalityDetailScreen(
     municipality: municipality,
     onBack: () => Navigator.of(context).maybePop(),
@@ -2059,25 +2253,7 @@ void _pushMunicipalResolutionDetails(
   );
 }
 
-IncomingReportItem _incomingReportFromSettings(RouteSettings? settings) {
-  final argument = settings?.arguments;
-  if (argument is IncomingReportItem) return argument;
-
-  final directoryReports = MunicipalReportDirectory.instance.reports.value;
-  final reports = directoryReports.isNotEmpty
-      ? directoryReports
-      : IncomingReportItem.mock();
-  final uri = Uri.tryParse(settings?.name ?? '');
-  final reportId = uri?.queryParameters['reportId'];
-  if (reportId != null) {
-    for (final report in reports) {
-      if (report.referenceId == reportId) return report;
-    }
-  }
-  return reports.first;
-}
-
-IncomingReportItem _activeReportFromSettings(RouteSettings? settings) {
+IncomingReportItem? _incomingReportFromSettings(RouteSettings? settings) {
   final argument = settings?.arguments;
   if (argument is IncomingReportItem) return argument;
 
@@ -2089,20 +2265,14 @@ IncomingReportItem _activeReportFromSettings(RouteSettings? settings) {
       if (report.referenceId == reportId) return report;
     }
   }
-  return reports.first;
+  return reports.isEmpty ? null : reports.first;
 }
 
-ResolvedReportItem _resolvedReportFromSettings(RouteSettings? settings) {
+IncomingReportItem? _activeReportFromSettings(RouteSettings? settings) {
   final argument = settings?.arguments;
-  if (argument is ResolvedReportItem) return argument;
+  if (argument is IncomingReportItem) return argument;
 
-  final liveReports = MunicipalReportDirectory.instance.reports.value
-      .where((report) => report.status == ReportStatus.resolved)
-      .map(ResolvedReportItem.fromReport)
-      .toList();
-  final reports = liveReports.isNotEmpty
-      ? liveReports
-      : ResolvedReportItem.mock();
+  final reports = MunicipalReportDirectory.instance.reports.value;
   final uri = Uri.tryParse(settings?.name ?? '');
   final reportId = uri?.queryParameters['reportId'];
   if (reportId != null) {
@@ -2110,23 +2280,59 @@ ResolvedReportItem _resolvedReportFromSettings(RouteSettings? settings) {
       if (report.referenceId == reportId) return report;
     }
   }
-  return reports.first;
+  return reports.isEmpty ? null : reports.first;
+}
+
+ResolvedReportItem? _resolvedReportFromSettings(RouteSettings? settings) {
+  final argument = settings?.arguments;
+  if (argument is ResolvedReportItem) return argument;
+
+  final liveReports = MunicipalReportDirectory.instance.reports.value
+      .where((report) => report.status == ReportStatus.resolved)
+      .map(ResolvedReportItem.fromReport)
+      .toList();
+  final reports = liveReports;
+  final uri = Uri.tryParse(settings?.name ?? '');
+  final reportId = uri?.queryParameters['reportId'];
+  if (reportId != null) {
+    for (final report in reports) {
+      if (report.referenceId == reportId) return report;
+    }
+  }
+  return reports.isEmpty ? null : reports.first;
 }
 
 Widget _municipalDashboard(BuildContext context) {
-  return _withSwitchRoleButton(
-    context,
-    MunicipalDashboardScreen(
-      onNavigateToInbox: () => _replaceWith(context, AppRoutes.municipalInbox),
-      onNavigateToActiveReports: () =>
-          _replaceWith(context, AppRoutes.municipalActiveReports),
-      onNavigateToResolvedReports: () =>
-          _replaceWith(context, AppRoutes.municipalResolvedReports),
-      onProfileTap: () =>
-          Navigator.of(context).pushNamed(AppRoutes.municipalProfile),
-      onNotificationsTap: () =>
-          Navigator.of(context).pushNamed(AppRoutes.municipalNotifications),
-      onReportTap: (report) => _pushMunicipalReportReview(context, report),
+  final directory = MunicipalReportDirectory.instance;
+  return AnimatedBuilder(
+    animation: Listenable.merge([
+      directory.reports,
+      directory.loading,
+      directory.error,
+    ]),
+    builder: (context, _) => _withSwitchRoleButton(
+      context,
+      MunicipalDashboardScreen(
+        data: MunicipalDashboardData.current(),
+        initialState: directory.loading.value && !directory.hasLiveSnapshot
+            ? MunicipalDashboardViewState.loading
+            : directory.error.value != null && !directory.hasLiveSnapshot
+            ? MunicipalDashboardViewState.error
+            : directory.reports.value.isEmpty
+            ? MunicipalDashboardViewState.empty
+            : MunicipalDashboardViewState.loaded,
+        onNavigateToInbox: () =>
+            _replaceWith(context, AppRoutes.municipalInbox),
+        onNavigateToActiveReports: () =>
+            _replaceWith(context, AppRoutes.municipalActiveReports),
+        onNavigateToResolvedReports: () =>
+            _replaceWith(context, AppRoutes.municipalResolvedReports),
+        onProfileTap: () =>
+            Navigator.of(context).pushNamed(AppRoutes.municipalProfile),
+        onNotificationsTap: () =>
+            Navigator.of(context).pushNamed(AppRoutes.municipalNotifications),
+        onReportTap: (report) => _pushMunicipalReportReview(context, report),
+      ),
     ),
   );
 }
@@ -2177,7 +2383,17 @@ Widget _municipalResolvedReports(BuildContext context) {
   );
 }
 
-Widget _municipalReportReview(BuildContext context, IncomingReportItem report) {
+Widget _municipalReportReview(
+  BuildContext context,
+  IncomingReportItem? report,
+) {
+  if (report == null) {
+    return _missingRouteRecord(
+      context,
+      title: 'Report not found',
+      returnRoute: AppRoutes.municipalInbox,
+    );
+  }
   return MunicipalReportReviewScreen(
     referenceId: report.referenceId,
     status: report.status,
@@ -2188,7 +2404,17 @@ Widget _municipalReportReview(BuildContext context, IncomingReportItem report) {
   );
 }
 
-Widget _municipalVerification(BuildContext context, IncomingReportItem report) {
+Widget _municipalVerification(
+  BuildContext context,
+  IncomingReportItem? report,
+) {
+  if (report == null) {
+    return _missingRouteRecord(
+      context,
+      title: 'Report not found',
+      returnRoute: AppRoutes.municipalInbox,
+    );
+  }
   return MunicipalVerificationScreen(
     referenceId: report.referenceId,
     status: report.status,
@@ -2203,7 +2429,14 @@ Widget _municipalVerification(BuildContext context, IncomingReportItem report) {
   );
 }
 
-Widget _municipalAssignTeam(BuildContext context, IncomingReportItem report) {
+Widget _municipalAssignTeam(BuildContext context, IncomingReportItem? report) {
+  if (report == null) {
+    return _missingRouteRecord(
+      context,
+      title: 'Report not found',
+      returnRoute: AppRoutes.municipalInbox,
+    );
+  }
   return MunicipalAssignTeamScreen(
     referenceId: report.referenceId,
     status: report.status,
@@ -2218,8 +2451,15 @@ Widget _municipalAssignTeam(BuildContext context, IncomingReportItem report) {
 
 Widget _municipalReportProgress(
   BuildContext context,
-  IncomingReportItem report,
+  IncomingReportItem? report,
 ) {
+  if (report == null) {
+    return _missingRouteRecord(
+      context,
+      title: 'Report not found',
+      returnRoute: AppRoutes.municipalActiveReports,
+    );
+  }
   return MunicipalReportProgressScreen(
     referenceId: report.referenceId,
     status: report.status,
@@ -2229,8 +2469,15 @@ Widget _municipalReportProgress(
 
 Widget _municipalResolutionDetails(
   BuildContext context,
-  ResolvedReportItem report,
+  ResolvedReportItem? report,
 ) {
+  if (report == null) {
+    return _missingRouteRecord(
+      context,
+      title: 'Report not found',
+      returnRoute: AppRoutes.municipalResolvedReports,
+    );
+  }
   return MunicipalResolutionDetailsScreen(
     referenceId: report.referenceId,
     data: report,
@@ -2315,7 +2562,14 @@ Widget _maintenanceAssignedTasks(BuildContext context) {
   );
 }
 
-Widget _maintenanceTaskDetails(BuildContext context, MaintenanceTask task) {
+Widget _maintenanceTaskDetails(BuildContext context, MaintenanceTask? task) {
+  if (task == null) {
+    return _missingRouteRecord(
+      context,
+      title: 'Task not found',
+      returnRoute: AppRoutes.maintenanceAssignedTasks,
+    );
+  }
   return maintenance_details.TaskDetailsScreen(
     task: task,
     onBack: () => Navigator.of(context).maybePop(),
@@ -2323,7 +2577,14 @@ Widget _maintenanceTaskDetails(BuildContext context, MaintenanceTask task) {
   );
 }
 
-Widget _maintenanceUpdateProgress(BuildContext context, MaintenanceTask task) {
+Widget _maintenanceUpdateProgress(BuildContext context, MaintenanceTask? task) {
+  if (task == null) {
+    return _missingRouteRecord(
+      context,
+      title: 'Task not found',
+      returnRoute: AppRoutes.maintenanceAssignedTasks,
+    );
+  }
   return maintenance_progress.UpdateProgressScreen(
     task: task,
     onBack: () => Navigator.of(context).maybePop(),
@@ -2331,7 +2592,14 @@ Widget _maintenanceUpdateProgress(BuildContext context, MaintenanceTask task) {
   );
 }
 
-Widget _maintenanceTaskCompleted(BuildContext context, MaintenanceTask task) {
+Widget _maintenanceTaskCompleted(BuildContext context, MaintenanceTask? task) {
+  if (task == null) {
+    return _missingRouteRecord(
+      context,
+      title: 'Task not found',
+      returnRoute: AppRoutes.maintenanceAssignedTasks,
+    );
+  }
   return maintenance_completed.TaskCompletedScreen(
     task: task,
     onNavigateToDashboard: () => Navigator.of(
@@ -2402,7 +2670,7 @@ void _pushMaintenanceTaskCompleted(BuildContext context, String taskId) {
   Navigator.of(context).pushReplacementNamed(route);
 }
 
-MaintenanceTask _maintenanceTaskFromSettings(RouteSettings? settings) {
+MaintenanceTask? _maintenanceTaskFromSettings(RouteSettings? settings) {
   final tasks = MaintenanceTaskDirectory.instance.tasks.value;
   final uri = Uri.tryParse(settings?.name ?? '');
   final taskId = uri?.queryParameters['taskId'];
@@ -2411,5 +2679,5 @@ MaintenanceTask _maintenanceTaskFromSettings(RouteSettings? settings) {
       if (task.id == taskId) return task;
     }
   }
-  return tasks.first;
+  return tasks.isEmpty ? null : tasks.first;
 }

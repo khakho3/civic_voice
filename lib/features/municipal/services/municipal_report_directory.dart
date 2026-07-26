@@ -18,16 +18,29 @@ class MunicipalReportDirectory {
   static final MunicipalReportDirectory instance = MunicipalReportDirectory._();
 
   final ValueNotifier<List<IncomingReportItem>> reports = ValueNotifier(
-    IncomingReportItem.mock(),
+    Firebase.apps.isEmpty
+        ? IncomingReportItem.mock()
+        : const <IncomingReportItem>[],
   );
+  final ValueNotifier<bool> loading = ValueNotifier(false);
+  final ValueNotifier<String?> error = ValueNotifier(null);
   bool hasLiveSnapshot = false;
 
   Future<void> refresh() async {
     final token = await FirebaseAuth.instance.currentUser?.getIdToken();
     if (token == null) throw StateError('A signed-in officer is required');
-    final response = await ApiClient.instance.listReports(idToken: token);
-    reports.value = response.map(IncomingReportItem.fromApi).toList();
-    hasLiveSnapshot = true;
+    loading.value = true;
+    error.value = null;
+    try {
+      final response = await ApiClient.instance.listReports(idToken: token);
+      reports.value = response.map(IncomingReportItem.fromApi).toList();
+      hasLiveSnapshot = true;
+    } catch (exception) {
+      error.value = exception.toString();
+      rethrow;
+    } finally {
+      loading.value = false;
+    }
   }
 
   IncomingReportItem? byReferenceId(String referenceId) {

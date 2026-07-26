@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'package:firebase_core/firebase_core.dart';
+
 import '../../../core/theme/app_theme.dart';
 import '../../../widgets/app_dropdown_field.dart';
 import '../../../widgets/app_state_message.dart';
@@ -109,13 +111,47 @@ class _AdminSystemSettingsScreenState extends State<AdminSystemSettingsScreen> {
       AdminSystemSettingsDirectory.instance.settings.value;
   late SystemSettingsData _draft = _original;
 
-  void _retry() {
+  @override
+  void initState() {
+    super.initState();
+    AdminSystemSettingsDirectory.instance.settings.addListener(
+      _syncSavedSettings,
+    );
+    if (Firebase.apps.isNotEmpty &&
+        widget.initialState == AdminSystemSettingsViewState.loaded &&
+        !AdminSystemSettingsDirectory.instance.hasLiveSnapshot) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _load());
+    }
+  }
+
+  @override
+  void dispose() {
+    AdminSystemSettingsDirectory.instance.settings.removeListener(
+      _syncSavedSettings,
+    );
+    super.dispose();
+  }
+
+  void _syncSavedSettings() {
+    if (!mounted || _draft != _original) return;
+    setState(() {
+      _original = AdminSystemSettingsDirectory.instance.settings.value;
+      _draft = _original;
+    });
+  }
+
+  Future<void> _load() async {
     setState(() => _state = AdminSystemSettingsViewState.loading);
-    Future.delayed(const Duration(milliseconds: 500), () {
+    try {
+      await AdminSystemSettingsDirectory.instance.refresh();
       if (mounted) {
         setState(() => _state = AdminSystemSettingsViewState.loaded);
       }
-    });
+    } catch (_) {
+      if (mounted) {
+        setState(() => _state = AdminSystemSettingsViewState.error);
+      }
+    }
   }
 
   void _update(SystemSettingsData Function(SystemSettingsData) update) {
@@ -201,7 +237,7 @@ class _AdminSystemSettingsScreenState extends State<AdminSystemSettingsScreen> {
                     'Check your connection and retry loading system '
                     'settings.',
                 primaryActionLabel: 'Retry connection',
-                onPrimaryAction: _retry,
+                onPrimaryAction: _load,
                 primaryActionColor: AppColors.error,
                 bordered: true,
               ),
@@ -211,7 +247,7 @@ class _AdminSystemSettingsScreenState extends State<AdminSystemSettingsScreen> {
                 title: 'Something went wrong',
                 message: 'Unable to load system settings right now.',
                 primaryActionLabel: 'Retry',
-                onPrimaryAction: _retry,
+                onPrimaryAction: _load,
                 primaryActionColor: AppColors.error,
                 bordered: true,
               ),

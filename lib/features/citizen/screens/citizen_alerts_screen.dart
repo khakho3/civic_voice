@@ -18,9 +18,10 @@ class CitizenAlertsScreen extends StatelessWidget {
   }
 
   void _openReports(BuildContext context) {
-    Navigator.of(
-      context,
-    ).pushAndRemoveUntil(citizenReportsTabRoute(context), (route) => route.isFirst);
+    Navigator.of(context).pushAndRemoveUntil(
+      citizenReportsTabRoute(context),
+      (route) => route.isFirst,
+    );
   }
 
   void _openCreateReport(BuildContext context) {
@@ -31,9 +32,10 @@ class CitizenAlertsScreen extends StatelessWidget {
   }
 
   void _openProfile(BuildContext context) {
-    Navigator.of(
-      context,
-    ).pushAndRemoveUntil(citizenProfileTabRoute(context), (route) => route.isFirst);
+    Navigator.of(context).pushAndRemoveUntil(
+      citizenProfileTabRoute(context),
+      (route) => route.isFirst,
+    );
   }
 
   @override

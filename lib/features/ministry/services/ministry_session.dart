@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:firebase_core/firebase_core.dart';
 
 import '../models/ministry_profile_data.dart';
 
@@ -8,7 +9,21 @@ class MinistrySession {
   static final instance = MinistrySession._();
 
   final ValueNotifier<MinistryProfileData> profile = ValueNotifier(
-    MinistryProfileData.mock(),
+    Firebase.apps.isEmpty
+        ? MinistryProfileData.mock()
+        : const MinistryProfileData(
+            name: '',
+            role: 'National supervisor',
+            ministry: 'CivicVoice National Oversight',
+            email: '',
+            phone: '',
+            publicId: '',
+            metadataBadges: [
+              'Ministry Supervisor',
+              'National visibility',
+              'Read-only oversight',
+            ],
+          ),
   );
 
   void setAuthenticatedUser({
@@ -33,5 +48,21 @@ class MinistrySession {
 
   void updateProfile({required String fullName}) {
     profile.value = profile.value.copyWith(name: fullName);
+  }
+
+  void clearSession() {
+    profile.value = const MinistryProfileData(
+      name: '',
+      role: 'National supervisor',
+      ministry: 'CivicVoice National Oversight',
+      email: '',
+      phone: '',
+      publicId: '',
+      metadataBadges: [
+        'Ministry Supervisor',
+        'National visibility',
+        'Read-only oversight',
+      ],
+    );
   }
 }

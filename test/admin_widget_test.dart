@@ -92,7 +92,10 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
 
       await tester.pumpWidget(
-        MaterialApp(theme: AppTheme.light, home: const AdminDashboardScreen()),
+        MaterialApp(
+          theme: AppTheme.light,
+          home: AdminDashboardScreen(healthStats: mockSystemHealthStats()),
+        ),
       );
       await tester.pump();
 
@@ -109,16 +112,15 @@ void main() {
       expect(find.text('System Settings'), findsOneWidget);
 
       expect(find.text('Total Users'), findsOneWidget);
-      expect(find.text('12.4k'), findsOneWidget);
-      expect(find.text('+4.2%'), findsOneWidget);
+      expect(find.text('8'), findsOneWidget);
+      expect(find.text('+0%'), findsNWidgets(2));
       expect(find.text('Active Roles'), findsOneWidget);
-      expect(find.text('48'), findsOneWidget);
-      expect(find.text('+2.1%'), findsOneWidget);
+      expect(find.text('4'), findsOneWidget);
       expect(find.text('Admin Actions'), findsOneWidget);
-      expect(find.text('1.8k'), findsOneWidget);
+      expect(find.text('5'), findsOneWidget);
       expect(find.text('24h'), findsOneWidget);
       expect(find.text('Open Alerts'), findsOneWidget);
-      expect(find.text('12'), findsOneWidget);
+      expect(find.text('2'), findsNWidgets(2));
       expect(find.text('Review'), findsOneWidget);
 
       expect(find.text('Management'), findsOneWidget);
@@ -132,10 +134,12 @@ void main() {
       expect(find.text('Governance-approved configuration'), findsOneWidget);
 
       expect(find.text('Activity Monitoring'), findsOneWidget);
-      expect(find.text('Role permission updated'), findsOneWidget);
-      expect(find.text('New admin account approved'), findsOneWidget);
-      expect(find.text('System policy reviewed'), findsOneWidget);
-      expect(find.text('Audit log · read-only'), findsNWidgets(3));
+      expect(find.text('Unauthorized Login Attempt'), findsOneWidget);
+      expect(find.text('System Policy Update'), findsOneWidget);
+      expect(find.text('Automated Backup Complete'), findsOneWidget);
+      expect(find.text('Security · Critical'), findsOneWidget);
+      expect(find.text('Infrastructure · Standard'), findsOneWidget);
+      expect(find.text('Maintenance · Info'), findsOneWidget);
     },
   );
 
@@ -2757,8 +2761,10 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.light,
-        home: const AdminProfileScreen(
+        home: AdminProfileScreen(
           initialState: AdminProfileViewState.error,
+          initialData: mockAdminProfile(),
+          onRetry: () async {},
         ),
       ),
     );

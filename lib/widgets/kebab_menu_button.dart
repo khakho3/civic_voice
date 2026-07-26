@@ -37,11 +37,7 @@ class KebabMenuButton<T> extends StatelessWidget {
     return PopupMenuButton<T>(
       position: PopupMenuPosition.under,
       tooltip: tooltip,
-      icon: Icon(
-        icon ?? AppIcons.more,
-        size: AppIconSize.md,
-        color: iconColor,
-      ),
+      icon: Icon(icon ?? AppIcons.more, size: AppIconSize.md, color: iconColor),
       itemBuilder: itemBuilder,
       onSelected: onSelected,
     );

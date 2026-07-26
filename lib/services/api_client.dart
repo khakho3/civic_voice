@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -14,6 +15,8 @@ class ApiClient {
   ApiClient._();
 
   static final ApiClient instance = ApiClient._();
+  static const _requestTimeout = Duration(seconds: 20);
+  static const _uploadTimeout = Duration(seconds: 75);
 
   /// Public HTTPS endpoint used by release builds. Local development can
   /// override it with `--dart-define=API_BASE_URL=http://<host>:<port>`.
@@ -43,9 +46,17 @@ class ApiClient {
   }
 
   Map<String, dynamic> _decode(http.Response response) {
-    final decoded = response.body.isEmpty
-        ? <String, dynamic>{}
-        : jsonDecode(response.body) as Map<String, dynamic>;
+    Map<String, dynamic> decoded;
+    try {
+      decoded = response.body.isEmpty
+          ? <String, dynamic>{}
+          : jsonDecode(response.body) as Map<String, dynamic>;
+    } on FormatException {
+      throw const ApiException(
+        statusCode: 502,
+        message: 'The CivicVoice service returned an invalid response.',
+      );
+    }
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw ApiException(
         statusCode: response.statusCode,
@@ -57,6 +68,27 @@ class ApiClient {
     return decoded;
   }
 
+  Future<T> _bounded<T>(
+    Future<T> request, {
+    Duration timeout = _requestTimeout,
+  }) async {
+    try {
+      return await request.timeout(timeout);
+    } on TimeoutException {
+      throw const ApiException(
+        statusCode: 408,
+        message:
+            'The request took too long. Check your connection and try again.',
+      );
+    } on SocketException {
+      throw const ApiException(
+        statusCode: 0,
+        message:
+            'Could not reach CivicVoice. Check your connection and try again.',
+      );
+    }
+  }
+
   /// Thrown for any non-2xx response, carrying the backend's own error
   /// message (civic_voice_api always responds with `{ "error": "..." }`)
   /// so callers can show it directly instead of a generic failure.
@@ -65,13 +97,15 @@ class ApiClient {
     Map<String, dynamic> body, {
     String? idToken,
   }) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl$path'),
-      headers: {
-        'Content-Type': 'application/json',
-        if (idToken != null) 'Authorization': 'Bearer $idToken',
-      },
-      body: jsonEncode(body),
+    final response = await _bounded(
+      http.post(
+        Uri.parse('$baseUrl$path'),
+        headers: {
+          'Content-Type': 'application/json',
+          if (idToken != null) 'Authorization': 'Bearer $idToken',
+        },
+        body: jsonEncode(body),
+      ),
     );
 
     return _decode(response);
@@ -82,18 +116,40 @@ class ApiClient {
     required String idToken,
   }) async {
     return _decode(
-      await http.get(
-        Uri.parse('$baseUrl$path'),
-        headers: {'Authorization': 'Bearer $idToken'},
+      await _bounded(
+        http.get(
+          Uri.parse('$baseUrl$path'),
+          headers: {'Authorization': 'Bearer $idToken'},
+        ),
       ),
     );
   }
 
+  Future<Map<String, dynamic>> _patch(
+    String path,
+    Map<String, dynamic> body, {
+    required String idToken,
+  }) async {
+    final response = await _bounded(
+      http.patch(
+        Uri.parse('$baseUrl$path'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $idToken',
+        },
+        body: jsonEncode(body),
+      ),
+    );
+    return _decode(response);
+  }
+
   Future<void> deleteReport(String id, {required String idToken}) async {
     _decode(
-      await http.delete(
-        Uri.parse('$baseUrl/api/reports/$id'),
-        headers: {'Authorization': 'Bearer $idToken'},
+      await _bounded(
+        http.delete(
+          Uri.parse('$baseUrl/api/reports/$id'),
+          headers: {'Authorization': 'Bearer $idToken'},
+        ),
       ),
     );
   }
@@ -121,8 +177,13 @@ class ApiClient {
         }
       }
     }
-    final streamed = await request.send();
-    return _decode(await http.Response.fromStream(streamed));
+    final streamed = await _bounded(request.send(), timeout: _uploadTimeout);
+    return _decode(
+      await _bounded(
+        http.Response.fromStream(streamed),
+        timeout: _uploadTimeout,
+      ),
+    );
   }
 
   MediaType _imageMediaType(String path) {
@@ -284,6 +345,15 @@ class ApiClient {
     }, idToken: idToken);
   }
 
+  Future<void> unregisterPushToken({
+    required String idToken,
+    required String token,
+  }) async {
+    await _post('/api/auth/push-token/unregister', {
+      'token': token,
+    }, idToken: idToken);
+  }
+
   Future<void> resetPassword({
     required String phone,
     required String resetToken,
@@ -356,15 +426,12 @@ class ApiClient {
     required String idToken,
     required Map<String, dynamic> fields,
   }) async {
-    final response = await http.patch(
-      Uri.parse('$baseUrl/api/admin/maintenance-teams/$teamId'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $idToken',
-      },
-      body: jsonEncode(fields),
+    final result = await _patch(
+      '/api/admin/maintenance-teams/$teamId',
+      fields,
+      idToken: idToken,
     );
-    return _decode(response)['team'] as Map<String, dynamic>;
+    return result['team'] as Map<String, dynamic>;
   }
 
   Future<void> deleteMaintenanceTeam(
@@ -372,9 +439,11 @@ class ApiClient {
     required String idToken,
   }) async {
     _decode(
-      await http.delete(
-        Uri.parse('$baseUrl/api/admin/maintenance-teams/$teamId'),
-        headers: {'Authorization': 'Bearer $idToken'},
+      await _bounded(
+        http.delete(
+          Uri.parse('$baseUrl/api/admin/maintenance-teams/$teamId'),
+          headers: {'Authorization': 'Bearer $idToken'},
+        ),
       ),
     );
   }
@@ -459,19 +528,22 @@ class ApiClient {
     return result['settings'] as Map<String, dynamic>;
   }
 
+  Future<Map<String, dynamic>> getSessionSettings({
+    required String idToken,
+  }) async {
+    return _get('/api/auth/session-settings', idToken: idToken);
+  }
+
   Future<Map<String, dynamic>> updateAdminSettings({
     required String idToken,
     required Map<String, dynamic> fields,
   }) async {
-    final response = await http.patch(
-      Uri.parse('$baseUrl/api/admin/settings'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $idToken',
-      },
-      body: jsonEncode(fields),
+    final result = await _patch(
+      '/api/admin/settings',
+      fields,
+      idToken: idToken,
     );
-    return _decode(response)['settings'] as Map<String, dynamic>;
+    return result['settings'] as Map<String, dynamic>;
   }
 
   Future<List<Map<String, dynamic>>> listMinistryMunicipalContacts({
@@ -489,22 +561,21 @@ class ApiClient {
     required String idToken,
     required Map<String, dynamic> fields,
   }) async {
-    final response = await http.patch(
-      Uri.parse('$baseUrl/api/admin/users/$userId'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $idToken',
-      },
-      body: jsonEncode(fields),
+    final result = await _patch(
+      '/api/admin/users/$userId',
+      fields,
+      idToken: idToken,
     );
-    return _decode(response)['user'] as Map<String, dynamic>;
+    return result['user'] as Map<String, dynamic>;
   }
 
   Future<void> deleteUser(String userId, {required String idToken}) async {
     _decode(
-      await http.delete(
-        Uri.parse('$baseUrl/api/admin/users/$userId'),
-        headers: {'Authorization': 'Bearer $idToken'},
+      await _bounded(
+        http.delete(
+          Uri.parse('$baseUrl/api/admin/users/$userId'),
+          headers: {'Authorization': 'Bearer $idToken'},
+        ),
       ),
     );
   }
@@ -513,15 +584,9 @@ class ApiClient {
     required String idToken,
     String? fullName,
   }) async {
-    final result = await _multipart(
-      'PATCH',
-      '/api/auth/me',
-      idToken: idToken,
-      fields: {
-        ...fullName == null ? const {} : {'fullName': fullName},
-      },
-      files: const {},
-    );
+    final result = await _patch('/api/auth/me', {
+      ...fullName == null ? const {} : {'fullName': fullName},
+    }, idToken: idToken);
     return result['user'] as Map<String, dynamic>;
   }
 

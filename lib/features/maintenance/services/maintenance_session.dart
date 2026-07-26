@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:firebase_core/firebase_core.dart';
 
 import '../models/maintenance_profile.dart';
 
@@ -8,7 +9,15 @@ class MaintenanceSession {
   static final MaintenanceSession instance = MaintenanceSession._();
 
   final ValueNotifier<MaintenanceProfile> profile = ValueNotifier(
-    MaintenanceProfile.mock,
+    Firebase.apps.isEmpty
+        ? MaintenanceProfile.mock
+        : const MaintenanceProfile(
+            publicId: '',
+            fullName: '',
+            phone: '',
+            region: '',
+            assembly: '',
+          ),
   );
   bool authenticated = false;
 
@@ -37,5 +46,16 @@ class MaintenanceSession {
 
   void updateProfile({required String fullName}) {
     profile.value = profile.value.copyWith(fullName: fullName);
+  }
+
+  void clearSession() {
+    authenticated = false;
+    profile.value = const MaintenanceProfile(
+      publicId: '',
+      fullName: '',
+      phone: '',
+      region: '',
+      assembly: '',
+    );
   }
 }

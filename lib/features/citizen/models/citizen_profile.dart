@@ -15,6 +15,7 @@ class CitizenProfile {
   final String phone;
   final String primaryLocation;
   final bool twoStepEnabled;
+
   /// True for a "Continue as Guest" session (Firebase Anonymous Auth, no
   /// phone/password of their own yet) — see ApiClient.SyncedUser.isGuest.
   /// Drives the guest-mode messaging on Dashboard/Profile; never true for

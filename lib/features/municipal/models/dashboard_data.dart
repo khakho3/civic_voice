@@ -123,4 +123,51 @@ class MunicipalDashboardData {
             ],
     );
   }
+
+  /// Production projection. Unlike [mock], an empty live directory stays
+  /// empty and never turns into demonstration statistics.
+  factory MunicipalDashboardData.current() {
+    final reports = MunicipalReportDirectory.instance.reports.value;
+    final assignmentGroups = <String, List<int>>{};
+    for (final report in reports) {
+      final team = report.teamName;
+      if (team != null) {
+        assignmentGroups
+            .putIfAbsent(team, () => [])
+            .add(report.progressPercent ?? 0);
+      }
+    }
+    final officer = MunicipalSession.instance.profile.value;
+    return MunicipalDashboardData(
+      officerName: officer.name,
+      municipalityName: officer.department,
+      stats: MunicipalDashboardStats(
+        newReports: reports
+            .where((report) => report.status.name == 'submitted')
+            .length,
+        underReview: reports
+            .where((report) => report.status.name == 'underReview')
+            .length,
+        assigned: reports
+            .where(
+              (report) =>
+                  report.status.name == 'assigned' ||
+                  report.status.name == 'inProgress',
+            )
+            .length,
+        resolved: reports
+            .where((report) => report.status.name == 'resolved')
+            .length,
+      ),
+      recentReports: reports.take(3).toList(),
+      assignmentSummary: [
+        for (final entry in assignmentGroups.entries)
+          AssignmentProgress(
+            teamName: entry.key,
+            percent:
+                entry.value.reduce((a, b) => a + b) / entry.value.length / 100,
+          ),
+      ],
+    );
+  }
 }

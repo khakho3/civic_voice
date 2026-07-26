@@ -21,6 +21,7 @@ class AppCacheService {
   static const _biometricLockEnabledKey = 'biometric_lock_enabled_v1';
 
   SharedPreferences? _preferences;
+  String? _accountId;
   ReportDraft? _reportDraft;
   int _reportDraftClearGeneration = 0;
 
@@ -32,7 +33,7 @@ class AppCacheService {
   bool get biometricLockEnabled =>
       _preferences?.getBool(_biometricLockEnabledKey) ?? false;
   Set<String> get secondingSeenIds =>
-      (_preferences?.getStringList(_secondingSeenReportIdsKey) ??
+      (_preferences?.getStringList(_scopedKey(_secondingSeenReportIdsKey)) ??
               const <String>[])
           .toSet();
   ReportDraft? get reportDraft => _reportDraft;
@@ -43,10 +44,18 @@ class AppCacheService {
   /// that form was still underneath the submission flow.
   int get reportDraftClearGeneration => _reportDraftClearGeneration;
 
-  Future<void> initialize() async {
+  String _scopedKey(String base) =>
+      _accountId == null ? '${base}_signed_out' : '${base}_${_accountId!}';
+
+  Future<void> initialize({String? accountId = 'default'}) async {
     _preferences = await SharedPreferences.getInstance();
+    await activateAccount(accountId);
+  }
+
+  Future<void> activateAccount(String? accountId) async {
+    _accountId = accountId;
     _reportDraft = null;
-    final encoded = _preferences?.getString(_reportDraftKey);
+    final encoded = _preferences?.getString(_scopedKey(_reportDraftKey));
     if (encoded == null) return;
     try {
       final decoded = ReportDraft.fromMap(
@@ -71,13 +80,18 @@ class AppCacheService {
       );
       if (existingPhotos.length != decoded.photoPaths.length) {
         await _preferences?.setString(
-          _reportDraftKey,
+          _scopedKey(_reportDraftKey),
           jsonEncode(_reportDraft!.toMap()),
         );
       }
     } catch (_) {
-      await _preferences?.remove(_reportDraftKey);
+      await _preferences?.remove(_scopedKey(_reportDraftKey));
     }
+  }
+
+  void clearSession() {
+    _accountId = null;
+    _reportDraft = null;
   }
 
   Future<void> markOnboardingComplete() async {
@@ -109,7 +123,7 @@ class AppCacheService {
     _preferences = preferences;
     final seenIds = secondingSeenIds..add(reportId);
     await preferences.setStringList(
-      _secondingSeenReportIdsKey,
+      _scopedKey(_secondingSeenReportIdsKey),
       seenIds.toList()..sort(),
     );
   }
@@ -118,7 +132,10 @@ class AppCacheService {
     final preferences = _preferences ?? await SharedPreferences.getInstance();
     _preferences = preferences;
     _reportDraft = draft;
-    await preferences.setString(_reportDraftKey, jsonEncode(draft.toMap()));
+    await preferences.setString(
+      _scopedKey(_reportDraftKey),
+      jsonEncode(draft.toMap()),
+    );
   }
 
   Future<ReportDraft> saveReportPhotos(
@@ -188,7 +205,7 @@ class AppCacheService {
     _reportDraftClearGeneration++;
     final preferences = _preferences ?? await SharedPreferences.getInstance();
     _preferences = preferences;
-    await preferences.remove(_reportDraftKey);
+    await preferences.remove(_scopedKey(_reportDraftKey));
     for (final path in cachedPaths) {
       try {
         final file = File(path);

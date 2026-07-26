@@ -75,8 +75,6 @@ class AdminDashboardData {
 
   static AdminDashboardData current() {
     final users = AdminUserDirectory.instance.users.value;
-    final live = users.any((user) => user.apiId != null);
-    if (!live) return mock();
     final activeUsers = users
         .where((user) => user.status == AdminUserStatus.active)
         .toList();

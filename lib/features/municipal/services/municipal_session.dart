@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:firebase_core/firebase_core.dart';
 
 import '../models/officer_profile.dart';
 
@@ -9,7 +10,17 @@ class MunicipalSession {
   static final MunicipalSession instance = MunicipalSession._();
 
   final ValueNotifier<OfficerProfile> profile = ValueNotifier(
-    OfficerProfile.mock(),
+    Firebase.apps.isEmpty
+        ? OfficerProfile.mock()
+        : const OfficerProfile(
+            name: '',
+            role: 'Municipal Officer',
+            employeeId: '',
+            verifiedOfficial: false,
+            phone: '',
+            department: '',
+            region: '',
+          ),
   );
 
   void setAuthenticatedUser({
@@ -32,5 +43,17 @@ class MunicipalSession {
 
   void updateName(String name) {
     profile.value = profile.value.copyWith(name: name);
+  }
+
+  void clearSession() {
+    profile.value = const OfficerProfile(
+      name: '',
+      role: 'Municipal Officer',
+      employeeId: '',
+      verifiedOfficial: false,
+      phone: '',
+      department: '',
+      region: '',
+    );
   }
 }

@@ -173,6 +173,14 @@ class _AdminSystemActivityScreenState extends State<AdminSystemActivityScreen> {
     }
   }
 
+  @override
+  void didUpdateWidget(covariant AdminSystemActivityScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialState != oldWidget.initialState) {
+      _state = widget.initialState;
+    }
+  }
+
   Future<void> _retry() async {
     setState(() => _state = AdminSystemActivityViewState.loading);
     try {

@@ -12,7 +12,11 @@ import '../theme/app_motion.dart';
 /// peers, with no destination feeling "further forward" than another.
 /// Every bottom-nav destination gets this exact same treatment, including
 /// Citizen's central Report action — deliberately not special-cased.
-Route<T> tabRoute<T>(BuildContext context, WidgetBuilder builder, {String? routeName}) {
+Route<T> tabRoute<T>(
+  BuildContext context,
+  WidgetBuilder builder, {
+  String? routeName,
+}) {
   final duration = AppMotion.duration(context, AppMotionDuration.moderate);
   return PageRouteBuilder<T>(
     settings: RouteSettings(name: routeName),

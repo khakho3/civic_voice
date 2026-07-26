@@ -37,6 +37,10 @@ class ReportCrudService implements ReportsRepository {
     _publishReports(raw.map(_fromApi).toList());
   }
 
+  void clearSession() {
+    _publishReports(const <CivicReport>[]);
+  }
+
   @override
   Stream<List<CivicReport>> watchReports() async* {
     yield List<CivicReport>.unmodifiable(reports.value);

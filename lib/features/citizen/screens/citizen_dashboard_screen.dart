@@ -203,7 +203,7 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen>
     final report = _nearbySecondingReport;
     if (report == null || _secondingBusy) return;
     setState(() => _secondingBusy = true);
-    await AppCacheService.instance.markSecondingSeen(report.id);
+    var removeCard = false;
     try {
       final override = widget.nearbySecondingConfirmer;
       if (override != null) {
@@ -218,11 +218,17 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen>
         }
         await ApiClient.instance.secondReport(report.id, idToken: token);
       }
+      await AppCacheService.instance.markSecondingSeen(report.id);
+      removeCard = true;
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Thanks for confirming this report.')),
       );
     } on ApiException catch (error) {
+      if (error.statusCode == 409) {
+        await AppCacheService.instance.markSecondingSeen(report.id);
+        removeCard = true;
+      }
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
@@ -235,7 +241,7 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen>
     } finally {
       if (mounted) {
         setState(() {
-          _nearbySecondingReport = null;
+          if (removeCard) _nearbySecondingReport = null;
           _secondingBusy = false;
         });
       }

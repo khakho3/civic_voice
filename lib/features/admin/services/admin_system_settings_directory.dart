@@ -18,7 +18,15 @@ class AdminSystemSettingsDirectory {
       AdminSystemSettingsDirectory._();
 
   final ValueNotifier<SystemSettingsData> settings = ValueNotifier(
-    mockSystemSettings(),
+    Firebase.apps.isEmpty
+        ? mockSystemSettings()
+        : const SystemSettingsData(
+            maintenanceMode: false,
+            sessionTimeout: '30 minutes',
+            auditLogging: true,
+            publicStatusPage: false,
+            allowNewAccountCreation: false,
+          ),
   );
   final ValueNotifier<bool> loading = ValueNotifier(false);
   final ValueNotifier<String?> error = ValueNotifier(null);
@@ -42,6 +50,20 @@ class AdminSystemSettingsDirectory {
     } finally {
       loading.value = false;
     }
+  }
+
+  /// Fetches the one setting every authenticated role needs without
+  /// exposing the Super Admin-only settings endpoint or its other values.
+  Future<void> refreshSessionTimeout() async {
+    if (Firebase.apps.isEmpty) return;
+    final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+    if (token == null) throw StateError('A signed-in user is required');
+    final response = await ApiClient.instance.getSessionSettings(
+      idToken: token,
+    );
+    settings.value = settings.value.copyWith(
+      sessionTimeout: response['sessionTimeout'] as String? ?? '30 minutes',
+    );
   }
 
   /// Saves [draft] for real — only the three server-backed fields are

@@ -44,7 +44,8 @@ void main() {
         expect(
           ReportCategoryClassifier.classify(
             title: 'Unprotected electric wire',
-            description: 'There is an unprotected electric wire hanging low near the school.',
+            description:
+                'There is an unprotected electric wire hanging low near the school.',
           ),
           ReportCategory.safety,
         );
@@ -81,20 +82,18 @@ void main() {
       );
     });
 
-    test(
-      "'I live near' does not get misread as a live-wire hazard signal",
-      () {
-        // 'live' is deliberately excluded from the Safety keyword list —
-        // this is the exact false-positive it would otherwise cause.
-        expect(
-          ReportCategoryClassifier.classify(
-            title: 'Broken streetlight',
-            description: 'I live near this street and the light has been out for days.',
-          ),
-          ReportCategory.infrastructure,
-        );
-      },
-    );
+    test("'I live near' does not get misread as a live-wire hazard signal", () {
+      // 'live' is deliberately excluded from the Safety keyword list —
+      // this is the exact false-positive it would otherwise cause.
+      expect(
+        ReportCategoryClassifier.classify(
+          title: 'Broken streetlight',
+          description:
+              'I live near this street and the light has been out for days.',
+        ),
+        ReportCategory.infrastructure,
+      );
+    });
 
     test('an explicit crime report is still classified as Safety', () {
       expect(

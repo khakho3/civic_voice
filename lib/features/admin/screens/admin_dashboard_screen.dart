@@ -10,7 +10,6 @@ import '../../../widgets/app_state_message.dart';
 import '../../../widgets/glass_card.dart';
 import '../../../widgets/stat_tile.dart';
 import '../models/admin_dashboard_data.dart';
-import '../models/admin_profile_data.dart';
 import '../models/admin_system_activity_data.dart';
 import '../services/admin_session.dart';
 import '../services/admin_user_directory.dart';
@@ -250,7 +249,7 @@ class _DashboardBody extends StatelessWidget {
                       ),
                     ),
                     _ApiStatusBadge(
-                      stats: healthStats ?? mockSystemHealthStats(),
+                      stats: healthStats,
                       onTap: onNavigateToActivity,
                     ),
                   ],
@@ -313,7 +312,7 @@ class _DashboardBody extends StatelessWidget {
 class _ApiStatusBadge extends StatefulWidget {
   const _ApiStatusBadge({required this.stats, this.onTap});
 
-  final SystemHealthStats stats;
+  final SystemHealthStats? stats;
   final VoidCallback? onTap;
 
   @override
@@ -335,8 +334,14 @@ class _ApiStatusBadgeState extends State<_ApiStatusBadge>
 
   @override
   Widget build(BuildContext context) {
-    final online = widget.stats.apiOnline && widget.stats.databaseOnline;
-    final color = online ? AppColors.statusResolved : AppColors.error;
+    final stats = widget.stats;
+    final online = stats?.apiOnline == true && stats?.databaseOnline == true;
+    final checking = stats == null;
+    final color = checking
+        ? Theme.of(context).colorScheme.onSurfaceVariant
+        : online
+        ? AppColors.statusResolved
+        : AppColors.error;
     final reduceMotion =
         MediaQuery.maybeOf(context)?.disableAnimations ?? false;
     return Material(
@@ -381,7 +386,11 @@ class _ApiStatusBadgeState extends State<_ApiStatusBadge>
               ),
               const SizedBox(width: AppSpacing.xs),
               Text(
-                'API: ${online ? 'Online' : 'Offline'}',
+                'API: ${checking
+                    ? 'Checking'
+                    : online
+                    ? 'Online'
+                    : 'Offline'}',
                 style: Theme.of(context).textTheme.labelMedium?.copyWith(
                   color: color,
                   fontWeight: AppFontWeight.semiBold,
@@ -416,7 +425,8 @@ class _AdminGreeting extends StatelessWidget {
                 ? null
                 : AdminUserDirectory.instance.correspondentAdminFor(assembly))
             ?.name ??
-        mockAdminProfile().fullName;
+        AdminUserDirectory.instance.currentUser?.name ??
+        'Administrator';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

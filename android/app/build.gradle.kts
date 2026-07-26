@@ -75,8 +75,9 @@ android {
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
+            // Existing 1.0.x APKs were distributed with this signing identity.
+            // Keep it until a managed release-key migration is planned; changing
+            // keys now would force every current tester to uninstall first.
             signingConfig = signingConfigs.getByName("debug")
         }
     }

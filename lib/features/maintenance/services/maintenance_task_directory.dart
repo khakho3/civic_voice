@@ -29,16 +29,27 @@ class MaintenanceTaskDirectory {
       MaintenanceSession.instance.profile.value.publicId;
 
   final ValueNotifier<List<MaintenanceTask>> tasks = ValueNotifier(
-    mockMaintenanceTasks(),
+    Firebase.apps.isEmpty ? mockMaintenanceTasks() : const <MaintenanceTask>[],
   );
+  final ValueNotifier<bool> loading = ValueNotifier(false);
+  final ValueNotifier<String?> error = ValueNotifier(null);
   bool hasLiveSnapshot = false;
 
   Future<void> refresh() async {
     final token = await FirebaseAuth.instance.currentUser?.getIdToken();
     if (token == null) throw StateError('A signed-in technician is required');
-    final response = await ApiClient.instance.listReports(idToken: token);
-    tasks.value = response.map(MaintenanceTask.fromApi).toList();
-    hasLiveSnapshot = true;
+    loading.value = true;
+    error.value = null;
+    try {
+      final response = await ApiClient.instance.listReports(idToken: token);
+      tasks.value = response.map(MaintenanceTask.fromApi).toList();
+      hasLiveSnapshot = true;
+    } catch (exception) {
+      error.value = exception.toString();
+      rethrow;
+    } finally {
+      loading.value = false;
+    }
   }
 
   MaintenanceTask? taskById(String taskId) {

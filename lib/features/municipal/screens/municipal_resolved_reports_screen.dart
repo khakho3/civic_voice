@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/ghana_refresh_indicator.dart';
@@ -117,7 +118,9 @@ class _MunicipalResolvedReportsScreenState
 
   static List<ResolvedReportItem> _resolvedReports() {
     final reports = MunicipalReportDirectory.instance.reports.value;
-    final live = MunicipalReportDirectory.instance.hasLiveSnapshot;
+    final live =
+        Firebase.apps.isNotEmpty ||
+        MunicipalReportDirectory.instance.hasLiveSnapshot;
     return live
         ? reports
               .where(

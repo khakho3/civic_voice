@@ -22,7 +22,11 @@ enum AssemblyType {
 /// belongs to exactly one of these too, inherited from whichever assembly
 /// Admin provisioned them.
 class Assembly {
-  const Assembly({required this.name, required this.type, required this.region});
+  const Assembly({
+    required this.name,
+    required this.type,
+    required this.region,
+  });
 
   final String name;
   final AssemblyType type;

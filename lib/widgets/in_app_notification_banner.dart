@@ -77,10 +77,10 @@ class _BannerCardState extends State<_BannerCard>
     vsync: this,
     duration: const Duration(milliseconds: 280),
   );
-  late final Animation<Offset> _offset =
-      Tween<Offset>(begin: const Offset(0, -1), end: Offset.zero).animate(
-        CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic),
-      );
+  late final Animation<Offset> _offset = Tween<Offset>(
+    begin: const Offset(0, -1),
+    end: Offset.zero,
+  ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
   Timer? _autoDismissTimer;
   bool _dismissing = false;
 
@@ -144,7 +144,9 @@ class _BannerCardState extends State<_BannerCard>
                     decoration: BoxDecoration(
                       color: theme.colorScheme.surface,
                       borderRadius: AppComponentRadius.card,
-                      border: Border.all(color: theme.colorScheme.outlineVariant),
+                      border: Border.all(
+                        color: theme.colorScheme.outlineVariant,
+                      ),
                       boxShadow: AppShadow.level2,
                     ),
                     child: Row(

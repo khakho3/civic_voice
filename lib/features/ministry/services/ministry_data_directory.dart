@@ -73,6 +73,16 @@ class MinistryDataDirectory {
     }
   }
 
+  void clearSession() {
+    MunicipalReportDirectory.instance.reports.value =
+        const <IncomingReportItem>[];
+    MunicipalReportDirectory.instance.hasLiveSnapshot = false;
+    _contacts.clear();
+    error.value = null;
+    loading.value = false;
+    revision.value++;
+  }
+
   MinistryDashboardData get dashboard {
     final total = reports.length;
     final resolved = _countStatus(ReportStatus.resolved);

@@ -74,6 +74,7 @@ class AdminProfileScreen extends StatefulWidget {
     this.onNotificationsTap,
     this.initialData,
     this.onSaveProfile,
+    this.onRetry,
   });
 
   final AdminProfileViewState initialState;
@@ -104,6 +105,7 @@ class AdminProfileScreen extends StatefulWidget {
   final VoidCallback? onNotificationsTap;
   final AdminProfileData? initialData;
   final Future<bool> Function(String fullName)? onSaveProfile;
+  final Future<void> Function()? onRetry;
 
   @override
   State<AdminProfileScreen> createState() => _AdminProfileScreenState();
@@ -123,11 +125,34 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
     _draft = _original;
   }
 
-  void _retry() {
+  @override
+  void didUpdateWidget(covariant AdminProfileScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!_editing &&
+        widget.initialData != null &&
+        widget.initialData != oldWidget.initialData) {
+      _original = widget.initialData!;
+      _draft = _original;
+    }
+    if (widget.initialState != oldWidget.initialState) {
+      _state = widget.initialState;
+    }
+  }
+
+  Future<void> _retry() async {
     setState(() => _state = AdminProfileViewState.loading);
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (mounted) setState(() => _state = AdminProfileViewState.loaded);
-    });
+    try {
+      await widget.onRetry?.call();
+      if (mounted) {
+        setState(() {
+          _state = widget.initialData == null
+              ? AdminProfileViewState.error
+              : AdminProfileViewState.loaded;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _state = AdminProfileViewState.error);
+    }
   }
 
   void _startEdit() {

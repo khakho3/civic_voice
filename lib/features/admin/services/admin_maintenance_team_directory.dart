@@ -14,7 +14,7 @@ class MaintenanceTeamDirectory {
   static final MaintenanceTeamDirectory instance = MaintenanceTeamDirectory._();
 
   final ValueNotifier<List<MaintenanceTeam>> teams = ValueNotifier(
-    mockMaintenanceTeams(),
+    Firebase.apps.isEmpty ? mockMaintenanceTeams() : const <MaintenanceTeam>[],
   );
 
   int _nextTeamNumber = 2;

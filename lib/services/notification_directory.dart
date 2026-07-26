@@ -48,15 +48,35 @@ class NotificationDirectory {
   static const _dismissedIdsKey = 'notification_dismissed_ids';
 
   SharedPreferences? _preferences;
+  String? _accountId;
 
-  Future<void> initialize() async {
+  String _storageKey(String base) =>
+      _accountId == null ? '${base}_signed_out' : '${base}_${_accountId!}';
+
+  Future<void> initialize({String? accountId = 'default'}) async {
     final preferences = await SharedPreferences.getInstance();
     _preferences = preferences;
-    readIds.value = (preferences.getStringList(_readIdsKey) ?? const <String>[])
-        .toSet();
-    dismissedIds.value =
-        (preferences.getStringList(_dismissedIdsKey) ?? const <String>[])
+    await activateAccount(accountId);
+  }
+
+  Future<void> activateAccount(String? accountId) async {
+    _accountId = accountId;
+    final preferences = _preferences ?? await SharedPreferences.getInstance();
+    _preferences = preferences;
+    readIds.value =
+        (preferences.getStringList(_storageKey(_readIdsKey)) ??
+                const <String>[])
             .toSet();
+    dismissedIds.value =
+        (preferences.getStringList(_storageKey(_dismissedIdsKey)) ??
+                const <String>[])
+            .toSet();
+  }
+
+  void clearSession() {
+    _accountId = null;
+    readIds.value = <String>{};
+    dismissedIds.value = <String>{};
   }
 
   bool isRead(String id) => readIds.value.contains(id);
@@ -88,15 +108,16 @@ class NotificationDirectory {
 
   void _persist(String key, Set<String> values) {
     final sorted = values.toList()..sort();
+    final storageKey = _storageKey(key);
     final preferences = _preferences;
     if (preferences != null) {
-      unawaited(preferences.setStringList(key, sorted));
+      unawaited(preferences.setStringList(storageKey, sorted));
       return;
     }
     unawaited(
       SharedPreferences.getInstance().then((instance) {
         _preferences = instance;
-        instance.setStringList(key, sorted);
+        instance.setStringList(storageKey, sorted);
       }),
     );
   }

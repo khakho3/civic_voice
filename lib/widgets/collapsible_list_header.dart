@@ -16,7 +16,11 @@ import '../core/theme/app_theme.dart';
 /// not transient chrome, so they belong in the scrollable [child] itself
 /// (as its first item), not wrapped in here.
 class CollapsibleListHeader extends StatefulWidget {
-  const CollapsibleListHeader({super.key, required this.header, required this.child});
+  const CollapsibleListHeader({
+    super.key,
+    required this.header,
+    required this.child,
+  });
 
   final Widget header;
   final Widget child;

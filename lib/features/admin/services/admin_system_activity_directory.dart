@@ -12,10 +12,10 @@ class AdminSystemActivityDirectory {
   static final instance = AdminSystemActivityDirectory._();
 
   final ValueNotifier<List<ActivityItem>> items = ValueNotifier(
-    mockActivityItems(),
+    Firebase.apps.isEmpty ? mockActivityItems() : const <ActivityItem>[],
   );
   final ValueNotifier<SystemHealthStats?> health = ValueNotifier(
-    mockSystemHealthStats(),
+    Firebase.apps.isEmpty ? mockSystemHealthStats() : null,
   );
   final ValueNotifier<bool> loading = ValueNotifier(false);
   final ValueNotifier<String?> error = ValueNotifier(null);

@@ -83,15 +83,17 @@ class _CitizenReportsScreenState extends State<CitizenReportsScreen> {
   }
 
   void _openAlerts() {
-    Navigator.of(
-      context,
-    ).pushAndRemoveUntil(citizenAlertsTabRoute(context), (route) => route.isFirst);
+    Navigator.of(context).pushAndRemoveUntil(
+      citizenAlertsTabRoute(context),
+      (route) => route.isFirst,
+    );
   }
 
   void _openProfile() {
-    Navigator.of(
-      context,
-    ).pushAndRemoveUntil(citizenProfileTabRoute(context), (route) => route.isFirst);
+    Navigator.of(context).pushAndRemoveUntil(
+      citizenProfileTabRoute(context),
+      (route) => route.isFirst,
+    );
   }
 
   @override

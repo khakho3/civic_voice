@@ -53,6 +53,10 @@ class ProfileCrudService implements ProfileRepository {
     );
   }
 
+  void clearSession() {
+    _publishProfile(_defaultProfile);
+  }
+
   @override
   Future<CitizenProfile> createProfile(CitizenProfile newProfile) async {
     _publishProfile(newProfile);

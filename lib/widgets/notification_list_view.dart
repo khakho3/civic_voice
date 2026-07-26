@@ -197,8 +197,7 @@ class _PermissionBanner extends StatelessWidget {
       icon: AppIcons.notificationsOff,
       badgeColor: AppColors.warning,
       title: 'Notifications Are Off',
-      message:
-          'Turn them on to get updates when CivicVoice is closed.',
+      message: 'Turn them on to get updates when CivicVoice is closed.',
       primaryActionLabel: settingsRequired ? 'Settings' : 'Enable',
       onPrimaryAction: onPressed,
       bordered: true,

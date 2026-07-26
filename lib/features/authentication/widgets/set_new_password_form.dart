@@ -12,6 +12,7 @@ class SetNewPasswordForm extends StatefulWidget {
   });
 
   final String submitLabel;
+
   /// Returns true on success. On false, the form shows a generic inline
   /// error — callers that need a specific message should show their own
   /// SnackBar/dialog before returning false.

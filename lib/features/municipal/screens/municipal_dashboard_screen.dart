@@ -33,6 +33,7 @@ class MunicipalDashboardScreen extends StatefulWidget {
   const MunicipalDashboardScreen({
     super.key,
     this.initialState = MunicipalDashboardViewState.loaded,
+    this.data,
     this.onNavigateToInbox,
     this.onNavigateToActiveReports,
     this.onNavigateToResolvedReports,
@@ -45,6 +46,7 @@ class MunicipalDashboardScreen extends StatefulWidget {
   /// value to preview another approved state until this screen is wired to
   /// a live Cloud Firestore stream (Issue 03 dependency).
   final MunicipalDashboardViewState initialState;
+  final MunicipalDashboardData? data;
 
   /// Wired by the app shell so the bottom nav can actually switch screens
   /// now that both MUN-001 and MUN-002 exist.
@@ -77,7 +79,18 @@ class MunicipalDashboardScreen extends StatefulWidget {
 
 class _MunicipalDashboardScreenState extends State<MunicipalDashboardScreen> {
   late MunicipalDashboardViewState _state = widget.initialState;
-  MunicipalDashboardData _data = MunicipalDashboardData.mock();
+  late MunicipalDashboardData _data =
+      widget.data ?? MunicipalDashboardData.mock();
+
+  @override
+  void didUpdateWidget(covariant MunicipalDashboardScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.data != oldWidget.data ||
+        widget.initialState != oldWidget.initialState) {
+      _data = widget.data ?? _data;
+      _state = widget.initialState;
+    }
+  }
 
   Future<void> _retry() async {
     setState(() => _state = MunicipalDashboardViewState.loading);
@@ -85,8 +98,10 @@ class _MunicipalDashboardScreenState extends State<MunicipalDashboardScreen> {
       await MunicipalReportDirectory.instance.refresh();
       if (mounted) {
         setState(() {
-          _data = MunicipalDashboardData.mock();
-          _state = MunicipalDashboardViewState.loaded;
+          _data = widget.data ?? MunicipalDashboardData.current();
+          _state = _data.recentReports.isEmpty
+              ? MunicipalDashboardViewState.empty
+              : MunicipalDashboardViewState.loaded;
         });
       }
     } catch (_) {

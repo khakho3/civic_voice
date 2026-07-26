@@ -285,6 +285,45 @@ void main() {
   });
 
   testWidgets(
+    'failed nearby confirmation stays available for retry and is not remembered',
+    (WidgetTester tester) async {
+      SharedPreferences.setMockInitialValues(<String, Object>{});
+      await AppCacheService.instance.initialize();
+      tester.view.physicalSize = const Size(428, 1800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: CitizenDashboardScreen(
+            locationService: _FakeLocationService(
+              LocationAccessResult(
+                status: LocationAccessStatus.ready,
+                position: _position(5.6, -0.2),
+              ),
+            ),
+            nearbySecondingLoader: (_, _) async => _nearbyReports,
+            nearbySecondingConfirmer: (_) async =>
+                throw Exception('network unavailable'),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+
+      await tester.tap(find.text("Confirm it's still there"));
+      await tester.pump();
+      await tester.pump();
+
+      expect(find.byType(NearbySecondingCard), findsOneWidget);
+      expect(AppCacheService.instance.secondingSeenIds, isEmpty);
+      expect(find.text('Could not confirm this report.'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
     'photo source flags stay aligned when the first photo is removed',
     (WidgetTester tester) async {
       tester.view.physicalSize = const Size(428, 2600);

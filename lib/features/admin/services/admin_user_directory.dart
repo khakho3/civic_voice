@@ -23,8 +23,11 @@ class AdminUserDirectory {
   static final AdminUserDirectory instance = AdminUserDirectory._();
 
   final ValueNotifier<List<AdminUserItem>> users = ValueNotifier(
-    mockAdminUsers(),
+    Firebase.apps.isEmpty ? mockAdminUsers() : const <AdminUserItem>[],
   );
+  final ValueNotifier<bool> loading = ValueNotifier(false);
+  final ValueNotifier<String?> error = ValueNotifier(null);
+  bool hasLiveSnapshot = false;
 
   int _nextUserNumber = 200;
   String? currentApiUserId;
@@ -42,8 +45,18 @@ class AdminUserDirectory {
     if (Firebase.apps.isEmpty) return;
     final token = await FirebaseAuth.instance.currentUser?.getIdToken();
     if (token == null) throw StateError('A signed-in Admin is required');
-    final response = await ApiClient.instance.listUsers(idToken: token);
-    users.value = response.map(AdminUserItem.fromApi).toList();
+    loading.value = true;
+    error.value = null;
+    try {
+      final response = await ApiClient.instance.listUsers(idToken: token);
+      users.value = response.map(AdminUserItem.fromApi).toList();
+      hasLiveSnapshot = true;
+    } catch (exception) {
+      error.value = exception.toString();
+      rethrow;
+    } finally {
+      loading.value = false;
+    }
   }
 
   void upsertFromApi(Map<String, dynamic> json) {

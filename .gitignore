@@ -25,6 +25,9 @@ migrate_working_dir/
 
 # Local secrets
 /android/local.properties
+/android/key.properties
+*.jks
+*.keystore
 
 # Claude Code project state — local tool state, not app code
 /.claude/
