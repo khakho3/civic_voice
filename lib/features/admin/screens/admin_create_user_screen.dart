@@ -57,7 +57,7 @@ String _backendRoleFor(AppRole role) {
 /// just as jurisdiction-bound as the staff it manages.
 ///
 /// Creates for real against civic_voice_api (see [ApiClient.createStaffUser])
-/// — a real Firebase account, mirrored Postgres row, and a real WittyFlow
+/// — a real Firebase account, mirrored Postgres row, and a real Speso
 /// temp-password SMS. Also mirrors the new account into [AdminUserDirectory]
 /// so it shows back up in [AdminUserManagementScreen]'s list immediately,
 /// since there's no "list all users" backend endpoint yet — that list is

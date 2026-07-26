@@ -846,6 +846,13 @@ void main() {
     );
 
     expect(find.text('Paste Code'), findsNothing);
+    expect(
+      find.text(
+        'SMS delayed? Dial *920*331# from your phone to view your code instantly.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('otp-ussd-fallback')), findsOneWidget);
     await tester.enterText(find.byType(TextField), '1234');
     await tester.pump();
     expect(find.widgetWithText(FilledButton, 'Verify Code'), findsOneWidget);
@@ -904,7 +911,9 @@ void main() {
 
     expect(find.textContaining('Resend code in'), findsOneWidget);
     await tester.pump(const Duration(seconds: 2));
-    await tester.tap(find.widgetWithText(TextButton, 'Resend Code'));
+    final resendButton = find.widgetWithText(TextButton, 'Resend Code');
+    await tester.ensureVisible(resendButton);
+    await tester.tap(resendButton);
     await tester.pump();
     expect(resendCount, 1);
     expect(find.text('Code Resent'), findsOneWidget);
