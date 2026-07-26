@@ -44,6 +44,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   bool _hidePassword = true;
   bool _keepSignedIn = false;
+  bool _suppressStaleStatusPanel = false;
 
   bool get _isLoading => widget.state == LoginViewState.loading;
 
@@ -52,8 +53,13 @@ class _LoginScreenState extends State<LoginScreen> {
       widget.state == LoginViewState.offline ||
       _isLoading;
 
-  bool get _showFieldErrors =>
-      widget.state == LoginViewState.invalidCredentials;
+  @override
+  void didUpdateWidget(LoginScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.state != widget.state) {
+      _suppressStaleStatusPanel = false;
+    }
+  }
 
   @override
   void dispose() {
@@ -64,6 +70,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
   void _submitForm() {
     final isValid = _formKey.currentState?.validate() ?? false;
+
+    if (!_suppressStaleStatusPanel) {
+      setState(() => _suppressStaleStatusPanel = true);
+    }
 
     if (isValid) {
       widget.onSignIn?.call(
@@ -100,7 +110,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 context,
                 hintText: 'Enter your phone number',
                 prefixIcon: AppIcons.phone,
-                errorText: _showFieldErrors ? 'Please check this field.' : null,
               ),
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
@@ -128,7 +137,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 context,
                 hintText: 'Enter your password',
                 prefixIcon: AppIcons.password,
-                errorText: _showFieldErrors ? 'Please check this field.' : null,
                 suffixIcon: IconButton(
                   onPressed: _isDisabled
                       ? null
@@ -220,10 +228,11 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   bool get _shouldShowStatusPanel {
-    return widget.state == LoginViewState.sessionExpired ||
-        widget.state == LoginViewState.error ||
-        widget.state == LoginViewState.invalidCredentials ||
-        widget.state == LoginViewState.offline;
+    return !_suppressStaleStatusPanel &&
+        (widget.state == LoginViewState.sessionExpired ||
+            widget.state == LoginViewState.error ||
+            widget.state == LoginViewState.invalidCredentials ||
+            widget.state == LoginViewState.offline);
   }
 }
 

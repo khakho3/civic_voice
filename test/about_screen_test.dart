@@ -2,6 +2,7 @@ import 'package:civic_voice/core/theme/app_theme.dart';
 import 'package:civic_voice/features/admin/screens/admin_profile_screen.dart';
 import 'package:civic_voice/features/authentication/screens/about_screen.dart';
 import 'package:civic_voice/features/citizen/screens/citizen_profile_screen.dart';
+import 'package:civic_voice/features/citizen/screens/citizen_tab_routes.dart';
 import 'package:civic_voice/features/maintenance/screens/profile_screen.dart'
     as maintenance;
 import 'package:civic_voice/features/ministry/screens/ministry_profile_screen.dart';
@@ -185,5 +186,50 @@ void main() {
         (onAbout) => CitizenProfileScreen(onAbout: onAbout),
       );
     });
+  });
+
+  testWidgets('Citizen bottom-tab profile opens About CivicVoice', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(428, 3000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        routes: {
+          '/about': (_) =>
+              AboutScreen(packageInfoLoader: () async => loadPackageInfo()),
+        },
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: TextButton(
+              onPressed: () =>
+                  Navigator.of(context).push(citizenProfileTabRoute(context)),
+              child: const Text('Open Profile'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open Profile'));
+    await tester.pumpAndSettle();
+
+    final aboutAction = find.text('About CivicVoice');
+    await tester.ensureVisible(aboutAction);
+    await tester.tap(aboutAction);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AboutScreen), findsOneWidget);
+    expect(
+      find.text(
+        'A direct line between citizens and the assemblies that serve them.',
+      ),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
   });
 }

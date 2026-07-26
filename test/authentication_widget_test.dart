@@ -313,6 +313,58 @@ void main() {
     expect(find.byTooltip('Paste password'), findsNothing);
   });
 
+  testWidgets(
+    'rejected valid login uses one global authentication error only',
+    (WidgetTester tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: const LoginScreen(state: LoginViewState.invalidCredentials),
+        ),
+      );
+      await tester.pump();
+
+      final fields = find.byType(TextFormField);
+      await tester.enterText(fields.at(0), '0551234567');
+      await tester.enterText(fields.at(1), 'valid-password');
+      await tester.pump();
+
+      expect(find.text('Authentication Error'), findsOneWidget);
+      expect(find.text('Invalid phone number or password.'), findsOneWidget);
+      expect(find.text('Please check this field.'), findsNothing);
+      expect(find.text('Please enter your phone number.'), findsNothing);
+      expect(find.text('Please enter your password.'), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'local login validation suppresses a stale authentication error panel',
+    (WidgetTester tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: const LoginScreen(state: LoginViewState.invalidCredentials),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('Authentication Error'), findsOneWidget);
+
+      final signIn = find.widgetWithText(FilledButton, 'Sign In');
+      await tester.ensureVisible(signIn);
+      await tester.tap(signIn);
+      await tester.pump();
+
+      expect(find.text('Please enter your phone number.'), findsOneWidget);
+      expect(find.text('Please enter your password.'), findsOneWidget);
+      expect(find.text('Please check this field.'), findsNothing);
+      expect(find.text('Authentication Error'), findsNothing);
+      expect(find.text('Invalid phone number or password.'), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('Login Sign In submits to the real auth flow and recovers from a '
       'failed request', (WidgetTester tester) async {
     // Sign-in now calls the real backend + Firebase Auth (see
@@ -480,13 +532,25 @@ void main() {
     await tester.pump();
     final scrollView = find.byType(SingleChildScrollView);
     final fullHeight = tester.getSize(scrollView).height;
+    final heroSheet = find.byKey(const ValueKey('auth-hero-sheet'));
+    final restingSheetTop = tester
+        .widget<AnimatedPadding>(heroSheet)
+        .padding
+        .resolve(TextDirection.ltr)
+        .top;
     tester.view.viewInsets = const FakeViewPadding(bottom: 340);
     addTearDown(tester.view.resetViewInsets);
-    await tester.pump();
+    await tester.pumpAndSettle();
 
     final scaffold = tester.widget<Scaffold>(find.byType(Scaffold));
     expect(scaffold.resizeToAvoidBottomInset, isFalse);
-    expect(tester.getSize(scrollView).height, fullHeight);
+    final raisedSheetTop = tester
+        .widget<AnimatedPadding>(heroSheet)
+        .padding
+        .resolve(TextDirection.ltr)
+        .top;
+    expect(raisedSheetTop, lessThan(restingSheetTop));
+    expect(tester.getSize(scrollView).height, greaterThan(fullHeight));
     final keyboardPadding = tester
         .widget<SingleChildScrollView>(scrollView)
         .padding!
@@ -511,9 +575,41 @@ void main() {
         .padding!
         .resolve(TextDirection.ltr);
     expect(closedPadding.bottom, AppSpacing.lg);
+    expect(
+      tester
+          .widget<AnimatedPadding>(heroSheet)
+          .padding
+          .resolve(TextDirection.ltr)
+          .top,
+      restingSheetTop,
+    );
     expect(tester.getSize(scrollView).height, fullHeight);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+    'Registration policy acknowledgement integrates with the glass sheet',
+    (WidgetTester tester) async {
+      await tester.pumpWidget(
+        MaterialApp(theme: AppTheme.light, home: const RegistrationScreen()),
+      );
+      await tester.pump();
+
+      final policyContainer = tester.widget<Container>(
+        find.byKey(const ValueKey('registration-policy-acknowledgement')),
+      );
+      final decoration = policyContainer.decoration! as BoxDecoration;
+      final border = decoration.border! as Border;
+      final semantic = Theme.of(
+        tester.element(find.byType(RegistrationScreen)),
+      ).extension<AppSemanticColors>()!;
+
+      expect(decoration.color, isNull);
+      expect(border.top.color, semantic.glassBorder);
+      expect(find.text('Privacy & Data Use Policy'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('Only Login and Registration use the illustration hero', (
     WidgetTester tester,
@@ -550,26 +646,24 @@ void main() {
       );
       final heroImage = tester.widget<Image>(imageUsing(AppAssets.authHero));
       expect(heroImage.fit, BoxFit.cover);
-      expect(heroImage.alignment, Alignment.topCenter);
+      expect(heroImage.alignment, AuthIllustrationHero.focalAlignment);
       expect(find.byType(BackdropFilter), findsNWidgets(2));
       expect(find.byType(AuthFormSurface), findsNothing);
       final resolvedSemantic = Theme.of(
         tester.element(find.byType(AuthIllustrationHero)),
       ).extension<AppSemanticColors>()!;
-      final glassSurface = find.byWidgetPredicate(
+      final glassSheet = find.byWidgetPredicate(
         (widget) =>
             widget is ColoredBox &&
-            widget.color == resolvedSemantic.glassSurface,
+            widget.color == resolvedSemantic.glassCardSurface,
       );
-      expect(glassSurface, findsOneWidget);
-      final expectedBackSurface = resolvedSemantic.glassSurface.withValues(
-        alpha: resolvedSemantic.glassBorder.a,
-      );
+      expect(glassSheet, findsOneWidget);
       final glassBackSurface = find.byWidgetPredicate(
         (widget) =>
             widget is DecoratedBox &&
             widget.decoration is BoxDecoration &&
-            (widget.decoration as BoxDecoration).color == expectedBackSurface,
+            (widget.decoration as BoxDecoration).color ==
+                resolvedSemantic.glassCardSurface,
       );
       expect(glassBackSurface, findsOneWidget);
       expect(tester.takeException(), isNull);
@@ -583,8 +677,155 @@ void main() {
     expect(find.byType(AuthIllustrationHero), findsNothing);
     expect(imageUsing(AppAssets.authHero), findsNothing);
     expect(imageUsing(AppAssets.logoApp), findsOneWidget);
-    expect(find.byType(BackdropFilter), findsNothing);
-    expect(find.byType(AuthFormSurface), findsOneWidget);
+    expect(find.byType(BackdropFilter), findsNWidgets(2));
+    expect(find.byType(RecoveryAuthBackButton), findsOneWidget);
+    expect(find.byType(RecoveryAuthFormSurface), findsOneWidget);
+    expect(find.byType(AuthFormSurface), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('illustration focal framing is stable across phone widths', (
+    WidgetTester tester,
+  ) async {
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    Finder heroImage() => find.descendant(
+      of: find.byType(AuthIllustrationHero),
+      matching: find.byType(Image),
+    );
+
+    for (final size in const [Size(320, 800), Size(428, 1200)]) {
+      tester.view.physicalSize = size;
+      tester.view.devicePixelRatio = 1;
+
+      await tester.pumpWidget(
+        MaterialApp(theme: AppTheme.light, home: const LoginScreen()),
+      );
+      await tester.pump();
+
+      final image = tester.widget<Image>(heroImage());
+      expect(image.fit, BoxFit.cover);
+      expect(image.alignment, AuthIllustrationHero.focalAlignment);
+      expect(
+        tester.getSize(heroImage()),
+        tester.getSize(find.byType(Scaffold)),
+      );
+      expect(tester.takeException(), isNull);
+    }
+  });
+
+  testWidgets(
+    'Forgot Password and OTP alone use the compact recovery glass treatment',
+    (WidgetTester tester) async {
+      var backTapCount = 0;
+      final recoveryCases = <({Widget screen, ThemeData theme})>[
+        (
+          screen: ForgotPasswordScreen(onBack: () => backTapCount++),
+          theme: AppTheme.light,
+        ),
+        (
+          screen: OtpVerificationScreen(
+            phoneNumber: '+233 24 555 0100',
+            purpose: OtpPurpose.forgotPassword,
+            onBack: () => backTapCount++,
+            onVerify: (_) async => true,
+          ),
+          theme: AppTheme.dark,
+        ),
+      ];
+
+      for (final testCase in recoveryCases) {
+        await tester.pumpWidget(
+          MaterialApp(theme: testCase.theme, home: testCase.screen),
+        );
+        await tester.pump();
+
+        final semantic = Theme.of(
+          tester.element(find.byType(RecoveryAuthFormSurface)),
+        ).extension<AppSemanticColors>()!;
+        final denseGlass = find.byWidgetPredicate(
+          (widget) =>
+              widget is DecoratedBox &&
+              widget.decoration is BoxDecoration &&
+              (widget.decoration as BoxDecoration).color ==
+                  semantic.glassCardSurface,
+        );
+
+        expect(find.byType(AuthIllustrationHero), findsNothing);
+        expect(find.byType(RecoveryAuthBackButton), findsOneWidget);
+        expect(find.byType(RecoveryAuthFormSurface), findsOneWidget);
+        expect(find.byType(AuthFormSurface), findsNothing);
+        expect(find.byType(BackdropFilter), findsNWidgets(2));
+        expect(denseGlass, findsOneWidget);
+        expect(
+          find.byKey(const ValueKey('recovery-auth-back-ambient')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const ValueKey('recovery-auth-form-ambient')),
+          findsOneWidget,
+        );
+
+        await tester.tap(find.byTooltip('Go back'));
+        await tester.pump();
+      }
+      expect(backTapCount, recoveryCases.length);
+
+      final unchangedCases = <Widget>[
+        SetNewPasswordScreen(
+          purpose: SetNewPasswordPurpose.forgotPassword,
+          onSaved: (_) async => true,
+        ),
+        ChangePasswordScreen(onSaved: () async {}),
+      ];
+
+      for (final screen in unchangedCases) {
+        await tester.pumpWidget(
+          MaterialApp(theme: AppTheme.light, home: screen),
+        );
+        await tester.pump();
+
+        expect(find.byType(RecoveryAuthBackButton), findsNothing);
+        expect(find.byType(RecoveryAuthFormSurface), findsNothing);
+        expect(find.byType(AuthFormSurface), findsOneWidget);
+        expect(find.byType(BackdropFilter), findsNothing);
+        expect(
+          find.byKey(const ValueKey('recovery-auth-back-ambient')),
+          findsNothing,
+        );
+        expect(
+          find.byKey(const ValueKey('recovery-auth-form-ambient')),
+          findsNothing,
+        );
+      }
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('recovery glass back button visibly disables without onBack', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(theme: AppTheme.light, home: const ForgotPasswordScreen()),
+    );
+    await tester.pump();
+
+    final button = tester.widget<IconButton>(
+      find.descendant(
+        of: find.byType(RecoveryAuthBackButton),
+        matching: find.byType(IconButton),
+      ),
+    );
+    final colors = Theme.of(
+      tester.element(find.byType(RecoveryAuthBackButton)),
+    ).colorScheme;
+
+    expect(button.onPressed, isNull);
+    expect(
+      button.style?.foregroundColor?.resolve({WidgetState.disabled}),
+      colors.onSurfaceVariant,
+    );
     expect(tester.takeException(), isNull);
   });
 

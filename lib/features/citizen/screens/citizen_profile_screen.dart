@@ -27,11 +27,17 @@ import 'citizen_tab_routes.dart';
 /// "Edit Profile" `FilledButton`), which is what "sudoku"-clutter and the
 /// oversized edit affordance both trace back to on this specific screen.
 class CitizenProfileScreen extends StatefulWidget {
-  const CitizenProfileScreen({super.key, this.onAbout, this.onLogOut});
+  const CitizenProfileScreen({
+    super.key,
+    this.onAbout,
+    this.onRegister,
+    this.onLogOut,
+  });
 
   static const String routeName = '/citizen/profile';
 
   final VoidCallback? onAbout;
+  final VoidCallback? onRegister;
 
   /// Fired after the sign-out confirmation dialog is accepted. Nullable:
   /// there's no real auth session to end yet.
@@ -207,6 +213,11 @@ class _CitizenProfileScreenState extends State<CitizenProfileScreen> {
                                   title: 'Personal Information',
                                   trailing: _isEditing
                                       ? null
+                                      : profile.isGuest
+                                      ? TextButton(
+                                          onPressed: widget.onRegister,
+                                          child: const Text('Create Account'),
+                                        )
                                       : ProfileEditButton(
                                           onPressed: _startEditing,
                                         ),

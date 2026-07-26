@@ -90,6 +90,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       title: 'Forgot Password',
       supportingText:
           'Enter your phone number and we will send a verification code.',
+      useRecoveryGlass: true,
       form: Form(
         key: _formKey,
         child: Column(

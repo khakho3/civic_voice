@@ -1,18 +1,24 @@
 import 'package:civic_voice/core/theme/app_theme.dart';
 import 'package:civic_voice/features/citizen/models/civic_report.dart';
+import 'package:civic_voice/features/citizen/models/citizen_profile.dart';
 import 'package:civic_voice/features/citizen/screens/citizen_dashboard_screen.dart';
+import 'package:civic_voice/features/citizen/screens/citizen_profile_screen.dart';
+import 'package:civic_voice/features/citizen/screens/citizen_tab_routes.dart';
 import 'package:civic_voice/features/citizen/screens/photo_upload_screen.dart';
 import 'package:civic_voice/features/citizen/screens/report_tracking_screen.dart';
 import 'package:civic_voice/features/citizen/screens/review_report_screen.dart';
 import 'package:civic_voice/features/citizen/services/location_service.dart';
+import 'package:civic_voice/features/citizen/services/profile_crud_service.dart';
 import 'package:civic_voice/features/citizen/services/report_crud_service.dart';
 import 'package:civic_voice/features/citizen/widgets/nearby_seconding_card.dart';
 import 'package:civic_voice/features/citizen/widgets/nearby_seconding_preference_row.dart';
+import 'package:civic_voice/features/authentication/screens/registration_screen.dart';
 import 'package:civic_voice/main.dart' as app;
 import 'package:civic_voice/services/app_cache_service.dart';
 import 'package:civic_voice/utils/time_greeting.dart';
 import 'package:civic_voice/widgets/evidence_image_viewer.dart';
 import 'package:civic_voice/widgets/glass_dialog_backdrop.dart';
+import 'package:civic_voice/widgets/profile_edit_button.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:geolocator/geolocator.dart';
@@ -66,6 +72,85 @@ const _nearbyReports = [
 ];
 
 void main() {
+  testWidgets('guest profile offers account creation instead of editing', (
+    tester,
+  ) async {
+    final profileService = ProfileCrudService.instance;
+    final originalProfile = profileService.profile.value;
+    addTearDown(() => profileService.createProfile(originalProfile));
+    await profileService.createProfile(
+      const CitizenProfile(
+        id: 'guest-profile',
+        fullName: 'Guest',
+        email: '',
+        phone: '',
+        primaryLocation: '',
+        isGuest: true,
+      ),
+    );
+
+    tester.view.physicalSize = const Size(428, 1800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        routes: {'/registration': (_) => const RegistrationScreen()},
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: TextButton(
+              onPressed: () =>
+                  Navigator.of(context).push(citizenProfileTabRoute(context)),
+              child: const Text('Open Profile'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open Profile'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Browsing as guest'), findsOneWidget);
+    expect(find.byType(ProfileEditButton), findsNothing);
+    final createAccount = find.widgetWithText(TextButton, 'Create Account');
+    expect(createAccount, findsOneWidget);
+
+    await tester.tap(createAccount);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(RegistrationScreen), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('registered citizen profile retains the edit control', (
+    tester,
+  ) async {
+    final profileService = ProfileCrudService.instance;
+    final originalProfile = profileService.profile.value;
+    addTearDown(() => profileService.createProfile(originalProfile));
+    await profileService.createProfile(
+      const CitizenProfile(
+        id: 'registered-profile',
+        fullName: 'Ama Mensah',
+        email: '',
+        phone: '0240000000',
+        primaryLocation: '',
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(theme: AppTheme.light, home: const CitizenProfileScreen()),
+    );
+    await tester.pump();
+
+    expect(find.byType(ProfileEditButton), findsOneWidget);
+    expect(find.widgetWithText(TextButton, 'Create Account'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('Nearby Reports preference stays compact and explains on help', (
     tester,
   ) async {

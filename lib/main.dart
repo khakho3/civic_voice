@@ -632,6 +632,8 @@ class _CivicVoiceAppState extends State<CivicVoiceApp>
               AppRoutes.citizenAlerts: (_) => const CitizenAlertsScreen(),
               AppRoutes.citizenProfile: (context) => CitizenProfileScreen(
                 onAbout: () => Navigator.of(context).pushNamed(AppRoutes.about),
+                onRegister: () =>
+                    Navigator.of(context).pushNamed(AppRoutes.registration),
                 onLogOut: () => signOut(context),
               ),
               AppRoutes.citizenReports: (_) => const CitizenReportsScreen(),

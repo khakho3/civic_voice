@@ -136,6 +136,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final semantic = theme.extension<AppSemanticColors>()!;
 
     return AuthScreenLayout(
       onBack: widget.onBack,
@@ -300,11 +301,11 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
             const SizedBox(height: AppSpacing.md),
 
             Container(
+              key: const ValueKey('registration-policy-acknowledgement'),
               width: double.infinity,
               padding: const EdgeInsets.all(AppSpacing.sm),
               decoration: BoxDecoration(
-                color: theme.colorScheme.surface,
-                border: Border.all(color: theme.colorScheme.outline),
+                border: Border.all(color: semantic.glassBorder),
                 borderRadius: AppComponentRadius.card,
               ),
               child: Row(

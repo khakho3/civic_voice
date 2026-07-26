@@ -38,6 +38,10 @@ Route<void> citizenAlertsTabRoute(BuildContext context) => tabRoute(
 
 Route<void> citizenProfileTabRoute(BuildContext context) => tabRoute(
   context,
-  (_) => CitizenProfileScreen(onLogOut: () => signOut(context)),
+  (profileContext) => CitizenProfileScreen(
+    onAbout: () => Navigator.of(profileContext).pushNamed('/about'),
+    onRegister: () => Navigator.of(profileContext).pushNamed('/registration'),
+    onLogOut: () => signOut(profileContext),
+  ),
   routeName: CitizenProfileScreen.routeName,
 );
