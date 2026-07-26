@@ -25,6 +25,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   final _phoneController = TextEditingController();
   _ChangePasswordStep _step = _ChangePasswordStep.phone;
   String _phone = '';
+  DateTime? _otpExpiresAt;
   String? _resetToken;
   String? _phoneError;
   bool _sending = false;
@@ -50,10 +51,8 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
           message: 'Your session has expired. Please sign in again.',
         );
       }
-      await ApiClient.instance.sendAuthenticatedPasswordChangeOtp(
-        idToken: idToken,
-        phone: phone,
-      );
+      _otpExpiresAt = await ApiClient.instance
+          .sendAuthenticatedPasswordChangeOtp(idToken: idToken, phone: phone);
     } on ApiException catch (error) {
       if (!mounted) return;
       setState(() {
@@ -121,11 +120,12 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       return OtpVerificationScreen(
         phoneNumber: _phone,
         purpose: OtpPurpose.changePassword,
+        expiresAt: _otpExpiresAt,
         onBack: () => setState(() => _step = _ChangePasswordStep.phone),
         onResend: () async {
           final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
-          if (idToken == null) return;
-          await ApiClient.instance.sendAuthenticatedPasswordChangeOtp(
+          if (idToken == null) return null;
+          return ApiClient.instance.sendAuthenticatedPasswordChangeOtp(
             idToken: idToken,
             phone: _phone,
           );

@@ -21,12 +21,14 @@ class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({
     super.key,
     this.state = ForgotPasswordViewState.ready,
+    this.errorMessage,
     this.onBack,
     this.onSendCode,
     this.onBackToLogin,
   });
 
   final ForgotPasswordViewState state;
+  final String? errorMessage;
   final VoidCallback? onBack;
   final ValueChanged<String>? onSendCode;
   final VoidCallback? onBackToLogin;
@@ -151,7 +153,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             ),
             if (_showStatusPanel) ...[
               const SizedBox(height: AppSpacing.md),
-              _ForgotPasswordStatusPanel(state: widget.state),
+              _ForgotPasswordStatusPanel(
+                state: widget.state,
+                errorMessage: widget.errorMessage,
+              ),
             ],
           ],
         ),
@@ -181,9 +186,13 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
 /// Status panel displayed below the Send Code button.
 class _ForgotPasswordStatusPanel extends StatelessWidget {
-  const _ForgotPasswordStatusPanel({required this.state});
+  const _ForgotPasswordStatusPanel({
+    required this.state,
+    required this.errorMessage,
+  });
 
   final ForgotPasswordViewState state;
+  final String? errorMessage;
 
   @override
   Widget build(BuildContext context) {
@@ -212,7 +221,7 @@ class _ForgotPasswordStatusPanel extends StatelessWidget {
       statusColor = semanticColors.success;
     } else if (state == ForgotPasswordViewState.recoveryError) {
       title = 'Recovery Error';
-      message = 'Something went wrong. Please try again.';
+      message = errorMessage ?? 'Something went wrong. Please try again.';
       icon = AppIcons.error;
       statusColor = semanticColors.error;
     } else if (state == ForgotPasswordViewState.loading) {

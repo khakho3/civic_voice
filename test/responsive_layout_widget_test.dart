@@ -64,6 +64,7 @@ void main() {
     'otp verification': OtpVerificationScreen(
       phoneNumber: '+233241234567',
       purpose: OtpPurpose.registration,
+      expiresAt: DateTime.now().add(const Duration(minutes: 10)),
       onVerify: asyncVerify,
     ),
     'set new password': SetNewPasswordScreen(
@@ -88,22 +89,21 @@ void main() {
 
   for (final surface in surfaces.entries) {
     for (final viewport in sizes.entries) {
-      testWidgets(
-        '${surface.key} has no layout exception on ${viewport.key}',
-        (tester) async {
-          tester.view.physicalSize = viewport.value;
-          tester.view.devicePixelRatio = 1;
-          addTearDown(tester.view.resetPhysicalSize);
-          addTearDown(tester.view.resetDevicePixelRatio);
+      testWidgets('${surface.key} has no layout exception on ${viewport.key}', (
+        tester,
+      ) async {
+        tester.view.physicalSize = viewport.value;
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
 
-          await tester.pumpWidget(
-            MaterialApp(theme: AppTheme.light, home: surface.value),
-          );
-          await tester.pump();
+        await tester.pumpWidget(
+          MaterialApp(theme: AppTheme.light, home: surface.value),
+        );
+        await tester.pump();
 
-          expect(tester.takeException(), isNull);
-        },
-      );
+        expect(tester.takeException(), isNull);
+      });
     }
   }
 }
