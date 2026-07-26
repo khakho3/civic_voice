@@ -228,6 +228,7 @@ class _IllustrationAuthLayout extends StatelessWidget {
   Widget build(BuildContext context) {
     final semantic = Theme.of(context).extension<AppSemanticColors>()!;
     final mediaQuery = MediaQuery.of(context);
+    final backCallback = onBack;
     final restingSheetTop = mediaQuery.size.height * 3 / 8;
     final minimumSheetTop =
         mediaQuery.padding.top +
@@ -245,14 +246,9 @@ class _IllustrationAuthLayout extends StatelessWidget {
         children: [
           const AuthIllustrationHero(),
           Positioned.fill(
-            child: AnimatedPadding(
+            child: Padding(
               key: const ValueKey('auth-hero-sheet'),
               padding: EdgeInsets.only(top: sheetTop),
-              duration: AppMotion.duration(
-                context,
-                AppMotionDuration.emphasized,
-              ),
-              curve: AppMotionCurve.emphasized,
               child: DecoratedBox(
                 decoration: BoxDecoration(
                   borderRadius: const BorderRadius.only(
@@ -354,16 +350,17 @@ class _IllustrationAuthLayout extends StatelessWidget {
               ),
             ),
           ),
-          SafeArea(
-            bottom: false,
-            child: Align(
-              alignment: Alignment.topLeft,
-              child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                child: _GlassBackButton(onPressed: onBack),
+          if (backCallback != null)
+            SafeArea(
+              bottom: false,
+              child: Align(
+                alignment: Alignment.topLeft,
+                child: Padding(
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  child: _GlassBackButton(onPressed: backCallback),
+                ),
               ),
             ),
-          ),
         ],
       ),
     );
@@ -397,7 +394,7 @@ class AuthIllustrationHero extends StatelessWidget {
 class _GlassBackButton extends StatelessWidget {
   const _GlassBackButton({required this.onPressed});
 
-  final VoidCallback? onPressed;
+  final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {

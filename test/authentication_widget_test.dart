@@ -169,6 +169,7 @@ void main() {
     await tester.tap(find.byTooltip('Go back'));
     await tester.pumpAndSettle();
     expect(find.byType(WelcomeScreen), findsOneWidget);
+    expect(find.text('Resolve.'), findsOneWidget);
   });
 
   testWidgets('Welcome to Registration flow', (WidgetTester tester) async {
@@ -192,29 +193,86 @@ void main() {
     await tester.tap(find.byTooltip('Go back'));
     await tester.pumpAndSettle();
     expect(find.byType(WelcomeScreen), findsOneWidget);
+    expect(find.text('Resolve.'), findsOneWidget);
   });
 
-  testWidgets('root Login and Registration routes disable the back button', (
+  testWidgets('root Login and Registration routes omit the back button', (
     tester,
   ) async {
-    for (final route in [AppRoutes.login, AppRoutes.registration]) {
-      await tester.pumpWidget(CivicVoiceApp(initialRoute: route));
-      await tester.pump();
+    final semantics = tester.ensureSemantics();
 
-      // find.byTooltip resolves to Flutter's internal tooltip widget, not
-      // IconButton itself, so casting it directly can throw a bad-cast error
-      // depending on the SDK's tooltip implementation — find the IconButton
-      // by its icon instead, which is stable regardless of that internal.
-      final backButton = tester.widget<IconButton>(
-        find.ancestor(
+    try {
+      for (final route in [AppRoutes.login, AppRoutes.registration]) {
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pump();
+        await tester.pumpWidget(CivicVoiceApp(initialRoute: route));
+        await tester.pump();
+
+        // Verify every affordance is absent, including the control itself.
+        final backButton = find.ancestor(
           of: find.byIcon(AppIcons.back),
           matching: find.byType(IconButton),
-        ),
-      );
-      expect(backButton.onPressed, isNull);
-      expect(tester.takeException(), isNull);
+        );
+        expect(
+          route == AppRoutes.login
+              ? find.byType(LoginScreen)
+              : find.byType(RegistrationScreen),
+          findsOneWidget,
+        );
+        expect(find.byTooltip('Go back'), findsNothing);
+        expect(find.bySemanticsLabel('Go back'), findsNothing);
+        expect(find.byIcon(AppIcons.back), findsNothing);
+        expect(backButton, findsNothing);
+        expect(tester.takeException(), isNull);
+      }
+    } finally {
+      semantics.dispose();
     }
   });
+
+  testWidgets(
+    'root Login and Registration switching keeps back navigation absent',
+    (tester) async {
+      await tester.pumpWidget(
+        const CivicVoiceApp(initialRoute: AppRoutes.login),
+      );
+      await tester.pump();
+
+      await tapVisible(tester, find.widgetWithText(TextButton, 'Register'));
+      await tester.pumpAndSettle();
+      expect(find.byType(RegistrationScreen), findsOneWidget);
+      expect(find.byTooltip('Go back'), findsNothing);
+
+      await tapVisible(tester, find.widgetWithText(TextButton, 'Login'));
+      await tester.pumpAndSettle();
+      expect(find.byType(LoginScreen), findsOneWidget);
+      expect(find.byTooltip('Go back'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'Welcome-backed Login and Registration switching preserves active back',
+    (tester) async {
+      await reachFinalSlide(tester);
+      await tapVisible(tester, find.text('Already have an account? Log in'));
+      await tester.pumpAndSettle();
+
+      await tapVisible(tester, find.widgetWithText(TextButton, 'Register'));
+      await tester.pumpAndSettle();
+      expect(find.byType(RegistrationScreen), findsOneWidget);
+      expect(find.byTooltip('Go back'), findsOneWidget);
+
+      await tapVisible(tester, find.widgetWithText(TextButton, 'Login'));
+      await tester.pumpAndSettle();
+      expect(find.byType(LoginScreen), findsOneWidget);
+      expect(find.byTooltip('Go back'), findsOneWidget);
+
+      await tester.tap(find.byTooltip('Go back'));
+      await tester.pumpAndSettle();
+      expect(find.byType(WelcomeScreen), findsOneWidget);
+      expect(find.text('Resolve.'), findsOneWidget);
+    },
+  );
 
   testWidgets('Welcome guest flow attempts a real anonymous session and fails '
       'gracefully without a reachable backend/Firebase', (
@@ -534,18 +592,18 @@ void main() {
     final fullHeight = tester.getSize(scrollView).height;
     final heroSheet = find.byKey(const ValueKey('auth-hero-sheet'));
     final restingSheetTop = tester
-        .widget<AnimatedPadding>(heroSheet)
+        .widget<Padding>(heroSheet)
         .padding
         .resolve(TextDirection.ltr)
         .top;
     tester.view.viewInsets = const FakeViewPadding(bottom: 340);
     addTearDown(tester.view.resetViewInsets);
-    await tester.pumpAndSettle();
+    await tester.pump();
 
     final scaffold = tester.widget<Scaffold>(find.byType(Scaffold));
     expect(scaffold.resizeToAvoidBottomInset, isFalse);
     final raisedSheetTop = tester
-        .widget<AnimatedPadding>(heroSheet)
+        .widget<Padding>(heroSheet)
         .padding
         .resolve(TextDirection.ltr)
         .top;
@@ -569,23 +627,93 @@ void main() {
 
     FocusManager.instance.primaryFocus?.unfocus();
     tester.view.resetViewInsets();
-    await tester.pumpAndSettle();
+    await tester.pump();
     final closedPadding = tester
         .widget<SingleChildScrollView>(scrollView)
         .padding!
         .resolve(TextDirection.ltr);
     expect(closedPadding.bottom, AppSpacing.lg);
     expect(
-      tester
-          .widget<AnimatedPadding>(heroSheet)
-          .padding
-          .resolve(TextDirection.ltr)
-          .top,
+      tester.widget<Padding>(heroSheet).padding.resolve(TextDirection.ltr).top,
       restingSheetTop,
     );
     expect(tester.getSize(scrollView).height, fullHeight);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+    'new Registration server error scrolls into view on a small phone',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(320, 568);
+      tester.view.devicePixelRatio = 1;
+      tester.view.viewInsets = const FakeViewPadding(bottom: 200);
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.view.resetViewInsets);
+
+      var registrationState = RegistrationViewState.ready;
+      var errorMessage = 'Could not create account.';
+      late StateSetter updateHost;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: StatefulBuilder(
+            builder: (context, setState) {
+              updateHost = setState;
+              return RegistrationScreen(
+                state: registrationState,
+                errorMessage: errorMessage,
+              );
+            },
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final scrollView = find.byType(SingleChildScrollView);
+      final scrollable = find.byWidgetPredicate(
+        (widget) =>
+            widget is Scrollable && widget.axisDirection == AxisDirection.down,
+      );
+      expect(scrollable, findsOneWidget);
+      final scrollPosition = tester.state<ScrollableState>(scrollable).position;
+      expect(scrollPosition.pixels, 0);
+      expect(find.byType(AuthStatusAlert), findsNothing);
+
+      updateHost(() {
+        registrationState = RegistrationViewState.error;
+      });
+      await tester.pump();
+      await tester.pumpAndSettle();
+
+      expect(find.text('Registration Error'), findsOneWidget);
+      expect(find.text(errorMessage), findsOneWidget);
+      expect(scrollPosition.pixels, greaterThan(0));
+      final alertRect = tester.getRect(find.byType(AuthStatusAlert));
+      final scrollViewRect = tester.getRect(scrollView);
+      final keyboardTop =
+          tester.view.physicalSize.height / tester.view.devicePixelRatio -
+          tester.view.viewInsets.bottom;
+      expect(alertRect.top, greaterThanOrEqualTo(scrollViewRect.top));
+      expect(alertRect.bottom, lessThanOrEqualTo(keyboardTop));
+
+      scrollPosition.jumpTo(0);
+      await tester.pump();
+      updateHost(() {});
+      await tester.pumpAndSettle();
+      expect(scrollPosition.pixels, 0);
+
+      updateHost(() {
+        errorMessage = 'The server rejected this registration.';
+      });
+      await tester.pump();
+      await tester.pumpAndSettle();
+      expect(scrollPosition.pixels, greaterThan(0));
+      expect(find.text(errorMessage), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets(
     'Registration policy acknowledgement integrates with the glass sheet',
@@ -627,8 +755,8 @@ void main() {
     );
 
     final cases = [
-      (screen: const LoginScreen(), theme: AppTheme.light),
-      (screen: const RegistrationScreen(), theme: AppTheme.dark),
+      (screen: LoginScreen(onBack: () {}), theme: AppTheme.light),
+      (screen: RegistrationScreen(onBack: () {}), theme: AppTheme.dark),
     ];
 
     for (final testCase in cases) {

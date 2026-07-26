@@ -41,6 +41,7 @@ class RegistrationScreen extends StatefulWidget {
 
 class _RegistrationScreenState extends State<RegistrationScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _statusPanelKey = GlobalKey();
 
   final _fullNameController = TextEditingController();
   final _phoneController = TextEditingController();
@@ -70,13 +71,67 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   bool get _showWeakPassword =>
       widget.state == RegistrationViewState.weakPassword;
 
-  bool get _showStatusPanel =>
-      widget.state == RegistrationViewState.phoneAlreadyRegistered ||
-      widget.state == RegistrationViewState.passwordMismatch ||
-      widget.state == RegistrationViewState.offline ||
-      widget.state == RegistrationViewState.weakPassword ||
-      widget.state == RegistrationViewState.success ||
-      widget.state == RegistrationViewState.error;
+  bool get _showStatusPanel => _hasStatusPanel(widget.state);
+
+  static bool _hasStatusPanel(RegistrationViewState state) =>
+      state == RegistrationViewState.phoneAlreadyRegistered ||
+      state == RegistrationViewState.passwordMismatch ||
+      state == RegistrationViewState.offline ||
+      state == RegistrationViewState.weakPassword ||
+      state == RegistrationViewState.success ||
+      state == RegistrationViewState.error;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_showStatusPanel) {
+      _scheduleStatusPanelReveal();
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant RegistrationScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final statusPanelAppeared =
+        !_hasStatusPanel(oldWidget.state) && _showStatusPanel;
+    final statusStateChanged =
+        _showStatusPanel && oldWidget.state != widget.state;
+    final errorMessageChanged =
+        widget.state == RegistrationViewState.error &&
+        oldWidget.errorMessage != widget.errorMessage;
+
+    if (statusPanelAppeared || statusStateChanged || errorMessageChanged) {
+      _scheduleStatusPanelReveal();
+    }
+  }
+
+  void _scheduleStatusPanelReveal() {
+    final scheduledState = widget.state;
+    final scheduledErrorMessage = widget.errorMessage;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted ||
+          widget.state != scheduledState ||
+          (scheduledState == RegistrationViewState.error &&
+              widget.errorMessage != scheduledErrorMessage)) {
+        return;
+      }
+
+      final statusPanelContext = _statusPanelKey.currentContext;
+      if (statusPanelContext == null) {
+        return;
+      }
+
+      // ensureVisible's default leading-edge alignment keeps the alert above
+      // the overlaid keyboard while the scroll view's inset padding supplies
+      // enough trailing extent to reach it.
+      await Scrollable.ensureVisible(
+        statusPanelContext,
+        duration: AppMotion.duration(context, AppMotionDuration.moderate),
+        curve: AppMotionCurve.standard,
+      );
+    });
+  }
 
   @override
   void dispose() {
@@ -385,6 +440,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
             if (_showStatusPanel) ...[
               const SizedBox(height: AppSpacing.md),
               _RegistrationStatusPanel(
+                key: _statusPanelKey,
                 state: widget.state,
                 errorMessage: widget.errorMessage,
               ),
@@ -458,6 +514,7 @@ class _FieldLabel extends StatelessWidget {
 /// Status panel displayed below the Create Account button.
 class _RegistrationStatusPanel extends StatelessWidget {
   const _RegistrationStatusPanel({
+    super.key,
     required this.state,
     required this.errorMessage,
   });
