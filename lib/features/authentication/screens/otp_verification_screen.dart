@@ -156,6 +156,8 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
             color: _expired ? semantic.error : semantic.info,
           ),
           const SizedBox(height: AppSpacing.md),
+          const _UssdFallbackNotice(),
+          const SizedBox(height: AppSpacing.md),
           if (_expired)
             AuthStatusAlert(
               title: 'Code Expired',
@@ -223,6 +225,48 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
       OtpPurpose.forgotPassword => 'Verify Reset Code',
       OtpPurpose.changePassword => 'Verify Security Code',
     };
+  }
+}
+
+class _UssdFallbackNotice extends StatelessWidget {
+  const _UssdFallbackNotice();
+
+  static const message =
+      'SMS delayed? Dial *920*331# from your phone to view your code instantly.';
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final semantic = theme.extension<AppSemanticColors>()!;
+
+    return Container(
+      key: const ValueKey('otp-ussd-fallback'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainer,
+        borderRadius: AppComponentRadius.inputField,
+        border: Border.all(
+          color: semantic.glassBorder,
+          width: AppDimensions.borderWidthThin,
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(AppIcons.info, size: AppIconSize.sm, color: semantic.info),
+          const SizedBox(width: AppSpacing.xs),
+          Expanded(
+            child: Text(
+              message,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

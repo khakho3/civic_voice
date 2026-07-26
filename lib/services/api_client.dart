@@ -20,7 +20,7 @@ class ApiClient {
   ///
   /// Deliberately mutable (not const): widget tests override this to a
   /// guaranteed-unreachable address in setUp() so they never make live
-  /// calls against the real dev backend/WittyFlow, regardless of whether
+  /// calls against the real dev backend/Speso, regardless of whether
   /// civic_voice_api happens to be running on the machine the tests run
   /// on (it usually is, since that's the same machine).
   static String baseUrl = const String.fromEnvironment(
@@ -146,9 +146,9 @@ class ApiClient {
   /// Completes Citizen self-registration — creates the Firebase Auth
   /// identity (real phone number + a synthetic login email + the password
   /// the citizen just typed) and the mirrored Postgres row, but only once
-  /// [otp] matches what [sendRegistrationOtp] most recently sent. Returns
-  /// the synthetic email so the caller can immediately sign in with it via
-  /// FirebaseAuth.instance.signInWithEmailAndPassword.
+  /// Speso verifies [otp] against the latest code requested through
+  /// [sendRegistrationOtp]. Returns the synthetic email so the caller can
+  /// immediately sign in through Firebase password authentication.
   ///
   /// Pass [guestIdToken] when the caller is currently signed in as an
   /// Anonymous Auth guest (see [signInAsGuest]/[syncUser]) — the backend
@@ -193,7 +193,7 @@ class ApiClient {
   /// Admin provisions a Municipal/Maintenance/Ministry/Admin account —
   /// creates the real Firebase identity (phone + synthetic login email +
   /// a generated temp password) and mirrors it into Postgres, then SMS's
-  /// the temp password via WittyFlow. [idToken] must belong to a
+  /// the temp password via Speso. [idToken] must belong to a
   /// signed-in real ADMIN — the backend 403s otherwise. [role] is the
   /// backend's UserRole string (MUNICIPAL/MAINTENANCE/MINISTRY/ADMIN).
   ///
