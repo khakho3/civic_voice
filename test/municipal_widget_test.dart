@@ -436,6 +436,63 @@ void main() {
     },
   );
 
+  testWidgets(
+    'Municipal Report Review explains guest contact privacy and disables actions',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      _preserveMunicipalReportDirectory();
+
+      final guestReport = IncomingReportItem.fromApi({
+        'id': 'guest-report-internal',
+        'publicReference': 'CV-GUEST-001',
+        'title': 'Guest-submitted issue',
+        'description': 'Submitted without a registered account.',
+        'location': 'Community Road',
+        'category': 'Safety',
+        'status': 'SUBMITTED',
+        'createdAt': DateTime.now().toIso8601String(),
+        'citizen': {'fullName': 'Guest', 'phone': null, 'isGuest': true},
+        'reviewer': {
+          'publicId': 'MUN-TEST',
+          'fullName': 'Test Officer',
+          'phone': '+233500000000',
+        },
+        'reviewedByCurrentUser': true,
+      });
+      MunicipalReportDirectory.instance.reports.value = [guestReport];
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: const MunicipalReportReviewScreen(referenceId: 'CV-GUEST-001'),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('Guest report — no contact number provided.'),
+        findsOneWidget,
+      );
+      expect(find.text('Phone unavailable'), findsNothing);
+
+      final iconButtons = tester.widgetList<IconButton>(
+        find.byType(IconButton),
+      );
+      final messageButton = iconButtons.firstWhere(
+        (button) => button.tooltip == 'Message Guest',
+      );
+      final callButton = iconButtons.firstWhere(
+        (button) => button.tooltip == 'Call Guest',
+      );
+      expect(messageButton.onPressed, isNull);
+      expect(callButton.onPressed, isNull);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('Municipal Report Review renders all confidence badge tiers', (
     WidgetTester tester,
   ) async {

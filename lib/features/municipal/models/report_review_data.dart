@@ -37,6 +37,7 @@ class ReportReviewData {
     required this.status,
     required this.citizenName,
     required this.citizenPhone,
+    this.citizenIsGuest = false,
     required this.officerName,
     required this.officerPhone,
     required this.evidencePhotoUrls,
@@ -55,7 +56,11 @@ class ReportReviewData {
   final ReportCategory category;
   final ReportStatus status;
   final String citizenName;
-  final String citizenPhone;
+  final String? citizenPhone;
+  final bool citizenIsGuest;
+
+  bool get canContactCitizen =>
+      !citizenIsGuest && (citizenPhone?.trim().isNotEmpty ?? false);
 
   /// The Municipal Officer this report is currently with — shown with
   /// real Call/Message actions via [OfficerContactRow] so anyone else
@@ -147,7 +152,8 @@ class ReportReviewData {
       category: report.category,
       status: report.status,
       citizenName: report.citizenName ?? 'Citizen',
-      citizenPhone: report.citizenPhone ?? 'Phone unavailable',
+      citizenPhone: report.citizenPhone,
+      citizenIsGuest: report.citizenIsGuest,
       officerName: report.reviewerName ?? 'Not claimed yet',
       officerPhone: report.reviewerPhone ?? 'Contact unavailable',
       evidencePhotoUrls: report.photoUrls,

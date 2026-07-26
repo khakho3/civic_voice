@@ -284,8 +284,14 @@ class _ReviewBody extends StatelessWidget {
           title: 'Contact Citizen',
           child: OfficerContactRow(
             officerName: data.citizenName,
-            officerPhone: data.citizenPhone,
-            label: 'Citizen',
+            officerPhone: data.citizenPhone ?? '',
+            label: data.citizenIsGuest ? 'Guest report' : 'Citizen',
+            actionsEnabled: data.canContactCitizen,
+            supportingText: data.citizenIsGuest
+                ? 'Guest report — no contact number provided.'
+                : data.canContactCitizen
+                ? null
+                : 'No contact number is available for this citizen.',
           ),
         ),
         if (data.officerName != 'Not claimed yet') ...[
@@ -420,7 +426,12 @@ class _CitizenInfo extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(data.citizenName, style: textTheme.titleSmall),
-                  Text(data.citizenPhone, style: textTheme.bodySmall),
+                  Text(
+                    data.citizenIsGuest
+                        ? 'Guest report'
+                        : data.citizenPhone ?? 'Phone unavailable',
+                    style: textTheme.bodySmall,
+                  ),
                   if (data.citizenLowTrust) ...[
                     const SizedBox(height: AppSpacing.xs),
                     const _NeutralTag(label: 'Low-trust account'),

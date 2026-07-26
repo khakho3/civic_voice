@@ -70,6 +70,7 @@ class IncomingReportItem {
     this.photoUrls = const [],
     this.citizenName,
     this.citizenPhone,
+    this.citizenIsGuest = false,
     this.latitude,
     this.longitude,
     this.createdAt,
@@ -124,6 +125,7 @@ class IncomingReportItem {
   final List<String> photoUrls;
   final String? citizenName;
   final String? citizenPhone;
+  final bool citizenIsGuest;
   final double? latitude;
   final double? longitude;
   final DateTime? createdAt;
@@ -180,6 +182,9 @@ class IncomingReportItem {
           (json['citizen'] as Map<String, dynamic>?)?['fullName'] as String?,
       citizenPhone:
           (json['citizen'] as Map<String, dynamic>?)?['phone'] as String?,
+      citizenIsGuest:
+          (json['citizen'] as Map<String, dynamic>?)?['isGuest'] as bool? ??
+          false,
       latitude: (json['latitude'] as num?)?.toDouble(),
       longitude: (json['longitude'] as num?)?.toDouble(),
       createdAt: createdAt,
@@ -246,6 +251,7 @@ class IncomingReportItem {
       photoUrls: photoUrls,
       citizenName: citizenName,
       citizenPhone: citizenPhone,
+      citizenIsGuest: citizenIsGuest,
       latitude: latitude,
       longitude: longitude,
       createdAt: createdAt,

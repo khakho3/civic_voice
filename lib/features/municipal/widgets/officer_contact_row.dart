@@ -18,12 +18,16 @@ class OfficerContactRow extends StatelessWidget {
     required this.officerPhone,
     this.label = 'Assigned Officer',
     this.icon = AppIcons.municipalOfficer,
+    this.actionsEnabled = true,
+    this.supportingText,
   });
 
   final String officerName;
   final String officerPhone;
   final String label;
   final IconData icon;
+  final bool actionsEnabled;
+  final String? supportingText;
 
   Future<void> _call(BuildContext context) =>
       _launch(context, Uri(scheme: 'tel', path: _digits));
@@ -32,6 +36,7 @@ class OfficerContactRow extends StatelessWidget {
       _launch(context, Uri(scheme: 'sms', path: _digits));
 
   String get _digits => officerPhone.replaceAll(' ', '');
+  bool get _canLaunch => actionsEnabled && RegExp(r'\d').hasMatch(officerPhone);
 
   Future<void> _launch(BuildContext context, Uri uri) async {
     // A device/platform with no tel:/sms: handler (or, in tests, no plugin
@@ -57,11 +62,7 @@ class OfficerContactRow extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     return Row(
       children: [
-        Icon(
-          icon,
-          size: AppIconSize.sm,
-          color: colorScheme.onSurfaceVariant,
-        ),
+        Icon(icon, size: AppIconSize.sm, color: colorScheme.onSurfaceVariant),
         const SizedBox(width: AppSpacing.xs),
         Expanded(
           child: Column(
@@ -81,18 +82,27 @@ class OfficerContactRow extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
+              if (supportingText != null) ...[
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  supportingText!,
+                  style: textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
             ],
           ),
         ),
         IconButton(
           tooltip: 'Message $officerName',
           icon: const Icon(AppIcons.sms, size: AppIconSize.sm),
-          onPressed: () => _message(context),
+          onPressed: _canLaunch ? () => _message(context) : null,
         ),
         IconButton(
           tooltip: 'Call $officerName',
           icon: const Icon(AppIcons.phone, size: AppIconSize.sm),
-          onPressed: () => _call(context),
+          onPressed: _canLaunch ? () => _call(context) : null,
         ),
       ],
     );
