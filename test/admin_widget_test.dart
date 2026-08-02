@@ -2655,9 +2655,16 @@ void main() {
   );
 
   testWidgets(
-    'Admin Profile is a tab-shell screen: bottom nav stays visible and '
-    'switches tabs',
+    'Super Admin Profile remains a tab-shell screen and switches tabs',
     (WidgetTester tester) async {
+      SharedPreferences.setMockInitialValues({});
+      await MockAuthService().initialize();
+      await MockAuthService().selectRole(
+        AppRole.systemAdministrator,
+        adminTier: AdminTier.superAdmin,
+      );
+      addTearDown(() => MockAuthService().clearUser());
+
       tester.view.physicalSize = const Size(428, 2600);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -2681,6 +2688,45 @@ void main() {
       await tester.tap(find.text('Users'));
       await tester.pump();
       expect(usersTapped, isTrue);
+    },
+  );
+
+  testWidgets(
+    'assembly Admin Profile has a top back button and no bottom navigation',
+    (WidgetTester tester) async {
+      SharedPreferences.setMockInitialValues({});
+      await MockAuthService().initialize();
+      await MockAuthService().selectRole(
+        AppRole.systemAdministrator,
+        adminTier: AdminTier.admin,
+        region: Region.ashanti,
+        assembly: assemblyNamed(Region.ashanti, 'Kumasi'),
+      );
+      addTearDown(() => MockAuthService().clearUser());
+
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      var backTapped = false;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: AdminProfileScreen(onBack: () => backTapped = true),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.byIcon(AppIcons.back), findsOneWidget);
+      expect(find.text('Home'), findsNothing);
+      expect(find.text('Users'), findsNothing);
+      expect(find.text('Activity'), findsNothing);
+      expect(find.text('Teams'), findsNothing);
+
+      await tester.tap(find.byIcon(AppIcons.back));
+      await tester.pump();
+      expect(backTapped, isTrue);
     },
   );
 

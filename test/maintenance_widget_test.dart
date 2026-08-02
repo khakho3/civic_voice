@@ -11,6 +11,7 @@ import 'package:civic_voice/features/maintenance/screens/task_details_screen.dar
 import 'package:civic_voice/features/maintenance/services/maintenance_task_directory.dart';
 import 'package:civic_voice/main.dart' as app;
 import 'package:civic_voice/utils/time_greeting.dart';
+import 'package:civic_voice/widgets/glass_bar.dart';
 
 class _FakeImagePickerPlatform extends ImagePickerPlatform {
   int _counter = 0;
@@ -528,8 +529,8 @@ void main() {
   );
 
   testWidgets(
-    'Maintenance Profile header profile avatar and bottom nav both use the '
-    'no-filled-pill active style shared with every other module',
+    'Maintenance header keeps Profile only in the rounded bottom nav and '
+    'shifts the bell to the rightmost action slot',
     (WidgetTester tester) async {
       tester.view.physicalSize = const Size(428, 2600);
       tester.view.devicePixelRatio = 1.0;
@@ -546,6 +547,13 @@ void main() {
       expect(find.text('Home'), findsOneWidget);
       expect(find.text('Tasks'), findsOneWidget);
       expect(find.text('Profile'), findsOneWidget);
+      expect(find.byIcon(AppIcons.profile), findsOneWidget);
+      expect(
+        tester.getCenter(find.byIcon(AppIcons.notifications)).dx,
+        greaterThan(375),
+      );
+      final glassBars = tester.widgetList<GlassBar>(find.byType(GlassBar));
+      expect(glassBars.last.borderRadius, AppComponentRadius.bottomSheet);
       expect(tester.takeException(), isNull);
     },
   );

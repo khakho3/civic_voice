@@ -37,17 +37,15 @@ enum MaintenanceTab {
 /// [MinistryScaffold]/`MunicipalScaffold`/`AdminScaffold`, generic over
 /// [MaintenanceTab] instead. Replaces the raw `Scaffold(appBar: AppBar(...),
 /// bottomNavigationBar: NavigationBar(...))` every Maintenance screen used
-/// to build independently — which meant an opaque, non-glass header, a
-/// Material 3 filled-pill active-tab indicator (every other module's nav
-/// uses a plain color/weight change instead, no pill), and no header
-/// shortcut to Profile.
+/// to build independently. It supplies the same glass treatment and plain
+/// color/weight active-tab style as the other modules, plus shared access to
+/// notifications.
 class MaintenanceScaffold extends StatelessWidget {
   const MaintenanceScaffold({
     super.key,
     required this.body,
     required this.selectedTab,
     this.onNotificationsTap,
-    this.onProfileTap,
     this.onTabSelected,
     this.hideBottomNav = false,
   });
@@ -56,10 +54,6 @@ class MaintenanceScaffold extends StatelessWidget {
   final MaintenanceTab selectedTab;
   final VoidCallback? onNotificationsTap;
 
-  /// Opens Maintenance Profile — shown on every tab rather than just
-  /// [MaintenanceTab.profile], matching Ministry/Municipal's own header
-  /// avatar (account access isn't tied to one tab's content).
-  final VoidCallback? onProfileTap;
   final ValueChanged<MaintenanceTab>? onTabSelected;
 
   /// Hides the floating bottom nav — used while Profile is mid-edit, where
@@ -106,7 +100,6 @@ class MaintenanceScaffold extends StatelessWidget {
               child: _Header(
                 tab: selectedTab,
                 onNotificationsTap: onNotificationsTap,
-                onProfileTap: onProfileTap,
               ),
             ),
             if (!keyboardVisible && !hideBottomNav)
@@ -128,12 +121,10 @@ class _Header extends StatelessWidget {
   const _Header({
     required this.tab,
     this.onNotificationsTap,
-    this.onProfileTap,
   });
 
   final MaintenanceTab tab;
   final VoidCallback? onNotificationsTap;
-  final VoidCallback? onProfileTap;
 
   @override
   Widget build(BuildContext context) {
@@ -195,8 +186,6 @@ class _Header extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(width: AppSpacing.xs),
-                _ProfileButton(onTap: onProfileTap),
               ],
             ),
           ),
@@ -239,42 +228,6 @@ class _IconButton extends StatelessWidget {
   }
 }
 
-/// Opens Maintenance Profile — a small circular avatar rather than a plain
-/// icon, so it visually reads as "your account" distinct from the bell,
-/// matching Ministry/Municipal's own header avatar.
-class _ProfileButton extends StatelessWidget {
-  const _ProfileButton({this.onTap});
-
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: AppDimensions.controlHeightStandard,
-      height: AppDimensions.controlHeightStandard,
-      child: Material(
-        color: Colors.transparent,
-        shape: const CircleBorder(),
-        child: InkWell(
-          customBorder: const CircleBorder(),
-          onTap: onTap,
-          child: Center(
-            child: CircleAvatar(
-              radius: AppIconSize.md / 2 + 2,
-              backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-              child: Icon(
-                AppIcons.profile,
-                size: AppIconSize.sm,
-                color: AppColors.primary,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _BottomNav extends StatelessWidget {
   const _BottomNav({required this.selected, this.onSelected});
 
@@ -285,6 +238,7 @@ class _BottomNav extends StatelessWidget {
   Widget build(BuildContext context) {
     final semantic = Theme.of(context).extension<AppSemanticColors>()!;
     return GlassBar(
+      borderRadius: AppComponentRadius.bottomSheet,
       border: Border(top: BorderSide(color: semantic.glassBorder)),
       child: SafeArea(
         top: false,

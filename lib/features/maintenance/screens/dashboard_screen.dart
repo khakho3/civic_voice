@@ -44,7 +44,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return MaintenanceScaffold(
       selectedTab: MaintenanceTab.dashboard,
       onNotificationsTap: widget.onNotificationsTap,
-      onProfileTap: widget.onNavigateToProfile,
       onTabSelected: (tab) {
         if (tab == MaintenanceTab.tasks) widget.onNavigateToTasks?.call();
         if (tab == MaintenanceTab.profile) widget.onNavigateToProfile?.call();
