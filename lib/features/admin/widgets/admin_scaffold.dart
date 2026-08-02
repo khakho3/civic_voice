@@ -92,6 +92,7 @@ class AdminScaffold extends StatelessWidget {
     this.onOpenRoleManagement,
     this.onOpenMaintenanceTeams,
     this.onOpenProfile,
+    this.onBack,
     this.headerTitle,
     this.hideBottomNav = false,
   });
@@ -119,11 +120,9 @@ class AdminScaffold extends StatelessWidget {
   final VoidCallback? onNotificationsTap;
   final ValueChanged<AdminTab>? onTabSelected;
 
-  /// Hides the floating bottom nav outright, same as it already hides
-  /// while the keyboard is up — for a screen mid-edit (ADM-008 Admin
-  /// Profile's own edit mode) where navigating away via the nav bar
-  /// mid-form is more likely a mistake than an intent, and where it would
-  /// otherwise sit directly on top of that screen's own sticky Save bar.
+  /// Hides the floating bottom nav outright, either for a drill-down that
+  /// should return through its header or for a screen mid-edit where the nav
+  /// would conflict with the sticky Save bar.
   final bool hideBottomNav;
 
   /// Opens ADM-004 Role Management — the drawer is its only entry point
@@ -132,8 +131,13 @@ class AdminScaffold extends StatelessWidget {
   final VoidCallback? onOpenRoleManagement;
   final VoidCallback? onOpenMaintenanceTeams;
 
-  /// Opens ADM-008 Admin Profile — the drawer is its only entry point.
+  /// Opens ADM-008 Admin Profile from Super Admin's drawer or regular Admin's
+  /// header shortcut.
   final VoidCallback? onOpenProfile;
+
+  /// Replaces the regular Admin's profile shortcut with a leading back
+  /// button on drill-down screens such as the assembly Admin profile.
+  final VoidCallback? onBack;
 
   /// Overrides [AdminTab.headerTitle] for drill-down screens that inherit
   /// a tab's bottom-nav selection but need their own distinct header title
@@ -194,6 +198,7 @@ class AdminScaffold extends StatelessWidget {
                 tab: selectedTab,
                 onNotificationsTap: onNotificationsTap,
                 onOpenProfile: onOpenProfile,
+                onBack: onBack,
                 titleOverride: headerTitle,
               ),
             ),
@@ -217,12 +222,14 @@ class _Header extends StatelessWidget {
     required this.tab,
     this.onNotificationsTap,
     this.onOpenProfile,
+    this.onBack,
     this.titleOverride,
   });
 
   final AdminTab? tab;
   final VoidCallback? onNotificationsTap;
   final VoidCallback? onOpenProfile;
+  final VoidCallback? onBack;
   final String? titleOverride;
 
   @override
@@ -275,6 +282,14 @@ class _Header extends StatelessWidget {
                   )
                 : Row(
                     children: [
+                      if (onBack != null) ...[
+                        _IconButton(
+                          icon: AppIcons.back,
+                          onPressed: onBack,
+                          semantic: semantic,
+                        ),
+                        const SizedBox(width: AppSpacing.xs),
+                      ],
                       Expanded(
                         child: showNormalAdminBrand
                             ? Row(
@@ -304,7 +319,8 @@ class _Header extends StatelessWidget {
                                 overflow: TextOverflow.ellipsis,
                               ),
                       ),
-                      _ProfileButton(onTap: onOpenProfile),
+                      if (onBack == null)
+                        _ProfileButton(onTap: onOpenProfile),
                     ],
                   ),
           ),

@@ -41,7 +41,6 @@ class _AssignedTasksScreenState extends State<AssignedTasksScreen> {
     return MaintenanceScaffold(
       selectedTab: MaintenanceTab.tasks,
       onNotificationsTap: widget.onNotificationsTap,
-      onProfileTap: widget.onNavigateToProfile,
       onTabSelected: (tab) {
         if (tab == MaintenanceTab.dashboard) {
           widget.onNavigateToDashboard?.call();

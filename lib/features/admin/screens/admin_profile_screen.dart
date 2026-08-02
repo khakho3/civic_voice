@@ -15,6 +15,7 @@ import '../../../widgets/profile_section.dart';
 import '../../../widgets/profile_session_section.dart';
 import '../../../widgets/theme_preference_row.dart';
 import '../models/admin_profile_data.dart';
+import '../services/admin_session.dart';
 import '../widgets/admin_scaffold.dart';
 
 /// ADM-008 — Admin Profile.
@@ -29,11 +30,10 @@ import '../widgets/admin_scaffold.dart';
 /// preview-only via [initialSaveState] for the same reason: no backend to
 /// actually fail a save against.
 ///
-/// Reachable only from [AdminScaffold]'s drawer (see that class's own doc
-/// comment) — there's no tab slot and no other screen links to it, so
-/// [AdminScaffold.selectedTab] is null: the bottom nav shows no tab as
-/// active rather than falsely implying this is any one of the four,
-/// matching ADM-004 Role Management's own treatment.
+/// Super Admin reaches this screen from [AdminScaffold]'s drawer and retains
+/// the tab shell with no selected tab. An assembly-level Admin reaches it
+/// from the header profile shortcut; for that role it behaves as a drill-down
+/// with a leading back button and no bottom navigation.
 ///
 /// The export's Retry/Retry connection buttons render primary-blue rather
 /// than the error-red every other screen's Offline/Error state uses, and
@@ -75,6 +75,7 @@ class AdminProfileScreen extends StatefulWidget {
     this.initialData,
     this.onSaveProfile,
     this.onRetry,
+    this.onBack,
   });
 
   final AdminProfileViewState initialState;
@@ -83,7 +84,7 @@ class AdminProfileScreen extends StatefulWidget {
   /// enum's own doc comment for why it has no other way to be reached.
   final AdminProfileSaveState initialSaveState;
 
-  /// Wired by the app shell so the bottom nav can switch tabs.
+  /// Wired by the app shell so Super Admin's bottom nav can switch tabs.
   final VoidCallback? onNavigateToDashboard;
   final VoidCallback? onNavigateToUsers;
 
@@ -106,6 +107,10 @@ class AdminProfileScreen extends StatefulWidget {
   final AdminProfileData? initialData;
   final Future<bool> Function(String fullName)? onSaveProfile;
   final Future<void> Function()? onRetry;
+
+  /// Returns an assembly-level Admin to the screen that opened Profile.
+  /// Super Admin keeps its existing drawer and tab-shell navigation.
+  final VoidCallback? onBack;
 
   @override
   State<AdminProfileScreen> createState() => _AdminProfileScreenState();
@@ -214,10 +219,12 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isSuperAdmin = AdminSession.instance.isSuperAdmin;
     return AdminScaffold(
       selectedTab: null,
       headerTitle: 'Admin Profile',
-      hideBottomNav: _editing,
+      hideBottomNav: _editing || !isSuperAdmin,
+      onBack: isSuperAdmin ? null : widget.onBack,
       onNotificationsTap: widget.onNotificationsTap,
       onTabSelected: (tab) {
         if (tab == AdminTab.dashboard) widget.onNavigateToDashboard?.call();

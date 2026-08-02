@@ -2016,6 +2016,8 @@ Widget _adminProfile(BuildContext context) {
         onAbout: () => Navigator.of(context).pushNamed(AppRoutes.about),
         onNavigateToMaintenanceTeams: () =>
             Navigator.of(context).pushNamed(AppRoutes.adminMaintenanceTeams),
+        onBack: () =>
+            _popOrReplaceWith(context, AppRoutes.adminDashboard),
         onNotificationsTap: () => _openAdminNotifications(context),
         onSignOut: () => signOut(context),
       );
