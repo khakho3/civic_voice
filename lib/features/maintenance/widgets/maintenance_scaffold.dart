@@ -238,7 +238,6 @@ class _BottomNav extends StatelessWidget {
   Widget build(BuildContext context) {
     final semantic = Theme.of(context).extension<AppSemanticColors>()!;
     return GlassBar(
-      borderRadius: AppComponentRadius.bottomSheet,
       border: Border(top: BorderSide(color: semantic.glassBorder)),
       child: SafeArea(
         top: false,

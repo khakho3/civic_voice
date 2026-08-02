@@ -529,8 +529,8 @@ void main() {
   );
 
   testWidgets(
-    'Maintenance header keeps Profile only in the rounded bottom nav and '
-    'shifts the bell to the rightmost action slot',
+    'Maintenance header keeps Profile only in the bottom nav and shifts '
+    'the bell to the rightmost action slot',
     (WidgetTester tester) async {
       tester.view.physicalSize = const Size(428, 2600);
       tester.view.devicePixelRatio = 1.0;
@@ -553,7 +553,7 @@ void main() {
         greaterThan(375),
       );
       final glassBars = tester.widgetList<GlassBar>(find.byType(GlassBar));
-      expect(glassBars.last.borderRadius, AppComponentRadius.bottomSheet);
+      expect(glassBars.last.borderRadius, isNull);
       expect(tester.takeException(), isNull);
     },
   );
