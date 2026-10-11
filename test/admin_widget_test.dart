@@ -2386,11 +2386,11 @@ void main() {
       expect(find.text('ADM-000001'), findsOneWidget);
       expect(find.text('System Preferences'), findsOneWidget);
       expect(find.text('Theme'), findsOneWidget);
-      expect(find.text('System'), findsOneWidget);
-      expect(find.text('Light'), findsOneWidget);
-      expect(find.text('Dark'), findsOneWidget);
+      expect(find.text('System (Default)'), findsNothing);
+      expect(find.text('Light'), findsNothing);
+      expect(find.text('Dark'), findsNothing);
       expect(find.text('Language'), findsOneWidget);
-      expect(find.text('English'), findsOneWidget);
+      expect(find.text('English'), findsNothing);
       expect(find.text('Coming Soon'), findsOneWidget);
       expect(find.text('Security'), findsOneWidget);
       expect(find.text('Change Password'), findsOneWidget);
@@ -2441,8 +2441,8 @@ void main() {
     expect(tapped, isTrue);
   });
 
-  testWidgets('Admin Profile Theme row switches ThemeController.mode via the '
-      'System/Light/Dark control', (WidgetTester tester) async {
+  testWidgets('Admin Profile Theme row switches ThemeController.mode from '
+      'its System/Light/Dark menu', (WidgetTester tester) async {
     SharedPreferences.setMockInitialValues({});
     tester.view.physicalSize = const Size(428, 2600);
     tester.view.devicePixelRatio = 1.0;
@@ -2462,12 +2462,16 @@ void main() {
 
     expect(ThemeController.mode.value, ThemeMode.system);
 
+    await tester.tap(find.text('Theme'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Dark'));
-    await tester.pump();
+    await tester.pumpAndSettle();
     expect(ThemeController.mode.value, ThemeMode.dark);
 
+    await tester.tap(find.text('Theme'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Light'));
-    await tester.pump();
+    await tester.pumpAndSettle();
     expect(ThemeController.mode.value, ThemeMode.light);
   });
 

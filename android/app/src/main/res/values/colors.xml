@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="launch_background">#F8FAFC</color>
-	<color name="ic_launcher_background">#F8FAFC</color>
-    <color name="notification_icon_color">#2563EB</color>
+    <color name="launch_background">#FAFAF7</color>
+	<color name="ic_launcher_background">#FAFAF7</color>
+    <color name="notification_icon_color">#FCD116</color>
 </resources>

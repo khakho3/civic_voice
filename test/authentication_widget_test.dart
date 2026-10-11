@@ -322,6 +322,35 @@ void main() {
     expect(find.widgetWithText(FilledButton, 'Get Started'), findsOneWidget);
   });
 
+  testWidgets('only the Track onboarding slide exposes Previous', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: WelcomeScreen(
+          onGetStarted: () {},
+          onContinueAsGuest: () {},
+          onLogin: () {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Previous'), findsNothing);
+    await tester.tap(find.widgetWithText(FilledButton, 'Next'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Track.'), findsOneWidget);
+    expect(find.widgetWithText(TextButton, 'Previous'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(TextButton, 'Previous'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Report.'), findsOneWidget);
+    expect(find.text('Previous'), findsNothing);
+  });
+
   testWidgets('Login to Forgot Password flow', (WidgetTester tester) async {
     await tester.pumpWidget(const CivicVoiceApp(initialRoute: AppRoutes.login));
     await tester.pump();
@@ -873,12 +902,18 @@ void main() {
         final semantic = Theme.of(
           tester.element(find.byType(RecoveryAuthFormSurface)),
         ).extension<AppSemanticColors>()!;
-        final denseGlass = find.byWidgetPredicate(
-          (widget) =>
-              widget is DecoratedBox &&
-              widget.decoration is BoxDecoration &&
-              (widget.decoration as BoxDecoration).color ==
-                  semantic.glassCardSurface,
+        // The recovery form and the circular Back control can legitimately
+        // share a glass alpha. Scope this assertion to the form surface
+        // rather than treating a colour token as a unique widget identity.
+        final denseGlass = find.descendant(
+          of: find.byType(RecoveryAuthFormSurface),
+          matching: find.byWidgetPredicate(
+            (widget) =>
+                widget is DecoratedBox &&
+                widget.decoration is BoxDecoration &&
+                (widget.decoration as BoxDecoration).color ==
+                    semantic.glassCardSurface,
+          ),
         );
 
         expect(find.byType(AuthIllustrationHero), findsNothing);

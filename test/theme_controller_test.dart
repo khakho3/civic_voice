@@ -8,15 +8,15 @@ void main() {
 
   setUp(() {
     SharedPreferences.setMockInitialValues(<String, Object>{});
-    ThemeController.mode.value = ThemeMode.light;
+    ThemeController.mode.value = ThemeMode.system;
   });
 
-  test('defaults to light when the user has not chosen a theme', () async {
+  test('defaults to System when the user has not chosen a theme', () async {
     ThemeController.mode.value = ThemeMode.dark;
 
     await ThemeController.loadSavedTheme();
 
-    expect(ThemeController.mode.value, ThemeMode.light);
+    expect(ThemeController.mode.value, ThemeMode.system);
   });
 
   for (final selectedMode in ThemeMode.values) {

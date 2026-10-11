@@ -104,6 +104,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 _OnboardingActions(
                   currentPage: _currentPage,
                   onNext: () => _animateToPage(_currentPage + 1),
+                  onPrevious: () => _animateToPage(_currentPage - 1),
                   onGetStarted: widget.onGetStarted,
                   onContinueAsGuest: widget.onContinueAsGuest,
                   onLogin: widget.onLogin,
@@ -130,6 +131,9 @@ class _OnboardingSlide extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final actionTextColor = theme.brightness == Brightness.dark
+        ? colorScheme.primary
+        : AppColors.primaryText;
     final maxIllustrationHeight = context.isTabletLayout
         ? _maxTabletIllustrationHeight
         : _maxPhoneIllustrationHeight;
@@ -185,7 +189,7 @@ class _OnboardingSlide extends StatelessWidget {
                     'CivicVoice',
                     textAlign: TextAlign.center,
                     style: theme.textTheme.labelLarge?.copyWith(
-                      color: colorScheme.primary,
+                      color: actionTextColor,
                       fontWeight: AppFontWeight.semiBold,
                     ),
                   ),
@@ -263,6 +267,7 @@ class _OnboardingActions extends StatelessWidget {
   const _OnboardingActions({
     required this.currentPage,
     required this.onNext,
+    required this.onPrevious,
     required this.onGetStarted,
     required this.onContinueAsGuest,
     required this.onLogin,
@@ -270,6 +275,7 @@ class _OnboardingActions extends StatelessWidget {
 
   final int currentPage;
   final VoidCallback onNext;
+  final VoidCallback onPrevious;
   final VoidCallback onGetStarted;
   final VoidCallback onContinueAsGuest;
   final VoidCallback onLogin;
@@ -293,6 +299,10 @@ class _OnboardingActions extends StatelessWidget {
         children: [
           _PageIndicator(currentPage: currentPage),
           const SizedBox(height: AppSpacing.lg),
+          if (currentPage == 1) ...[
+            TextButton(onPressed: onPrevious, child: const Text('Previous')),
+            const SizedBox(height: AppSpacing.xs),
+          ],
           SizedBox(
             width: double.infinity,
             child: FilledButton(
@@ -338,7 +348,9 @@ class _OnboardingActions extends StatelessWidget {
                           TextSpan(
                             text: 'Log in',
                             style: TextStyle(
-                              color: colorScheme.primary,
+                              color: theme.brightness == Brightness.dark
+                                  ? colorScheme.primary
+                                  : AppColors.primaryText,
                               fontWeight: AppFontWeight.semiBold,
                             ),
                           ),

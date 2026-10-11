@@ -19,6 +19,7 @@ import 'package:civic_voice/utils/time_greeting.dart';
 import 'package:civic_voice/widgets/evidence_image_viewer.dart';
 import 'package:civic_voice/widgets/glass_dialog_backdrop.dart';
 import 'package:civic_voice/widgets/profile_edit_button.dart';
+import 'package:civic_voice/widgets/profile_header_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:geolocator/geolocator.dart';
@@ -148,7 +149,57 @@ void main() {
 
     expect(find.byType(ProfileEditButton), findsOneWidget);
     expect(find.widgetWithText(TextButton, 'Create Account'), findsNothing);
+    expect(
+      find.descendant(
+        of: find.byType(ProfileHeaderCard),
+        matching: find.byType(ProfileEditButton),
+      ),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('citizen profile editor contains only a validated name field', (
+    tester,
+  ) async {
+    final profileService = ProfileCrudService.instance;
+    final originalProfile = profileService.profile.value;
+    addTearDown(() => profileService.createProfile(originalProfile));
+    await profileService.createProfile(
+      const CitizenProfile(
+        id: 'profile-editor',
+        fullName: 'Ama Mensah',
+        email: '',
+        phone: '0240000000',
+        primaryLocation: '',
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(theme: AppTheme.light, home: const CitizenProfileScreen()),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byType(ProfileEditButton));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Edit profile'), findsOneWidget);
+    expect(find.widgetWithText(TextField, 'Full Name'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(BottomSheet),
+        matching: find.text('Phone Number'),
+      ),
+      findsNothing,
+    );
+
+    await tester.enterText(find.byType(TextField), '');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Enter your name.'), findsOneWidget);
+    expect(profileService.profile.value.fullName, 'Ama Mensah');
+    expect(profileService.profile.value.phone, '0240000000');
   });
 
   testWidgets('Nearby Reports preference stays compact and explains on help', (

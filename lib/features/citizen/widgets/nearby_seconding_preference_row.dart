@@ -52,34 +52,42 @@ class _NearbySecondingPreferenceRowState
     final textTheme = Theme.of(context).textTheme;
     return Material(
       type: MaterialType.transparency,
-      child: SwitchListTile.adaptive(
-        contentPadding: EdgeInsets.zero,
-        value: _enabled,
-        onChanged: _setEnabled,
-        title: Row(
-          children: [
-            Flexible(
-              child: Text(
-                'Nearby Reports',
-                style: textTheme.bodyLarge,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+      child: Row(
+        children: [
+          const Icon(AppIcons.location, size: AppIconSize.md),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: SwitchListTile.adaptive(
+              contentPadding: EdgeInsets.zero,
+              value: _enabled,
+              onChanged: _setEnabled,
+              title: Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      'Nearby Reports',
+                      style: textTheme.bodyLarge,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                  IconButton(
+                    onPressed: _showHelp,
+                    tooltip: 'About Nearby Reports',
+                    iconSize: AppIconSize.sm,
+                    visualDensity: VisualDensity.compact,
+                    constraints: const BoxConstraints.tightFor(
+                      width: AppSpacing.xl,
+                      height: AppSpacing.xl,
+                    ),
+                    icon: const Icon(AppIcons.info),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(width: AppSpacing.xs),
-            IconButton(
-              onPressed: _showHelp,
-              tooltip: 'About Nearby Reports',
-              iconSize: AppIconSize.sm,
-              visualDensity: VisualDensity.compact,
-              constraints: const BoxConstraints.tightFor(
-                width: AppSpacing.xl,
-                height: AppSpacing.xl,
-              ),
-              icon: const Icon(AppIcons.info),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

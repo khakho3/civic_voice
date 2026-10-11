@@ -62,6 +62,17 @@ void main() {
     },
   );
 
+  test('persists haptic preference with a default of on', () async {
+    expect(AppCacheService.instance.hapticFeedbackEnabled, isTrue);
+
+    await AppCacheService.instance.setHapticFeedbackEnabled(false);
+    await AppCacheService.instance.initialize();
+    expect(AppCacheService.instance.hapticFeedbackEnabled, isFalse);
+
+    await AppCacheService.instance.setHapticFeedbackEnabled(true);
+    expect(AppCacheService.instance.hapticFeedbackEnabled, isTrue);
+  });
+
   test('persists report ids already seen for nearby confirmation', () async {
     expect(AppCacheService.instance.secondingSeenIds, isEmpty);
 

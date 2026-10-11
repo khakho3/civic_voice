@@ -35,13 +35,13 @@ abstract final class AppLightTheme {
         brightness: Brightness.light,
       ).copyWith(
         primary: AppColors.primary,
-        onPrimary: Colors.white,
+        onPrimary: AppColors.onPrimary,
         // No "Secondary Brand" color has been formally approved yet (see
         // CL-001 Design Enhancement checklist). The approved Secondary Text
         // token is reused here as a neutral, accessible placeholder until a
         // brand secondary is defined.
         secondary: AppColorsLight.secondaryText,
-        onSecondary: Colors.white,
+        onSecondary: AppColorsLight.primarySurface,
         error: AppColors.error,
         onError: Colors.white,
         surface: AppColorsLight.primarySurface,
@@ -77,7 +77,7 @@ abstract final class AppLightTheme {
       size: AppIconSize.standard,
     ),
     primaryIconTheme: const IconThemeData(
-      color: Colors.white,
+      color: AppColors.onPrimary,
       size: AppIconSize.standard,
     ),
 
@@ -127,7 +127,7 @@ abstract final class AppLightTheme {
       focusedBorder: OutlineInputBorder(
         borderRadius: AppComponentRadius.inputField,
         borderSide: const BorderSide(
-          color: AppColors.primary,
+          color: AppColors.focus,
           width: AppDimensions.borderWidthFocused,
         ),
       ),
@@ -152,7 +152,7 @@ abstract final class AppLightTheme {
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
         backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
+        foregroundColor: AppColors.onPrimary,
         disabledBackgroundColor: AppColorsLight.border,
         disabledForegroundColor: AppColorsLight.secondaryText,
         // Intrinsic width by default — see textButtonTheme below.
@@ -168,7 +168,7 @@ abstract final class AppLightTheme {
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
         backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
+        foregroundColor: AppColors.onPrimary,
         // Intrinsic width by default — see textButtonTheme below.
         minimumSize: const Size(64, AppDimensions.controlHeightStandard),
         shape: const RoundedRectangleBorder(
@@ -180,9 +180,11 @@ abstract final class AppLightTheme {
 
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
-        foregroundColor: AppColors.primary,
+        foregroundColor: AppColors.primaryText,
         disabledForegroundColor: AppColorsLight.secondaryText,
-        side: const BorderSide(color: AppColorsLight.border),
+        // Action outlines carry the restrained gold control border. Structural
+        // card and divider outlines remain neutral elsewhere in the scheme.
+        side: const BorderSide(color: AppColors.controlBorder),
         // Intrinsic width by default — see textButtonTheme below.
         minimumSize: const Size(64, AppDimensions.controlHeightStandard),
         shape: const RoundedRectangleBorder(
@@ -201,7 +203,7 @@ abstract final class AppLightTheme {
     // in Expanded/SizedBox(width: double.infinity) at the call site.
     textButtonTheme: TextButtonThemeData(
       style: TextButton.styleFrom(
-        foregroundColor: AppColors.primary,
+        foregroundColor: AppColors.primaryText,
         disabledForegroundColor: AppColorsLight.secondaryText,
         minimumSize: const Size(64, AppDimensions.controlHeightStandard),
         shape: const RoundedRectangleBorder(
@@ -254,14 +256,18 @@ abstract final class AppLightTheme {
       labelTextStyle: WidgetStateProperty.resolveWith((states) {
         final selected = states.contains(WidgetState.selected);
         return _textTheme.labelMedium?.copyWith(
-          color: selected ? AppColors.primary : AppColorsLight.secondaryText,
+          color: selected
+              ? AppColors.primaryText
+              : AppColorsLight.secondaryText,
           fontWeight: selected ? AppFontWeight.semiBold : AppFontWeight.medium,
         );
       }),
       iconTheme: WidgetStateProperty.resolveWith((states) {
         final selected = states.contains(WidgetState.selected);
         return IconThemeData(
-          color: selected ? AppColors.primary : AppColorsLight.secondaryText,
+          color: selected
+              ? AppColors.primaryText
+              : AppColorsLight.secondaryText,
           size: AppIconSize.standard,
         );
       }),
@@ -274,7 +280,7 @@ abstract final class AppLightTheme {
       disabledColor: AppColorsLight.secondarySurface,
       labelStyle: _textTheme.labelMedium,
       secondaryLabelStyle: _textTheme.labelMedium?.copyWith(
-        color: AppColors.primary,
+        color: AppColors.primaryText,
       ),
       side: const BorderSide(color: AppColorsLight.border),
       shape: const StadiumBorder(),
@@ -284,7 +290,7 @@ abstract final class AppLightTheme {
     snackBarTheme: SnackBarThemeData(
       backgroundColor: AppColorsLight.primaryText,
       contentTextStyle: _textTheme.bodyMedium?.copyWith(color: Colors.white),
-      actionTextColor: AppColors.primary,
+      actionTextColor: AppColors.primaryText,
       behavior: SnackBarBehavior.floating,
       elevation: AppElevation.level2,
       shape: const RoundedRectangleBorder(
@@ -309,6 +315,6 @@ abstract final class AppLightTheme {
     disabledColor: AppColorsLight.secondaryText,
     hintColor: AppColorsLight.secondaryText,
     highlightColor: AppColors.primary.withValues(alpha: 0.08),
-    focusColor: AppColors.primary.withValues(alpha: 0.12),
+    focusColor: AppColors.focus.withValues(alpha: 0.12),
   );
 }

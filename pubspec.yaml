@@ -74,22 +74,23 @@ flutter_launcher_icons:
   android: true
   ios: true
   image_path: assets/branding/icon_flat.png
-  adaptive_icon_background: "#F8FAFC"
+  adaptive_icon_background: "#FAFAF7"
   adaptive_icon_foreground: assets/branding/icon_foreground.png
+  adaptive_icon_monochrome: assets/branding/icon_monochrome.png
 
 flutter_native_splash:
   android: true
   ios: true
   web: false
-  color: "#F8FAFC"
-  color_dark: "#0F172A"
+  color: "#FAFAF7"
+  color_dark: "#101110"
   image: assets/branding/splash_icon.png
   image_dark: assets/branding/splash_icon.png
   android_12:
-    color: "#F8FAFC"
-    color_dark: "#0F172A"
-    icon_background_color: "#FFFFFF"
-    icon_background_color_dark: "#1E293B"
+    color: "#FAFAF7"
+    color_dark: "#101110"
+    icon_background_color: "#FAFAF7"
+    icon_background_color_dark: "#191B19"
     image: assets/branding/splash_icon.png
     image_dark: assets/branding/splash_icon.png
 
@@ -109,15 +110,17 @@ flutter:
   #   - images/a_dot_burr.jpeg
   #   - images/a_dot_ham.jpeg
   assets:
-    - assets/branding/logo.svg
     - assets/branding/logo.png
     - assets/branding/logo_app.png
     - assets/branding/auth_hero.png
     - assets/branding/icon_flat.png
     - assets/branding/favicon.png
-    - assets/branding/onboarding_report.jpg
-    - assets/branding/onboarding_track.jpg
-    - assets/branding/onboarding_resolve.jpg
+    - assets/branding/icon_foreground.png
+    - assets/branding/icon_monochrome.png
+    - assets/branding/splash_icon.png
+    - assets/branding/onboarding_report.webp
+    - assets/branding/onboarding_track.webp
+    - assets/branding/onboarding_resolve.webp
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

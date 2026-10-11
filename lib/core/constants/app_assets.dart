@@ -10,9 +10,7 @@ abstract final class AppAssets {
   const AppAssets._();
 
   /// Master vector logo — the single source of truth for the CivicVoice mark.
-  static const String logoSvg = 'assets/branding/logo.svg';
-
-  /// 1024×1024 master raster logo, rendered from [logoSvg].
+  /// Master raster logo for the approved CivicVoice mark.
   static const String logoPng = 'assets/branding/logo.png';
 
   /// In-app usage logo (e.g. app bar, splash, empty states).
@@ -24,17 +22,27 @@ abstract final class AppAssets {
   /// The same source as the app's launcher icon, for full-bleed in-app branding.
   static const String iconFlat = 'assets/branding/icon_flat.png';
 
-  /// App favicon, rendered from [logoSvg].
+  /// Transparent foreground used by native adaptive launcher icons.
+  static const String iconForeground = 'assets/branding/icon_foreground.png';
+
+  /// Alpha-only foreground used by Android's themed launcher icons.
+  static const String iconMonochrome = 'assets/branding/icon_monochrome.png';
+
+  /// Centered mark used by the native splash configuration.
+  static const String splashIcon = 'assets/branding/splash_icon.png';
+
+  /// App favicon exported from the approved brand master.
   static const String favicon = 'assets/branding/favicon.png';
 
   /// Onboarding illustration for reporting a community issue.
   static const String onboardingReport =
-      'assets/branding/onboarding_report.jpg';
+      'assets/branding/onboarding_report.webp';
 
   /// Onboarding illustration for tracking a submitted report.
-  static const String onboardingTrack = 'assets/branding/onboarding_track.jpg';
+  static const String onboardingTrack =
+      'assets/branding/onboarding_track.webp';
 
   /// Onboarding illustration for resolving issues as a community.
   static const String onboardingResolve =
-      'assets/branding/onboarding_resolve.jpg';
+      'assets/branding/onboarding_resolve.webp';
 }

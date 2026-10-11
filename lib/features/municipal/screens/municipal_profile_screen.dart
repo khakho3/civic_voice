@@ -3,10 +3,11 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../widgets/confirm_dialog.dart';
 import '../../../widgets/biometric_lock_preference_row.dart';
-import '../../../widgets/kebab_menu_button.dart';
+import '../../../widgets/haptics_preference_row.dart';
 import '../../../widgets/language_preference_row.dart';
 import '../../../widgets/profile_action_row.dart';
 import '../../../widgets/profile_edit_action_bar.dart';
+import '../../../widgets/profile_edit_button.dart';
 import '../../../widgets/profile_field_row.dart';
 import '../../../widgets/profile_header_card.dart';
 import '../../../widgets/profile_section.dart';
@@ -189,18 +190,21 @@ class _MunicipalProfileScreenState extends State<MunicipalProfileScreen> {
                         const _LoadingSkeleton(),
                       MunicipalProfileViewState.loaded => _ProfileView(
                         profile: _profile,
+                        onEdit: _startEditing,
                         onChangePassword: widget.onChangePassword,
                         onAbout: widget.onAbout,
                         onLogOut: _confirmLogOut,
                       ),
                       MunicipalProfileViewState.success => _ProfileView(
                         profile: _profile,
+                        onEdit: _startEditing,
                         onChangePassword: widget.onChangePassword,
                         onAbout: widget.onAbout,
                         onLogOut: _confirmLogOut,
                       ),
                       MunicipalProfileViewState.offline => _ProfileView(
                         profile: _profile,
+                        onEdit: _startEditing,
                         onChangePassword: widget.onChangePassword,
                         onAbout: widget.onAbout,
                         onLogOut: _confirmLogOut,
@@ -242,14 +246,7 @@ class _MunicipalProfileScreenState extends State<MunicipalProfileScreen> {
                             )
                           : const Text('Save'),
                     )
-                  : KebabMenuButton<void>(
-                      itemBuilder: (context) => [
-                        PopupMenuItem(
-                          onTap: _startEditing,
-                          child: const Text('Edit Profile'),
-                        ),
-                      ],
-                    ),
+                  : null,
             ),
           ),
         ],
@@ -337,12 +334,14 @@ class _SuccessBanner extends StatelessWidget {
 class _ProfileView extends StatelessWidget {
   const _ProfileView({
     required this.profile,
+    this.onEdit,
     this.onChangePassword,
     this.onAbout,
     this.onLogOut,
   });
 
   final OfficerProfile profile;
+  final VoidCallback? onEdit;
   final VoidCallback? onChangePassword;
   final VoidCallback? onAbout;
   final VoidCallback? onLogOut;
@@ -361,6 +360,7 @@ class _ProfileView extends StatelessWidget {
         ProfileHeaderCard(
           name: profile.name,
           subtitle: profile.role,
+          avatarAction: ProfileEditButton(onPressed: onEdit),
           pills: [
             if (profile.verifiedOfficial)
               const TintedBadge(
@@ -396,6 +396,8 @@ class _ProfileView extends StatelessWidget {
             ThemePreferenceRow(),
             Divider(height: AppSpacing.lg),
             LanguagePreferenceRow(),
+            Divider(height: AppSpacing.lg),
+            HapticsPreferenceRow(),
             Divider(height: AppSpacing.lg),
             BiometricLockPreferenceRow(),
           ],

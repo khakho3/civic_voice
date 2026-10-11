@@ -14,6 +14,7 @@ class ProfileHeaderCard extends StatelessWidget {
     required this.name,
     this.subtitle,
     this.pills = const [],
+    this.avatarAction,
   });
 
   final String name;
@@ -25,6 +26,10 @@ class ProfileHeaderCard extends StatelessWidget {
   /// Small tinted chips under the name/subtitle (e.g. "Verified Official",
   /// "ID #1234").
   final List<Widget> pills;
+
+  /// A small action positioned on the identity avatar, typically the profile
+  /// edit pencil. It is absent for profiles without editable identity.
+  final Widget? avatarAction;
 
   @override
   Widget build(BuildContext context) {
@@ -41,20 +46,38 @@ class ProfileHeaderCard extends StatelessWidget {
     return Center(
       child: Column(
         children: [
-          ClipOval(
-            child: SizedBox(
-              width: 80,
-              height: 80,
-              child: CircleAvatar(
-                radius: 40,
-                backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-                child: Text(
-                  initials,
-                  style: textTheme.headlineMedium?.copyWith(
-                    color: AppColors.primary,
+          SizedBox(
+            width: 88,
+            height: 88,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Center(
+                  child: ClipOval(
+                    child: SizedBox(
+                      width: 80,
+                      height: 80,
+                      child: CircleAvatar(
+                        radius: 40,
+                        backgroundColor: AppColors.primary.withValues(
+                          alpha: 0.12,
+                        ),
+                        child: Text(
+                          initials,
+                          style: textTheme.headlineMedium?.copyWith(
+                            color:
+                                Theme.of(context).brightness == Brightness.dark
+                                ? AppColors.primaryDark
+                                : AppColors.onPrimary,
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-              ),
+                if (avatarAction != null)
+                  Positioned(right: 0, bottom: 0, child: avatarAction!),
+              ],
             ),
           ),
           const SizedBox(height: AppSpacing.md),

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../widgets/app_state_message.dart';
 import '../../../widgets/biometric_lock_preference_row.dart';
+import '../../../widgets/haptics_preference_row.dart';
 import '../../../widgets/confirm_dialog.dart';
 import '../../../widgets/language_preference_row.dart';
 import '../../../widgets/profile_action_row.dart';
@@ -370,6 +371,9 @@ class _ProfileBody extends StatelessWidget {
         ProfileHeaderCard(
           name: draft.fullName,
           subtitle: 'Administrator account · Governance approved',
+          avatarAction: editing
+              ? null
+              : ProfileEditButton(onPressed: onStartEdit),
         ),
         const SizedBox(height: AppSpacing.lg),
         if (saveState == AdminProfileSaveState.saved) ...[
@@ -403,10 +407,6 @@ class _ProfileBody extends StatelessWidget {
                 message: 'This account can access these administrative areas:',
                 items: draft.administrativeScope,
               ),
-              if (!editing) ...[
-                const SizedBox(width: AppSpacing.xs),
-                ProfileEditButton(onPressed: onStartEdit),
-              ],
             ],
           ),
           children: [
@@ -453,6 +453,8 @@ class _ProfileBody extends StatelessWidget {
             ThemePreferenceRow(),
             Divider(height: AppSpacing.lg),
             LanguagePreferenceRow(),
+            Divider(height: AppSpacing.lg),
+            HapticsPreferenceRow(),
             Divider(height: AppSpacing.lg),
             BiometricLockPreferenceRow(),
           ],

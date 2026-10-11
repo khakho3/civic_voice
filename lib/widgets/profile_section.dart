@@ -16,6 +16,8 @@ class ProfileSection extends StatelessWidget {
     this.trailing,
   });
 
+  /// Kept for source compatibility while role profiles migrate. Section
+  /// labels deliberately do not render an icon; each row owns its meaning.
   final IconData icon;
   final String title;
   final List<Widget> children;
@@ -30,8 +32,6 @@ class ProfileSection extends StatelessWidget {
       children: [
         Row(
           children: [
-            Icon(icon, size: AppIconSize.sm, color: AppColors.primary),
-            const SizedBox(width: AppSpacing.xs),
             Expanded(
               child: Text(
                 title,

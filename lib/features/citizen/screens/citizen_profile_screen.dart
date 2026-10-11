@@ -3,12 +3,13 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../widgets/confirm_dialog.dart';
 import '../../../widgets/biometric_lock_preference_row.dart';
+import '../../../widgets/haptics_preference_row.dart';
 import '../../../widgets/language_preference_row.dart';
 import '../../../widgets/profile_action_row.dart';
-import '../../../widgets/profile_edit_action_bar.dart';
 import '../../../widgets/profile_edit_button.dart';
 import '../../../widgets/profile_field_row.dart';
 import '../../../widgets/profile_header_card.dart';
+import '../../../widgets/profile_name_edit_sheet.dart';
 import '../../../widgets/profile_section.dart';
 import '../../../widgets/profile_session_section.dart';
 import '../../../widgets/theme_preference_row.dart';
@@ -48,70 +49,35 @@ class CitizenProfileScreen extends StatefulWidget {
 }
 
 class _CitizenProfileScreenState extends State<CitizenProfileScreen> {
-  final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _phoneController = TextEditingController();
   final ProfileCrudService _profileCrudService = ProfileCrudService.instance;
 
-  bool _isEditing = false;
   bool _showSaveSuccess = false;
-  bool _saving = false;
 
   @override
   void initState() {
     super.initState();
-    _syncControllers(_profileCrudService.profile.value);
-    _nameController.addListener(_refreshProfilePreview);
-    _profileCrudService.profile.addListener(_syncControllersFromCrud);
   }
 
   @override
   void dispose() {
-    _profileCrudService.profile.removeListener(_syncControllersFromCrud);
-    _nameController.removeListener(_refreshProfilePreview);
-    _nameController.dispose();
-    _phoneController.dispose();
     super.dispose();
   }
 
-  void _refreshProfilePreview() {
-    if (mounted) setState(() {});
-  }
-
-  void _syncControllersFromCrud() {
-    if (_isEditing) return;
-    _syncControllers(_profileCrudService.profile.value);
-    if (mounted) setState(() {});
-  }
-
-  void _syncControllers(CitizenProfile profile) {
-    _nameController.text = profile.fullName;
-    _phoneController.text = profile.phone;
-  }
-
-  void _startEditing() {
-    setState(() => _isEditing = true);
-  }
-
-  void _cancelEditing() {
-    _syncControllers(_profileCrudService.profile.value);
-    setState(() => _isEditing = false);
-  }
-
-  Future<void> _saveProfile() async {
-    FocusManager.instance.primaryFocus?.unfocus();
-    setState(() => _saving = true);
-    await _profileCrudService.updateProfile(
-      _profileCrudService.profile.value.copyWith(
-        fullName: _nameController.text.trim(),
+  Future<void> _startEditing() async {
+    final profile = _profileCrudService.profile.value;
+    final saved = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (_) => ProfileNameEditSheet(
+        initialName: profile.fullName,
+        onSave: (name) =>
+            _profileCrudService.updateProfile(profile.copyWith(fullName: name)),
       ),
     );
-    if (!mounted) return;
-    setState(() {
-      _saving = false;
-      _isEditing = false;
-      _showSaveSuccess = true;
-    });
-    Future.delayed(const Duration(seconds: 3), () {
+    if (!mounted || saved != true) return;
+    setState(() => _showSaveSuccess = true);
+    Future<void>.delayed(const Duration(seconds: 3), () {
       if (mounted) setState(() => _showSaveSuccess = false);
     });
   }
@@ -125,11 +91,6 @@ class _CitizenProfileScreenState extends State<CitizenProfileScreen> {
       destructive: true,
     );
     if (confirmed) widget.onLogOut?.call();
-  }
-
-  String get _displayName {
-    final value = _nameController.text.trim();
-    return value.isEmpty ? 'Citizen' : value;
   }
 
   void _openDashboard(BuildContext context) {
@@ -186,10 +147,7 @@ class _CitizenProfileScreenState extends State<CitizenProfileScreen> {
                         horizontalPadding,
                         chromeInset.top + AppSpacing.xl,
                         horizontalPadding,
-                        _isEditing
-                            ? MediaQuery.paddingOf(context).bottom +
-                                  AppSpacing.xl
-                            : chromeInset.bottom + AppSpacing.xl,
+                        chromeInset.bottom + AppSpacing.xl,
                       ),
                       children: [
                         if (_showSaveSuccess) ...[
@@ -202,36 +160,37 @@ class _CitizenProfileScreenState extends State<CitizenProfileScreen> {
                             return Column(
                               children: [
                                 ProfileHeaderCard(
-                                  name: _displayName,
+                                  name: profile.fullName.isEmpty
+                                      ? 'Citizen'
+                                      : profile.fullName,
                                   subtitle: profile.isGuest
                                       ? 'Browsing as guest'
                                       : 'Verified citizen',
+                                  avatarAction: profile.isGuest
+                                      ? null
+                                      : ProfileEditButton(
+                                          onPressed: _startEditing,
+                                        ),
                                 ),
                                 const SizedBox(height: AppSpacing.lg),
                                 ProfileSection(
                                   icon: AppIcons.profile,
                                   title: 'Personal Information',
-                                  trailing: _isEditing
-                                      ? null
-                                      : profile.isGuest
+                                  trailing: profile.isGuest
                                       ? TextButton(
                                           onPressed: widget.onRegister,
                                           child: const Text('Create Account'),
                                         )
-                                      : ProfileEditButton(
-                                          onPressed: _startEditing,
-                                        ),
+                                      : null,
                                   children: [
                                     ProfileFieldRow(
                                       label: 'Full Name',
-                                      controller: _nameController,
-                                      editable: _isEditing,
+                                      value: profile.fullName,
                                     ),
                                     const SizedBox(height: AppSpacing.sm),
                                     ProfileFieldRow(
                                       label: 'Phone Number',
-                                      controller: _phoneController,
-                                      editable: false,
+                                      value: profile.phone,
                                     ),
                                   ],
                                 ),
@@ -243,6 +202,8 @@ class _CitizenProfileScreenState extends State<CitizenProfileScreen> {
                                     ThemePreferenceRow(),
                                     Divider(height: AppSpacing.lg),
                                     LanguagePreferenceRow(),
+                                    Divider(height: AppSpacing.lg),
+                                    HapticsPreferenceRow(),
                                     Divider(height: AppSpacing.lg),
                                     NearbySecondingPreferenceRow(),
                                     Divider(height: AppSpacing.lg),
@@ -261,12 +222,8 @@ class _CitizenProfileScreenState extends State<CitizenProfileScreen> {
                                     ),
                                   ],
                                 ),
-                                if (!_isEditing) ...[
-                                  const SizedBox(height: AppSpacing.lg),
-                                  ProfileSessionSection(
-                                    onLogOut: _confirmLogOut,
-                                  ),
-                                ],
+                                const SizedBox(height: AppSpacing.lg),
+                                ProfileSessionSection(onLogOut: _confirmLogOut),
                               ],
                             );
                           },
@@ -274,12 +231,6 @@ class _CitizenProfileScreenState extends State<CitizenProfileScreen> {
                       ],
                     ),
                   ),
-                  if (_isEditing)
-                    ProfileEditActionBar(
-                      onSave: _saveProfile,
-                      onCancel: _cancelEditing,
-                      saving: _saving,
-                    ),
                 ],
               ),
             ),
@@ -290,12 +241,9 @@ class _CitizenProfileScreenState extends State<CitizenProfileScreen> {
             // drill-down, matching every other primary tab in the module.
             // Exiting edit mode goes through the Cancel button in the edit
             // action bar below, not a header back arrow.
-            child: CivicTopBar(
-              title: _isEditing ? 'Edit Profile' : 'Profile',
-              showNotifications: false,
-            ),
+            child: CivicTopBar(title: 'Profile', showNotifications: false),
           ),
-          if (!_isEditing && !keyboardVisible)
+          if (!keyboardVisible)
             Align(
               alignment: Alignment.bottomCenter,
               child: CivicBottomNav(

@@ -3,9 +3,10 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../widgets/app_state_message.dart';
 import '../../../widgets/biometric_lock_preference_row.dart';
+import '../../../widgets/haptics_preference_row.dart';
 import '../../../widgets/confirm_dialog.dart';
 import '../../../widgets/detail_header.dart';
-import '../../../widgets/kebab_menu_button.dart';
+import '../../../widgets/profile_edit_button.dart';
 import '../../../widgets/language_preference_row.dart';
 import '../../../widgets/profile_action_row.dart';
 import '../../../widgets/profile_edit_action_bar.dart';
@@ -243,6 +244,7 @@ class _MinistryProfileScreenState extends State<MinistryProfileScreen> {
                                 nameController: _nameController,
                                 phoneController: _phoneController,
                                 fieldErrors: _fieldErrors,
+                                onEdit: _startEditing,
                                 onChangePassword: widget.onChangePassword,
                                 onAbout: widget.onAbout,
                                 onLogOut: _confirmLogOut,
@@ -353,14 +355,6 @@ class _MinistryProfileScreenState extends State<MinistryProfileScreen> {
                             ),
                           ),
                         ),
-                        KebabMenuButton<void>(
-                          itemBuilder: (context) => [
-                            PopupMenuItem(
-                              onTap: _startEditing,
-                              child: const Text('Edit Profile'),
-                            ),
-                          ],
-                        ),
                       ],
                     ),
             ),
@@ -383,6 +377,7 @@ class _ProfileBody extends StatelessWidget {
     required this.nameController,
     required this.phoneController,
     this.fieldErrors = const {},
+    this.onEdit,
     this.onChangePassword,
     this.onAbout,
     this.onLogOut,
@@ -394,6 +389,7 @@ class _ProfileBody extends StatelessWidget {
   final TextEditingController nameController;
   final TextEditingController phoneController;
   final Map<String, String> fieldErrors;
+  final VoidCallback? onEdit;
   final VoidCallback? onChangePassword;
   final VoidCallback? onAbout;
   final VoidCallback? onLogOut;
@@ -413,6 +409,7 @@ class _ProfileBody extends StatelessWidget {
         ProfileHeaderCard(
           name: profile.name,
           subtitle: profile.ministry,
+          avatarAction: editing ? null : ProfileEditButton(onPressed: onEdit),
           pills: [
             TintedBadge(
               label: profile.role,
@@ -465,6 +462,8 @@ class _ProfileBody extends StatelessWidget {
             ThemePreferenceRow(),
             Divider(height: AppSpacing.lg),
             LanguagePreferenceRow(),
+            Divider(height: AppSpacing.lg),
+            HapticsPreferenceRow(),
             Divider(height: AppSpacing.lg),
             BiometricLockPreferenceRow(),
           ],

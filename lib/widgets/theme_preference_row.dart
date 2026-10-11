@@ -1,53 +1,112 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../core/theme/app_theme.dart';
 import '../core/theme/theme_controller.dart';
 
-/// The three-way System/Light/Dark theme control shown in every module's
-/// profile "System Preferences" section — originally Admin-only, promoted
-/// here since [ThemeController.setDarkMode]'s own doc comment already
-/// names the binary Switch (kept only for Citizen's own profile screen) as
-/// the lesser option. Stacked (label above, full-width control below)
-/// rather than inline — a 3-segment button needs more width than a
-/// label-left/control-right row leaves it on a narrow phone.
-class ThemePreferenceRow extends StatelessWidget {
+/// Compact System/Light/Dark menu for every Profile preference group.
+///
+/// The visible row deliberately omits a duplicate selected-value label; the
+/// menu provides the selected checkmark and the row exposes it semantically.
+class ThemePreferenceRow extends StatefulWidget {
   const ThemePreferenceRow({super.key});
 
   @override
+  State<ThemePreferenceRow> createState() => _ThemePreferenceRowState();
+}
+
+class _ThemePreferenceRowState extends State<ThemePreferenceRow> {
+  final MenuController _menuController = MenuController();
+
+  static const _options = <({ThemeMode mode, String label, IconData icon})>[
+    (
+      mode: ThemeMode.system,
+      label: 'System (Default)',
+      icon: AppIcons.systemTheme,
+    ),
+    (mode: ThemeMode.light, label: 'Light', icon: AppIcons.sun),
+    (mode: ThemeMode.dark, label: 'Dark', icon: AppIcons.moon),
+  ];
+
+  void _select(ThemeMode mode) {
+    _menuController.close();
+    unawaited(ThemeController.setThemeMode(mode));
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: ThemeController.mode,
       builder: (context, mode, _) {
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Theme', style: textTheme.bodyLarge),
-            const SizedBox(height: AppSpacing.sm),
-            SegmentedButton<ThemeMode>(
-              segments: const [
-                ButtonSegment(
-                  value: ThemeMode.system,
-                  label: Text('System'),
-                  icon: Icon(AppIcons.systemTheme, size: AppIconSize.sm),
-                ),
-                ButtonSegment(
-                  value: ThemeMode.light,
-                  label: Text('Light'),
-                  icon: Icon(AppIcons.sun, size: AppIconSize.sm),
-                ),
-                ButtonSegment(
-                  value: ThemeMode.dark,
-                  label: Text('Dark'),
-                  icon: Icon(AppIcons.moon, size: AppIconSize.sm),
-                ),
-              ],
-              selected: {mode},
-              showSelectedIcon: false,
-              onSelectionChanged: (selected) =>
-                  ThemeController.setThemeMode(selected.first),
+        final selected = _options.firstWhere((option) => option.mode == mode);
+        return MenuAnchor(
+          controller: _menuController,
+          consumeOutsideTap: true,
+          style: const MenuStyle(
+            padding: WidgetStatePropertyAll(
+              EdgeInsets.symmetric(vertical: AppSpacing.xs),
             ),
+          ),
+          menuChildren: [
+            for (final option in _options)
+              MenuItemButton(
+                onPressed: () => _select(option.mode),
+                leadingIcon: Icon(option.icon, size: AppIconSize.sm),
+                trailingIcon: option.mode == mode
+                    ? const Icon(AppIcons.success, size: AppIconSize.sm)
+                    : null,
+                child: Text(option.label),
+              ),
           ],
+          builder: (context, controller, _) => Semantics(
+            button: true,
+            label: 'Theme',
+            value: selected.label,
+            hint: 'Choose app theme',
+            child: Material(
+              type: MaterialType.transparency,
+              child: InkWell(
+                onTap: () =>
+                    controller.isOpen ? controller.close() : controller.open(),
+                borderRadius: AppRadius.allSm,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    minHeight: AppDimensions.controlHeightStandard,
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.xs,
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          AppIcons.systemTheme,
+                          size: AppIconSize.md,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                        const SizedBox(width: AppSpacing.md),
+                        Expanded(
+                          child: Text(
+                            'Theme',
+                            style: theme.textTheme.bodyLarge,
+                          ),
+                        ),
+                        Icon(
+                          AppIcons.chevronDown,
+                          size: AppIconSize.sm,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
         );
       },
     );

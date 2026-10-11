@@ -113,13 +113,15 @@ class _AboutScreenState extends State<AboutScreen> {
                   'A direct line between citizens and the assemblies that serve them.',
                   textAlign: TextAlign.center,
                   style: textTheme.titleMedium?.copyWith(
-                    color: colorScheme.primary,
+                    color: theme.brightness == Brightness.dark
+                        ? colorScheme.primary
+                        : AppColors.primaryText,
                     fontWeight: AppFontWeight.semiBold,
                   ),
                 ),
                 const SizedBox(height: AppSpacing.xl),
                 Text(
-                  "CivicVoice is a civic-issue reporting platform for Ghana's District Municipal, and Metropolitan Assemblies. It gives citizens a fast, transparent way to report public infrastructure problems — potholes, broken streetlights, damaged facilities — and follow them through review, assignment, and resolution.",
+                  "CivicVoice is a civic-issue reporting platform for Ghana's District, Municipal, and Metropolitan Assemblies. It gives citizens a fast, transparent way to report public infrastructure problems — potholes, broken streetlights, damaged facilities — and follow them through review, assignment, and resolution.",
                   style: textTheme.bodyLarge,
                 ),
                 const SizedBox(height: AppSpacing.md),
@@ -180,9 +182,14 @@ class _AboutScreenState extends State<AboutScreen> {
                           child: Text(
                             'Mark Kofi Amoani Mensah',
                             style: textTheme.bodyLarge?.copyWith(
-                              color: colorScheme.primary,
+                              color: theme.brightness == Brightness.dark
+                                  ? colorScheme.primary
+                                  : AppColors.primaryText,
                               decoration: TextDecoration.underline,
-                              decorationColor: colorScheme.primary,
+                              decorationColor:
+                                  theme.brightness == Brightness.dark
+                                  ? colorScheme.primary
+                                  : AppColors.primaryText,
                             ),
                           ),
                         ),
@@ -210,9 +217,14 @@ class _AboutScreenState extends State<AboutScreen> {
                           child: Text(
                             'eraaxis.com',
                             style: textTheme.bodyLarge?.copyWith(
-                              color: colorScheme.primary,
+                              color: theme.brightness == Brightness.dark
+                                  ? colorScheme.primary
+                                  : AppColors.primaryText,
                               decoration: TextDecoration.underline,
-                              decorationColor: colorScheme.primary,
+                              decorationColor:
+                                  theme.brightness == Brightness.dark
+                                  ? colorScheme.primary
+                                  : AppColors.primaryText,
                             ),
                           ),
                         ),

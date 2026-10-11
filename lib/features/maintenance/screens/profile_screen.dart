@@ -3,6 +3,7 @@ import 'package:civic_voice/core/theme/app_theme.dart';
 
 import '../../../widgets/confirm_dialog.dart';
 import '../../../widgets/biometric_lock_preference_row.dart';
+import '../../../widgets/haptics_preference_row.dart';
 import '../../../widgets/language_preference_row.dart';
 import '../../../widgets/profile_action_row.dart';
 import '../../../widgets/profile_edit_action_bar.dart';
@@ -285,6 +286,9 @@ class _ProfileForm extends StatelessWidget {
                   ],
                   ProfileHeaderCard(
                     name: nameController.text,
+                    avatarAction: editing
+                        ? null
+                        : ProfileEditButton(onPressed: onEdit),
                     pills: const [
                       TintedBadge(
                         label: 'Maintenance Technician',
@@ -333,9 +337,6 @@ class _ProfileForm extends StatelessWidget {
                   ProfileSection(
                     icon: AppIcons.profile,
                     title: 'Personal Information',
-                    trailing: editing
-                        ? null
-                        : ProfileEditButton(onPressed: onEdit),
                     children: [
                       ProfileFieldRow(
                         label: 'Full Name',
@@ -362,6 +363,8 @@ class _ProfileForm extends StatelessWidget {
                       ThemePreferenceRow(),
                       Divider(height: AppSpacing.lg),
                       LanguagePreferenceRow(),
+                      Divider(height: AppSpacing.lg),
+                      HapticsPreferenceRow(),
                       Divider(height: AppSpacing.lg),
                       BiometricLockPreferenceRow(),
                     ],

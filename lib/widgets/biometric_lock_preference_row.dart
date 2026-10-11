@@ -83,7 +83,9 @@ class _BiometricLockPreferenceRowState
         _availability != BiometricAvailability.available) {
       return Row(
         children: [
-          Flexible(
+          const Icon(AppIcons.biometricLock, size: AppIconSize.md),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
             child: Text(
               'App Lock',
               style: textTheme.bodyLarge?.copyWith(
@@ -109,11 +111,21 @@ class _BiometricLockPreferenceRowState
 
     return Material(
       type: MaterialType.transparency,
-      child: SwitchListTile.adaptive(
-        contentPadding: EdgeInsets.zero,
-        value: _enabled,
-        onChanged: _loadingAvailability || _verifying ? null : _setEnabled,
-        title: Text('App Lock', style: textTheme.bodyLarge),
+      child: Row(
+        children: [
+          const Icon(AppIcons.biometricLock, size: AppIconSize.md),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: SwitchListTile.adaptive(
+              contentPadding: EdgeInsets.zero,
+              value: _enabled,
+              onChanged: _loadingAvailability || _verifying
+                  ? null
+                  : _setEnabled,
+              title: Text('App Lock', style: textTheme.bodyLarge),
+            ),
+          ),
+        ],
       ),
     );
   }

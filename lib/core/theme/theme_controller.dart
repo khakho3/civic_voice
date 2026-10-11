@@ -10,20 +10,20 @@ abstract final class ThemeController {
   static const String _systemValue = 'system';
 
   static final ValueNotifier<ThemeMode> mode = ValueNotifier<ThemeMode>(
-    ThemeMode.light,
+    ThemeMode.system,
   );
 
   static Future<void> loadSavedTheme() async {
     final preferences = await SharedPreferences.getInstance();
     final savedMode = preferences.getString(_themeModeKey);
     // No saved preference yet means the user has never explicitly chosen —
-    // default to light rather than following platform brightness, until
-    // they pick something else themselves in Settings.
+    // follow the device's live brightness, matching the System (Default)
+    // choice shown in the shared preference row.
     mode.value = switch (savedMode) {
       _darkValue => ThemeMode.dark,
       _lightValue => ThemeMode.light,
       _systemValue => ThemeMode.system,
-      _ => ThemeMode.light,
+      _ => ThemeMode.system,
     };
   }
 

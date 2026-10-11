@@ -18,9 +18,18 @@ abstract final class AppColors {
   const AppColors._();
 
   // Primary brand — §19.3 "Primary Brand Color".
-  static const Color primary = Color(0xFF2563EB);
-  static const Color primaryHover = Color(0xFF1D4ED8);
-  static const Color primaryPressed = Color(0xFF1E40AF);
+  static const Color primary = Color(0xFFFCD116);
+  static const Color primaryHover = Color(0xFFEBC00B);
+  static const Color primaryPressed = Color(0xFFD7AB00);
+  static const Color onPrimary = Color(0xFF241C06);
+  static const Color primaryText = Color(0xFF765400);
+  static const Color controlBorder = Color(0xFF82755B);
+  static const Color focus = Color(0xFF765400);
+
+  /// Slightly brighter gold action fill used by the dark theme.
+  static const Color primaryDark = Color(0xFFFFD84D);
+  static const Color primaryDarkHover = Color(0xFFFCD116);
+  static const Color primaryDarkPressed = Color(0xFFEBC00B);
 
   // Semantic colors — §19.3 "Semantic Colors".
   static const Color success = Color(0xFF16A34A);
@@ -34,6 +43,7 @@ abstract final class AppColors {
   static const Color statusUnderReview = Color(0xFFF59E0B);
   static const Color statusAssigned = Color(0xFF8B5CF6);
   static const Color statusInProgress = Color(0xFF0EA5E9);
+  static const Color statusPendingApproval = Color(0xFF0D9488);
   static const Color statusResolved = Color(0xFF16A34A);
   static const Color statusRejected = Color(0xFFDC2626);
 
@@ -50,22 +60,22 @@ abstract final class AppColors {
 abstract final class AppColorsLight {
   const AppColorsLight._();
 
-  static const Color canvas = Color(0xFFF8FAFC);
+  static const Color canvas = Color(0xFFFAFAF7);
   static const Color primarySurface = Color(0xFFFFFFFF);
-  static const Color secondarySurface = Color(0xFFF1F5F9);
+  static const Color secondarySurface = Color(0xFFF1F2EB);
 
   /// rgba(255,255,255,0.65) — permitted only on navigation panels, cards,
   /// dialogs, bottom sheets, filters, and search containers (§19.10 Glass
   /// Usage Rules). Prohibited on long-form content, input-heavy forms,
   /// analytics charts, and large text sections.
-  static const Color glassSurface = Color.fromRGBO(255, 255, 255, 0.65);
+  static const Color glassSurface = Color.fromRGBO(255, 255, 255, 0.92);
 
   /// Card-specific glass opacity (CL-001 "Card Opacity", pending formal
   /// definition). Denser card content needs more legibility than the generic
   /// [glassSurface], so approved screens tint [primarySurface] at a higher,
   /// near-opaque alpha instead. Confirmed against MUN-001 Dashboard
   /// (Light: rgba(255,255,255,0.88); Dark: rgba(17,24,39,0.88)).
-  static const Color glassCardSurface = Color.fromRGBO(255, 255, 255, 0.88);
+  static const Color glassCardSurface = Color.fromRGBO(255, 255, 255, 0.92);
 
   /// Navigation-specific glass opacity (CL-001 "Navigation Opacity", pending
   /// formal definition). Originally sourced from MUN-001 Dashboard at 0.82
@@ -74,11 +84,11 @@ abstract final class AppColorsLight {
   /// Lowered to 0.72 — still more opaque than [glassSurface] for chrome
   /// legibility over scrolled content, but moving toward the standard
   /// rather than further past it.
-  static const Color glassNavSurface = Color.fromRGBO(248, 250, 252, 0.72);
+  static const Color glassNavSurface = Color.fromRGBO(250, 250, 247, 0.94);
 
-  static const Color primaryText = Color(0xFF0F172A);
-  static const Color secondaryText = Color(0xFF475569);
-  static const Color border = Color(0xFFE2E8F0);
+  static const Color primaryText = Color(0xFF172019);
+  static const Color secondaryText = Color(0xFF50594F);
+  static const Color border = Color(0xFFDADDD3);
 
   /// Translucent hairline border used on glass surfaces (cards, glass
   /// buttons, navigation) instead of the solid [border] token — sourced from
@@ -89,41 +99,41 @@ abstract final class AppColorsLight {
   /// Subtle primary-tint background for small icon badges (stat icons, brand
   /// mark). Sourced from MUN-001 Dashboard (#DBEAFE) — a distinct swatch, not
   /// an alpha blend of [AppColors.primary].
-  static const Color iconBadgeSurface = Color(0xFFDBEAFE);
+  static const Color iconBadgeSurface = Color(0xFFF8EFC9);
 }
 
 /// Dark theme surface, text, and border tokens — §19.3 "Dark Theme".
 abstract final class AppColorsDark {
   const AppColorsDark._();
 
-  static const Color canvas = Color.fromRGBO(15, 23, 42, 1);
-  static const Color primarySurface = Color(0xFF111827);
-  static const Color secondarySurface = Color(0xFF1E293B);
+  static const Color canvas = Color(0xFF101110);
+  static const Color primarySurface = Color(0xFF191B19);
+  static const Color secondarySurface = Color(0xFF242724);
 
   /// rgba(15,23,42,0.75) — see [AppColorsLight.glassSurface] usage rules.
-  static const Color glassSurface = Color.fromRGBO(15, 23, 42, 0.75);
+  static const Color glassSurface = Color.fromRGBO(25, 27, 25, 0.92);
 
   /// See [AppColorsLight.glassCardSurface] — [primarySurface] tinted at the
   /// same 0.88 alpha. Confirmed against MUN-001 Dashboard (rgba(17,24,39,0.88)).
-  static const Color glassCardSurface = Color.fromRGBO(17, 24, 39, 0.88);
+  static const Color glassCardSurface = Color.fromRGBO(25, 27, 25, 0.94);
 
   /// See [AppColorsLight.glassNavSurface] — [canvas] tinted at 0.70 alpha
   /// (lowered from 0.82; see that token's doc comment).
-  static const Color glassNavSurface = Color.fromRGBO(15, 23, 42, 0.70);
+  static const Color glassNavSurface = Color.fromRGBO(16, 17, 16, 0.88);
 
-  static const Color primaryText = Color(0xFFF8FAFC);
-  static const Color secondaryText = Color(0xFFCBD5E1);
-  static const Color border = Color(0xFF334155);
+  static const Color primaryText = Color(0xFFF4F5EF);
+  static const Color secondaryText = Color(0xFFBBC4B8);
+  static const Color border = Color(0xFF41483F);
 
   /// See [AppColorsLight.glassBorder]. Confirmed against MUN-001 Dashboard —
   /// dark uses [secondaryText] at a much lower alpha rather than reusing the
   /// light theme's slate-400 value (rgba(203,213,225,0.18)).
-  static const Color glassBorder = Color.fromRGBO(203, 213, 225, 0.18);
+  static const Color glassBorder = Color.fromRGBO(218, 224, 216, 0.24);
 
   /// See [AppColorsLight.iconBadgeSurface]. Confirmed against MUN-001
   /// Dashboard: dark mode reuses [secondarySurface] as a flat fill rather
   /// than a primary-tinted swatch (#1E293B, not an alpha blend).
-  static const Color iconBadgeSurface = Color(0xFF1E293B);
+  static const Color iconBadgeSurface = Color(0xFF303325);
 }
 
 /// Glass-surface blur tokens.

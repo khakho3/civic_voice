@@ -19,6 +19,7 @@ class AppCacheService {
   static const _secondingSeenReportIdsKey = 'seconding_seen_report_ids_v1';
   static const _nearbySecondingEnabledKey = 'nearby_seconding_enabled_v1';
   static const _biometricLockEnabledKey = 'biometric_lock_enabled_v1';
+  static const _hapticFeedbackEnabledKey = 'haptic_feedback_enabled_v1';
 
   SharedPreferences? _preferences;
   String? _accountId;
@@ -32,6 +33,8 @@ class AppCacheService {
       _preferences?.getBool(_nearbySecondingEnabledKey) ?? true;
   bool get biometricLockEnabled =>
       _preferences?.getBool(_biometricLockEnabledKey) ?? false;
+  bool get hapticFeedbackEnabled =>
+      _preferences?.getBool(_hapticFeedbackEnabledKey) ?? true;
   Set<String> get secondingSeenIds =>
       (_preferences?.getStringList(_scopedKey(_secondingSeenReportIdsKey)) ??
               const <String>[])
@@ -116,6 +119,12 @@ class AppCacheService {
     final preferences = _preferences ?? await SharedPreferences.getInstance();
     _preferences = preferences;
     await preferences.setBool(_biometricLockEnabledKey, value);
+  }
+
+  Future<void> setHapticFeedbackEnabled(bool value) async {
+    final preferences = _preferences ?? await SharedPreferences.getInstance();
+    _preferences = preferences;
+    await preferences.setBool(_hapticFeedbackEnabledKey, value);
   }
 
   Future<void> markSecondingSeen(String reportId) async {

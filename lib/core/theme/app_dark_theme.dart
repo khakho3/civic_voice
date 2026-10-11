@@ -30,15 +30,15 @@ abstract final class AppDarkTheme {
         seedColor: AppColors.primary,
         brightness: Brightness.dark,
       ).copyWith(
-        primary: AppColors.primary,
-        onPrimary: Colors.white,
+        primary: AppColors.primaryDark,
+        onPrimary: AppColors.onPrimary,
         // See AppLightTheme: no approved "Secondary Brand" color exists yet
         // (CL-001 pending). Secondary Text is reused as a neutral placeholder.
         secondary: AppColorsDark.secondaryText,
-        onSecondary: Colors.white,
+        onSecondary: AppColorsDark.primaryText,
         error: AppColors.error,
         onError: Colors.white,
-        surface: const Color(0xFF111827),
+        surface: AppColorsDark.primarySurface,
         onSurface: AppColorsDark.primaryText,
         surfaceContainerLowest: AppColorsDark.canvas,
         surfaceContainerLow: AppColorsDark.secondarySurface,
@@ -71,7 +71,7 @@ abstract final class AppDarkTheme {
       size: AppIconSize.standard,
     ),
     primaryIconTheme: const IconThemeData(
-      color: Colors.white,
+      color: AppColorsDark.primaryText,
       size: AppIconSize.standard,
     ),
 
@@ -99,7 +99,7 @@ abstract final class AppDarkTheme {
       color: AppColorsDark.primarySurface,
       surfaceTintColor: Colors.transparent,
       elevation: AppElevation.level1,
-      shadowColor: AppColorsDark.border,
+      shadowColor: Colors.black,
       shape: const RoundedRectangleBorder(
         borderRadius: AppComponentRadius.card,
       ),
@@ -121,7 +121,7 @@ abstract final class AppDarkTheme {
       focusedBorder: OutlineInputBorder(
         borderRadius: AppComponentRadius.inputField,
         borderSide: const BorderSide(
-          color: AppColors.primary,
+          color: AppColors.primaryDark,
           width: AppDimensions.borderWidthFocused,
         ),
       ),
@@ -145,8 +145,8 @@ abstract final class AppDarkTheme {
 
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
+        backgroundColor: AppColors.primaryDark,
+        foregroundColor: AppColors.onPrimary,
         disabledBackgroundColor: AppColorsDark.border,
         disabledForegroundColor: AppColorsDark.secondaryText,
         minimumSize: const Size(64, AppDimensions.controlHeightStandard),
@@ -160,8 +160,8 @@ abstract final class AppDarkTheme {
 
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
+        backgroundColor: AppColors.primaryDark,
+        foregroundColor: AppColors.onPrimary,
         minimumSize: const Size(64, AppDimensions.controlHeightStandard),
         shape: const RoundedRectangleBorder(
           borderRadius: AppComponentRadius.button,
@@ -172,9 +172,11 @@ abstract final class AppDarkTheme {
 
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
-        foregroundColor: AppColors.primary,
+        foregroundColor: AppColors.primaryDark,
         disabledForegroundColor: AppColorsDark.secondaryText,
-        side: const BorderSide(color: AppColorsDark.border),
+        // Keep interactive outlined actions visibly gold against charcoal;
+        // structural card and divider outlines remain neutral.
+        side: const BorderSide(color: AppColors.primaryDark),
         minimumSize: const Size(64, AppDimensions.controlHeightStandard),
         shape: const RoundedRectangleBorder(
           borderRadius: AppComponentRadius.button,
@@ -185,7 +187,7 @@ abstract final class AppDarkTheme {
 
     textButtonTheme: TextButtonThemeData(
       style: TextButton.styleFrom(
-        foregroundColor: AppColors.primary,
+        foregroundColor: AppColors.primaryDark,
         disabledForegroundColor: AppColorsDark.secondaryText,
         minimumSize: const Size(64, AppDimensions.controlHeightStandard),
         shape: const RoundedRectangleBorder(
@@ -233,14 +235,14 @@ abstract final class AppDarkTheme {
       labelTextStyle: WidgetStateProperty.resolveWith((states) {
         final selected = states.contains(WidgetState.selected);
         return _textTheme.labelMedium?.copyWith(
-          color: selected ? AppColors.primary : AppColorsDark.secondaryText,
+          color: selected ? AppColors.primaryDark : AppColorsDark.secondaryText,
           fontWeight: selected ? AppFontWeight.semiBold : AppFontWeight.medium,
         );
       }),
       iconTheme: WidgetStateProperty.resolveWith((states) {
         final selected = states.contains(WidgetState.selected);
         return IconThemeData(
-          color: selected ? AppColors.primary : AppColorsDark.secondaryText,
+          color: selected ? AppColors.primaryDark : AppColorsDark.secondaryText,
           size: AppIconSize.standard,
         );
       }),
@@ -249,11 +251,11 @@ abstract final class AppDarkTheme {
 
     chipTheme: ChipThemeData(
       backgroundColor: AppColorsDark.secondarySurface,
-      selectedColor: AppColors.primary.withValues(alpha: 0.24),
+      selectedColor: AppColors.primaryDark.withValues(alpha: 0.24),
       disabledColor: AppColorsDark.secondarySurface,
       labelStyle: _textTheme.labelMedium,
       secondaryLabelStyle: _textTheme.labelMedium?.copyWith(
-        color: AppColors.primary,
+        color: AppColors.primaryDark,
       ),
       side: const BorderSide(color: AppColorsDark.border),
       shape: const StadiumBorder(),
@@ -265,7 +267,7 @@ abstract final class AppDarkTheme {
       contentTextStyle: _textTheme.bodyMedium?.copyWith(
         color: AppColorsDark.primaryText,
       ),
-      actionTextColor: AppColors.primary,
+      actionTextColor: AppColors.primaryDark,
       behavior: SnackBarBehavior.floating,
       elevation: AppElevation.level2,
       shape: const RoundedRectangleBorder(
@@ -291,7 +293,7 @@ abstract final class AppDarkTheme {
     dividerColor: AppColorsDark.border,
     disabledColor: AppColorsDark.secondaryText,
     hintColor: AppColorsDark.secondaryText,
-    highlightColor: AppColors.primary.withValues(alpha: 0.16),
-    focusColor: AppColors.primary.withValues(alpha: 0.20),
+    highlightColor: AppColors.primaryDark.withValues(alpha: 0.16),
+    focusColor: AppColors.primaryDark.withValues(alpha: 0.20),
   );
 }
