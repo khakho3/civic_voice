@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../services/app_haptics.dart';
+
 import '../../../core/theme/app_theme.dart';
 import '../../../widgets/glass_bar.dart';
 import '../services/admin_session.dart';
@@ -317,8 +319,7 @@ class _Header extends StatelessWidget {
                                 overflow: TextOverflow.ellipsis,
                               ),
                       ),
-                      if (onBack == null)
-                        _ProfileButton(onTap: onOpenProfile),
+                      if (onBack == null) _ProfileButton(onTap: onOpenProfile),
                     ],
                   ),
           ),
@@ -542,7 +543,12 @@ class _BottomNav extends StatelessWidget {
                     child: _NavItem(
                       tab: tab,
                       isSelected: tab == selected,
-                      onTap: onSelected == null ? null : () => onSelected!(tab),
+                      onTap: onSelected == null
+                          ? null
+                          : () {
+                              AppHaptics.activate();
+                              onSelected!(tab);
+                            },
                     ),
                   ),
                   if (tab != visibleTabs.last)

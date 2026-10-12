@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../services/app_haptics.dart';
+
 import '../../../core/theme/app_theme.dart';
 import '../../../services/notification_directory.dart';
 import '../../../widgets/glass_bar.dart';
@@ -362,7 +364,12 @@ class _BottomNav extends StatelessWidget {
                     child: _NavItem(
                       tab: tab,
                       isSelected: tab == selected,
-                      onTap: onSelected == null ? null : () => onSelected!(tab),
+                      onTap: onSelected == null
+                          ? null
+                          : () {
+                              AppHaptics.activate();
+                              onSelected!(tab);
+                            },
                     ),
                   ),
                   if (tab != MinistryTab.values.last)
