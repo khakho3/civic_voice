@@ -471,7 +471,6 @@ class _AdminMaintenanceTeamFormScreenState
                                   height: AppIconSize.sm,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
-                                    color: Colors.white,
                                   ),
                                 )
                               : Text(_editing ? 'Save Changes' : 'Create Team'),
@@ -744,10 +743,10 @@ class _TeamCard extends StatelessWidget {
           CircleAvatar(
             radius: AppIconSize.lg / 2,
             backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-            child: const Icon(
+            child: Icon(
               AppIcons.maintenanceTeam,
               size: AppIconSize.md,
-              color: AppColors.primary,
+              color: AppSemanticColors.of(context).actionText,
             ),
           ),
           const SizedBox(width: AppSpacing.md),
@@ -1091,9 +1090,9 @@ class _MemberRow extends StatelessWidget {
               backgroundColor: AppColors.primary.withValues(alpha: 0.12),
               child: Text(
                 user.initials,
-                style: Theme.of(
-                  context,
-                ).textTheme.labelSmall?.copyWith(color: AppColors.primary),
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: AppSemanticColors.of(context).actionText,
+                ),
               ),
             ),
             const SizedBox(width: AppSpacing.sm),
@@ -1345,7 +1344,11 @@ class _Section extends StatelessWidget {
       children: [
         Row(
           children: [
-            Icon(icon, size: AppIconSize.sm, color: AppColors.primary),
+            Icon(
+              icon,
+              size: AppIconSize.sm,
+              color: AppSemanticColors.of(context).actionText,
+            ),
             const SizedBox(width: AppSpacing.xs),
             Expanded(
               child: Text(

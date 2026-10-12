@@ -256,9 +256,9 @@ class _OfflineBanner extends StatelessWidget {
           Expanded(
             child: Text(
               'Offline Mode — showing cached closed reports',
-              style: Theme.of(
-                context,
-              ).textTheme.labelMedium?.copyWith(color: AppColors.error),
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: AppSemanticColors.of(context).errorText,
+              ),
             ),
           ),
         ],
@@ -489,7 +489,9 @@ class _FilterChip extends StatelessWidget {
           : Colors.transparent,
       shape: StadiumBorder(
         side: BorderSide(
-          color: selected ? AppColors.primary : colorScheme.outline,
+          color: selected
+              ? AppSemanticColors.of(context).actionText
+              : colorScheme.outline,
         ),
       ),
       child: InkWell(
@@ -504,7 +506,7 @@ class _FilterChip extends StatelessWidget {
             label,
             style: Theme.of(context).textTheme.labelMedium?.copyWith(
               color: selected
-                  ? AppColors.primary
+                  ? AppSemanticColors.of(context).actionText
                   : colorScheme.onSurfaceVariant,
             ),
           ),
@@ -612,12 +614,14 @@ class _ResolvedReportCard extends StatelessWidget {
               ),
               Text(
                 'View Details',
-                style: textTheme.labelLarge?.copyWith(color: AppColors.primary),
+                style: textTheme.labelLarge?.copyWith(
+                  color: AppSemanticColors.of(context).actionText,
+                ),
               ),
               Icon(
                 AppIcons.chevronRight,
                 size: AppIconSize.sm,
-                color: AppColors.primary,
+                color: AppSemanticColors.of(context).actionText,
               ),
             ],
           ),

@@ -256,7 +256,7 @@ class _ReviewProgress extends StatelessWidget {
             Text(
               '85% complete',
               style: theme.textTheme.labelMedium?.copyWith(
-                color: AppColors.primary,
+                color: AppSemanticColors.of(context).actionText,
                 fontWeight: AppFontWeight.semiBold,
               ),
             ),
@@ -338,7 +338,7 @@ class _CategoryCard extends StatelessWidget {
         child: Text(
           cleanCategory.isEmpty ? 'Not detected' : cleanCategory,
           style: theme.textTheme.labelLarge?.copyWith(
-            color: AppColors.primary,
+            color: AppSemanticColors.of(context).actionText,
             fontWeight: AppFontWeight.bold,
           ),
         ),
@@ -387,7 +387,10 @@ class _LocationCard extends StatelessWidget {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(AppIcons.pinned, color: AppColors.primary),
+                        Icon(
+                          AppIcons.pinned,
+                          color: AppSemanticColors.of(context).actionText,
+                        ),
                         const SizedBox(height: AppSpacing.sm),
                         Text(
                           'Map preview appears after GPS capture',
@@ -556,7 +559,7 @@ class _SubmitCard extends StatelessWidget {
           Text(
             'Ready to submit',
             style: theme.textTheme.titleMedium?.copyWith(
-              color: AppColors.primary,
+              color: AppSemanticColors.of(context).actionText,
               fontWeight: AppFontWeight.bold,
             ),
           ),
@@ -643,7 +646,7 @@ class _IconTile extends StatelessWidget {
         color: AppColors.primary.withValues(alpha: 0.1),
         borderRadius: AppRadius.allLg,
       ),
-      child: Icon(icon, color: AppColors.primary),
+      child: Icon(icon, color: AppSemanticColors.of(context).actionText),
     );
   }
 }
@@ -667,7 +670,7 @@ class _CountBadge extends StatelessWidget {
       child: Text(
         label,
         style: Theme.of(context).textTheme.labelMedium?.copyWith(
-          color: AppColors.primary,
+          color: AppSemanticColors.of(context).actionText,
           fontWeight: AppFontWeight.bold,
         ),
       ),
@@ -688,7 +691,11 @@ class _InfoLine extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, color: AppColors.primary, size: AppIconSize.md),
+        Icon(
+          icon,
+          color: AppSemanticColors.of(context).actionText,
+          size: AppIconSize.md,
+        ),
         const SizedBox(width: AppSpacing.sm),
         Expanded(child: Text(text, style: theme.textTheme.bodyMedium)),
       ],

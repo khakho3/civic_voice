@@ -35,7 +35,7 @@ class CivicStatusPanel extends StatelessWidget {
               color: AppColors.primary.withValues(alpha: 0.1),
               borderRadius: AppRadius.allLg,
             ),
-            child: Icon(icon, color: AppColors.primary),
+            child: Icon(icon, color: AppSemanticColors.of(context).actionText),
           ),
           const SizedBox(height: AppSpacing.md),
           Text(

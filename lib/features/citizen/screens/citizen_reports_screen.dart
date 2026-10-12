@@ -243,16 +243,16 @@ class _ReportFilterBar extends StatelessWidget {
               label: Text(filter.label),
               labelStyle: theme.textTheme.labelSmall?.copyWith(
                 color: selected == filter
-                    ? Colors.white
+                    ? AppSemanticColors.of(context).onAction
                     : theme.colorScheme.secondary,
                 fontWeight: AppFontWeight.semiBold,
               ),
               showCheckmark: false,
-              selectedColor: AppColors.primary,
+              selectedColor: AppSemanticColors.of(context).actionFill,
               backgroundColor: theme.colorScheme.surfaceContainerLow,
               side: BorderSide(
                 color: selected == filter
-                    ? AppColors.primary
+                    ? AppSemanticColors.of(context).controlBorder
                     : theme.colorScheme.outlineVariant,
               ),
             ),
@@ -587,9 +587,9 @@ class _ReportsEmptyState extends StatelessWidget {
               color: AppColors.primary.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
-            child: const Icon(
+            child: Icon(
               AppIcons.empty,
-              color: AppColors.primary,
+              color: AppSemanticColors.of(context).actionText,
               size: AppIconSize.lg,
             ),
           ),
@@ -625,7 +625,10 @@ class _NoFilteredReports extends StatelessWidget {
     return CivicGlassCard(
       child: Row(
         children: [
-          const Icon(AppIcons.search, color: AppColors.primary),
+          Icon(
+            AppIcons.search,
+            color: AppSemanticColors.of(context).actionText,
+          ),
           const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Text(

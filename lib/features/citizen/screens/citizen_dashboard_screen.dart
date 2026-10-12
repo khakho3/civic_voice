@@ -263,7 +263,10 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen>
       builder: (context) {
         return GlassDialogBackdrop(
           child: AlertDialog(
-            icon: const Icon(AppIcons.location, color: AppColors.primary),
+            icon: Icon(
+              AppIcons.location,
+              color: AppSemanticColors.of(context).actionText,
+            ),
             title: Text(title),
             content: Text(message),
             actions: [
@@ -718,7 +721,7 @@ class _ReportHeroCard extends StatelessWidget {
               onPressed: actionsDisabled ? null : onReportNow,
               style: FilledButton.styleFrom(
                 backgroundColor: onPrimary,
-                foregroundColor: AppColors.primary,
+                foregroundColor: AppSemanticColors.of(context).actionText,
                 // Without these, a disabled FilledButton falls back to the
                 // global theme's default (a near-transparent dark overlay)
                 // — legible on the app's usual light backgrounds, but
@@ -824,9 +827,9 @@ class _QuickActionGrid extends StatelessWidget {
                         CivicGlassCard(
                           child: Row(
                             children: [
-                              const Icon(
+                              Icon(
                                 AppIcons.empty,
-                                color: AppColors.primary,
+                                color: AppSemanticColors.of(context).actionText,
                               ),
                               const SizedBox(width: AppSpacing.md),
                               Expanded(
@@ -946,7 +949,11 @@ class _QuickActionCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, color: AppColors.primary, size: AppIconSize.lg),
+              Icon(
+                icon,
+                color: AppSemanticColors.of(context).actionText,
+                size: AppIconSize.lg,
+              ),
               const SizedBox(height: AppSpacing.md),
               Text(title, style: theme.textTheme.titleSmall),
               const SizedBox(height: AppSpacing.xs),
@@ -1123,7 +1130,10 @@ class _EmptyRecentReportsCard extends StatelessWidget {
                   color: AppColors.primary.withValues(alpha: 0.1),
                   borderRadius: AppRadius.allLg,
                 ),
-                child: const Icon(AppIcons.empty, color: AppColors.primary),
+                child: Icon(
+                  AppIcons.empty,
+                  color: AppSemanticColors.of(context).actionText,
+                ),
               ),
               const SizedBox(width: AppSpacing.md),
               Expanded(

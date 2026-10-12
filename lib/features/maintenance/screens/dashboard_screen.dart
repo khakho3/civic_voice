@@ -260,7 +260,11 @@ class _StatCard extends StatelessWidget {
               color: accentColor.withValues(alpha: 0.12),
               borderRadius: AppRadius.allSm,
             ),
-            child: Icon(icon, size: AppIconSize.sm + 2, color: accentColor),
+            child: Icon(
+              icon,
+              size: AppIconSize.sm + 2,
+              color: AppSemanticColors.of(context).foregroundFor(accentColor),
+            ),
           ),
           const Spacer(),
           Text(
@@ -433,7 +437,10 @@ class _TaskListTile extends StatelessWidget {
         children: [
           CircleAvatar(
             backgroundColor: colorScheme.primaryContainer,
-            child: Icon(AppIcons.location, color: colorScheme.primary),
+            child: Icon(
+              AppIcons.location,
+              color: AppSemanticColors.of(context).actionText,
+            ),
           ),
           const SizedBox(width: AppSpacing.md),
           Expanded(
@@ -545,7 +552,10 @@ class _ErrorView extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.lg),
             FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: semantic.error),
+              style: FilledButton.styleFrom(
+                backgroundColor: semantic.error,
+                foregroundColor: semantic.onError,
+              ),
               onPressed: onRetry,
               child: const Text('Retry'),
             ),

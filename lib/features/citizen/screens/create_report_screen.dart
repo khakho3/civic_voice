@@ -660,9 +660,11 @@ class _ReportTextField extends StatelessWidget {
             children: [
               TextSpan(text: label),
               if (requiredField)
-                const TextSpan(
+                TextSpan(
                   text: ' *',
-                  style: TextStyle(color: AppColors.error),
+                  style: TextStyle(
+                    color: AppSemanticColors.of(context).errorText,
+                  ),
                 ),
             ],
           ),
@@ -690,9 +692,12 @@ class _ReportTextField extends StatelessWidget {
               borderRadius: AppRadius.allLg,
               borderSide: BorderSide(color: theme.colorScheme.outline),
             ),
-            focusedBorder: const OutlineInputBorder(
+            focusedBorder: OutlineInputBorder(
               borderRadius: AppRadius.allLg,
-              borderSide: BorderSide(color: AppColors.primary, width: 1.6),
+              borderSide: BorderSide(
+                color: AppSemanticColors.of(context).focus,
+                width: 1.6,
+              ),
             ),
             errorBorder: const OutlineInputBorder(
               borderRadius: AppRadius.allLg,
@@ -738,7 +743,7 @@ class _CategoryPreview extends StatelessWidget {
           child: Text(
             category.label,
             style: theme.textTheme.labelMedium?.copyWith(
-              color: AppColors.primary,
+              color: AppSemanticColors.of(context).actionText,
               fontWeight: AppFontWeight.bold,
             ),
           ),
@@ -998,9 +1003,9 @@ class _LocationMapPreview extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  const Icon(
+                  Icon(
                     AppIcons.pinned,
-                    color: AppColors.primary,
+                    color: AppSemanticColors.of(context).actionText,
                     size: AppIconSize.sm,
                   ),
                   const SizedBox(width: AppSpacing.xs),
@@ -1045,7 +1050,11 @@ class _LocationMetaChip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: AppIconSize.sm, color: AppColors.primary),
+          Icon(
+            icon,
+            size: AppIconSize.sm,
+            color: AppSemanticColors.of(context).actionText,
+          ),
           const SizedBox(width: AppSpacing.xs),
           ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 240),

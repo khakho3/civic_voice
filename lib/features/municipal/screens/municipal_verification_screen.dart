@@ -360,9 +360,9 @@ class _OfflineBanner extends StatelessWidget {
             child: Text(
               'No internet connection — changes will sync when you\'re '
               'back online',
-              style: Theme.of(
-                context,
-              ).textTheme.labelMedium?.copyWith(color: AppColors.error),
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: AppSemanticColors.of(context).errorText,
+              ),
             ),
           ),
         ],
@@ -446,7 +446,7 @@ class _VerificationForm extends StatelessWidget {
                             .join()
                             .toUpperCase(),
                         style: textTheme.labelSmall?.copyWith(
-                          color: AppColors.primary,
+                          color: AppSemanticColors.of(context).actionText,
                         ),
                       ),
                     ),
@@ -728,7 +728,9 @@ class _QuickReasonChip extends StatelessWidget {
           : Colors.transparent,
       shape: StadiumBorder(
         side: BorderSide(
-          color: selected ? AppColors.primary : colorScheme.outline,
+          color: selected
+              ? AppSemanticColors.of(context).actionText
+              : colorScheme.outline,
         ),
       ),
       child: InkWell(
@@ -743,7 +745,7 @@ class _QuickReasonChip extends StatelessWidget {
             label,
             style: Theme.of(context).textTheme.labelMedium?.copyWith(
               color: selected
-                  ? AppColors.primary
+                  ? AppSemanticColors.of(context).actionText
                   : colorScheme.onSurfaceVariant,
             ),
           ),

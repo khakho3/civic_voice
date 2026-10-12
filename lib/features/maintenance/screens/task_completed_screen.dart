@@ -58,7 +58,7 @@ class TaskCompletedScreen extends StatelessWidget {
                   child: Text(
                     'READ ONLY',
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: semantic.success,
+                      color: semantic.successText,
                       fontWeight: AppFontWeight.semiBold,
                     ),
                   ),

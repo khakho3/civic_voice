@@ -323,7 +323,9 @@ class _DimensionChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return Material(
-      color: selected ? AppColors.primary : colorScheme.surfaceContainer,
+      color: selected
+          ? AppSemanticColors.of(context).actionFill
+          : colorScheme.surfaceContainer,
       shape: const StadiumBorder(),
       child: InkWell(
         customBorder: const StadiumBorder(),
@@ -336,7 +338,9 @@ class _DimensionChip extends StatelessWidget {
           child: Text(
             label,
             style: Theme.of(context).textTheme.labelLarge?.copyWith(
-              color: selected ? Colors.white : colorScheme.onSurfaceVariant,
+              color: selected
+                  ? AppSemanticColors.of(context).onAction
+                  : colorScheme.onSurfaceVariant,
             ),
           ),
         ),
@@ -645,17 +649,17 @@ class _TrendInsightsCallout extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  const Icon(
+                  Icon(
                     AppIcons.trendUp,
                     size: AppIconSize.md,
-                    color: AppColors.primary,
+                    color: AppSemanticColors.of(context).actionText,
                   ),
                   const SizedBox(width: AppSpacing.xs),
                   Expanded(
                     child: Text(
                       'Trend Insights',
                       style: textTheme.titleSmall?.copyWith(
-                        color: AppColors.primary,
+                        color: AppSemanticColors.of(context).actionText,
                       ),
                     ),
                   ),
@@ -663,7 +667,7 @@ class _TrendInsightsCallout extends StatelessWidget {
                     Icon(
                       AppIcons.chevronRight,
                       size: AppIconSize.sm,
-                      color: AppColors.primary,
+                      color: AppSemanticColors.of(context).actionText,
                     ),
                 ],
               ),

@@ -59,7 +59,10 @@ class NearbySecondingCard extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(AppIcons.location, color: AppColors.primary),
+              Icon(
+                AppIcons.location,
+                color: AppSemanticColors.of(context).actionText,
+              ),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Column(

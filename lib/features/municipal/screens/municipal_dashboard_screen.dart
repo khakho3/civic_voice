@@ -415,7 +415,11 @@ class _StatCard extends StatelessWidget {
                         ),
                       ),
               ),
-              Icon(icon, size: AppIconSize.md, color: AppColors.primary),
+              Icon(
+                icon,
+                size: AppIconSize.md,
+                color: AppSemanticColors.of(context).actionText,
+              ),
             ],
           ),
           const Spacer(),
@@ -626,10 +630,10 @@ class _RecentReportsEmpty extends StatelessWidget {
               color: semantic.iconBadgeSurface,
               shape: BoxShape.circle,
             ),
-            child: const Icon(
+            child: Icon(
               AppIcons.empty,
               size: AppIconSize.md,
-              color: AppColors.primary,
+              color: AppSemanticColors.of(context).actionText,
             ),
           ),
           const SizedBox(height: AppSpacing.md),

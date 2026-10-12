@@ -201,7 +201,11 @@ class _StatCard extends StatelessWidget {
               color: tint.withValues(alpha: 0.12),
               borderRadius: AppRadius.allSm,
             ),
-            child: Icon(icon, size: AppIconSize.sm + 2, color: tint),
+            child: Icon(
+              icon,
+              size: AppIconSize.sm + 2,
+              color: AppSemanticColors.of(context).foregroundFor(tint),
+            ),
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(
@@ -249,10 +253,10 @@ class _OfficerContactCard extends StatelessWidget {
                   color: AppColors.primary.withValues(alpha: 0.12),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
+                child: Icon(
                   AppIcons.municipalOfficer,
                   size: AppIconSize.md,
-                  color: AppColors.primary,
+                  color: AppSemanticColors.of(context).actionText,
                 ),
               ),
               const SizedBox(width: AppSpacing.md),

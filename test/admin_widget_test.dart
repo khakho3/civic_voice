@@ -1611,9 +1611,10 @@ void main() {
       // own doc comment), so its "Activity" nav item renders selected —
       // confirmed via the selected-tab text color every other selected
       // nav item uses (a plain color/weight change, no filled background —
-      // matching Citizen's own bottom nav).
+      // matching Citizen's own bottom nav). The selected color is the
+      // accessible action ink, never the gold fill (1.47:1 on white).
       final activityLabel = tester.widget<Text>(find.text('Activity'));
-      expect(activityLabel.style?.color, AppColors.primary);
+      expect(activityLabel.style?.color, AppColors.primaryText);
     },
   );
 

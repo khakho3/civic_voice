@@ -179,7 +179,10 @@ class _MunicipalActiveReportsScreenState
                 ListTile(
                   title: Text(option.label),
                   trailing: option == _sort
-                      ? const Icon(AppIcons.success, color: AppColors.primary)
+                      ? Icon(
+                          AppIcons.success,
+                          color: AppSemanticColors.of(context).actionText,
+                        )
                       : null,
                   onTap: () => Navigator.of(context).pop(option),
                 ),
@@ -330,9 +333,9 @@ class _OfflineBanner extends StatelessWidget {
           Expanded(
             child: Text(
               'No internet connection — using cached data',
-              style: Theme.of(
-                context,
-              ).textTheme.labelMedium?.copyWith(color: AppColors.error),
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: AppSemanticColors.of(context).errorText,
+              ),
             ),
           ),
         ],
@@ -477,7 +480,9 @@ class _FilterChip extends StatelessWidget {
           : Colors.transparent,
       shape: StadiumBorder(
         side: BorderSide(
-          color: selected ? AppColors.primary : colorScheme.outline,
+          color: selected
+              ? AppSemanticColors.of(context).actionText
+              : colorScheme.outline,
         ),
       ),
       child: InkWell(
@@ -492,7 +497,7 @@ class _FilterChip extends StatelessWidget {
             label,
             style: Theme.of(context).textTheme.labelMedium?.copyWith(
               color: selected
-                  ? AppColors.primary
+                  ? AppSemanticColors.of(context).actionText
                   : colorScheme.onSurfaceVariant,
             ),
           ),

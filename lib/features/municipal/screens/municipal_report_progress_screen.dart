@@ -248,9 +248,9 @@ class _OfflineBanner extends StatelessWidget {
           Expanded(
             child: Text(
               'Offline Mode — Showing cached data from 12 mins ago',
-              style: Theme.of(
-                context,
-              ).textTheme.labelMedium?.copyWith(color: AppColors.warning),
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: AppSemanticColors.of(context).warningText,
+              ),
             ),
           ),
         ],
@@ -387,7 +387,7 @@ class _SummaryCard extends StatelessWidget {
               value: data.completionPercent / 100,
               minHeight: 6,
               backgroundColor: colorScheme.surfaceContainer,
-              color: AppColors.primary,
+              color: AppSemanticColors.of(context).actionText,
             ),
           ),
         ],
@@ -430,7 +430,7 @@ class _FailureNoticeCard extends StatelessWidget {
                 Text(
                   'Needs Attention',
                   style: textTheme.titleSmall?.copyWith(
-                    color: AppColors.warning,
+                    color: AppSemanticColors.of(context).warningText,
                     fontWeight: AppFontWeight.semiBold,
                   ),
                 ),
@@ -574,10 +574,10 @@ class _SyncPendingCard extends StatelessWidget {
               color: AppColors.primary.withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
-            child: const Icon(
+            child: Icon(
               AppIcons.sync,
               size: AppIconSize.md,
-              color: AppColors.primary,
+              color: AppSemanticColors.of(context).actionText,
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
@@ -651,7 +651,7 @@ class _StatusTimelineCard extends StatelessWidget {
                     Text(
                       data.latestUpdateTeam,
                       style: textTheme.labelSmall?.copyWith(
-                        color: AppColors.primary,
+                        color: AppSemanticColors.of(context).actionText,
                       ),
                     ),
                     const SizedBox(width: AppSpacing.xs),
@@ -683,7 +683,7 @@ class _LiveBadge extends StatelessWidget {
       child: Text(
         'LIVE',
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: AppColors.success,
+          color: AppSemanticColors.of(context).successText,
           fontWeight: AppFontWeight.semiBold,
         ),
       ),
@@ -699,13 +699,13 @@ class _NewBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: AppColors.primary,
+        color: AppSemanticColors.of(context).actionFill,
         borderRadius: AppRadius.allXs,
       ),
       child: Text(
         'NEW',
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: Colors.white,
+          color: AppSemanticColors.of(context).onAction,
           fontWeight: AppFontWeight.semiBold,
         ),
       ),
@@ -733,7 +733,7 @@ class _TimelineStepRow extends StatelessWidget {
           child: Icon(
             step.isCurrent ? AppIcons.statusInProgress : AppIcons.success,
             size: AppIconSize.sm,
-            color: Colors.white,
+            color: AppSemanticColors.of(context).onFillFor(color),
           ),
         ),
         const SizedBox(width: AppSpacing.sm),
@@ -806,7 +806,7 @@ class _RecentActivityCard extends StatelessWidget {
                   child: Text(
                     entry.label,
                     style: textTheme.labelSmall?.copyWith(
-                      color: AppColors.primary,
+                      color: AppSemanticColors.of(context).actionText,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,

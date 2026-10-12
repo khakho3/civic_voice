@@ -184,7 +184,10 @@ class _ReportSummaryCard extends StatelessWidget {
               color: AppColors.primary.withValues(alpha: 0.08),
               borderRadius: AppRadius.allMd,
             ),
-            child: const Icon(AppIcons.report, color: AppColors.primary),
+            child: Icon(
+              AppIcons.report,
+              color: AppSemanticColors.of(context).actionText,
+            ),
           ),
           const SizedBox(width: AppSpacing.md),
           Expanded(
@@ -286,7 +289,7 @@ class _CurrentStatusCard extends StatelessWidget {
               Text(
                 '$percent%',
                 style: theme.textTheme.labelMedium?.copyWith(
-                  color: AppColors.primary,
+                  color: AppSemanticColors.of(context).actionText,
                   fontWeight: AppFontWeight.bold,
                 ),
               ),
@@ -581,7 +584,10 @@ class _LatestUpdateCard extends StatelessWidget {
               color: AppColors.primary.withValues(alpha: 0.1),
               borderRadius: AppRadius.allLg,
             ),
-            child: const Icon(AppIcons.refresh, color: AppColors.primary),
+            child: Icon(
+              AppIcons.refresh,
+              color: AppSemanticColors.of(context).actionText,
+            ),
           ),
           const SizedBox(width: AppSpacing.md),
           Expanded(
@@ -759,9 +765,9 @@ class _TrackingLocation extends StatelessWidget {
                   : Container(
                       color: Theme.of(context).colorScheme.surfaceContainerLow,
                       alignment: Alignment.center,
-                      child: const Icon(
+                      child: Icon(
                         AppIcons.pinned,
-                        color: AppColors.primary,
+                        color: AppSemanticColors.of(context).actionText,
                         size: AppIconSize.lg,
                       ),
                     ),
@@ -814,7 +820,11 @@ class _InfoLine extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: AppIconSize.sm, color: AppColors.primary),
+        Icon(
+          icon,
+          size: AppIconSize.sm,
+          color: AppSemanticColors.of(context).actionText,
+        ),
         const SizedBox(width: AppSpacing.xs),
         Expanded(
           child: Text(
@@ -883,9 +893,9 @@ class _MissingReportState extends StatelessWidget {
           borderRadius: AppRadius.allXl,
           child: Column(
             children: [
-              const Icon(
+              Icon(
                 AppIcons.empty,
-                color: AppColors.primary,
+                color: AppSemanticColors.of(context).actionText,
                 size: AppIconSize.xl,
               ),
               const SizedBox(height: AppSpacing.md),

@@ -387,10 +387,14 @@ class _CategoryChip extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     return Material(
-      color: isSelected ? AppColors.primary : colorScheme.surface,
+      color: isSelected
+          ? AppSemanticColors.of(context).actionFill
+          : colorScheme.surface,
       shape: StadiumBorder(
         side: BorderSide(
-          color: isSelected ? AppColors.primary : colorScheme.outline,
+          color: isSelected
+              ? AppSemanticColors.of(context).controlBorder
+              : colorScheme.outline,
         ),
       ),
       child: InkWell(
@@ -402,7 +406,9 @@ class _CategoryChip extends StatelessWidget {
             child: Text(
               label,
               style: textTheme.labelLarge?.copyWith(
-                color: isSelected ? Colors.white : colorScheme.onSurface,
+                color: isSelected
+                    ? AppSemanticColors.of(context).onAction
+                    : colorScheme.onSurface,
               ),
             ),
           ),
@@ -471,7 +477,7 @@ class _FilterTag extends StatelessWidget {
           Text(
             label,
             style: textTheme.labelLarge?.copyWith(
-              color: AppColors.statusAssigned,
+              color: AppSemanticColors.of(context).statusAssignedText,
             ),
           ),
           InkWell(
@@ -560,14 +566,14 @@ class _ReportCard extends StatelessWidget {
               Icon(
                 AppIcons.location,
                 size: AppIconSize.sm,
-                color: AppColors.primary,
+                color: AppSemanticColors.of(context).actionText,
               ),
               const SizedBox(width: 2),
               Expanded(
                 child: Text(
                   'View Location',
                   style: textTheme.labelLarge?.copyWith(
-                    color: AppColors.primary,
+                    color: AppSemanticColors.of(context).actionText,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -707,10 +713,10 @@ class _InboxEmpty extends StatelessWidget {
               color: semantic.iconBadgeSurface,
               shape: BoxShape.circle,
             ),
-            child: const Icon(
+            child: Icon(
               AppIcons.inbox,
               size: AppIconSize.lg,
-              color: AppColors.primary,
+              color: AppSemanticColors.of(context).actionText,
             ),
           ),
           const SizedBox(height: AppSpacing.md),
@@ -751,10 +757,10 @@ class _InboxNoResults extends StatelessWidget {
               color: semantic.iconBadgeSurface,
               shape: BoxShape.circle,
             ),
-            child: const Icon(
+            child: Icon(
               AppIcons.inbox,
               size: AppIconSize.lg,
-              color: AppColors.primary,
+              color: AppSemanticColors.of(context).actionText,
             ),
           ),
           const SizedBox(height: AppSpacing.md),

@@ -508,7 +508,9 @@ class _FilterChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return Material(
-      color: selected ? AppColors.primary : colorScheme.surfaceContainer,
+      color: selected
+          ? AppSemanticColors.of(context).actionFill
+          : colorScheme.surfaceContainer,
       shape: const StadiumBorder(),
       child: InkWell(
         customBorder: const StadiumBorder(),
@@ -521,7 +523,9 @@ class _FilterChip extends StatelessWidget {
           child: Text(
             label,
             style: Theme.of(context).textTheme.labelLarge?.copyWith(
-              color: selected ? Colors.white : colorScheme.onSurfaceVariant,
+              color: selected
+                  ? AppSemanticColors.of(context).onAction
+                  : colorScheme.onSurfaceVariant,
             ),
           ),
         ),
@@ -738,7 +742,7 @@ class _UserCard extends StatelessWidget {
                 child: Text(
                   user.initials,
                   style: textTheme.titleSmall?.copyWith(
-                    color: AppColors.primary,
+                    color: AppSemanticColors.of(context).actionText,
                   ),
                 ),
               ),

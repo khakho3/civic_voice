@@ -125,7 +125,10 @@ class _MinistryReportInsightsScreenState
                 ListTile(
                   title: Text(option.label),
                   trailing: option == _dateRange
-                      ? const Icon(AppIcons.success, color: AppColors.primary)
+                      ? Icon(
+                          AppIcons.success,
+                          color: AppSemanticColors.of(context).actionText,
+                        )
                       : null,
                   onTap: () => Navigator.of(context).pop(option),
                 ),
@@ -149,7 +152,10 @@ class _MinistryReportInsightsScreenState
                 ListTile(
                   title: Text(option.label),
                   trailing: option == _category
-                      ? const Icon(AppIcons.success, color: AppColors.primary)
+                      ? Icon(
+                          AppIcons.success,
+                          color: AppSemanticColors.of(context).actionText,
+                        )
                       : null,
                   onTap: () => Navigator.of(context).pop(option),
                 ),
@@ -173,7 +179,10 @@ class _MinistryReportInsightsScreenState
                 ListTile(
                   title: Text(option.label),
                   trailing: option == _status
-                      ? const Icon(AppIcons.success, color: AppColors.primary)
+                      ? Icon(
+                          AppIcons.success,
+                          color: AppSemanticColors.of(context).actionText,
+                        )
                       : null,
                   onTap: () => Navigator.of(context).pop(option),
                 ),
@@ -395,7 +404,9 @@ class _FilterChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return Material(
-      color: selected ? AppColors.primary : colorScheme.surfaceContainer,
+      color: selected
+          ? AppSemanticColors.of(context).actionFill
+          : colorScheme.surfaceContainer,
       shape: const StadiumBorder(),
       child: InkWell(
         customBorder: const StadiumBorder(),
@@ -408,7 +419,9 @@ class _FilterChip extends StatelessWidget {
           child: Text(
             label,
             style: Theme.of(context).textTheme.labelLarge?.copyWith(
-              color: selected ? Colors.white : colorScheme.onSurfaceVariant,
+              color: selected
+                  ? AppSemanticColors.of(context).onAction
+                  : colorScheme.onSurfaceVariant,
             ),
           ),
         ),
@@ -544,7 +557,11 @@ class _CriticalInsightRow extends StatelessWidget {
               color: item.tint.withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
-            child: Icon(item.icon, size: AppIconSize.md, color: item.tint),
+            child: Icon(
+              item.icon,
+              size: AppIconSize.md,
+              color: AppSemanticColors.of(context).foregroundFor(item.tint),
+            ),
           ),
           const SizedBox(width: AppSpacing.md),
           Expanded(
@@ -600,10 +617,10 @@ class _StrategicFocusCard extends StatelessWidget {
                   color: AppColors.primary.withValues(alpha: 0.12),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
+                child: Icon(
                   AppIcons.insight,
                   size: AppIconSize.md,
-                  color: AppColors.primary,
+                  color: AppSemanticColors.of(context).actionText,
                 ),
               ),
               const SizedBox(width: AppSpacing.md),

@@ -197,8 +197,8 @@ class _Header extends StatelessWidget {
                           children: [
                             Image.asset(
                               AppAssets.logoApp,
-                              width: AppIconSize.xl,
-                              height: AppIconSize.xl,
+                              width: AppIconSize.lg,
+                              height: AppIconSize.lg,
                             ),
                             const SizedBox(width: AppSpacing.sm),
                             // Flexible, not a mainAxisSize.min Row: on a
@@ -210,9 +210,7 @@ class _Header extends StatelessWidget {
                             Flexible(
                               child: Text(
                                 'CivicVoice',
-                                style: textTheme.titleLarge?.copyWith(
-                                  color: AppColors.primary,
-                                ),
+                                style: textTheme.titleLarge,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -297,7 +295,7 @@ class _ProfileButton extends StatelessWidget {
               child: Icon(
                 AppIcons.profile,
                 size: AppIconSize.sm,
-                color: AppColors.primary,
+                color: AppSemanticColors.of(context).actionText,
               ),
             ),
           ),
@@ -394,7 +392,7 @@ class _NavItem extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final foreground = isSelected
-        ? AppColors.primary
+        ? AppSemanticColors.of(context).actionText
         : (isDark ? AppColorsDark.secondaryText : AppColorsLight.secondaryText);
 
     return InkWell(

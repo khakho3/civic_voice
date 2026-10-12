@@ -294,7 +294,7 @@ class _LoadedContent extends StatelessWidget {
                 width: double.infinity,
                 child: FilledButton(
                   style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.primary,
+                    backgroundColor: AppSemanticColors.of(context).actionFill,
                   ),
                   onPressed: onNavigateToActivity,
                   child: const Text('View Detailed Logs'),
@@ -417,7 +417,7 @@ class _TierCard extends StatelessWidget {
                 child: Icon(
                   tier.icon,
                   size: AppIconSize.sm + 2,
-                  color: tier.tint,
+                  color: AppSemanticColors.of(context).foregroundFor(tier.tint),
                 ),
               ),
               const SizedBox(width: AppSpacing.md),

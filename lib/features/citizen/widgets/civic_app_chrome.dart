@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../services/app_haptics.dart';
 import '../../../services/notification_directory.dart';
 import '../../../widgets/glass_bar.dart';
 import '../../../widgets/unread_dot_badge.dart';
@@ -17,7 +18,9 @@ import '../services/report_crud_service.dart';
 /// Citizen has no drawer, so there's no leading hamburger to visually
 /// balance a centered logo against the way Admin's does — every other
 /// screen (tab root or back-button drill-down alike) shows a plain
-/// [TextTheme.titleMedium] title, not [AppColors.primary]-tinted.
+/// [TextTheme.titleMedium] title. The wordmark itself is neutral text: the
+/// 32px approved logo supplies the brand color (gold text would be 1.47:1
+/// on the light header).
 class CivicTopBar extends StatelessWidget {
   const CivicTopBar({
     super.key,
@@ -64,16 +67,12 @@ class CivicTopBar extends StatelessWidget {
                           children: [
                             Image.asset(
                               AppAssets.logoApp,
-                              width: AppIconSize.xl,
-                              height: AppIconSize.xl,
+                              width: AppIconSize.lg,
+                              height: AppIconSize.lg,
+                              excludeFromSemantics: true,
                             ),
                             const SizedBox(width: AppSpacing.sm),
-                            Text(
-                              'CivicVoice',
-                              style: textTheme.titleLarge?.copyWith(
-                                color: AppColors.primary,
-                              ),
-                            ),
+                            Text('CivicVoice', style: textTheme.titleLarge),
                           ],
                         )
                       : Text(
@@ -142,6 +141,8 @@ class CivicBottomNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.paddingOf(context).bottom;
+    final semantic = AppSemanticColors.of(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -235,19 +236,32 @@ class CivicBottomNav extends StatelessWidget {
                   top: 0,
                   child: Tooltip(
                     message: 'Create report',
+                    // Gold fill with dark brand ink (11.47:1) — white on
+                    // gold is 1.47:1. Dark mode keeps the shadow matte and
+                    // adds the control border so the disc separates from
+                    // charcoal (web AppShell.css parity).
                     child: Material(
-                      color: AppColors.primary,
+                      color: semantic.actionFill,
                       elevation: AppElevation.level3,
-                      shadowColor: AppColors.primary.withValues(alpha: 0.28),
-                      shape: const CircleBorder(),
+                      shadowColor: isDark
+                          ? AppColorsDark.canvas
+                          : AppColors.primary.withValues(alpha: 0.28),
+                      shape: CircleBorder(
+                        side: isDark
+                            ? BorderSide(color: semantic.controlBorder)
+                            : BorderSide.none,
+                      ),
                       child: InkWell(
                         customBorder: const CircleBorder(),
-                        onTap: () => onDestinationSelected(2),
+                        onTap: () {
+                          AppHaptics.activate();
+                          onDestinationSelected(2);
+                        },
                         child: SizedBox.square(
                           dimension: fabSize,
                           child: Icon(
                             AppIcons.add,
-                            color: Colors.white,
+                            color: semantic.onAction,
                             size: compact
                                 ? AppIconSize.standard
                                 : AppIconSize.lg,
@@ -288,13 +302,20 @@ class _BottomNavItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final color = selected ? AppColors.primary : theme.colorScheme.secondary;
+    // Active destination uses the accessible action ink (6.91:1 light),
+    // not the gold fill.
+    final color = selected
+        ? AppSemanticColors.of(context).actionText
+        : theme.colorScheme.secondary;
 
     return Tooltip(
       message: label,
       child: InkWell(
         borderRadius: AppRadius.allLg,
-        onTap: onTap,
+        onTap: () {
+          AppHaptics.activate();
+          onTap();
+        },
         child: SizedBox(
           height: compact ? 52 : 56,
           child: Column(

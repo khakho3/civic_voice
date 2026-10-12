@@ -330,7 +330,11 @@ class _InfoChip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: AppIconSize.sm, color: AppColors.primary),
+          Icon(
+            icon,
+            size: AppIconSize.sm,
+            color: AppSemanticColors.of(context).actionText,
+          ),
           const SizedBox(width: AppSpacing.xs),
           ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 210),
@@ -360,15 +364,15 @@ class _CenterPin extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Material(
-                color: AppColors.primary,
+                color: AppSemanticColors.of(context).actionFill,
                 elevation: AppElevation.level3,
                 shadowColor: AppColors.primary.withValues(alpha: 0.32),
                 shape: const CircleBorder(),
-                child: const SizedBox.square(
+                child: SizedBox.square(
                   dimension: 52,
                   child: Icon(
                     AppIcons.pinned,
-                    color: Colors.white,
+                    color: AppSemanticColors.of(context).onAction,
                     size: AppIconSize.lg,
                   ),
                 ),
@@ -377,7 +381,7 @@ class _CenterPin extends StatelessWidget {
                 width: 4,
                 height: 28,
                 decoration: BoxDecoration(
-                  color: AppColors.primary,
+                  color: AppSemanticColors.of(context).actionFill,
                   borderRadius: AppRadius.allXs,
                 ),
               ),

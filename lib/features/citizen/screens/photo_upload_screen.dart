@@ -370,7 +370,7 @@ class _StepProgress extends StatelessWidget {
             Text(
               '65% complete',
               style: theme.textTheme.labelMedium?.copyWith(
-                color: AppColors.primary,
+                color: AppSemanticColors.of(context).actionText,
                 fontWeight: AppFontWeight.semiBold,
               ),
             ),
@@ -557,7 +557,7 @@ class _UploadedPhotosSection extends StatelessWidget {
             Text(
               '${photos.length} / $maxPhotos photos',
               style: theme.textTheme.labelMedium?.copyWith(
-                color: AppColors.primary,
+                color: AppSemanticColors.of(context).actionText,
                 fontWeight: AppFontWeight.semiBold,
               ),
             ),
@@ -682,7 +682,10 @@ class _PhotoTipsCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(AppIcons.info, color: AppColors.primary),
+              Icon(
+                AppIcons.info,
+                color: AppSemanticColors.of(context).actionText,
+              ),
               const SizedBox(width: AppSpacing.sm),
               Text('Photography Tips', style: theme.textTheme.titleMedium),
             ],
@@ -791,7 +794,7 @@ class _InlineState extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: color),
+          Icon(icon, color: AppSemanticColors.of(context).foregroundFor(color)),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Column(

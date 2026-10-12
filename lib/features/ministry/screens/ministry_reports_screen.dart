@@ -403,7 +403,9 @@ class _StatusChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return Material(
-      color: selected ? AppColors.primary : colorScheme.surfaceContainer,
+      color: selected
+          ? AppSemanticColors.of(context).actionFill
+          : colorScheme.surfaceContainer,
       shape: const StadiumBorder(),
       child: InkWell(
         customBorder: const StadiumBorder(),
@@ -416,7 +418,9 @@ class _StatusChip extends StatelessWidget {
           child: Text(
             label,
             style: Theme.of(context).textTheme.labelLarge?.copyWith(
-              color: selected ? Colors.white : colorScheme.onSurfaceVariant,
+              color: selected
+                  ? AppSemanticColors.of(context).onAction
+                  : colorScheme.onSurfaceVariant,
             ),
           ),
         ),
@@ -484,7 +488,7 @@ class _ReportsContent extends StatelessWidget {
               Text(
                 _formatThousands(data.stats.aggregatedReports),
                 style: textTheme.headlineMedium?.copyWith(
-                  color: AppColors.primary,
+                  color: AppSemanticColors.of(context).actionText,
                 ),
               ),
               const SizedBox(height: 2),
@@ -610,14 +614,16 @@ class _ReportCard extends StatelessWidget {
           Container(
             width: AppDimensions.controlHeightStandard,
             height: AppDimensions.controlHeightStandard,
+            // Neutral leading glyph (F01): status color lives in the badge
+            // only, so it is not duplicated across the card.
             decoration: BoxDecoration(
-              color: item.status.color.withValues(alpha: 0.12),
+              color: Theme.of(context).colorScheme.surfaceContainer,
               borderRadius: AppRadius.allSm,
             ),
             child: Icon(
               item.status.icon,
               size: AppIconSize.md,
-              color: item.status.color,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
           const SizedBox(width: AppSpacing.md),
@@ -674,9 +680,9 @@ class _StatusBadge extends StatelessWidget {
       ),
       child: Text(
         status.label,
-        style: Theme.of(
-          context,
-        ).textTheme.labelSmall?.copyWith(color: status.color),
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          color: AppSemanticColors.of(context).foregroundFor(status.color),
+        ),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),
@@ -736,10 +742,10 @@ class _ReportInsightsCallout extends StatelessWidget {
               color: AppColors.primary.withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
-            child: const Icon(
+            child: Icon(
               AppIcons.analytics,
               size: AppIconSize.md,
-              color: AppColors.primary,
+              color: AppSemanticColors.of(context).actionText,
             ),
           ),
           const SizedBox(width: AppSpacing.md),

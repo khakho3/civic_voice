@@ -183,10 +183,10 @@ class _LockContent extends StatelessWidget {
       ),
       _LockPhase.prompting => Column(
         children: [
-          const Icon(
+          Icon(
             AppIcons.biometricLock,
             size: AppIconSize.xl,
-            color: AppColors.primary,
+            color: AppSemanticColors.of(context).actionText,
           ),
           const SizedBox(height: AppSpacing.md),
           Text(

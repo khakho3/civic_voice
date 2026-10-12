@@ -510,7 +510,7 @@ class _LoadedContent extends StatelessWidget {
                     Expanded(
                       child: StatTile(
                         icon: AppIcons.team,
-                        iconColor: AppColors.primary,
+                        iconColor: AppSemanticColors.of(context).actionText,
                         label: 'Total Users',
                         value: _formatThousands(stats.totalUsers),
                         delta: '+${stats.totalUsersChangePercent}%',
@@ -523,7 +523,7 @@ class _LoadedContent extends StatelessWidget {
                     Expanded(
                       child: StatTile(
                         icon: AppIcons.shield,
-                        iconColor: AppColors.primary,
+                        iconColor: AppSemanticColors.of(context).actionText,
                         label: 'Active Roles',
                         value: '${stats.activeRoles}',
                         delta: '+${stats.activeRolesChangePercent}%',
@@ -543,7 +543,7 @@ class _LoadedContent extends StatelessWidget {
                     Expanded(
                       child: StatTile(
                         icon: AppIcons.activityPulse,
-                        iconColor: AppColors.primary,
+                        iconColor: AppSemanticColors.of(context).actionText,
                         label: 'Admin Actions',
                         value: stats.adminActionsLabel,
                         delta: '24h',
@@ -692,7 +692,11 @@ class _ManagementRow extends StatelessWidget {
         padding: const EdgeInsets.all(AppSpacing.md),
         child: Row(
           children: [
-            Icon(icon, size: AppIconSize.lg, color: AppColors.primary),
+            Icon(
+              icon,
+              size: AppIconSize.lg,
+              color: AppSemanticColors.of(context).actionText,
+            ),
             const SizedBox(width: AppSpacing.md),
             Expanded(
               child: Column(

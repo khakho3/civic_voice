@@ -277,7 +277,11 @@ class _QueueMetric extends StatelessWidget {
             color: color.withValues(alpha: 0.12),
             borderRadius: AppRadius.allSm,
           ),
-          child: Icon(icon, size: AppIconSize.md, color: color),
+          child: Icon(
+            icon,
+            size: AppIconSize.md,
+            color: AppSemanticColors.of(context).foregroundFor(color),
+          ),
         ),
         const SizedBox(height: AppSpacing.sm),
         Text(value, style: textTheme.titleLarge),
@@ -285,7 +289,9 @@ class _QueueMetric extends StatelessWidget {
           label,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: textTheme.labelMedium?.copyWith(color: color),
+          style: textTheme.labelMedium?.copyWith(
+            color: AppSemanticColors.of(context).foregroundFor(color),
+          ),
         ),
       ],
     );
@@ -412,9 +418,9 @@ class _CountPill extends StatelessWidget {
       ),
       child: Text(
         '$count',
-        style: Theme.of(
-          context,
-        ).textTheme.labelMedium?.copyWith(color: colorScheme.primary),
+        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+          color: AppSemanticColors.of(context).actionText,
+        ),
       ),
     );
   }
@@ -650,7 +656,10 @@ class _ErrorView extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.lg),
             FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: semantic.error),
+              style: FilledButton.styleFrom(
+                backgroundColor: semantic.error,
+                foregroundColor: semantic.onError,
+              ),
               onPressed: onRetry,
               child: const Text('Retry'),
             ),

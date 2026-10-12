@@ -555,10 +555,7 @@ class _DetailsForm extends StatelessWidget {
                     ? const SizedBox(
                         width: AppIconSize.sm,
                         height: AppIconSize.sm,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
+                        child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Text('Save Changes'),
               ),
@@ -602,10 +599,10 @@ class _ProfileCard extends StatelessWidget {
               color: AppColors.primary.withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
-            child: const Icon(
+            child: Icon(
               AppIcons.profile,
               size: AppIconSize.xl,
-              color: AppColors.primary,
+              color: AppSemanticColors.of(context).actionText,
             ),
           ),
           const SizedBox(height: AppSpacing.md),
@@ -628,7 +625,7 @@ class _ProfileCard extends StatelessWidget {
               _Pill(
                 icon: previewRole.icon,
                 label: previewRole.label,
-                color: AppColors.primary,
+                color: AppSemanticColors.of(context).actionText,
               ),
               _Pill(label: previewStatus.label, color: previewStatus.color),
             ],
@@ -701,7 +698,11 @@ class _Section extends StatelessWidget {
       children: [
         Row(
           children: [
-            Icon(icon, size: AppIconSize.sm, color: AppColors.primary),
+            Icon(
+              icon,
+              size: AppIconSize.sm,
+              color: AppSemanticColors.of(context).actionText,
+            ),
             const SizedBox(width: AppSpacing.xs),
             Flexible(
               child: Text(
@@ -887,7 +888,7 @@ class _SuccessBanner extends StatelessWidget {
                 Text(
                   'Changes saved',
                   style: textTheme.titleSmall?.copyWith(
-                    color: AppColors.statusResolved,
+                    color: AppSemanticColors.of(context).statusResolvedText,
                   ),
                 ),
                 Text(

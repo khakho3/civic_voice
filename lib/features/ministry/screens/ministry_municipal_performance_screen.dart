@@ -343,7 +343,9 @@ class _ScopeChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return Material(
-      color: selected ? AppColors.primary : colorScheme.surfaceContainer,
+      color: selected
+          ? AppSemanticColors.of(context).actionFill
+          : colorScheme.surfaceContainer,
       shape: const StadiumBorder(),
       child: InkWell(
         customBorder: const StadiumBorder(),
@@ -356,7 +358,9 @@ class _ScopeChip extends StatelessWidget {
           child: Text(
             label,
             style: Theme.of(context).textTheme.labelLarge?.copyWith(
-              color: selected ? Colors.white : colorScheme.onSurfaceVariant,
+              color: selected
+                  ? AppSemanticColors.of(context).onAction
+                  : colorScheme.onSurfaceVariant,
             ),
           ),
         ),
@@ -573,7 +577,11 @@ class _StatCard extends StatelessWidget {
               color: tint.withValues(alpha: 0.12),
               borderRadius: AppRadius.allSm,
             ),
-            child: Icon(icon, size: AppIconSize.sm + 2, color: tint),
+            child: Icon(
+              icon,
+              size: AppIconSize.sm + 2,
+              color: AppSemanticColors.of(context).foregroundFor(tint),
+            ),
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(
@@ -677,7 +685,7 @@ class _MetricToggle extends StatelessWidget {
             label,
             style: Theme.of(context).textTheme.labelMedium?.copyWith(
               color: selected
-                  ? AppColors.primary
+                  ? AppSemanticColors.of(context).actionText
                   : colorScheme.onSurfaceVariant,
               fontWeight: selected ? AppFontWeight.semiBold : null,
             ),

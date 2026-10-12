@@ -415,10 +415,7 @@ class _SettingsForm extends StatelessWidget {
                       ? const SizedBox(
                           width: AppIconSize.sm,
                           height: AppIconSize.sm,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
+                          child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Text('Save Changes'),
                 ),

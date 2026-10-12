@@ -404,7 +404,10 @@ class _VerifiedThumbnail extends StatelessWidget {
               child: Text(
                 'VERIFIED',
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: Colors.white,
+                  // White on green is 3.30:1 at caption size.
+                  color: AppSemanticColors.of(
+                    context,
+                  ).onFillFor(AppColors.success),
                   fontWeight: AppFontWeight.semiBold,
                   fontSize: 9,
                 ),

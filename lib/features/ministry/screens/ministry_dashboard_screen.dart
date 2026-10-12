@@ -287,7 +287,7 @@ class _StatsGrid extends StatelessWidget {
                 Expanded(
                   child: StatTile(
                     icon: AppIcons.report,
-                    iconColor: AppColors.primary,
+                    iconColor: AppSemanticColors.of(context).actionText,
                     label: 'Total Reports',
                     value: _formatCount(stats.totalReports),
                     delta: '+${stats.totalReportsChangePercent}%',
@@ -397,7 +397,7 @@ class _ReportStatisticsCard extends StatelessWidget {
                       heightFactor: value / maxValue,
                       child: Container(
                         decoration: BoxDecoration(
-                          color: AppColors.primary,
+                          color: AppSemanticColors.of(context).actionFill,
                           borderRadius: const BorderRadius.vertical(
                             top: Radius.circular(4),
                           ),

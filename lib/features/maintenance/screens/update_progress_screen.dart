@@ -521,7 +521,9 @@ class _UpdateProgressForm extends StatelessWidget {
                 const SizedBox(height: AppSpacing.xs),
                 Text(
                   evidenceError!,
-                  style: textTheme.bodySmall?.copyWith(color: semantic.error),
+                  style: textTheme.bodySmall?.copyWith(
+                    color: semantic.errorText,
+                  ),
                 ),
               ],
             ],
@@ -607,7 +609,7 @@ class _SavedBanner extends StatelessWidget {
                   'Progress saved',
                   style: Theme.of(
                     context,
-                  ).textTheme.titleSmall?.copyWith(color: semantic.success),
+                  ).textTheme.titleSmall?.copyWith(color: semantic.successText),
                 ),
                 Text(
                   'Your status update and work notes were saved to this assigned task.',

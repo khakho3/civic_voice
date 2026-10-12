@@ -113,7 +113,7 @@ class _TestRoleSelectorScreenState extends State<TestRoleSelectorScreen> {
                     'Select Test Role',
                     textAlign: TextAlign.center,
                     style: theme.textTheme.headlineSmall?.copyWith(
-                      color: AppColors.primary,
+                      color: AppSemanticColors.of(context).actionText,
                       fontWeight: AppFontWeight.bold,
                     ),
                   ),
@@ -269,7 +269,11 @@ class _RoleOption extends StatelessWidget {
           children: [
             Radio<AppRole>(value: role),
             const SizedBox(width: AppSpacing.xs),
-            Icon(role.icon, color: AppColors.primary, size: AppIconSize.md),
+            Icon(
+              role.icon,
+              color: AppSemanticColors.of(context).actionText,
+              size: AppIconSize.md,
+            ),
             const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: Text(

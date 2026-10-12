@@ -163,7 +163,7 @@ class _SuccessIntro extends StatelessWidget {
           'Report Submitted\nSuccessfully',
           textAlign: TextAlign.center,
           style: theme.textTheme.headlineSmall?.copyWith(
-            color: AppColors.primary,
+            color: AppSemanticColors.of(context).actionText,
             fontWeight: AppFontWeight.bold,
           ),
         ),
@@ -234,7 +234,7 @@ class _StatusPill extends StatelessWidget {
       child: Text(
         'Submitted',
         style: Theme.of(context).textTheme.labelMedium?.copyWith(
-          color: AppColors.success,
+          color: AppSemanticColors.of(context).successText,
           fontWeight: AppFontWeight.bold,
         ),
       ),
@@ -399,7 +399,10 @@ class _NextInfoCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(AppIcons.info, color: AppColors.primary),
+              Icon(
+                AppIcons.info,
+                color: AppSemanticColors.of(context).actionText,
+              ),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Text(
@@ -439,10 +442,10 @@ class _BulletText extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           '*',
           style: TextStyle(
-            color: AppColors.primary,
+            color: AppSemanticColors.of(context).actionText,
             fontWeight: AppFontWeight.bold,
           ),
         ),

@@ -30,7 +30,10 @@ Future<Region?> pickRegion(BuildContext context, {required Region? current}) {
               ListTile(
                 title: const Text('All Regions'),
                 trailing: current == null
-                    ? const Icon(AppIcons.success, color: AppColors.primary)
+                    ? Icon(
+                        AppIcons.success,
+                        color: AppSemanticColors.of(context).actionText,
+                      )
                     : null,
                 onTap: () => Navigator.of(context).pop<Region?>(null),
               ),
@@ -38,7 +41,10 @@ Future<Region?> pickRegion(BuildContext context, {required Region? current}) {
                 ListTile(
                   title: Text(region.label),
                   trailing: region == current
-                      ? const Icon(AppIcons.success, color: AppColors.primary)
+                      ? Icon(
+                          AppIcons.success,
+                          color: AppSemanticColors.of(context).actionText,
+                        )
                       : null,
                   onTap: () => Navigator.of(context).pop<Region?>(region),
                 ),
@@ -76,9 +82,13 @@ class RegionPickerChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final foreground = active ? Colors.white : colorScheme.onSurfaceVariant;
+    final foreground = active
+        ? AppSemanticColors.of(context).onAction
+        : colorScheme.onSurfaceVariant;
     return Material(
-      color: active ? AppColors.primary : colorScheme.surfaceContainer,
+      color: active
+          ? AppSemanticColors.of(context).actionFill
+          : colorScheme.surfaceContainer,
       shape: const StadiumBorder(),
       child: InkWell(
         customBorder: const StadiumBorder(),

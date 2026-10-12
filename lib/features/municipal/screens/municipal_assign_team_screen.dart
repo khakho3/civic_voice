@@ -365,9 +365,9 @@ class _OfflineBanner extends StatelessWidget {
             child: Text(
               'No internet connection — changes will sync when you\'re '
               'back online',
-              style: Theme.of(
-                context,
-              ).textTheme.labelMedium?.copyWith(color: AppColors.error),
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: AppSemanticColors.of(context).errorText,
+              ),
             ),
           ),
         ],
@@ -549,7 +549,9 @@ class _FilterChip extends StatelessWidget {
           : Colors.transparent,
       shape: StadiumBorder(
         side: BorderSide(
-          color: selected ? AppColors.primary : colorScheme.outline,
+          color: selected
+              ? AppSemanticColors.of(context).actionText
+              : colorScheme.outline,
         ),
       ),
       child: InkWell(
@@ -564,7 +566,7 @@ class _FilterChip extends StatelessWidget {
             label,
             style: Theme.of(context).textTheme.labelMedium?.copyWith(
               color: selected
-                  ? AppColors.primary
+                  ? AppSemanticColors.of(context).actionText
                   : colorScheme.onSurfaceVariant,
             ),
           ),
@@ -625,7 +627,9 @@ class _TeamCard extends StatelessWidget {
       child: GlassCard(
         onTap: enabled ? onTap : null,
         border: Border.all(
-          color: selected ? AppColors.primary : semantic.glassBorder,
+          color: selected
+              ? AppSemanticColors.of(context).actionText
+              : semantic.glassBorder,
           width: selected ? 2 : 1,
         ),
         child: Column(
@@ -689,17 +693,17 @@ class _AssignmentSummaryCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(
+              Icon(
                 AppIcons.info,
                 size: AppIconSize.md,
-                color: AppColors.primary,
+                color: AppSemanticColors.of(context).actionText,
               ),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Text(
                   '${team.name} is now assigned to this report.',
                   style: textTheme.bodySmall?.copyWith(
-                    color: AppColors.primary,
+                    color: AppSemanticColors.of(context).actionText,
                   ),
                 ),
               ),

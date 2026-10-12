@@ -243,9 +243,9 @@ class _OfflineBanner extends StatelessWidget {
           Expanded(
             child: Text(
               'No internet connection — using cached data',
-              style: Theme.of(
-                context,
-              ).textTheme.labelMedium?.copyWith(color: AppColors.error),
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: AppSemanticColors.of(context).errorText,
+              ),
             ),
           ),
         ],
@@ -416,7 +416,7 @@ class _CitizenInfo extends StatelessWidget {
                     .join()
                     .toUpperCase(),
                 style: textTheme.labelMedium?.copyWith(
-                  color: AppColors.primary,
+                  color: AppSemanticColors.of(context).actionText,
                 ),
               ),
             ),
@@ -455,7 +455,7 @@ class _CitizenInfo extends StatelessWidget {
               Icon(
                 AppIcons.permissionDenied,
                 size: AppIconSize.sm,
-                color: AppColors.primary,
+                color: AppSemanticColors.of(context).actionText,
               ),
               const SizedBox(width: AppSpacing.xs),
               Expanded(
@@ -818,7 +818,10 @@ class _TimelineRow extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final (Color badgeColor, Color iconColor) = switch (step.state) {
       TimelineStepState.completed => (AppColors.success, Colors.white),
-      TimelineStepState.current => (AppColors.primary, Colors.white),
+      TimelineStepState.current => (
+        AppColors.primary,
+        AppSemanticColors.of(context).onAction,
+      ),
       TimelineStepState.pending => (
         colorScheme.surfaceContainer,
         colorScheme.onSurfaceVariant,

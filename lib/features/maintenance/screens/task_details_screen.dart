@@ -650,7 +650,7 @@ class _ReportLocationMapScreen extends StatelessWidget {
                       Icon(
                         AppIcons.location,
                         size: AppIconSize.md,
-                        color: colorScheme.primary,
+                        color: AppSemanticColors.of(context).actionText,
                       ),
                       const SizedBox(width: AppSpacing.sm),
                       Expanded(
