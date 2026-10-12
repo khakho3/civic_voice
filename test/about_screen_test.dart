@@ -44,7 +44,7 @@ void main() {
     );
     expect(
       find.text(
-        "CivicVoice is a civic-issue reporting platform for Ghana's District Municipal, and Metropolitan Assemblies. It gives citizens a fast, transparent way to report public infrastructure problems — potholes, broken streetlights, damaged facilities — and follow them through review, assignment, and resolution.",
+        "CivicVoice is a civic-issue reporting platform for Ghana's District, Municipal, and Metropolitan Assemblies. It gives citizens a fast, transparent way to report public infrastructure problems — potholes, broken streetlights, damaged facilities — and follow them through review, assignment, and resolution.",
       ),
       findsOneWidget,
     );
