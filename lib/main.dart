@@ -5,6 +5,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import 'core/navigation/tab_route.dart';
@@ -112,6 +113,12 @@ import 'widgets/in_app_notification_banner.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // The bundled Inter font's SIL OFL notice, shown on the licenses page.
+  LicenseRegistry.addLicense(() async* {
+    yield LicenseEntryWithLineBreaks(const [
+      'Inter',
+    ], await rootBundle.loadString(AppAssets.interLicense));
+  });
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   await ThemeController.loadSavedTheme();
   final cachedAccountId = FirebaseAuth.instance.currentUser?.uid;
@@ -294,7 +301,10 @@ Future<void> _offerNotificationPermissionAfterLogin(
     barrierDismissible: false,
     builder: (context) => GlassDialogBackdrop(
       child: AlertDialog(
-        icon: const Icon(AppIcons.notifications, color: AppColors.primary),
+        icon: Icon(
+          AppIcons.notifications,
+          color: AppSemanticColors.of(context).actionText,
+        ),
         title: const Text('Stay Updated'),
         content: const Text(
           'Allow notifications so CivicVoice can alert you about new tasks, '
@@ -546,7 +556,10 @@ class _CivicVoiceAppState extends State<CivicVoiceApp>
       barrierDismissible: false,
       builder: (context) => GlassDialogBackdrop(
         child: AlertDialog(
-          icon: const Icon(AppIcons.notifications, color: AppColors.primary),
+          icon: Icon(
+            AppIcons.notifications,
+            color: AppSemanticColors.of(context).actionText,
+          ),
           title: const Text('Stay Updated'),
           content: const Text(
             'Allow notifications so CivicVoice can alert you about new tasks, '

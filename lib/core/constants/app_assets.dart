@@ -9,7 +9,6 @@ library;
 abstract final class AppAssets {
   const AppAssets._();
 
-  /// Master vector logo — the single source of truth for the CivicVoice mark.
   /// Master raster logo for the approved CivicVoice mark.
   static const String logoPng = 'assets/branding/logo.png';
 
@@ -33,6 +32,9 @@ abstract final class AppAssets {
 
   /// App favicon exported from the approved brand master.
   static const String favicon = 'assets/branding/favicon.png';
+
+  /// SIL Open Font License for the bundled Inter font files.
+  static const String interLicense = 'assets/fonts/Inter-OFL.txt';
 
   /// Onboarding illustration for reporting a community issue.
   static const String onboardingReport =

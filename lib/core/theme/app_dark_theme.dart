@@ -37,7 +37,7 @@ abstract final class AppDarkTheme {
         secondary: AppColorsDark.secondaryText,
         onSecondary: AppColorsDark.primaryText,
         error: AppColors.error,
-        onError: Colors.white,
+        onError: AppColors.onError,
         surface: AppColorsDark.primarySurface,
         onSurface: AppColorsDark.primaryText,
         surfaceContainerLowest: AppColorsDark.canvas,
@@ -137,10 +137,59 @@ abstract final class AppDarkTheme {
         ),
       ),
       labelStyle: _textTheme.bodyLarge,
+      floatingLabelStyle: WidgetStateTextStyle.resolveWith((states) {
+        if (states.contains(WidgetState.error)) {
+          return _textTheme.bodyLarge!.copyWith(color: AppColors.errorTextDark);
+        }
+        return _textTheme.bodyLarge!.copyWith(
+          color: states.contains(WidgetState.focused)
+              ? AppColors.primaryDark
+              : AppColorsDark.secondaryText,
+        );
+      }),
       hintStyle: _textTheme.bodyLarge?.copyWith(
         color: AppColorsDark.secondaryText,
       ),
-      errorStyle: _textTheme.bodySmall?.copyWith(color: AppColors.error),
+      // Error red #DC2626 is 3.59:1 on charcoal; error text uses the lighter
+      // readable variant.
+      errorStyle: _textTheme.bodySmall?.copyWith(
+        color: AppColors.errorTextDark,
+      ),
+    ),
+
+    progressIndicatorTheme: const ProgressIndicatorThemeData(
+      color: AppColors.primaryDark,
+    ),
+
+    textSelectionTheme: TextSelectionThemeData(
+      cursorColor: AppColors.primaryDark,
+      selectionColor: AppColors.primaryDark.withValues(alpha: 0.32),
+      selectionHandleColor: AppColors.primaryDark,
+    ),
+
+    radioTheme: RadioThemeData(
+      fillColor: WidgetStateProperty.resolveWith(
+        (states) => states.contains(WidgetState.selected)
+            ? AppColors.primaryDark
+            : AppColorsDark.secondaryText,
+      ),
+    ),
+
+    checkboxTheme: CheckboxThemeData(
+      side: const BorderSide(
+        color: AppColorsDark.secondaryText,
+        width: AppDimensions.borderWidthFocused,
+      ),
+      fillColor: WidgetStateProperty.resolveWith(
+        (states) => states.contains(WidgetState.selected)
+            ? AppColors.primaryDark
+            : Colors.transparent,
+      ),
+      checkColor: const WidgetStatePropertyAll(AppColors.onPrimary),
+    ),
+
+    listTileTheme: const ListTileThemeData(
+      selectedColor: AppColors.primaryDark,
     ),
 
     elevatedButtonTheme: ElevatedButtonThemeData(
@@ -268,6 +317,8 @@ abstract final class AppDarkTheme {
         color: AppColorsDark.primaryText,
       ),
       actionTextColor: AppColors.primaryDark,
+      disabledActionTextColor: AppColorsDark.secondaryText,
+      closeIconColor: AppColorsDark.primaryText,
       behavior: SnackBarBehavior.floating,
       elevation: AppElevation.level2,
       shape: const RoundedRectangleBorder(
@@ -287,7 +338,7 @@ abstract final class AppDarkTheme {
 
     badgeTheme: const BadgeThemeData(
       backgroundColor: AppColors.error,
-      textColor: Colors.white,
+      textColor: AppColors.onError,
     ),
 
     dividerColor: AppColorsDark.border,

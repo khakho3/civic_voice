@@ -40,6 +40,7 @@ abstract final class AppIcons {
   static const IconData back = LucideIcons.arrowLeft;
   static const IconData close = LucideIcons.x;
   static const IconData search = LucideIcons.search;
+  static const IconData recentSearch = LucideIcons.history;
   static const IconData filter = LucideIcons.slidersHorizontal;
   static const IconData chevronDown = LucideIcons.chevronDown;
   static const IconData chevronUp = LucideIcons.chevronUp;
@@ -100,6 +101,7 @@ abstract final class AppIcons {
   static const IconData visibilityOff = LucideIcons.eyeOff;
   static const IconData idCard = LucideIcons.idCard;
   static const IconData biometricLock = LucideIcons.fingerprintPattern;
+  static const IconData haptics = LucideIcons.vibrate;
 
   // Role & module iconography (Screen Specifications Standard role prefixes).
   static const IconData citizen = LucideIcons.user;

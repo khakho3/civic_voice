@@ -37,6 +37,46 @@ abstract final class AppColors {
   static const Color error = Color(0xFFDC2626);
   static const Color info = Color(0xFF2563EB);
 
+  /// Text/icon ink on an [error] fill (a destructive button or badge).
+  /// Brand [onPrimary] ink is only 3.50:1 on red; white is 4.83:1.
+  static const Color onError = Color(0xFFFFFFFF);
+
+  /// Fixed white ink for text and icons over photographs and the fixed
+  /// charcoal scrim — never theme-dependent, since the image is not.
+  static const Color onPhoto = Color(0xFFFFFFFF);
+
+  /// Fixed neutral charcoal scrim behind text laid over imagery.
+  static const Color scrimStrong = Color(0xFF101110);
+
+  /// Readable text variants of the semantic hues for the light theme. The
+  /// hues above are fills, dots, and tints; on a light surface most of them
+  /// fall short of 4.5:1 as text, so text and icons use these instead.
+  /// Mirrors web `--color-*-text` / `--status-*-text` in `tokens.css`.
+  static const Color errorTextLight = Color(0xFFB91C1C);
+  static const Color successTextLight = Color(0xFF126332);
+  static const Color warningTextLight = Color(0xFF925700);
+  static const Color infoTextLight = Color(0xFF1D4ED8);
+  static const Color statusSubmittedTextLight = Color(0xFF1D4ED8);
+  static const Color statusUnderReviewTextLight = Color(0xFF92400E);
+  static const Color statusAssignedTextLight = Color(0xFF6D28D9);
+  static const Color statusInProgressTextLight = Color(0xFF03699B);
+  static const Color statusPendingApprovalTextLight = Color(0xFF115E59);
+  static const Color statusResolvedTextLight = Color(0xFF126332);
+  static const Color statusRejectedTextLight = Color(0xFFB91C1C);
+
+  /// Dark-theme counterparts of the readable text variants above.
+  static const Color errorTextDark = Color(0xFFFCA5A5);
+  static const Color successTextDark = Color(0xFF86EFAC);
+  static const Color warningTextDark = Color(0xFFFDBA74);
+  static const Color infoTextDark = Color(0xFF93C5FD);
+  static const Color statusSubmittedTextDark = Color(0xFF93C5FD);
+  static const Color statusUnderReviewTextDark = Color(0xFFFDBA74);
+  static const Color statusAssignedTextDark = Color(0xFFC4B5FD);
+  static const Color statusInProgressTextDark = Color(0xFF7DD3FC);
+  static const Color statusPendingApprovalTextDark = Color(0xFF5EEAD4);
+  static const Color statusResolvedTextDark = Color(0xFF86EFAC);
+  static const Color statusRejectedTextDark = Color(0xFFFCA5A5);
+
   // Report status colors — §19.3 "Status Colors". Always pair with a label and
   // icon (see [AppIcons] status group) — color alone must never carry meaning.
   static const Color statusSubmitted = Color(0xFF2563EB);
@@ -100,6 +140,10 @@ abstract final class AppColorsLight {
   /// mark). Sourced from MUN-001 Dashboard (#DBEAFE) — a distinct swatch, not
   /// an alpha blend of [AppColors.primary].
   static const Color iconBadgeSurface = Color(0xFFF8EFC9);
+
+  /// Inverse surface for snackbars and tooltips: dark in the light theme.
+  static const Color surfaceInverse = Color(0xFF172019);
+  static const Color textInverse = Color(0xFFFAFAF7);
 }
 
 /// Dark theme surface, text, and border tokens — §19.3 "Dark Theme".
@@ -134,6 +178,11 @@ abstract final class AppColorsDark {
   /// Dashboard: dark mode reuses [secondarySurface] as a flat fill rather
   /// than a primary-tinted swatch (#1E293B, not an alpha blend).
   static const Color iconBadgeSurface = Color(0xFF303325);
+
+  /// Surface for profile/preference rows, one step above [primarySurface]
+  /// so grouped rows separate from the card behind them (web
+  /// `--profile-row-surface`).
+  static const Color profileRowSurface = Color(0xFF202320);
 }
 
 /// Glass-surface blur tokens.
@@ -153,7 +202,15 @@ abstract final class AppGlassBlur {
 /// Theme-aware semantic colors that fall outside Material's [ColorScheme]
 /// (success / warning / info / report-status colors). Registered on
 /// [ThemeData.extensions] by [AppLightTheme] and [AppDarkTheme] so any screen
-/// can reach them via `Theme.of(context).extension<AppSemanticColors>()`.
+/// can reach them via [AppSemanticColors.of].
+///
+/// Fills and inks are deliberately separate. The hue fields ([success],
+/// [statusSubmitted], …) are for fills, dots, bars, and tints. Text and icons
+/// drawn directly on a surface use the matching `*Text` field, or
+/// [foregroundFor] when the hue arrives as a parameter. Brand gold follows
+/// the same split: [actionFill] is the button/FAB/selected-chip fill (with
+/// [onAction] ink), and [actionText] is the brand-accent text/icon color on
+/// ordinary surfaces — gold itself is 1.47:1 against white.
 @immutable
 class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
   const AppSemanticColors({
@@ -165,6 +222,7 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
     required this.statusUnderReview,
     required this.statusAssigned,
     required this.statusInProgress,
+    required this.statusPendingApproval,
     required this.statusResolved,
     required this.statusRejected,
     required this.glassSurface,
@@ -172,7 +230,36 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
     required this.glassNavSurface,
     required this.glassBorder,
     required this.iconBadgeSurface,
+    required this.actionFill,
+    required this.onAction,
+    required this.actionText,
+    required this.focus,
+    required this.controlBorder,
+    required this.onError,
+    required this.errorText,
+    required this.successText,
+    required this.warningText,
+    required this.infoText,
+    required this.statusSubmittedText,
+    required this.statusUnderReviewText,
+    required this.statusAssignedText,
+    required this.statusInProgressText,
+    required this.statusPendingApprovalText,
+    required this.statusResolvedText,
+    required this.statusRejectedText,
+    required this.surfaceInverse,
+    required this.textInverse,
+    required this.profileRowSurface,
   });
+
+  /// The [AppSemanticColors] registered on the ambient theme, falling back
+  /// to the token set for its brightness when a theme (e.g. a bare test
+  /// `ThemeData`) has not registered the extension.
+  static AppSemanticColors of(BuildContext context) {
+    final theme = Theme.of(context);
+    return theme.extension<AppSemanticColors>() ??
+        (theme.brightness == Brightness.dark ? dark : light);
+  }
 
   final Color success;
   final Color warning;
@@ -182,6 +269,7 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
   final Color statusUnderReview;
   final Color statusAssigned;
   final Color statusInProgress;
+  final Color statusPendingApproval;
   final Color statusResolved;
   final Color statusRejected;
   final Color glassSurface;
@@ -189,6 +277,107 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
   final Color glassNavSurface;
   final Color glassBorder;
   final Color iconBadgeSurface;
+
+  /// Brand gold fill for primary buttons, the Create FAB, selected chips,
+  /// and progress values. Always paired with [onAction] ink.
+  final Color actionFill;
+
+  /// Dark ink for text and icons on [actionFill].
+  final Color onAction;
+
+  /// Brand-accent text and icon color on ordinary surfaces: links, active
+  /// navigation, icon badges, selected menu rows.
+  final Color actionText;
+
+  /// Keyboard focus ring and focused input outline.
+  final Color focus;
+
+  /// Outline for interactive controls (outlined buttons, chips).
+  final Color controlBorder;
+
+  /// Ink on an [error] fill (destructive buttons).
+  final Color onError;
+
+  final Color errorText;
+  final Color successText;
+  final Color warningText;
+  final Color infoText;
+  final Color statusSubmittedText;
+  final Color statusUnderReviewText;
+  final Color statusAssignedText;
+  final Color statusInProgressText;
+  final Color statusPendingApprovalText;
+  final Color statusResolvedText;
+  final Color statusRejectedText;
+
+  /// Snackbar/tooltip surface: dark in the light theme, light in the dark.
+  final Color surfaceInverse;
+
+  /// Text on [surfaceInverse].
+  final Color textInverse;
+
+  /// Grouped profile/preference row surface.
+  final Color profileRowSurface;
+
+  /// The readable text/icon ink for [hue] when it is drawn directly on a
+  /// surface (not as a fill). Known brand/semantic/status hues map to their
+  /// accessible text variant for this theme; any other color is returned
+  /// unchanged, since its caller has already chosen a foreground.
+  ///
+  /// Shared widgets that accept a "tint" or "badge" color use this for the
+  /// glyph/label and keep the raw hue for the translucent background, so a
+  /// caller passing `AppColors.primary` or `AppColors.warning` still gets
+  /// legible text.
+  Color foregroundFor(Color hue) {
+    final value = hue.toARGB32();
+    if (value == AppColors.primary.toARGB32() ||
+        value == AppColors.primaryDark.toARGB32() ||
+        value == AppColors.primaryPressed.toARGB32() ||
+        value == AppColors.primaryHover.toARGB32()) {
+      return actionText;
+    }
+    // Several status hues share a value with a semantic hue (submitted ==
+    // info, resolved == success, rejected == error, under review ==
+    // warning); each pair also shares its text variant, so first match wins.
+    if (value == success.toARGB32()) return successText;
+    if (value == warning.toARGB32()) return warningText;
+    if (value == error.toARGB32()) return errorText;
+    if (value == info.toARGB32()) return infoText;
+    if (value == statusAssigned.toARGB32()) return statusAssignedText;
+    if (value == statusInProgress.toARGB32()) return statusInProgressText;
+    if (value == statusPendingApproval.toARGB32()) {
+      return statusPendingApprovalText;
+    }
+    return hue;
+  }
+
+  /// The ink for text and icons drawn *on* a solid [fill] — brand gold gets
+  /// [onAction], error red gets [onError], and any other fill gets whichever
+  /// of the two contrasts more. Use this when a caller supplies a button or
+  /// chip fill color, so a red button never inherits the theme's dark gold
+  /// ink (3.50:1).
+  Color onFillFor(Color fill) {
+    final value = fill.toARGB32();
+    if (value == actionFill.toARGB32() ||
+        value == AppColors.primary.toARGB32() ||
+        value == AppColors.primaryDark.toARGB32()) {
+      return onAction;
+    }
+    if (value == error.toARGB32()) return onError;
+    final fillLuminance = fill.computeLuminance();
+    double contrast(Color ink) {
+      final inkLuminance = ink.computeLuminance();
+      final lighter = inkLuminance > fillLuminance
+          ? inkLuminance
+          : fillLuminance;
+      final darker = inkLuminance > fillLuminance
+          ? fillLuminance
+          : inkLuminance;
+      return (lighter + 0.05) / (darker + 0.05);
+    }
+
+    return contrast(onError) >= contrast(onAction) ? onError : onAction;
+  }
 
   static const AppSemanticColors light = AppSemanticColors(
     success: AppColors.success,
@@ -199,6 +388,7 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
     statusUnderReview: AppColors.statusUnderReview,
     statusAssigned: AppColors.statusAssigned,
     statusInProgress: AppColors.statusInProgress,
+    statusPendingApproval: AppColors.statusPendingApproval,
     statusResolved: AppColors.statusResolved,
     statusRejected: AppColors.statusRejected,
     glassSurface: AppColorsLight.glassSurface,
@@ -206,6 +396,26 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
     glassNavSurface: AppColorsLight.glassNavSurface,
     glassBorder: AppColorsLight.glassBorder,
     iconBadgeSurface: AppColorsLight.iconBadgeSurface,
+    actionFill: AppColors.primary,
+    onAction: AppColors.onPrimary,
+    actionText: AppColors.primaryText,
+    focus: AppColors.focus,
+    controlBorder: AppColors.controlBorder,
+    onError: AppColors.onError,
+    errorText: AppColors.errorTextLight,
+    successText: AppColors.successTextLight,
+    warningText: AppColors.warningTextLight,
+    infoText: AppColors.infoTextLight,
+    statusSubmittedText: AppColors.statusSubmittedTextLight,
+    statusUnderReviewText: AppColors.statusUnderReviewTextLight,
+    statusAssignedText: AppColors.statusAssignedTextLight,
+    statusInProgressText: AppColors.statusInProgressTextLight,
+    statusPendingApprovalText: AppColors.statusPendingApprovalTextLight,
+    statusResolvedText: AppColors.statusResolvedTextLight,
+    statusRejectedText: AppColors.statusRejectedTextLight,
+    surfaceInverse: AppColorsLight.surfaceInverse,
+    textInverse: AppColorsLight.textInverse,
+    profileRowSurface: AppColorsLight.primarySurface,
   );
 
   static const AppSemanticColors dark = AppSemanticColors(
@@ -217,6 +427,7 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
     statusUnderReview: AppColors.statusUnderReview,
     statusAssigned: AppColors.statusAssigned,
     statusInProgress: AppColors.statusInProgress,
+    statusPendingApproval: AppColors.statusPendingApproval,
     statusResolved: AppColors.statusResolved,
     statusRejected: AppColors.statusRejected,
     glassSurface: AppColorsDark.glassSurface,
@@ -224,6 +435,26 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
     glassNavSurface: AppColorsDark.glassNavSurface,
     glassBorder: AppColorsDark.glassBorder,
     iconBadgeSurface: AppColorsDark.iconBadgeSurface,
+    actionFill: AppColors.primaryDark,
+    onAction: AppColors.onPrimary,
+    actionText: AppColors.primaryDark,
+    focus: AppColors.primaryDark,
+    controlBorder: AppColors.controlBorder,
+    onError: AppColors.onError,
+    errorText: AppColors.errorTextDark,
+    successText: AppColors.successTextDark,
+    warningText: AppColors.warningTextDark,
+    infoText: AppColors.infoTextDark,
+    statusSubmittedText: AppColors.statusSubmittedTextDark,
+    statusUnderReviewText: AppColors.statusUnderReviewTextDark,
+    statusAssignedText: AppColors.statusAssignedTextDark,
+    statusInProgressText: AppColors.statusInProgressTextDark,
+    statusPendingApprovalText: AppColors.statusPendingApprovalTextDark,
+    statusResolvedText: AppColors.statusResolvedTextDark,
+    statusRejectedText: AppColors.statusRejectedTextDark,
+    surfaceInverse: AppColorsDark.primaryText,
+    textInverse: AppColorsLight.primaryText,
+    profileRowSurface: AppColorsDark.profileRowSurface,
   );
 
   @override
@@ -236,6 +467,7 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
     Color? statusUnderReview,
     Color? statusAssigned,
     Color? statusInProgress,
+    Color? statusPendingApproval,
     Color? statusResolved,
     Color? statusRejected,
     Color? glassSurface,
@@ -243,6 +475,26 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
     Color? glassNavSurface,
     Color? glassBorder,
     Color? iconBadgeSurface,
+    Color? actionFill,
+    Color? onAction,
+    Color? actionText,
+    Color? focus,
+    Color? controlBorder,
+    Color? onError,
+    Color? errorText,
+    Color? successText,
+    Color? warningText,
+    Color? infoText,
+    Color? statusSubmittedText,
+    Color? statusUnderReviewText,
+    Color? statusAssignedText,
+    Color? statusInProgressText,
+    Color? statusPendingApprovalText,
+    Color? statusResolvedText,
+    Color? statusRejectedText,
+    Color? surfaceInverse,
+    Color? textInverse,
+    Color? profileRowSurface,
   }) {
     return AppSemanticColors(
       success: success ?? this.success,
@@ -253,6 +505,8 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
       statusUnderReview: statusUnderReview ?? this.statusUnderReview,
       statusAssigned: statusAssigned ?? this.statusAssigned,
       statusInProgress: statusInProgress ?? this.statusInProgress,
+      statusPendingApproval:
+          statusPendingApproval ?? this.statusPendingApproval,
       statusResolved: statusResolved ?? this.statusResolved,
       statusRejected: statusRejected ?? this.statusRejected,
       glassSurface: glassSurface ?? this.glassSurface,
@@ -260,44 +514,84 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
       glassNavSurface: glassNavSurface ?? this.glassNavSurface,
       glassBorder: glassBorder ?? this.glassBorder,
       iconBadgeSurface: iconBadgeSurface ?? this.iconBadgeSurface,
+      actionFill: actionFill ?? this.actionFill,
+      onAction: onAction ?? this.onAction,
+      actionText: actionText ?? this.actionText,
+      focus: focus ?? this.focus,
+      controlBorder: controlBorder ?? this.controlBorder,
+      onError: onError ?? this.onError,
+      errorText: errorText ?? this.errorText,
+      successText: successText ?? this.successText,
+      warningText: warningText ?? this.warningText,
+      infoText: infoText ?? this.infoText,
+      statusSubmittedText: statusSubmittedText ?? this.statusSubmittedText,
+      statusUnderReviewText:
+          statusUnderReviewText ?? this.statusUnderReviewText,
+      statusAssignedText: statusAssignedText ?? this.statusAssignedText,
+      statusInProgressText: statusInProgressText ?? this.statusInProgressText,
+      statusPendingApprovalText:
+          statusPendingApprovalText ?? this.statusPendingApprovalText,
+      statusResolvedText: statusResolvedText ?? this.statusResolvedText,
+      statusRejectedText: statusRejectedText ?? this.statusRejectedText,
+      surfaceInverse: surfaceInverse ?? this.surfaceInverse,
+      textInverse: textInverse ?? this.textInverse,
+      profileRowSurface: profileRowSurface ?? this.profileRowSurface,
     );
   }
 
   @override
   AppSemanticColors lerp(ThemeExtension<AppSemanticColors>? other, double t) {
     if (other is! AppSemanticColors) return this;
+    Color mix(Color a, Color b) => Color.lerp(a, b, t)!;
     return AppSemanticColors(
-      success: Color.lerp(success, other.success, t)!,
-      warning: Color.lerp(warning, other.warning, t)!,
-      error: Color.lerp(error, other.error, t)!,
-      info: Color.lerp(info, other.info, t)!,
-      statusSubmitted: Color.lerp(statusSubmitted, other.statusSubmitted, t)!,
-      statusUnderReview: Color.lerp(
-        statusUnderReview,
-        other.statusUnderReview,
-        t,
-      )!,
-      statusAssigned: Color.lerp(statusAssigned, other.statusAssigned, t)!,
-      statusInProgress: Color.lerp(
-        statusInProgress,
-        other.statusInProgress,
-        t,
-      )!,
-      statusResolved: Color.lerp(statusResolved, other.statusResolved, t)!,
-      statusRejected: Color.lerp(statusRejected, other.statusRejected, t)!,
-      glassSurface: Color.lerp(glassSurface, other.glassSurface, t)!,
-      glassCardSurface: Color.lerp(
-        glassCardSurface,
-        other.glassCardSurface,
-        t,
-      )!,
-      glassNavSurface: Color.lerp(glassNavSurface, other.glassNavSurface, t)!,
-      glassBorder: Color.lerp(glassBorder, other.glassBorder, t)!,
-      iconBadgeSurface: Color.lerp(
-        iconBadgeSurface,
-        other.iconBadgeSurface,
-        t,
-      )!,
+      success: mix(success, other.success),
+      warning: mix(warning, other.warning),
+      error: mix(error, other.error),
+      info: mix(info, other.info),
+      statusSubmitted: mix(statusSubmitted, other.statusSubmitted),
+      statusUnderReview: mix(statusUnderReview, other.statusUnderReview),
+      statusAssigned: mix(statusAssigned, other.statusAssigned),
+      statusInProgress: mix(statusInProgress, other.statusInProgress),
+      statusPendingApproval: mix(
+        statusPendingApproval,
+        other.statusPendingApproval,
+      ),
+      statusResolved: mix(statusResolved, other.statusResolved),
+      statusRejected: mix(statusRejected, other.statusRejected),
+      glassSurface: mix(glassSurface, other.glassSurface),
+      glassCardSurface: mix(glassCardSurface, other.glassCardSurface),
+      glassNavSurface: mix(glassNavSurface, other.glassNavSurface),
+      glassBorder: mix(glassBorder, other.glassBorder),
+      iconBadgeSurface: mix(iconBadgeSurface, other.iconBadgeSurface),
+      actionFill: mix(actionFill, other.actionFill),
+      onAction: mix(onAction, other.onAction),
+      actionText: mix(actionText, other.actionText),
+      focus: mix(focus, other.focus),
+      controlBorder: mix(controlBorder, other.controlBorder),
+      onError: mix(onError, other.onError),
+      errorText: mix(errorText, other.errorText),
+      successText: mix(successText, other.successText),
+      warningText: mix(warningText, other.warningText),
+      infoText: mix(infoText, other.infoText),
+      statusSubmittedText: mix(statusSubmittedText, other.statusSubmittedText),
+      statusUnderReviewText: mix(
+        statusUnderReviewText,
+        other.statusUnderReviewText,
+      ),
+      statusAssignedText: mix(statusAssignedText, other.statusAssignedText),
+      statusInProgressText: mix(
+        statusInProgressText,
+        other.statusInProgressText,
+      ),
+      statusPendingApprovalText: mix(
+        statusPendingApprovalText,
+        other.statusPendingApprovalText,
+      ),
+      statusResolvedText: mix(statusResolvedText, other.statusResolvedText),
+      statusRejectedText: mix(statusRejectedText, other.statusRejectedText),
+      surfaceInverse: mix(surfaceInverse, other.surfaceInverse),
+      textInverse: mix(textInverse, other.textInverse),
+      profileRowSurface: mix(profileRowSurface, other.profileRowSurface),
     );
   }
 }

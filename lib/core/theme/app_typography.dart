@@ -13,7 +13,6 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 /// Approved Inter font weights — §19.4 "Approved Weights".
 abstract final class AppFontWeight {
@@ -53,12 +52,17 @@ abstract final class AppLineHeight {
 abstract final class AppTypography {
   const AppTypography._();
 
+  /// The bundled Inter family (see `pubspec.yaml` `fonts:`). Bundled, not
+  /// fetched: typography must render offline and on a fresh install.
+  static const String _family = 'Inter';
+
   static TextStyle _inter({
     required double fontSize,
     required FontWeight fontWeight,
     required double height,
   }) {
-    return GoogleFonts.inter(
+    return TextStyle(
+      fontFamily: _family,
       fontSize: fontSize,
       fontWeight: fontWeight,
       height: height,
@@ -118,7 +122,7 @@ abstract final class AppTypography {
   /// Resolved Inter font family name, for widgets that need the family
   /// string directly instead of a full [TextStyle] (e.g. `DefaultTextStyle`
   /// overrides, PDF/print export).
-  static String get fontFamily => GoogleFonts.inter().fontFamily!;
+  static const String fontFamily = _family;
 
   /// Builds a full Material 3 [TextTheme] from the approved scale, tinted
   /// with the given theme's text colors (see [AppColorsLight] / [AppColorsDark]).

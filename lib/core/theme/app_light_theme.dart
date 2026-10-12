@@ -43,7 +43,7 @@ abstract final class AppLightTheme {
         secondary: AppColorsLight.secondaryText,
         onSecondary: AppColorsLight.primarySurface,
         error: AppColors.error,
-        onError: Colors.white,
+        onError: AppColors.onError,
         surface: AppColorsLight.primarySurface,
         onSurface: AppColorsLight.primaryText,
         surfaceContainerLowest: AppColorsLight.canvas,
@@ -143,10 +143,64 @@ abstract final class AppLightTheme {
         ),
       ),
       labelStyle: _textTheme.bodyLarge,
+      // Material's focused floating label defaults to colorScheme.primary,
+      // which is the gold fill (1.47:1 on white); use the focus ink.
+      floatingLabelStyle: WidgetStateTextStyle.resolveWith((states) {
+        if (states.contains(WidgetState.error)) {
+          return _textTheme.bodyLarge!.copyWith(
+            color: AppColors.errorTextLight,
+          );
+        }
+        return _textTheme.bodyLarge!.copyWith(
+          color: states.contains(WidgetState.focused)
+              ? AppColors.focus
+              : AppColorsLight.secondaryText,
+        );
+      }),
       hintStyle: _textTheme.bodyLarge?.copyWith(
         color: AppColorsLight.secondaryText,
       ),
-      errorStyle: _textTheme.bodySmall?.copyWith(color: AppColors.error),
+      errorStyle: _textTheme.bodySmall?.copyWith(
+        color: AppColors.errorTextLight,
+      ),
+    ),
+
+    // Spinners and other indicators drawn on a surface use the accessible
+    // action ink, not the gold fill. Determinate progress bars that should
+    // read as a gold fill pass their value color explicitly.
+    progressIndicatorTheme: const ProgressIndicatorThemeData(
+      color: AppColors.primaryText,
+    ),
+
+    textSelectionTheme: TextSelectionThemeData(
+      cursorColor: AppColors.focus,
+      selectionColor: AppColors.primary.withValues(alpha: 0.4),
+      selectionHandleColor: AppColors.focus,
+    ),
+
+    radioTheme: RadioThemeData(
+      fillColor: WidgetStateProperty.resolveWith(
+        (states) => states.contains(WidgetState.selected)
+            ? AppColors.primaryText
+            : AppColorsLight.secondaryText,
+      ),
+    ),
+
+    checkboxTheme: CheckboxThemeData(
+      side: const BorderSide(
+        color: AppColors.controlBorder,
+        width: AppDimensions.borderWidthFocused,
+      ),
+      fillColor: WidgetStateProperty.resolveWith(
+        (states) => states.contains(WidgetState.selected)
+            ? AppColors.primary
+            : Colors.transparent,
+      ),
+      checkColor: const WidgetStatePropertyAll(AppColors.onPrimary),
+    ),
+
+    listTileTheme: const ListTileThemeData(
+      selectedColor: AppColors.primaryText,
     ),
 
     elevatedButtonTheme: ElevatedButtonThemeData(
@@ -287,10 +341,18 @@ abstract final class AppLightTheme {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
     ),
 
+    // Fixed dark inverse surface in the light theme, so the action needs the
+    // bright gold ink (12.08:1), not the light-surface action text (2.42:1).
     snackBarTheme: SnackBarThemeData(
-      backgroundColor: AppColorsLight.primaryText,
-      contentTextStyle: _textTheme.bodyMedium?.copyWith(color: Colors.white),
-      actionTextColor: AppColors.primaryText,
+      backgroundColor: AppColorsLight.surfaceInverse,
+      contentTextStyle: _textTheme.bodyMedium?.copyWith(
+        color: AppColorsLight.textInverse,
+      ),
+      actionTextColor: AppColors.primaryDark,
+      disabledActionTextColor: AppColorsLight.textInverse.withValues(
+        alpha: 0.6,
+      ),
+      closeIconColor: AppColorsLight.textInverse,
       behavior: SnackBarBehavior.floating,
       elevation: AppElevation.level2,
       shape: const RoundedRectangleBorder(
@@ -300,15 +362,17 @@ abstract final class AppLightTheme {
 
     tooltipTheme: TooltipThemeData(
       decoration: BoxDecoration(
-        color: AppColorsLight.primaryText,
+        color: AppColorsLight.surfaceInverse,
         borderRadius: AppRadius.allXs,
       ),
-      textStyle: _textTheme.bodySmall?.copyWith(color: Colors.white),
+      textStyle: _textTheme.bodySmall?.copyWith(
+        color: AppColorsLight.textInverse,
+      ),
     ),
 
     badgeTheme: const BadgeThemeData(
       backgroundColor: AppColors.error,
-      textColor: Colors.white,
+      textColor: AppColors.onError,
     ),
 
     dividerColor: AppColorsLight.border,

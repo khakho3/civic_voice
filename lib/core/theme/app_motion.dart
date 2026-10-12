@@ -53,10 +53,14 @@ abstract final class AppMotion {
   /// Returns [Duration.zero] when the platform requests reduced motion,
   /// otherwise returns [base]. Use for any non-essential animation.
   static Duration duration(BuildContext context, Duration base) {
-    final disableAnimations =
-        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
-    return disableAnimations ? Duration.zero : base;
+    return reduceMotion(context) ? Duration.zero : base;
   }
+
+  /// Whether the platform asks for reduced motion. Nonessential movement
+  /// (entrances, shakes, looping indicators) must stop or hold a static
+  /// frame when this is true.
+  static bool reduceMotion(BuildContext context) =>
+      MediaQuery.maybeOf(context)?.disableAnimations ?? false;
 
   /// The one route-transition builder every platform target uses — wired
   /// into both [AppLightTheme] and [AppDarkTheme] so it applies to every
