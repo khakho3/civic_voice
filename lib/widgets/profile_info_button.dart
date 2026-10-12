@@ -71,14 +71,16 @@ class ProfileInfoButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Compact glyph, full 48px touch target. Inside a switch row it takes
+    // the tap itself, so opening help never toggles the switch.
     return IconButton(
       onPressed: () => _showInfo(context),
       tooltip: 'About $title',
-      iconSize: AppIconSize.sm,
-      visualDensity: VisualDensity.compact,
+      iconSize: AppIconSize.md,
+      color: Theme.of(context).colorScheme.onSurfaceVariant,
       constraints: const BoxConstraints.tightFor(
-        width: AppSpacing.xl,
-        height: AppSpacing.xl,
+        width: AppDimensions.controlHeightStandard,
+        height: AppDimensions.controlHeightStandard,
       ),
       icon: const Icon(AppIcons.info),
     );

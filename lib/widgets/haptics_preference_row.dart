@@ -3,14 +3,16 @@ import 'package:flutter/material.dart';
 import '../core/theme/app_theme.dart';
 import '../services/app_cache_service.dart';
 import '../services/app_haptics.dart';
+import 'profile_info_button.dart';
 import 'profile_preference_row.dart';
 
 /// Persisted, device-local opt-out for gentle action haptics (F09), shared
 /// by all five Profiles. Turning it on plays one pulse as confirmation.
 ///
 /// Flutter cannot tell whether the device has a vibrator or whether the
-/// system touch-vibration setting is off, so the caption says honestly
-/// that the device can still silence it rather than claiming support.
+/// system touch-vibration setting is off, so the row never claims support;
+/// an info button explains the device limitation on request instead of a
+/// permanent caption. A missing pulse never affects the app.
 class HapticsPreferenceRow extends StatefulWidget {
   const HapticsPreferenceRow({super.key});
 
@@ -32,7 +34,12 @@ class _HapticsPreferenceRowState extends State<HapticsPreferenceRow> {
     return ProfileSwitchRow(
       icon: AppIcons.haptics,
       label: 'Haptic feedback',
-      caption: 'Your device settings can still turn vibration off.',
+      labelTrailing: const ProfileInfoButton(
+        title: 'Haptic feedback',
+        message:
+            'Gentle vibration for supported actions. Your phone must support '
+            'haptics, and device settings may silence it.',
+      ),
       value: _enabled,
       onChanged: _setEnabled,
       pulseOnToggle: false,
