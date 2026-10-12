@@ -1,164 +1,53 @@
-# Aziz foundation progress
+# Aziz assignment — progress
 
-## F01 — shared tokens and theme foundation
+Branch: `codex/flutter-aziz-review-fixes` (local repair of Aziz's submission
+`693c59c`, base `75e43b3`). Repair pass: 12 October 2026. No commits, pushes,
+API, database, Firebase or production changes.
 
-- **Changed:** `lib/core/theme/app_colors.dart`, `app_light_theme.dart`, and
-  `app_dark_theme.dart` now use the approved gold action fills, dark action
-  ink, charcoal light/dark surfaces, neutral borders, and matte dark shadows.
-  Shared theme foregrounds no longer put gold text directly on light surfaces.
-- **Preserved:** Existing semantic success/warning/error/information values,
-  real auth/API flows, Ghana-native page loading, and all status lifecycle
-  semantics. `statusPendingApproval` is a palette token only; it does not
-  change the report enum or serialization contract owned by the workflow team.
-- **Automated evidence:** `flutter test test/theme_tokens_test.dart
-  --dart-define=API_BASE_URL=http://127.0.0.1:1 --reporter expanded` passed
-  (2 tests). The test verifies 4.5:1 action-ink contrast and both theme token
-  mappings.
-- **Human device evidence:** Pending. Check a filled, outlined, and text
-  action in Light/Dark; then check keyboard focus, large text, and a screen
-  reader announcement on a physical device.
-- **Deferred:** Full role-by-role foreground audit, status text/tint adoption,
-  and visual device review remain open. The supplied local web reference was
-  read at `http://localhost:5173/`; no web files were modified.
+Status words: **Done** (implemented and covered by automated tests; device
+check still pending), **Existing-correct** (verified, no change needed),
+**Partial** (shared part done; listed remainder open), **Blocked** (waits on
+an API/domain/owner dependency), **Adoption** (shared API delivered; the
+module owner adopts it in their own screens during their turn).
 
-## F10 — shared About wording
+Automated evidence for every row: `flutter analyze` clean, full
+`flutter test --dart-define=API_BASE_URL=http://127.0.0.1:1` passing, and
+`git diff --check` clean (see `AZIZ_REPAIR_REPORT.md` for counts). Device
+evidence: **none yet** for any row — see the device checklist in the report.
 
-- **Changed:** The About screen now uses the accepted wording: “District,
-  Municipal, and Metropolitan Assemblies.” Existing verified acknowledgments
-  and destinations remain unchanged; no placeholder links were added.
+## Shared foundations
 
-## F01 follow-up — action-text contrast
+| ID | Status | What exists now | Still open |
+| --- | --- | --- | --- |
+| F01 | Partial | Theme-aware ink roles ported from web `tokens.css` (`actionFill`/`onAction`/`actionText`, focus, control border, `onError`, error/success/warning/info and all seven status text inks, inverse surface) on `AppSemanticColors`, with `foregroundFor(hue)` and `onFillFor(fill)`. Component defaults no longer draw gold as foreground (spinners, cursor, focused labels, radios, checkboxes, list selection, nav). Every `AppColors.primary` / `colorScheme.primary` foreground across all roles, auth and onboarding reviewed (≈250 sites): gold stays only as fill/tint/progress value; text/icons use the readable ink; selected chips use gold + dark ink. Raw semantic hues used as *text* (≈25 sites) use their text ink; destructive fills use white ink. Ministry report leading icons neutral. Dark error text readable. **Inter 400/500/600/700 bundled as assets** (Google Fonts static files, SHA-256 verified), `google_fonts` removed, OFL licence registered. No near-white shadow source exists (all shadows charcoal/black) — existing-correct. `test/theme_contrast_test.dart` checks the rendered pairs in both themes. | Device visual review both themes. ~15 module icons still tinted with raw amber/blue hue (non-text, 2.2:1) — module owners. `SimpleBarChart` light-mode gold bars are below 3:1 as graphics — owner decision. Offline cold-start font check on a device. |
+| F02 | Partial | 32px brand mark on every brand-bearing header (Citizen, Municipal, Ministry, Admin incl. drawer, Maintenance); neutral wordmark (logo carries colour). Maintenance header verified notification-only in source (no Profile action) — existing-correct. All five Profiles end with one 16px gap above nav/safe area. Header height token is 64px (matches web). | Inset audit of every module screen at device widths (double padding) — measure on device; module scaffolds belong to their owners. Municipal keeps its own `MunicipalDetailHeader` fork of `DetailHeader`. |
+| F03 | Adoption | Shared focused search `showFocusedSearch` (visible Close, Back/fog close, background blocked, results, per-screen account-scoped history with removal and confirm-before-clear, recorded on submit/activation only), non-editable `SearchTriggerField` (Close/Back never refocus an editable field), text-only `TextFilterChips` (40px stadium, 14px/500, no icons, hidden scrollbar, 48px targets), and opt-in collapsed-rail mode on `CollapsibleListHeader` (full header only at true top; upward scrolling does not re-expand). List position preserved across repeated cycles (tested). | Adoption on Citizen My Reports, Municipal Inbox/Active/Closed/Assign Team, Maintenance Assigned Tasks, Ministry Reports, Admin Users/Activity/Teams (Kingsbeng/Latif). Without `collapsedHeader` those screens keep today's behaviour. |
+| F04 | Partial | Shared `ReportStatusBadge` is text-only with readable status ink and a "Status: …" label; `TintedBadge` maps any brand/semantic/status hue to its readable ink (fixes callers passing raw hues, incl. Maintenance task badges). | Local badge forks (e.g. Ministry Reports `_StatusBadge`, Municipal `_ClosedBadge`/`_NewBadge`) and the Municipal View Details+chevron / Citizen whole-card affordances (C01/M02) — module owners. Pending-approval status (W01) is Kingsbeng's model change. |
+| F05 | Partial | `showConfirmDialog`: compact intrinsic-width trailing actions that stack when narrow, 48px height, destructive = error fill + white ink, neutral Cancel in dark, optional icon, no per-role colour. Exit input blocking verified in the SDK (`ModalRoute` ignores pointer/focus while reversing) — existing-correct. New shared motion: `ErrorShake` (one-shot), `SuccessCheck`, reactive red unread badge entrance; all honour reduced motion (`AppMotion.reduceMotion`). Notifications "Clear all" now confirms. | Native dropdown reveal/morph left as Material's own `MenuAnchor` animation (not a custom morph). Focus beam / Accordion / TogglePanel are opt-in lab components with no current screen need — not built. |
+| F06 | Partial | Native `BusyIndicator` (≈20px searching orb, host ink from the button, static frame under reduced motion, stops ticking when hidden/disposed, announced once) and `BusyLabel` (keeps label footprint). Adopted in the Profile name sheet, App Lock verification and all auth submit buttons. Ghana page loaders untouched. Mounted guards present on every async path in the touched flows. | Module busy buttons still using raw spinners: Admin Create User/Teams/Settings/User Details, Citizen Create Report/Location Picker/Nearby card, Maintenance Assigned Tasks/Dashboard/Task Details, Municipal Dashboard — owners. Module-wide cancellation audit is per-owner. |
+| F07 | Partial | One shared `NotificationListView` used by all five roles (verified); swipe-delete separate from tap/navigation; read on open; Clear all confirms; reactive unread dot. Android small icon refined from the accepted identity (filled bubble, arch and star cutouts, alpha-only) with theme-aware accent (`#765400` light shade, `#FFD84D` dark). | Status-bar rendering on device. Durable inbox/read sync and Ministry digest are backend-gated (I05) — **Blocked**. Per-role deep links unchanged (owners). |
+| F08 | Blocked / Adoption | `PublicCaseShare`: allowlist-only `PublicCaseSummary`, status-aware recipient copy matching web, canonical `/case/<reference>` URL only when `--dart-define=PUBLIC_SITE_URL` is set (no hardcoded domain), real outcomes (shared / dismissed / unknown / copied / failed) with quiet dismissal and recovery copy. | Municipal Progress/Resolution adoption (Kingsbeng). Production domain, public projection and OG image service (I08) — **Blocked**. |
+| F09 | Partial | `AppHaptics.activate()` (opt-out aware, throttled, never fails the action). Wired into shared actions: confirm, Citizen nav/Create FAB, Profile action/preference rows and theme menu, filter chips, focused-search results. Preference row explains that device settings can silence vibration; turning haptics off never buzzes. | Module action adoption (owners). Hardware feel on device. |
+| F10 | Done | "District, Municipal, and Metropolitan Assemblies"; test expectation updated. | — |
 
-- **Changed:** Light-theme text links and onboarding brand text now use the
-  accessible action-text token instead of gold-on-light-surface. Dark theme
-  retains the brighter gold action color. Profile avatar initials now use
-  dark action ink in light theme and bright gold in dark theme.
-- **Automated evidence:** `flutter test test/authentication_widget_test.dart
-  test/profile_field_row_test.dart --dart-define=API_BASE_URL=http://127.0.0.1:1
-  --reporter expanded` passed (33 tests).
+## Profile
 
-## P03 — theme preference control
+| ID | Status | What exists now | Still open |
+| --- | --- | --- | --- |
+| P01 | Done | One grouped-list system (`ProfileSection`/`ProfileGroupTile`): plain inset labels, 2px row gaps, first/middle/last corners, 64px rows, avatar-mounted pencil (24px disc, 48px target), neutral pills, standalone destructive "Log out" row with no chevron, one 16px end gap. Adopted by Citizen, Guest, Municipal, Ministry, Maintenance and both Admin tiers. `ProfileEditActionBar` removed (no users left). | Device: large text, TalkBack/VoiceOver, both themes. |
+| P02 | Done | Shared name-only `showProfileNameEditSheet` on all five roles: no autofocus, keyboard inset/scroll, explicit Save/Cancel, red validation with first-error focus and one shake, busy Save, Back/barrier blocked while saving, failed save keeps the sheet open with the entered name, Admin confirms before discarding, saved record shown afterwards. Phone, department, IDs, jurisdiction never editable. | Drag-to-dismiss during an in-flight save closes the sheet (the save still completes and updates the screen). Device keyboard/Back review. |
+| P03 | Done | Shared `ProfilePreferenceRow`/`ProfileSwitchRow`: Theme menu (leading icon, far-right chevron, check in menu, value in semantics), Haptic feedback, Language with far-right Coming Soon, App Lock (checking / on / off / not set up / unavailable, real biometric gate, **Unavailable for guests**), Citizen Nearby Reports with info dialog. | Device: system theme live follow, biometrics, large text. |
+| P04 | Partial | Admin: only "Administrator Information" and "System Preferences" titled; About/Change Password untitled; scope behind info button; tier behaviour kept. Guest: Guest identity, no phone/edit/standing, carry-over callout, guest logout copy. Maintenance: Team Lead pill only for the current lead (live team record first), honest "Not assigned to a team". Municipal: Officer ID, Assembly, Region. Ministry: phone, supervisor ID, access info. Shared `TrustStanding` (compact + detailed, arbitrary fractional stars) built and placed on Citizen Profile. | Citizen standing shows nothing until the Citizen model parses `/auth/sync` `trustRating` (Latif, C01) — **Blocked**. Municipal "current permissions" has no field in the officer model — not invented. |
+| P05 | Partial | Automated coverage: edit/validation/save success/save failure/cancel/system Back for Citizen, Municipal, Ministry, Admin, Maintenance; guest variant; lead / non-lead / unassigned; Admin Super/Assembly tiers; About and Change Password callbacks. | Device verification of origin returns (Notifications/About/Change Password), scroll reset on entry, offline/unauthorized on real data. |
 
-- **Changed:** `ThemePreferenceRow` is now a compact menu-style preference
-  row. It has a leading theme icon, a trailing chevron, and a menu with
-  System (Default), Light, and Dark choices. The current selection is marked
-  inside the menu rather than repeated in the row. Language now has a leading
-  language icon and a neutral far-right Coming Soon badge. App Lock and the
-  Citizen-only Nearby Reports control now use their biometric/location icons.
-- **Preserved:** The existing `ThemeController` remains the single source of
-  truth, so selections still persist and System continues to defer to the OS.
-- **Changed:** First launch and a missing saved preference now default to
-  System (Default), so the app-wide `MaterialApp` follows the device Light or
-  Dark setting across every role, route, dialog, and loading screen until a
-  manual preference is saved. Outlined actions use the approved gold control
-  border while structural card/divider borders remain neutral.
-- **Automated evidence:** `flutter test test/theme_preference_row_test.dart
-  --dart-define=API_BASE_URL=http://127.0.0.1:1 --reporter expanded` passed
-  (1 test). It verifies the menu choices and a Dark selection.
-  `flutter test test/biometric_lock_preference_row_test.dart
-  test/citizen_widget_test.dart --dart-define=API_BASE_URL=http://127.0.0.1:1
-  --reporter expanded` passed (15 tests).
-- **Human device evidence:** Pending. Check the row in each role profile on a
-  narrow and wide screen, then restart the app to confirm persisted selection
-  and verify System responds to an OS theme change.
+## Auth and brand
 
-## P01 — profile row-system foundation
+| ID | Status | What exists now | Still open |
+| --- | --- | --- | --- |
+| U01 | Partial | One shared 48px circular glass `AuthBackButton` on every auth screen (hero variant keeps the accepted look over the illustration); no Back control at all where none applies (forced first-login). Login/Register labels 12px medium, other auth labels 14px medium; focus underline uses the focus ink; submit buttons use `BusyLabel`. Real auth, OTP, recovery, guest upgrade and biometrics untouched. | Device: password visibility caret, autofill, OTP paste, keyboard, offline/blocked states. |
+| U02 | Partial | Aziz's Android launcher/adaptive/monochrome/Android 12 splash and gold onboarding (Report no Previous, Track Previous, Resolve final actions) kept. **iOS** app icon set regenerated from the approved master (charcoal, web Apple-icon composition, opaque) and iOS launch images/backgrounds replaced (approved mark; `#FAFAF7`/`#101110`); filenames, sizes and `Contents.json` unchanged. | Physical checks: Android round/squircle masks, themed icon, Android 12+ cold start, iOS home screen/launch (no iOS device test available here). |
 
-- **Changed:** Shared profile section labels no longer render duplicated
-  decorative icons. The leading icons now belong to the rows that convey the
-  actual action or preference, preserving a quieter grouped-list hierarchy.
-  Registered Citizen, Maintenance, and Admin Profiles now use the compact
-  avatar-mounted edit pencil rather than placing it in a section heading.
-- **Automated evidence:** `flutter test test/maintenance_widget_test.dart
-  test/admin_widget_test.dart --dart-define=API_BASE_URL=http://127.0.0.1:1
-  --reporter expanded` passed (146 tests).
-- **Changed:** Municipal and Ministry now also use the avatar-mounted edit
-  pencil, retaining each role's existing navigation, validation, cancellation,
-  save, and failure behavior.
-- **Deferred:** Full role-specific content/device review remains open.
+## Cross-contract reference
 
-## P02 — permission-aware sheet editing
-
-- **Changed:** Registered Citizen Profile now opens the shared name-only
-  bottom-sheet editor. It does not focus automatically, keeps phone and other
-  administrator/account-controlled fields outside the editor, validates an
-  empty name in semantic error styling, and retains explicit Cancel/Save.
-- **Preserved:** The existing `ProfileCrudService` remains responsible for
-  persistence; guest users still receive Create Account rather than editing.
-- **Automated evidence:** `flutter test test/citizen_widget_test.dart
-  --dart-define=API_BASE_URL=http://127.0.0.1:1 --reporter expanded` passed
-  (13 tests).
-- **Deferred:** The equivalent role-specific editor adoption, genuine save
-  failure handling against the approved environment, keyboard/device review,
-  and return-focus verification remain open.
-
-## F09 — shared haptic preference
-
-- **Changed:** Added one persisted, device-local Haptic feedback preference
-  row to Citizen, Municipal, Ministry, Maintenance, and Admin Profiles. It
-  uses a leading vibration icon and remains opt-out; enabling it provides one
-  restrained native selection haptic.
-- **Automated evidence:** Added persistence and widget coverage. The
-  haptics/cache and all role-profile regression test selection ran under the
-  isolated configuration without a reported failure.
-- **Deferred:** Existing action controls do not yet consume this preference,
-  and real haptic feel/capability still needs physical-device verification.
-
-## U02 — onboarding navigation
-
-- **Changed:** Onboarding now follows the accepted navigation: Report has no
-  Previous control, Track alone has Previous, and Resolve retains the final
-  action choices.
-- **Automated evidence:** `flutter test test/authentication_widget_test.dart
-  --dart-define=API_BASE_URL=http://127.0.0.1:1 --reporter expanded` passed
-  (33 tests), including the navigation rule.
-
-## U02 — native brand configuration
-
-- **Changed:** Launcher and Android splash configuration now use the accepted
-  light/dark neutral surfaces (`#FAFAF7`, `#101110`, and `#191B19`) rather
-  than the earlier blue-grey values. Existing approved adaptive foreground
-  and splash assets are registered through `AppAssets` and `pubspec.yaml`.
-- **Deferred:** Android round/squircle masks, Android 12+ cold start, iOS
-  launch presentation, and the status-bar rendering of the monochrome
-  notification icon require physical-device validation.
-
-## F07 — Android notification icon
-
-- **Verified:** FCM's Android manifest uses the dedicated monochrome
-  `@drawable/ic_stat_civic_voice` vector rather than the full launcher mark.
-  Its configured tint now uses the accepted gold action color.
-- **Deferred:** The actual Android status-bar rendering, including contrast in
-  light/dark system chrome, requires a physical-device notification test.
-
-## U02 — approved brand-artifact replacement
-
-- **Changed:** Replaced the obsolete blue circular logo, launcher artwork,
-  splash mark, favicon, and all three blue onboarding JPEGs with the approved
-  gold CivicVoice bubble/Arch assets and Ghana onboarding artwork from the
-  read-only web reference. Onboarding now uses the approved WebP files:
-  Report (faulty streetlight), Track (report milestones), and Resolve
-  (repair celebration). `AppAssets` and `pubspec.yaml` now register only
-  those shipped onboarding assets.
-- **Verified:** SHA-256 checksums match the approved reference artifacts for
-  the master logo, app logo, launcher foreground, launcher icon, favicon,
-  and all three onboarding images. `flutter test
-  test/authentication_widget_test.dart --dart-define=API_BASE_URL=http://127.0.0.1:1
-  --reporter expanded` passed (33 tests). `flutter analyze` completed without
-  diagnostics and `git diff --check` found no whitespace errors (only existing
-  CRLF warnings).
-- **Human device evidence:** Pending. Test launcher round/squircle masks,
-  Android 12+ cold start, Light/Dark splash backgrounds, header marks,
-  Report/Track/Resolve imagery, text scaling, swipe/Previous behavior, and
-  the separate Android notification icon.
-- **Native resources:** Rebuilt each Android launcher, adaptive foreground,
-  and Android 12 splash density asset from the approved sources. Added the
-  required themed monochrome adaptive-icon layer using the approved bubble/
-  Arch silhouette. Static dimensions match Android density contracts:
-  launcher 48â€“192px, foreground 108â€“432px, and splash 128â€“512px.
-
-## Workspace notes
-
-- Preserved pre-existing changes in the generated Linux and Windows plugin
-  registrant headers; they are not part of this task.
-- No commits, pushes, API/Firebase changes, or credentials changes were made.
+C01 TrustStanding: shared widget and Profile placement delivered (above);
+Home placement and `trustRating` parsing stay with Latif.
