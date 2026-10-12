@@ -2,5 +2,6 @@
 <resources>
     <color name="launch_background">#FAFAF7</color>
 	<color name="ic_launcher_background">#FAFAF7</color>
-    <color name="notification_icon_color">#FCD116</color>
+    <!-- Accessible action ink: readable on the light notification shade. -->
+    <color name="notification_icon_color">#765400</color>
 </resources>
