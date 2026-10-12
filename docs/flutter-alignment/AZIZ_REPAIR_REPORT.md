@@ -1,7 +1,8 @@
 # Aziz submission — repair report
 
 Prepared 12 October 2026 for the integration reviewer, in response to
-`AZIZ_REVIEW_2026-10-12.md` (verdict: request changes).
+`AZIZ_REVIEW_2026-10-12.md` (verdict: request changes), and updated the same
+day for the owner device-feedback follow-up in that review.
 
 ## Where things stand
 
@@ -10,18 +11,57 @@ Prepared 12 October 2026 for the integration reviewer, in response to
 | Repository | khakho3/civic_voice, local checkout `C:/Projects/mobile/civic_voice` |
 | Branch | `codex/flutter-aziz-review-fixes` (local only, no upstream) |
 | Base reviewed | `693c59c3b9b3d68e1e5828ee8c9180f76c18dd24` (Aziz) on integration `75e43b3c80f9cacc037c5b4f0bf41d3778520938` |
-| Repaired HEAD | still `693c59c` — **all repair work is uncommitted in the working tree**, as instructed |
-| Commits / pushes / PRs / merges | none |
+| Repaired HEAD | `75b512a` — 15 small local commits on top of `693c59c` (list below); working tree clean |
+| Commits | made after Francis authorized small commits on 12 October |
+| Pushes / PRs / merges | none |
 | API repo, database, Firebase cloud, production targets | untouched |
 | Web checkout | read only; its uncommitted docs untouched |
 | Device installs | none |
+
+## Commits (oldest first)
+
+| Commit | Scope |
+| --- | --- |
+| `a05d630` | chore: carried analyzer excludes and SDK lock bumps |
+| `c4444f1` | test(about): accepted assemblies punctuation (F10) |
+| `c96fbec` | feat(theme): readable ink roles and bundled Inter (F01) |
+| `e188a88` | feat(widgets): shared confirm, busy, motion, haptics (F05/F06/F09) |
+| `b3bf55f` | fix(ui): accessible foregrounds across every role (F01/F02) |
+| `93fe529` | feat(profile): shared grouped Profile and name sheet (P01–P04) |
+| `830eb4b` | feat(auth): shared glass Back, labels, busy actions (U01) |
+| `e9cf97f` | feat(search): focused search, history, text chips (F03) |
+| `455485e` | feat(share): allowlisted public case share helper (F08) |
+| `7062440` | feat(brand): notification mark and iOS launch assets (F07/U02) |
+| `43789b5` | docs: progress and report |
+| `4232607` | follow-up: Theme row icon follows the chosen theme |
+| `eb21e62` | follow-up: haptics guidance behind an info button |
+| `4883aa6` | follow-up: gentler onboarding motion |
+| `75b512a` | follow-up: launcher double padding removed; themed icon shows the Arch |
+
+Every commit was checked out in a disposable detached worktree and
+analyzes clean on its own (first 12 checked; the follow-ups are verified
+by the full run at HEAD).
+
+## Owner device feedback follow-up
+
+| Item | Resolution |
+| --- | --- |
+| Launcher logo small | Cause: double padding. The adaptive foreground already has safe-zone padding (content at 0.261 of the 108dp canvas, inside the 0.306 safe circle) and `ic_launcher.xml` added a further 16% inset (~0.18 effective). Inset is now 0%, and `pubspec.yaml` sets `adaptive_icon_foreground_inset: 0` so regenerating doesn't re-pad. The themed monochrome layer was a plain bubble; it is now derived from the approved foreground with the Arch cut out. Circle/squircle/themed masks simulated. Header logos untouched. iOS already uses the web Apple-icon proportion (mark ≈78% of the tile), which the Android mark now matches inside its mask; no iOS change, no iOS device validation claimed. |
+| Theme row icon | Leading icon = chosen option (System/sun/moon); System keeps its icon while the OS appearance flips; value hidden in the row, announced in semantics; all five Profiles tested. |
+| Onboarding motion | Onboarding-only (no global change): ease in/out over the emphasized duration (Skip across two slides uses the page duration), slight fade off-centre, fixed Previous slot so artwork doesn't jump, crossfades for Next/Get Started, final actions and dots. Rapid taps step from the pending target and never overshoot. Found and fixed: reduced motion passed a zero duration to `animateToPage`, which trips Flutter's scroll assertion — it now jumps. Swipe, Skip, final actions and the Previous rule kept; `PageController` disposed. |
+| Haptics info | Permanent caption removed; guidance ("Gentle vibration for supported actions. Your phone must support haptics, and device settings may silence it.") opens from an info button beside the label — the shared `ProfileInfoButton`, now a 48px target that never toggles the switch. |
+| Unavailable haptics | No capability probe (Flutter offers none, and a missing pulse proves nothing). `AppHaptics` stays fire-and-forget. New tests: opt-out, persisted across restart, throttling, and a throwing vibrator not blocking a confirmed action. |
+
+Device confirmations reported by Francis (dev app): avatar pencil/edit,
+auth Back, confirmation dialogs, Citizen dark-mode plus, and action haptics
+after clearing dev app data. Targeted confirmations only.
 
 ## Results
 
 | Check | Base (Aziz `693c59c`) | Repaired working tree |
 | --- | --- | --- |
 | `flutter analyze` | clean | **clean** |
-| `flutter test --dart-define=API_BASE_URL=http://127.0.0.1:1` | 602 passed, 9 failed | **654 passed, 0 failed** |
+| `flutter test --dart-define=API_BASE_URL=http://127.0.0.1:1` | 602 passed, 9 failed | **670 passed, 0 failed** (at `75b512a`) |
 | `git diff --check` | clean | **clean** |
 
 No behaviour test was deleted to get green. Tests whose *selectors* targeted
@@ -35,7 +75,10 @@ new test asserts the shared 48px glass Back on the standard screens.
 
 New test files: `theme_contrast_test.dart` (11 checks of rendered colour
 pairs × both themes), `focused_search_test.dart` (7), `public_case_share_test.dart` (5),
-`notification_list_view_test.dart` (1); new Profile cases for save failure,
+`notification_list_view_test.dart` (1), `onboarding_motion_test.dart` (5);
+follow-up cases for the Theme row icon (all five Profiles) and haptics
+(info dialog, opt-out, restart, throttling, platform failure); new Profile
+cases for save failure,
 system Back, guest, Maintenance lead / non-lead / unassigned.
 
 ## Review findings — resolution
@@ -129,7 +172,11 @@ Backups of both original files remain at
 
 ## Remaining risks and gates
 
-- **No device testing has happened.** Everything above is automated only.
+- Device testing so far is limited to the targeted confirmations above;
+  everything else is automated only.
+- Commits are local; first push, when authorized, must be
+  `git push --set-upstream origin codex/flutter-aziz-review-fixes`, and any
+  PR targets `codex/flutter-web-alignment`, never main.
 - Do not install this tracked branch on a phone with its production Firebase
   settings; device testing needs the disposable development snapshot.
 - Blocked on others: Citizen `trustRating` parsing (Latif), Municipal share
@@ -141,8 +188,8 @@ Backups of both original files remain at
   needs an owner design decision.
 - Drag-dismissing the Profile sheet mid-save closes it while the save
   finishes in the background (Back and the barrier are blocked).
-- New Android small icon and iOS assets are generated, not yet seen on a
-  real status bar, launcher mask or iPhone.
+- New Android small icon, launcher sizing/themed icon and iOS assets are
+  generated, not yet seen on a real status bar, launcher mask or iPhone.
 
 ## Device checklist (for Francis, on the development snapshot)
 
@@ -172,11 +219,22 @@ Back**.
 9. **Auth:** Login/Register, Forgot Password, OTP, Change Password —
    round glass Back on each; forced first-login password screen has **no**
    Back; field labels small; Sign In shows the small orb while busy.
-10. **Onboarding + launch:** Report (no Previous), Track (Previous),
-    Resolve; cold start splash; launcher icon in round/squircle/themed
-    masks; one push notification — check the small status-bar icon.
-11. **Fonts offline:** fresh install with network off — text still renders
+10. **Onboarding:** Report (no Previous) → Next → Track (Previous) →
+    Next → Resolve; feel should be smooth, artwork must not jump when
+    Previous appears; tap Next quickly three times (lands on Resolve, no
+    overshoot); Previous from Track; Skip from Report; swipe both ways.
+    Then turn on the phone's **Remove animations** and repeat: slides
+    change instantly, nothing breaks.
+11. **Launcher and launch:** fresh install of the dev app — mark visibly
+    larger in its tile with the full tail; check round and squircle shapes
+    and Themed icons on; cold start splash; one push notification — small
+    status-bar icon.
+12. **Theme row icon:** in each Profile pick System, Light, Dark — the
+    row's icon changes (System icon stays while the phone theme flips).
+13. **Haptics info:** the row has no grey caption; the small info button
+    opens the help dialog and does not flip the switch.
+14. **Fonts offline:** fresh install with network off — text still renders
     in Inter.
-12. **iPhone (if available):** home-screen icon and launch screen.
+15. **iPhone (if available):** home-screen icon and launch screen.
 
 Report back what fails, with screen and theme.
