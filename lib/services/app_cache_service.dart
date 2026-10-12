@@ -20,6 +20,10 @@ class AppCacheService {
   static const _nearbySecondingEnabledKey = 'nearby_seconding_enabled_v1';
   static const _biometricLockEnabledKey = 'biometric_lock_enabled_v1';
   static const _hapticFeedbackEnabledKey = 'haptic_feedback_enabled_v1';
+  static const _searchHistoryKey = 'search_history_v1';
+
+  /// Most recent entries kept per screen's search history.
+  static const searchHistoryLimit = 8;
 
   SharedPreferences? _preferences;
   String? _accountId;
@@ -49,6 +53,52 @@ class AppCacheService {
 
   String _scopedKey(String base) =>
       _accountId == null ? '${base}_signed_out' : '${base}_${_accountId!}';
+
+  String _searchKey(String screenKey) =>
+      _scopedKey('${_searchHistoryKey}_$screenKey');
+
+  /// Recent searches for one screen, newest first, scoped to the signed-in
+  /// account so another account on a shared device never sees them.
+  List<String> searchHistory(String screenKey) =>
+      _preferences?.getStringList(_searchKey(screenKey)) ?? const <String>[];
+
+  /// Records [query] as the newest entry: trimmed, case-insensitively
+  /// de-duplicated, capped at [searchHistoryLimit]. Blank queries are
+  /// ignored. Call on submit or result activation, never per keystroke.
+  Future<List<String>> recordSearch(String screenKey, String query) async {
+    final term = query.trim();
+    if (term.isEmpty) return searchHistory(screenKey);
+    final lower = term.toLowerCase();
+    final next = [
+      term,
+      ...searchHistory(
+        screenKey,
+      ).where((entry) => entry.toLowerCase() != lower),
+    ].take(searchHistoryLimit).toList();
+    final preferences = _preferences ?? await SharedPreferences.getInstance();
+    _preferences = preferences;
+    await preferences.setStringList(_searchKey(screenKey), next);
+    return next;
+  }
+
+  /// Removes one entry (case-insensitive) from a screen's history.
+  Future<List<String>> removeSearch(String screenKey, String query) async {
+    final lower = query.trim().toLowerCase();
+    final next = searchHistory(
+      screenKey,
+    ).where((entry) => entry.toLowerCase() != lower).toList();
+    final preferences = _preferences ?? await SharedPreferences.getInstance();
+    _preferences = preferences;
+    await preferences.setStringList(_searchKey(screenKey), next);
+    return next;
+  }
+
+  /// Clears a screen's history. Callers confirm with the person first.
+  Future<void> clearSearchHistory(String screenKey) async {
+    final preferences = _preferences ?? await SharedPreferences.getInstance();
+    _preferences = preferences;
+    await preferences.remove(_searchKey(screenKey));
+  }
 
   Future<void> initialize({String? accountId = 'default'}) async {
     _preferences = await SharedPreferences.getInstance();

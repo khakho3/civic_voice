@@ -15,15 +15,29 @@ import '../core/theme/app_theme.dart';
 /// chips/dropdowns belong in [header] — stat or metric cards are content,
 /// not transient chrome, so they belong in the scrollable [child] itself
 /// (as its first item), not wrapped in here.
+///
+/// **Collapsed-rail mode (F03).** Pass [collapsedHeader] — typically a
+/// compact [SearchTriggerField] first, then the sticky text-only filter
+/// chips — and the behavior changes to the accepted search contract: the
+/// full [header] shows only at the true top of the list; scrolling down
+/// swaps in the compact rail, which stays put; ordinary upward scrolling
+/// does not re-expand it, so the header never flickers open and shut while
+/// reading. Search from the rail opens the focused mode explicitly.
+/// Without [collapsedHeader] the original reveal-on-reverse behavior is
+/// kept, so existing screens are unchanged until they adopt the rail.
 class CollapsibleListHeader extends StatefulWidget {
   const CollapsibleListHeader({
     super.key,
     required this.header,
     required this.child,
+    this.collapsedHeader,
   });
 
   final Widget header;
   final Widget child;
+
+  /// The compact sticky rail shown once the list scrolls away from the top.
+  final Widget? collapsedHeader;
 
   @override
   State<CollapsibleListHeader> createState() => _CollapsibleListHeaderState();
@@ -93,7 +107,40 @@ class _CollapsibleListHeaderState extends State<CollapsibleListHeader>
     }
   }
 
+  bool _railCollapsed = false;
+  double _railAccumulated = 0;
+
+  /// Collapsed-rail mode: expand only at the true top (or by pulling down
+  /// there); collapse after a deliberate downward scroll; ignore upward
+  /// scrolling in between.
+  bool _onRailScroll(ScrollNotification notification) {
+    if (notification.metrics.axis != Axis.vertical) return false;
+    if (notification is ScrollUpdateNotification) {
+      final delta = notification.scrollDelta ?? 0;
+      if (notification.metrics.pixels <= 4) {
+        _railAccumulated = 0;
+        if (_railCollapsed) setState(() => _railCollapsed = false);
+        return false;
+      }
+      if (delta <= 0) {
+        _railAccumulated = 0;
+        return false;
+      }
+      _railAccumulated += delta;
+      if (!_railCollapsed && _railAccumulated > _directionThreshold) {
+        setState(() => _railCollapsed = true);
+      }
+    } else if (notification is OverscrollNotification &&
+        notification.dragDetails != null &&
+        notification.overscroll < 0 &&
+        _railCollapsed) {
+      setState(() => _railCollapsed = false);
+    }
+    return false;
+  }
+
   bool _onScrollNotification(ScrollNotification notification) {
+    if (widget.collapsedHeader != null) return _onRailScroll(notification);
     // Ignore anything that isn't the primary vertical list — a nested
     // horizontal scrollable (a filter-chip row inside [header]) bubbles
     // its own notifications up through this same listener otherwise.
@@ -143,6 +190,38 @@ class _CollapsibleListHeaderState extends State<CollapsibleListHeader>
 
   @override
   Widget build(BuildContext context) {
+    final rail = widget.collapsedHeader;
+    if (rail != null) {
+      return NotificationListener<ScrollNotification>(
+        onNotification: _onScrollNotification,
+        child: Column(
+          children: [
+            AnimatedSize(
+              key: const ValueKey('collapsible_header'),
+              duration: AppMotion.duration(context, AppMotionDuration.standard),
+              curve: AppMotionCurve.standard,
+              alignment: Alignment.topCenter,
+              child: AnimatedSwitcher(
+                duration: AppMotion.duration(
+                  context,
+                  AppMotionDuration.standard,
+                ),
+                child: _railCollapsed
+                    ? KeyedSubtree(
+                        key: const ValueKey('collapsed_rail'),
+                        child: rail,
+                      )
+                    : KeyedSubtree(
+                        key: const ValueKey('expanded_header'),
+                        child: widget.header,
+                      ),
+              ),
+            ),
+            Expanded(child: widget.child),
+          ],
+        ),
+      );
+    }
     return NotificationListener<ScrollNotification>(
       onNotification: _onScrollNotification,
       child: Column(
