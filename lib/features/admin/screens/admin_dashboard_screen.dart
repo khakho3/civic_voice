@@ -554,11 +554,11 @@ class _LoadedContent extends StatelessWidget {
                     Expanded(
                       child: StatTile(
                         icon: AppIcons.warning,
-                        iconColor: AppColors.warning,
+                        iconColor: AppSemanticColors.of(context).warningText,
                         label: 'Open Alerts',
                         value: '${stats.openAlerts}',
                         delta: 'Review',
-                        deltaColor: AppColors.warning,
+                        deltaColor: AppSemanticColors.of(context).warningText,
                       ),
                     ),
                   ],
