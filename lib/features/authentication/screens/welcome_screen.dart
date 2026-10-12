@@ -62,15 +62,26 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     _pageController = PageController(initialPage: _currentPage);
   }
 
+  bool _artworkCached = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_artworkCached) return;
+    _artworkCached = true;
+    for (final slide in _slides) {
+      precacheImage(AssetImage(slide.asset), context);
+    }
+  }
+
   @override
   void dispose() {
     _pageController.dispose();
     super.dispose();
   }
 
-  /// Onboarding's own page motion: a gentle ease in and out over the
-  /// emphasized duration for one step (longer only when Skip travels
-  /// further), rather than the sharply accelerating emphasized curve.
+  /// Onboarding eases out over the full page-transition duration, avoiding
+  /// a slow start followed by a sudden acceleration.
   /// Reduced motion jumps straight to the page.
   void _goToPage(int page) {
     final target = page.clamp(0, _slides.length - 1);
@@ -83,10 +94,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     }
     _pageController.animateToPage(
       target,
-      duration: steps > 1
-          ? AppMotionDuration.pageTransition
-          : AppMotionDuration.emphasized,
-      curve: AppMotionCurve.standard,
+      duration: AppMotionDuration.pageTransition,
+      curve: Curves.easeOutCubic,
     );
   }
 
@@ -129,7 +138,9 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                       itemBuilder: (context, index) => _SlideFade(
                         controller: _pageController,
                         index: index,
-                        child: _OnboardingSlide(content: _slides[index]),
+                        child: RepaintBoundary(
+                          child: _OnboardingSlide(content: _slides[index]),
+                        ),
                       ),
                     ),
                   ),
