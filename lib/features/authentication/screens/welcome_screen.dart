@@ -49,10 +49,16 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   late final PageController _pageController;
   late int _currentPage;
 
+  /// Where the pager is heading. Next/Previous step from here rather than
+  /// from [_currentPage] (which only updates halfway through a swipe), so
+  /// rapid taps advance one page each and never overshoot the ends.
+  late int _targetPage;
+
   @override
   void initState() {
     super.initState();
     _currentPage = widget.initialPage.clamp(0, _slides.length - 1);
+    _targetPage = _currentPage;
     _pageController = PageController(initialPage: _currentPage);
   }
 
@@ -62,11 +68,25 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     super.dispose();
   }
 
-  void _animateToPage(int page) {
+  /// Onboarding's own page motion: a gentle ease in and out over the
+  /// emphasized duration for one step (longer only when Skip travels
+  /// further), rather than the sharply accelerating emphasized curve.
+  /// Reduced motion jumps straight to the page.
+  void _goToPage(int page) {
+    final target = page.clamp(0, _slides.length - 1);
+    final steps = (target - _targetPage).abs();
+    if (steps == 0) return;
+    _targetPage = target;
+    if (AppMotion.reduceMotion(context)) {
+      _pageController.jumpToPage(target);
+      return;
+    }
     _pageController.animateToPage(
-      page,
-      duration: AppMotion.duration(context, AppMotionDuration.pageTransition),
-      curve: AppMotionCurve.emphasized,
+      target,
+      duration: steps > 1
+          ? AppMotionDuration.pageTransition
+          : AppMotionDuration.emphasized,
+      curve: AppMotionCurve.standard,
     );
   }
 
@@ -85,26 +105,39 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
               children: [
                 _OnboardingSkip(
                   isVisible: _currentPage < _slides.length - 1,
-                  onPressed: () => _animateToPage(_slides.length - 1),
+                  onPressed: () => _goToPage(_slides.length - 1),
                 ),
                 Expanded(
-                  child: PageView.builder(
-                    controller: _pageController,
-                    itemCount: _slides.length,
-                    onPageChanged: (page) {
-                      setState(() => _currentPage = page);
-                      if (page == _slides.length - 1) {
-                        widget.onOnboardingCompleted?.call();
-                      }
+                  // When a swipe or animation settles, the target follows
+                  // the real page so the next button press steps from where
+                  // the person actually is.
+                  child: NotificationListener<ScrollEndNotification>(
+                    onNotification: (_) {
+                      final page = _pageController.page?.round();
+                      if (page != null) _targetPage = page;
+                      return false;
                     },
-                    itemBuilder: (context, index) =>
-                        _OnboardingSlide(content: _slides[index]),
+                    child: PageView.builder(
+                      controller: _pageController,
+                      itemCount: _slides.length,
+                      onPageChanged: (page) {
+                        setState(() => _currentPage = page);
+                        if (page == _slides.length - 1) {
+                          widget.onOnboardingCompleted?.call();
+                        }
+                      },
+                      itemBuilder: (context, index) => _SlideFade(
+                        controller: _pageController,
+                        index: index,
+                        child: _OnboardingSlide(content: _slides[index]),
+                      ),
+                    ),
                   ),
                 ),
                 _OnboardingActions(
                   currentPage: _currentPage,
-                  onNext: () => _animateToPage(_currentPage + 1),
-                  onPrevious: () => _animateToPage(_currentPage - 1),
+                  onNext: () => _goToPage(_targetPage + 1),
+                  onPrevious: () => _goToPage(_targetPage - 1),
                   onGetStarted: widget.onGetStarted,
                   onContinueAsGuest: widget.onContinueAsGuest,
                   onLogin: widget.onLogin,
@@ -114,6 +147,41 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Softens the slide change: a slide fades a little as it moves away from
+/// the centre, so artwork and copy hand over instead of hard-cutting at
+/// the edge. Reduced motion shows every slide fully.
+class _SlideFade extends StatelessWidget {
+  const _SlideFade({
+    required this.controller,
+    required this.index,
+    required this.child,
+  });
+
+  final PageController controller;
+  final int index;
+  final Widget child;
+
+  /// How much a slide one full page away fades.
+  static const double _fadeAtOnePage = 0.35;
+
+  @override
+  Widget build(BuildContext context) {
+    if (AppMotion.reduceMotion(context)) return child;
+    return AnimatedBuilder(
+      animation: controller,
+      child: child,
+      builder: (context, child) {
+        final position =
+            controller.hasClients && controller.position.haveDimensions
+            ? controller.page ?? controller.initialPage.toDouble()
+            : controller.initialPage.toDouble();
+        final distance = (index - position).abs().clamp(0.0, 1.0);
+        return Opacity(opacity: 1 - distance * _fadeAtOnePage, child: child);
+      },
     );
   }
 }
@@ -239,10 +307,8 @@ class _OnboardingSkip extends StatelessWidget {
           alignment: Alignment.centerRight,
           child: AnimatedOpacity(
             opacity: isVisible ? 1 : 0,
-            duration: AppMotion.duration(
-              context,
-              AppMotionDuration.pageTransition,
-            ),
+            duration: AppMotion.duration(context, AppMotionDuration.standard),
+            curve: AppMotionCurve.standard,
             child: IgnorePointer(
               ignoring: !isVisible,
               child: ExcludeSemantics(
@@ -286,6 +352,7 @@ class _OnboardingActions extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final fade = AppMotion.duration(context, AppMotionDuration.standard);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(
@@ -299,68 +366,97 @@ class _OnboardingActions extends StatelessWidget {
         children: [
           _PageIndicator(currentPage: currentPage),
           const SizedBox(height: AppSpacing.lg),
-          if (currentPage == 1) ...[
-            TextButton(onPressed: onPrevious, child: const Text('Previous')),
-            const SizedBox(height: AppSpacing.xs),
-          ],
+          // The Previous slot always keeps its height, so the artwork above
+          // never jumps when Previous appears; the button fades in and out.
+          SizedBox(
+            height: AppDimensions.controlHeightStandard,
+            child: AnimatedSwitcher(
+              duration: fade,
+              switchInCurve: AppMotionCurve.standard,
+              switchOutCurve: AppMotionCurve.standard,
+              child: currentPage == 1
+                  ? TextButton(
+                      key: const ValueKey('previous'),
+                      onPressed: onPrevious,
+                      child: const Text('Previous'),
+                    )
+                  : const SizedBox.shrink(key: ValueKey('no-previous')),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xs),
           SizedBox(
             width: double.infinity,
             child: FilledButton(
               onPressed: _isFinalPage ? onGetStarted : onNext,
-              child: Text(_isFinalPage ? 'Get Started' : 'Next'),
+              child: AnimatedSwitcher(
+                duration: fade,
+                switchInCurve: AppMotionCurve.standard,
+                switchOutCurve: AppMotionCurve.standard,
+                child: Text(
+                  _isFinalPage ? 'Get Started' : 'Next',
+                  key: ValueKey(_isFinalPage),
+                ),
+              ),
             ),
           ),
-          Visibility(
-            visible: _isFinalPage,
-            maintainState: true,
-            maintainAnimation: true,
-            maintainSize: true,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const SizedBox(height: AppSpacing.sm),
-                SizedBox(
-                  width: double.infinity,
-                  child: TextButton(
-                    onPressed: _isFinalPage ? onContinueAsGuest : null,
-                    style: TextButton.styleFrom(
-                      foregroundColor: colorScheme.onSurface,
-                      textStyle: const TextStyle(
-                        fontWeight: AppFontWeight.semiBold,
-                      ),
-                    ),
-                    child: const Text('Continue as Guest'),
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                SizedBox(
-                  width: double.infinity,
-                  child: TextButton(
-                    onPressed: _isFinalPage ? onLogin : null,
-                    style: TextButton.styleFrom(
-                      foregroundColor: colorScheme.onSurfaceVariant,
-                      textStyle: theme.textTheme.bodySmall,
-                    ),
-                    child: Text.rich(
-                      TextSpan(
-                        text: 'Already have an account? ',
-                        children: [
-                          TextSpan(
-                            text: 'Log in',
-                            style: TextStyle(
-                              color: theme.brightness == Brightness.dark
-                                  ? colorScheme.primary
-                                  : AppColors.primaryText,
-                              fontWeight: AppFontWeight.semiBold,
-                            ),
+          // Final actions keep their space on every slide and fade in on
+          // Resolve, so nothing below the primary button shifts either.
+          AnimatedOpacity(
+            opacity: _isFinalPage ? 1 : 0,
+            duration: fade,
+            curve: AppMotionCurve.standard,
+            child: IgnorePointer(
+              ignoring: !_isFinalPage,
+              child: ExcludeSemantics(
+                excluding: !_isFinalPage,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(height: AppSpacing.sm),
+                    SizedBox(
+                      width: double.infinity,
+                      child: TextButton(
+                        onPressed: _isFinalPage ? onContinueAsGuest : null,
+                        style: TextButton.styleFrom(
+                          foregroundColor: colorScheme.onSurface,
+                          textStyle: const TextStyle(
+                            fontWeight: AppFontWeight.semiBold,
                           ),
-                        ],
+                        ),
+                        child: const Text('Continue as Guest'),
                       ),
-                      textAlign: TextAlign.center,
                     ),
-                  ),
+                    const SizedBox(height: AppSpacing.xs),
+                    SizedBox(
+                      width: double.infinity,
+                      child: TextButton(
+                        onPressed: _isFinalPage ? onLogin : null,
+                        style: TextButton.styleFrom(
+                          foregroundColor: colorScheme.onSurfaceVariant,
+                          textStyle: theme.textTheme.bodySmall,
+                        ),
+                        child: Text.rich(
+                          TextSpan(
+                            text: 'Already have an account? ',
+                            children: [
+                              TextSpan(
+                                text: 'Log in',
+                                style: TextStyle(
+                                  color: theme.brightness == Brightness.dark
+                                      ? colorScheme.primary
+                                      : AppColors.primaryText,
+                                  fontWeight: AppFontWeight.semiBold,
+                                ),
+                              ),
+                            ],
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ],
@@ -384,7 +480,9 @@ class _PageIndicator extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: List.generate(
           3,
-          (index) => Container(
+          (index) => AnimatedContainer(
+            duration: AppMotion.duration(context, AppMotionDuration.standard),
+            curve: AppMotionCurve.standard,
             width: index == currentPage ? AppSpacing.lg : AppSpacing.sm,
             height: AppSpacing.sm,
             margin: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
