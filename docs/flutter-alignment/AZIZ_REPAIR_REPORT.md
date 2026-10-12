@@ -238,3 +238,17 @@ Back**.
 15. **iPhone (if available):** home-screen icon and launch screen.
 
 Report back what fails, with screen and theme.
+
+## Integrator follow-up - 12 October 2026 (owner retest pending)
+
+Owner reports low-contrast Citizen hero Report Now, inconsistent bottom-nav haptics, Admin alert accent unchanged by theme, and onboarding still abrupt. Integrator changes on codex/flutter-aziz-review-fixes are currently uncommitted:
+- Citizen hero button uses gold foreground on its fixed charcoal/onPrimary fill rather than the light theme's brown actionText. Hero gold fill and content remain unchanged.
+- Admin/Ministry/Municipal/Maintenance bottom-nav callbacks now invoke shared AppHaptics; Citizen already did. Missing adoption explains these silent controls; no evidence justifies requiring cache/data clearing. Existing preference, throttle and unsupported-platform handling retained. Four new tests verify immediate off/on behaviour and navigation without clearing data.
+- Admin Open Alerts icon and Review text use theme-aware warningText (dark orange ink on light; light amber on dark).
+- Onboarding uses a 500ms easeOutCubic slide, preloads all illustrations once and isolates slide repainting. Reduced-motion jumps, rapid taps, layout and final actions preserved. Device preview uses a profile/performance APK so debug overhead does not distort motion judgement.
+
+Independent checks this pass: Flutter analyze clean; 674 complete-suite tests pass; native whitespace check clean. Prior report's 670 count describes the previous committed repair, not these new changes. Physical acceptance of this follow-up remains pending. No commit/push/merge/main promotion; Kingsbeng still waits until approved foundation review/integration and branch refresh.
+
+## Owner acceptance and integration preparation - 12 October 2026
+
+Francis confirms all four integrator follow-ups on the physical DEV app: Report Now contrast, navigation haptics without data reset, onboarding motion and alert theme styling. Amber Review/Open Alerts is intentionally a warning semantic distinct from brand-gold metrics, explained and accepted. This supersedes the pending-device status above. Owner authorizes small commits and promotion to codex/flutter-web-alignment, then refreshing Kingsbeng's task branch. Fresh fetch shows integration, Kingsbeng and main still at75e43b3; Kingsbeng has no extra commits or open PR to preserve. Full674tests/analyzer/whitespace and inspected profile APK evidence from this follow-up pass retained. Main and production/native Firebase configs remain protected; all DEV overrides are outside Git. Remaining partial/backlog/API gates in this report stay open for their assigned owners. Latif waits until Kingsbeng is reviewed and integrated.
