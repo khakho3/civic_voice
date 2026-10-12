@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:civic_voice/core/theme/app_theme.dart';
 import 'package:civic_voice/features/authentication/widgets/auth_presentation.dart';
+import 'package:civic_voice/widgets/busy_indicator.dart';
 
 /// Approved states for AUTH-003 Login Screen.
 enum LoginViewState {
@@ -98,7 +99,7 @@ class _LoginScreenState extends State<LoginScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Phone Number', style: theme.textTheme.labelMedium),
+            const AuthFieldLabel('Phone Number', compact: true),
             const SizedBox(height: AppSpacing.sm),
             TextFormField(
               controller: _phoneController,
@@ -120,7 +121,7 @@ class _LoginScreenState extends State<LoginScreen> {
               },
             ),
             const SizedBox(height: AppSpacing.md),
-            Text('Password', style: theme.textTheme.labelMedium),
+            const AuthFieldLabel('Password', compact: true),
             const SizedBox(height: AppSpacing.sm),
             TextFormField(
               controller: _passwordController,
@@ -194,15 +195,11 @@ class _LoginScreenState extends State<LoginScreen> {
               width: double.infinity,
               child: FilledButton(
                 onPressed: _isDisabled ? null : _submitForm,
-                child: _isLoading
-                    ? const SizedBox(
-                        width: AppIconSize.md,
-                        height: AppIconSize.md,
-                        child: CircularProgressIndicator(
-                          strokeWidth: AppSpacing.xs / 2,
-                        ),
-                      )
-                    : const Text('Sign In'),
+                child: BusyLabel(
+                  busy: _isLoading,
+                  busyLabel: 'Signing in',
+                  child: const Text('Sign In'),
+                ),
               ),
             ),
             if (_shouldShowStatusPanel) ...[

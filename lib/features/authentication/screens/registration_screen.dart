@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:civic_voice/core/theme/app_theme.dart';
 import 'package:civic_voice/features/authentication/widgets/auth_presentation.dart';
+import 'package:civic_voice/widgets/busy_indicator.dart';
 
 /// Approved states for AUTH-004 Registration Screen.
 enum RegistrationViewState {
@@ -425,15 +426,11 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
               width: double.infinity,
               child: FilledButton(
                 onPressed: _isDisabled || !_acceptedPolicy ? null : _submitForm,
-                child: _isLoading
-                    ? const SizedBox(
-                        width: AppIconSize.md,
-                        height: AppIconSize.md,
-                        child: CircularProgressIndicator(
-                          strokeWidth: AppSpacing.xs / 2,
-                        ),
-                      )
-                    : const Text('Create Account'),
+                child: BusyLabel(
+                  busy: _isLoading,
+                  busyLabel: 'Creating account',
+                  child: const Text('Create Account'),
+                ),
               ),
             ),
 
@@ -507,7 +504,7 @@ class _FieldLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(text, style: Theme.of(context).textTheme.labelMedium);
+    return AuthFieldLabel(text, compact: true);
   }
 }
 

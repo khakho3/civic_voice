@@ -172,17 +172,15 @@ class _StandardAuthLayout extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: useRecoveryGlass
-                            ? RecoveryAuthBackButton(onPressed: onBack)
-                            : IconButton(
-                                onPressed: onBack,
-                                tooltip: 'Go back',
-                                icon: const Icon(AppIcons.back),
-                              ),
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
+                      // No Back control at all when the screen has none
+                      // (the forced first-login step), never a disabled one.
+                      if (onBack != null) ...[
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: AuthBackButton(onPressed: onBack!),
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                      ],
                       AuthBrandHeader(
                         title: title,
                         supportingText: supportingText,
@@ -357,7 +355,10 @@ class _IllustrationAuthLayout extends StatelessWidget {
                 alignment: Alignment.topLeft,
                 child: Padding(
                   padding: const EdgeInsets.all(AppSpacing.lg),
-                  child: _GlassBackButton(onPressed: backCallback),
+                  child: AuthBackButton(
+                    onPressed: backCallback,
+                    variant: AuthBackVariant.hero,
+                  ),
                 ),
               ),
             ),
@@ -386,52 +387,6 @@ class AuthIllustrationHero extends StatelessWidget {
         fit: BoxFit.cover,
         alignment: focalAlignment,
         excludeFromSemantics: true,
-      ),
-    );
-  }
-}
-
-class _GlassBackButton extends StatelessWidget {
-  const _GlassBackButton({required this.onPressed});
-
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final semantic = theme.extension<AppSemanticColors>()!;
-
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        boxShadow: AppShadow.level1,
-      ),
-      child: ClipOval(
-        child: BackdropFilter(
-          filter: ImageFilter.blur(
-            sigmaX: AppGlassBlur.large,
-            sigmaY: AppGlassBlur.large,
-          ),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: semantic.glassCardSurface,
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: semantic.glassBorder,
-                width: AppDimensions.borderWidthThin,
-              ),
-            ),
-            child: IconButton(
-              onPressed: onPressed,
-              tooltip: 'Go back',
-              style: IconButton.styleFrom(
-                foregroundColor: theme.colorScheme.onSurface,
-                disabledForegroundColor: theme.colorScheme.onSurfaceVariant,
-              ),
-              icon: const Icon(AppIcons.back),
-            ),
-          ),
-        ),
       ),
     );
   }
@@ -588,16 +543,36 @@ class RecoveryAuthFormSurface extends StatelessWidget {
   }
 }
 
-/// Compact glass navigation control for the standard recovery canvas.
-class RecoveryAuthBackButton extends StatelessWidget {
-  const RecoveryAuthBackButton({super.key, required this.onPressed});
+/// Which surface the shared auth Back sits on.
+enum AuthBackVariant {
+  /// Over the full-screen illustration (Login/Register): the denser card
+  /// glass with a strong blur, as visually accepted for the hero layout.
+  hero,
 
-  final VoidCallback? onPressed;
+  /// Over the auth backdrop (recovery, OTP, password screens): theme glass
+  /// with theme ink.
+  glass,
+}
+
+/// The one Back control every authentication screen shares (U01): a 48px
+/// circular glass button with a 24px glyph. Screens with no Back (the
+/// forced first-login password step) render nothing rather than a disabled
+/// control. Ordinary detail/Profile screens use plain Back, not this.
+class AuthBackButton extends StatelessWidget {
+  const AuthBackButton({
+    super.key,
+    required this.onPressed,
+    this.variant = AuthBackVariant.glass,
+  });
+
+  final VoidCallback onPressed;
+  final AuthBackVariant variant;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final semantic = theme.extension<AppSemanticColors>()!;
+    final semantic = AppSemanticColors.of(context);
+    final hero = variant == AuthBackVariant.hero;
 
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -607,12 +582,12 @@ class RecoveryAuthBackButton extends StatelessWidget {
       child: ClipOval(
         child: BackdropFilter(
           filter: ImageFilter.blur(
-            sigmaX: AppGlassBlur.small,
-            sigmaY: AppGlassBlur.small,
+            sigmaX: hero ? AppGlassBlur.large : AppGlassBlur.small,
+            sigmaY: hero ? AppGlassBlur.large : AppGlassBlur.small,
           ),
           child: DecoratedBox(
             decoration: BoxDecoration(
-              color: semantic.glassSurface,
+              color: hero ? semantic.glassCardSurface : semantic.glassSurface,
               shape: BoxShape.circle,
               border: Border.all(
                 color: semantic.glassBorder,
@@ -625,12 +600,35 @@ class RecoveryAuthBackButton extends StatelessWidget {
               constraints: BoxConstraints.tight(AppDimensions.touchTarget),
               style: IconButton.styleFrom(
                 foregroundColor: theme.colorScheme.onSurface,
-                disabledForegroundColor: theme.colorScheme.onSurfaceVariant,
               ),
-              icon: const Icon(AppIcons.back),
+              icon: const Icon(AppIcons.back, size: AppIconSize.standard),
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Field label for authentication forms (U01): 12px medium on the
+/// Login/Register illustration sheet, 14px medium on the other auth
+/// screens, matching the web field labels.
+class AuthFieldLabel extends StatelessWidget {
+  const AuthFieldLabel(this.text, {super.key, this.compact = false});
+
+  final String text;
+
+  /// The 12px Login/Register size.
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    return Text(
+      text,
+      style: (compact ? textTheme.labelMedium : textTheme.bodySmall)?.copyWith(
+        fontWeight: AppFontWeight.medium,
+        color: Theme.of(context).colorScheme.onSurfaceVariant,
       ),
     );
   }
@@ -644,6 +642,7 @@ InputDecoration authInputDecoration(
   Widget? suffixIcon,
 }) {
   final colors = Theme.of(context).colorScheme;
+  final semantic = AppSemanticColors.of(context);
 
   // A flatter treatment: no filled container at all — just the prefix
   // icon and text sitting directly on the page — with
@@ -665,7 +664,11 @@ InputDecoration authInputDecoration(
     baselineColor: baselineColor,
   );
   final focused = GrowingUnderlineBorder(
-    borderSide: BorderSide(color: colors.primary, width: 2),
+    // Focus ink, not the gold fill (1.41:1 on the light sheet).
+    borderSide: BorderSide(
+      color: semantic.focus,
+      width: AppDimensions.borderWidthFocused,
+    ),
     growth: 1,
     radius: Radius.zero,
     baselineColor: baselineColor,

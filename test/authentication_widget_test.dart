@@ -22,6 +22,7 @@ import 'package:civic_voice/models/region.dart';
 import 'package:civic_voice/services/api_client.dart';
 import 'package:civic_voice/services/app_cache_service.dart';
 import 'package:civic_voice/services/mock_auth_service.dart';
+import 'package:civic_voice/widgets/busy_indicator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -477,7 +478,7 @@ void main() {
     await tester.tap(signIn);
     await tester.pumpAndSettle();
 
-    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.byType(BusyIndicator), findsNothing);
     expect(find.byType(LoginScreen), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
@@ -513,7 +514,7 @@ void main() {
     await tester.tap(createAccount);
     await tester.pumpAndSettle();
 
-    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.byType(BusyIndicator), findsNothing);
     expect(find.byType(RegistrationScreen), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
@@ -827,7 +828,10 @@ void main() {
     }
 
     await tester.pumpWidget(
-      MaterialApp(theme: AppTheme.dark, home: const ForgotPasswordScreen()),
+      MaterialApp(
+        theme: AppTheme.dark,
+        home: ForgotPasswordScreen(onBack: () {}),
+      ),
     );
     await tester.pump();
 
@@ -835,7 +839,7 @@ void main() {
     expect(imageUsing(AppAssets.authHero), findsNothing);
     expect(imageUsing(AppAssets.logoApp), findsOneWidget);
     expect(find.byType(BackdropFilter), findsNWidgets(2));
-    expect(find.byType(RecoveryAuthBackButton), findsOneWidget);
+    expect(find.byType(AuthBackButton), findsOneWidget);
     expect(find.byType(RecoveryAuthFormSurface), findsOneWidget);
     expect(find.byType(AuthFormSurface), findsNothing);
     expect(tester.takeException(), isNull);
@@ -917,7 +921,7 @@ void main() {
         );
 
         expect(find.byType(AuthIllustrationHero), findsNothing);
-        expect(find.byType(RecoveryAuthBackButton), findsOneWidget);
+        expect(find.byType(AuthBackButton), findsOneWidget);
         expect(find.byType(RecoveryAuthFormSurface), findsOneWidget);
         expect(find.byType(AuthFormSurface), findsNothing);
         expect(find.byType(BackdropFilter), findsNWidgets(2));
@@ -950,7 +954,8 @@ void main() {
         );
         await tester.pump();
 
-        expect(find.byType(RecoveryAuthBackButton), findsNothing);
+        // No onBack here, so no Back control at all.
+        expect(find.byType(AuthBackButton), findsNothing);
         expect(find.byType(RecoveryAuthFormSurface), findsNothing);
         expect(find.byType(AuthFormSurface), findsOneWidget);
         expect(find.byType(BackdropFilter), findsNothing);
@@ -967,30 +972,80 @@ void main() {
     },
   );
 
-  testWidgets('recovery glass back button visibly disables without onBack', (
+  testWidgets(
+    'auth screens without onBack render no Back control, never a disabled one',
+    (WidgetTester tester) async {
+      for (final screen in <Widget>[
+        const ForgotPasswordScreen(),
+        SetNewPasswordScreen(
+          purpose: SetNewPasswordPurpose.firstLogin,
+          onBack: () {},
+          onSaved: (_) async => true,
+        ),
+      ]) {
+        await tester.pumpWidget(
+          MaterialApp(theme: AppTheme.light, home: screen),
+        );
+        await tester.pump();
+
+        // The forced first-login step drops its Back even when one is
+        // supplied; a screen with nothing to go back to shows none.
+        expect(find.byType(AuthBackButton), findsNothing);
+        expect(find.byTooltip('Go back'), findsNothing);
+        expect(tester.takeException(), isNull);
+      }
+    },
+  );
+
+  testWidgets('standard password screens share the 48px circular glass Back', (
     WidgetTester tester,
   ) async {
-    await tester.pumpWidget(
-      MaterialApp(theme: AppTheme.light, home: const ForgotPasswordScreen()),
-    );
-    await tester.pump();
-
-    final button = tester.widget<IconButton>(
-      find.descendant(
-        of: find.byType(RecoveryAuthBackButton),
-        matching: find.byType(IconButton),
+    var backTaps = 0;
+    for (final screen in <Widget>[
+      SetNewPasswordScreen(
+        purpose: SetNewPasswordPurpose.forgotPassword,
+        onBack: () => backTaps++,
+        onSaved: (_) async => true,
       ),
-    );
-    final colors = Theme.of(
-      tester.element(find.byType(RecoveryAuthBackButton)),
-    ).colorScheme;
+      ChangePasswordScreen(onBack: () => backTaps++, onSaved: () async {}),
+    ]) {
+      await tester.pumpWidget(MaterialApp(theme: AppTheme.light, home: screen));
+      await tester.pump();
 
-    expect(button.onPressed, isNull);
-    expect(
-      button.style?.foregroundColor?.resolve({WidgetState.disabled}),
-      colors.onSurfaceVariant,
-    );
-    expect(tester.takeException(), isNull);
+      final back = find.byType(AuthBackButton);
+      expect(back, findsOneWidget);
+      final size = tester.getSize(back);
+      expect(size.width, AppDimensions.controlHeightStandard);
+      expect(size.height, AppDimensions.controlHeightStandard);
+      expect(
+        find.descendant(of: back, matching: find.byType(ClipOval)),
+        findsOneWidget,
+      );
+      await tester.tap(find.byTooltip('Go back'));
+      await tester.pump();
+    }
+    expect(backTaps, 2);
+  });
+
+  testWidgets('Login and Register field labels are 12px medium', (
+    WidgetTester tester,
+  ) async {
+    for (final screen in <Widget>[
+      LoginScreen(onBack: () {}),
+      RegistrationScreen(onBack: () {}),
+    ]) {
+      await tester.pumpWidget(MaterialApp(theme: AppTheme.light, home: screen));
+      await tester.pump();
+
+      final label = tester.widget<Text>(
+        find.descendant(
+          of: find.byType(AuthFieldLabel),
+          matching: find.text('Phone Number'),
+        ),
+      );
+      expect(label.style?.fontSize, AppFontSize.caption);
+      expect(label.style?.fontWeight, AppFontWeight.medium);
+    }
   });
 
   testWidgets('OTP code expiry disables verify action', (

@@ -162,10 +162,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Phone Number',
-              style: Theme.of(context).textTheme.labelMedium,
-            ),
+            const AuthFieldLabel('Phone Number'),
             const SizedBox(height: AppSpacing.sm),
             TextFormField(
               controller: _phoneController,

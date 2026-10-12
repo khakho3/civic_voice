@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import 'package:civic_voice/core/theme/app_theme.dart';
 import 'package:civic_voice/features/authentication/widgets/auth_presentation.dart';
+import 'package:civic_voice/widgets/busy_indicator.dart';
 
 enum OtpPurpose { registration, forgotPassword, changePassword }
 
@@ -138,7 +139,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
       form: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Verification Code', style: theme.textTheme.labelMedium),
+          const AuthFieldLabel('Verification Code'),
           const SizedBox(height: AppSpacing.sm),
           TextField(
             controller: _codeController,
@@ -214,15 +215,11 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
             width: double.infinity,
             child: FilledButton(
               onPressed: _canVerify ? _verify : null,
-              child: _verifying
-                  ? const SizedBox(
-                      width: AppIconSize.md,
-                      height: AppIconSize.md,
-                      child: CircularProgressIndicator(
-                        strokeWidth: AppSpacing.xs / 2,
-                      ),
-                    )
-                  : const Text('Verify Code'),
+              child: BusyLabel(
+                busy: _verifying,
+                busyLabel: 'Verifying code',
+                child: const Text('Verify Code'),
+              ),
             ),
           ),
           const SizedBox(height: AppSpacing.sm),

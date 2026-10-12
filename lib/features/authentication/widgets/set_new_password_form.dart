@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:civic_voice/core/theme/app_theme.dart';
 import 'package:civic_voice/features/authentication/widgets/auth_presentation.dart';
+import 'package:civic_voice/widgets/busy_indicator.dart';
 
 class SetNewPasswordForm extends StatefulWidget {
   const SetNewPasswordForm({
@@ -66,7 +67,7 @@ class _SetNewPasswordFormState extends State<SetNewPasswordForm> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('New Password', style: theme.textTheme.labelMedium),
+          const AuthFieldLabel('New Password'),
           const SizedBox(height: AppSpacing.sm),
           TextFormField(
             controller: _passwordController,
@@ -93,7 +94,7 @@ class _SetNewPasswordFormState extends State<SetNewPasswordForm> {
             validator: validateNewPassword,
           ),
           const SizedBox(height: AppSpacing.md),
-          Text('Confirm New Password', style: theme.textTheme.labelMedium),
+          const AuthFieldLabel('Confirm New Password'),
           const SizedBox(height: AppSpacing.sm),
           TextFormField(
             controller: _confirmPasswordController,
@@ -141,15 +142,11 @@ class _SetNewPasswordFormState extends State<SetNewPasswordForm> {
             width: double.infinity,
             child: FilledButton(
               onPressed: disabled ? null : _submit,
-              child: _saving
-                  ? const SizedBox(
-                      width: AppIconSize.md,
-                      height: AppIconSize.md,
-                      child: CircularProgressIndicator(
-                        strokeWidth: AppSpacing.xs / 2,
-                      ),
-                    )
-                  : Text(widget.submitLabel),
+              child: BusyLabel(
+                busy: _saving,
+                busyLabel: 'Saving password',
+                child: Text(widget.submitLabel),
+              ),
             ),
           ),
         ],

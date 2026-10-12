@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:civic_voice/core/theme/app_theme.dart';
 import 'package:civic_voice/features/authentication/widgets/auth_presentation.dart';
+import 'package:civic_voice/widgets/busy_indicator.dart';
 
 /// Approved states for AUTH-005 Forgot Password Screen.
 enum ForgotPasswordViewState {
@@ -85,8 +86,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return AuthScreenLayout(
       onBack: widget.onBack,
       title: 'Forgot Password',
@@ -98,7 +97,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Phone Number', style: theme.textTheme.labelMedium),
+            const AuthFieldLabel('Phone Number'),
             const SizedBox(height: AppSpacing.sm),
             TextFormField(
               controller: _phoneController,
@@ -130,13 +129,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     ? const Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          SizedBox(
-                            width: AppIconSize.md,
-                            height: AppIconSize.md,
-                            child: CircularProgressIndicator(
-                              strokeWidth: AppSpacing.xs / 2,
-                            ),
-                          ),
+                          BusyIndicator(semanticsLabel: 'Sending code'),
                           SizedBox(width: AppSpacing.sm),
                           Text('Sending...'),
                         ],
