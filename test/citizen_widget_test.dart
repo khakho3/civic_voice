@@ -115,8 +115,15 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Browsing as guest'), findsOneWidget);
+    expect(find.text('Guest'), findsNWidgets(2));
     expect(find.byType(ProfileEditButton), findsNothing);
-    final createAccount = find.widgetWithText(TextButton, 'Create Account');
+    // No fake phone row or standing for a guest, and App Lock is
+    // explicitly unavailable rather than offered.
+    expect(find.text('Phone number'), findsNothing);
+    expect(find.text('Your reporting standing'), findsNothing);
+    expect(find.text('Unavailable for guests'), findsOneWidget);
+    expect(find.textContaining('stay tied to you'), findsOneWidget);
+    final createAccount = find.widgetWithText(FilledButton, 'Create Account');
     expect(createAccount, findsOneWidget);
 
     await tester.tap(createAccount);
@@ -148,7 +155,8 @@ void main() {
     await tester.pump();
 
     expect(find.byType(ProfileEditButton), findsOneWidget);
-    expect(find.widgetWithText(TextButton, 'Create Account'), findsNothing);
+    expect(find.text('Create Account'), findsNothing);
+    expect(find.text('0240000000'), findsOneWidget);
     expect(
       find.descendant(
         of: find.byType(ProfileHeaderCard),
@@ -184,23 +192,76 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Edit profile'), findsOneWidget);
-    expect(find.widgetWithText(TextField, 'Full Name'), findsOneWidget);
+    expect(find.widgetWithText(TextField, 'Full name'), findsOneWidget);
+    // The sheet holds only the editable name — never the phone.
     expect(
       find.descendant(
         of: find.byType(BottomSheet),
-        matching: find.text('Phone Number'),
+        matching: find.textContaining('Phone'),
       ),
       findsNothing,
     );
+    expect(
+      find.descendant(
+        of: find.byType(BottomSheet),
+        matching: find.byType(TextField),
+      ),
+      findsOneWidget,
+    );
 
     await tester.enterText(find.byType(TextField), '');
-    await tester.tap(find.text('Save'));
+    await tester.tap(find.text('Save changes'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Enter your name.'), findsOneWidget);
+    expect(find.text('Full name is required.'), findsOneWidget);
+    expect(find.text('Edit profile'), findsOneWidget);
     expect(profileService.profile.value.fullName, 'Ama Mensah');
     expect(profileService.profile.value.phone, '0240000000');
+
+    // Cancel closes without saving.
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(find.text('Edit profile'), findsNothing);
+    expect(profileService.profile.value.fullName, 'Ama Mensah');
   });
+
+  testWidgets(
+    'citizen profile save failure keeps the sheet open with the entered name',
+    (tester) async {
+      final profileService = ProfileCrudService.instance;
+      final originalProfile = profileService.profile.value;
+      addTearDown(() => profileService.createProfile(originalProfile));
+      await profileService.createProfile(
+        const CitizenProfile(
+          id: 'profile-save-failure',
+          fullName: 'Ama Mensah',
+          email: '',
+          phone: '0240000000',
+          primaryLocation: '',
+        ),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(theme: AppTheme.light, home: const CitizenProfileScreen()),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byType(ProfileEditButton));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), 'Ama Owusu');
+      // No signed-in Firebase session exists under test, so the real save
+      // path fails exactly as an unreachable API would.
+      await tester.tap(find.text('Save changes'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.textContaining('Changes not saved'), findsOneWidget);
+      expect(find.text('Edit profile'), findsOneWidget);
+      expect(find.widgetWithText(TextField, 'Ama Owusu'), findsOneWidget);
+      expect(profileService.profile.value.fullName, 'Ama Mensah');
+      expect(find.text('Profile saved successfully'), findsNothing);
+    },
+  );
 
   testWidgets('Nearby Reports preference stays compact and explains on help', (
     tester,

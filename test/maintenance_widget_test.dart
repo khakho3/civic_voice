@@ -6,8 +6,12 @@ import 'package:url_launcher_platform_interface/url_launcher_platform_interface.
 
 import 'package:civic_voice/core/theme/app_theme.dart';
 import 'package:civic_voice/features/admin/services/admin_maintenance_team_directory.dart';
+import 'package:civic_voice/features/maintenance/models/maintenance_profile.dart';
 import 'package:civic_voice/features/maintenance/models/maintenance_task.dart';
+import 'package:civic_voice/features/maintenance/screens/profile_screen.dart'
+    as mnt;
 import 'package:civic_voice/features/maintenance/screens/task_details_screen.dart';
+import 'package:civic_voice/features/maintenance/services/maintenance_session.dart';
 import 'package:civic_voice/features/maintenance/services/maintenance_task_directory.dart';
 import 'package:civic_voice/main.dart' as app;
 import 'package:civic_voice/utils/time_greeting.dart';
@@ -449,10 +453,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Profile'), findsWidgets);
-    // Matches both the header's name display and the now-editable Full
-    // Name field's current value — the real Admin-provisioned account
-    // (Yaw Asare, MNT-000004) this screen now reads from.
-    expect(find.text('Yaw Asare'), findsNWidgets(2));
+    // The real Admin-provisioned account (Yaw Asare, MNT-000004) heads the
+    // hero; its Employee ID sits in the read-only Account group.
+    expect(find.text('Yaw Asare'), findsOneWidget);
+    expect(find.text('MNT-000004'), findsOneWidget);
   });
 
   testWidgets(
@@ -628,8 +632,8 @@ void main() {
   });
 
   testWidgets(
-    'Maintenance Profile has a real Edit toggle — Save/Cancel only appear '
-    'once editing, and Cancel discards changes',
+    'Maintenance Profile is read-only until the avatar pencil opens the '
+    'name editor, and Cancel discards changes',
     (WidgetTester tester) async {
       tester.view.physicalSize = const Size(428, 2600);
       tester.view.devicePixelRatio = 1.0;
@@ -643,34 +647,107 @@ void main() {
 
       // Read-only by default — no Save/Cancel sitting around with nothing
       // to enter edit mode through.
-      expect(find.text('Save Changes'), findsNothing);
+      expect(find.text('Save changes'), findsNothing);
       expect(find.text('Cancel'), findsNothing);
-      expect(find.byIcon(AppIcons.edit), findsOneWidget);
-      expect(find.text('System Preferences'), findsOneWidget);
-      expect(find.text('Security'), findsOneWidget);
-      expect(find.text('Session'), findsOneWidget);
-      expect(find.text('Change Password'), findsOneWidget);
-      expect(find.text('Log Out'), findsOneWidget);
+      expect(find.byTooltip('Edit profile'), findsOneWidget);
+      expect(find.text('Preferences'), findsOneWidget);
+      expect(find.text('Security'), findsNothing);
+      expect(find.text('Session'), findsNothing);
+      expect(find.text('Change password'), findsOneWidget);
+      expect(find.text('Log out'), findsOneWidget);
+      // Administrator-controlled account details are listed, locked.
+      expect(find.text('Department'), findsOneWidget);
+      expect(find.text('Employee ID'), findsOneWidget);
 
-      await tester.tap(find.byIcon(AppIcons.edit));
+      await tester.tap(find.byTooltip('Edit profile'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Save Changes'), findsOneWidget);
+      expect(find.text('Save changes'), findsOneWidget);
       expect(find.text('Cancel'), findsOneWidget);
-      // The Edit affordance itself is gone while already editing.
-      expect(find.byIcon(AppIcons.edit), findsNothing);
+      expect(
+        find.descendant(
+          of: find.byType(BottomSheet),
+          matching: find.byType(TextField),
+        ),
+        findsOneWidget,
+      );
 
       await tester.enterText(find.byType(TextField).first, 'Someone Else');
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
 
-      // Matches both the header's name display and the read-only Full Name
-      // field — the original name, not the discarded edit.
-      expect(find.text('Yaw Asare'), findsNWidgets(2));
+      // The original name, not the discarded edit.
+      expect(find.text('Yaw Asare'), findsOneWidget);
       expect(find.text('Someone Else'), findsNothing);
-      expect(find.text('Save Changes'), findsNothing);
+      expect(find.text('Save changes'), findsNothing);
     },
   );
+
+  group('Maintenance Profile team lead and team assignment', () {
+    late MaintenanceProfile original;
+    setUp(() => original = MaintenanceSession.instance.profile.value);
+    tearDown(() => MaintenanceSession.instance.profile.value = original);
+
+    Future<void> pumpProfile(
+      WidgetTester tester, {
+      String? teamId,
+      String? teamName,
+      String? teamLeadUserId,
+    }) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      MaintenanceSession.instance.profile.value = MaintenanceProfile(
+        publicId: 'MNT-000004',
+        fullName: 'Yaw Asare',
+        phone: '+233 20 000 0000',
+        region: 'Ashanti Region',
+        assembly: 'Kumasi Metropolitan Assembly',
+        // Not a team the shared directory knows, so the session's lead
+        // value is what decides.
+        teamId: teamId,
+        teamName: teamName,
+        teamLeadUserId: teamLeadUserId,
+      );
+      await tester.pumpWidget(
+        MaterialApp(theme: AppTheme.light, home: const mnt.ProfileScreen()),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('the current lead sees the Team Lead pill', (tester) async {
+      await pumpProfile(
+        tester,
+        teamId: 'TEAM-TEST-LEAD',
+        teamName: 'Test Crew',
+        teamLeadUserId: 'MNT-000004',
+      );
+      expect(find.text('Team Lead'), findsOneWidget);
+      expect(find.text('Test Crew'), findsOneWidget);
+    });
+
+    testWidgets('a member who is not the lead has no Team Lead pill', (
+      tester,
+    ) async {
+      await pumpProfile(
+        tester,
+        teamId: 'TEAM-TEST-LEAD',
+        teamName: 'Test Crew',
+        teamLeadUserId: 'MNT-000099',
+      );
+      expect(find.text('Team Lead'), findsNothing);
+      expect(find.text('Maintenance Team'), findsOneWidget);
+    });
+
+    testWidgets('an unassigned technician sees an honest team fallback', (
+      tester,
+    ) async {
+      await pumpProfile(tester);
+      expect(find.text('Not assigned to a team'), findsOneWidget);
+      expect(find.text('Team Lead'), findsNothing);
+    });
+  });
 
   testWidgets('Maintenance Notifications shows new task assignments for the '
       "technician's own team and marks them read on open", (

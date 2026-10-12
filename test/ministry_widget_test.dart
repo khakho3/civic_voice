@@ -16,6 +16,7 @@ import 'package:civic_voice/features/ministry/screens/ministry_report_insights_s
 import 'package:civic_voice/features/ministry/screens/ministry_reports_screen.dart';
 import 'package:civic_voice/models/region.dart';
 import 'package:civic_voice/widgets/glass_dialog_backdrop.dart';
+import 'package:civic_voice/widgets/profile_edit_button.dart';
 
 /// Stands in for the real platform channel implementation, which never
 /// resolves in a widget test — there's no host app registered to answer
@@ -1717,23 +1718,22 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('My Profile'), findsOneWidget);
-    // Also appears a second time in the Personal Information field row
-    // below the header card.
-    expect(find.text('Ministry Supervisor'), findsNWidgets(2));
+    // The person's name heads the hero; role and organization stay concise.
+    expect(find.text('Ministry Supervisor'), findsOneWidget);
     expect(find.text('Public Works Ministry'), findsOneWidget);
     expect(find.text('Read-only supervisor'), findsOneWidget);
     expect(find.text('supervisor@ministry.gov'), findsNothing);
-    expect(find.text('ID MIN-000001'), findsOneWidget);
+    expect(find.text('Phone number'), findsOneWidget);
     expect(find.text('+233 20 000 0000'), findsOneWidget);
+    expect(find.text('MIN-000001'), findsOneWidget);
+    expect(find.byType(ProfileEditButton), findsOneWidget);
 
-    expect(find.text('Personal Information'), findsOneWidget);
-    expect(find.text('Full Name'), findsOneWidget);
-
-    expect(find.text('Security'), findsOneWidget);
-    expect(find.text('Change Password'), findsOneWidget);
+    expect(find.text('Personal Information'), findsNothing);
+    expect(find.text('Security'), findsNothing);
+    expect(find.text('Change password'), findsOneWidget);
     expect(find.text('Two-factor authentication'), findsNothing);
 
-    expect(find.text('System Preferences'), findsOneWidget);
+    expect(find.text('Preferences'), findsOneWidget);
     expect(find.text('Theme'), findsOneWidget);
     expect(find.text('Language'), findsOneWidget);
     expect(find.text('Coming Soon'), findsOneWidget);
@@ -1744,9 +1744,8 @@ void main() {
     expect(find.text('Read-only module'), findsNothing);
     expect(find.text('Analytics access'), findsNothing);
 
-    expect(find.text('Session'), findsOneWidget);
-    expect(find.text('Log Out'), findsOneWidget);
-    expect(find.text('Save'), findsNothing);
+    expect(find.text('Session'), findsNothing);
+    expect(find.text('Log out'), findsOneWidget);
 
     await tester.tap(find.byTooltip('About Account Access'));
     await tester.pumpAndSettle();
@@ -1758,7 +1757,7 @@ void main() {
     expect(find.text('Analytics access'), findsOneWidget);
   });
 
-  testWidgets('Ministry Profile kebab menu Edit Profile enters edit mode', (
+  testWidgets('Ministry Profile avatar pencil opens the name-only editor', (
     WidgetTester tester,
   ) async {
     tester.view.physicalSize = const Size(428, 2600);
@@ -1771,24 +1770,29 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byIcon(AppIcons.more));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Edit Profile'));
+    await tester.tap(find.byTooltip('Edit profile'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Save'), findsOneWidget);
-    expect(find.text('Save Changes'), findsOneWidget);
+    expect(find.text('Edit profile'), findsOneWidget);
+    expect(find.text('Save changes'), findsOneWidget);
     expect(find.text('Cancel'), findsOneWidget);
-    // Only Full Name is actually editable — Email/Phone render as plain
-    // captioned text (admin-provisioned, not self-service), matching
-    // Admin/Municipal Officer's own profile forms.
-    expect(find.byType(TextField), findsNWidgets(1));
-    expect(find.byIcon(AppIcons.close), findsOneWidget);
+    // Only Full Name is editable — the phone is administrator-controlled
+    // and never offered in the editor.
+    final sheet = find.byType(BottomSheet);
+    expect(
+      find.descendant(of: sheet, matching: find.byType(TextField)),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: sheet, matching: find.text('+233 20 000 0000')),
+      findsNothing,
+    );
+    expect(find.byIcon(AppIcons.more), findsNothing);
   });
 
   testWidgets(
     'Ministry Profile Save with an empty name shows a validation error and '
-    'stays in edit mode',
+    'stays in the editor',
     (WidgetTester tester) async {
       tester.view.physicalSize = const Size(428, 2600);
       tester.view.devicePixelRatio = 1.0;
@@ -1800,24 +1804,22 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byIcon(AppIcons.more));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Edit Profile'));
+      await tester.tap(find.byTooltip('Edit profile'));
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField).first, '');
-      await tester.tap(find.text('Save'));
+      await tester.tap(find.text('Save changes'));
       await tester.pumpAndSettle();
 
       expect(find.text('Full name is required.'), findsOneWidget);
       // Still editing, not bounced back to the view state.
-      expect(find.text('Save Changes'), findsOneWidget);
+      expect(find.text('Save changes'), findsOneWidget);
     },
   );
 
   testWidgets(
-    'Ministry Profile Save with valid data moves through loading to success '
-    'and auto-reverts to the view state',
+    'Ministry Profile Save with valid data shows the success banner and '
+    'auto-reverts to the view state',
     (WidgetTester tester) async {
       tester.view.physicalSize = const Size(428, 2600);
       tester.view.devicePixelRatio = 1.0;
@@ -1829,23 +1831,48 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byIcon(AppIcons.more));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Edit Profile'));
+      await tester.tap(find.byTooltip('Edit profile'));
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField).first, 'Updated Name');
-      await tester.tap(find.text('Save'));
-      // Bounded pumps rather than pumpAndSettle: the loading skeleton's
-      // shimmer never settles on its own (matches every other screen's
-      // loading state).
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 600));
+      await tester.tap(find.text('Save changes'));
+      await tester.pumpAndSettle();
 
+      expect(find.text('Edit profile'), findsNothing);
       expect(find.text('Profile updated'), findsOneWidget);
-      expect(find.text('Updated Name'), findsNWidgets(2));
+      expect(find.text('Updated Name'), findsOneWidget);
 
       await tester.pump(const Duration(seconds: 4));
+      expect(find.text('Profile updated'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'Ministry Profile save failure keeps the editor open instead of the '
+    'load-failure dialog',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: MinistryProfileScreen(onSaveProfile: (_) async => false),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('Edit profile'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField).first, 'Updated Name');
+      await tester.tap(find.text('Save changes'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Changes not saved'), findsOneWidget);
+      expect(find.widgetWithText(TextField, 'Updated Name'), findsOneWidget);
+      expect(find.text('Something went wrong'), findsNothing);
       expect(find.text('Profile updated'), findsNothing);
     },
   );
@@ -1863,21 +1890,19 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byIcon(AppIcons.more));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Edit Profile'));
+    await tester.tap(find.byTooltip('Edit profile'));
     await tester.pumpAndSettle();
 
     await tester.enterText(find.byType(TextField).first, 'Discarded Name');
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Ministry Supervisor'), findsNWidgets(2));
+    expect(find.text('Ministry Supervisor'), findsOneWidget);
     expect(find.text('Discarded Name'), findsNothing);
-    expect(find.text('Save Changes'), findsNothing);
+    expect(find.text('Save changes'), findsNothing);
   });
 
-  testWidgets('Ministry Profile header close icon during edit also cancels', (
+  testWidgets('Ministry Profile system Back during edit also cancels', (
     WidgetTester tester,
   ) async {
     tester.view.physicalSize = const Size(428, 2600);
@@ -1885,20 +1910,27 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
+    var backTapped = false;
     await tester.pumpWidget(
-      MaterialApp(theme: AppTheme.light, home: const MinistryProfileScreen()),
+      MaterialApp(
+        theme: AppTheme.light,
+        home: MinistryProfileScreen(onBack: () => backTapped = true),
+      ),
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byIcon(AppIcons.more));
+    await tester.tap(find.byTooltip('Edit profile'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Edit Profile'));
+    await tester.enterText(find.byType(TextField).first, 'Discarded Name');
+
+    // Back closes the editor first; it does not leave the Profile.
+    final navigator = tester.state<NavigatorState>(find.byType(Navigator));
+    await navigator.maybePop();
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byIcon(AppIcons.close));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Save Changes'), findsNothing);
+    expect(find.text('Save changes'), findsNothing);
+    expect(find.text('Discarded Name'), findsNothing);
+    expect(backTapped, isFalse);
     expect(find.byIcon(AppIcons.back), findsOneWidget);
   });
 
@@ -1919,7 +1951,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Change Password'));
+    await tester.tap(find.text('Change password'));
     await tester.pumpAndSettle();
 
     expect(tapped, isTrue);
@@ -1951,8 +1983,8 @@ void main() {
   );
 
   testWidgets(
-    'Ministry Profile Session Log Out asks for confirmation before firing '
-    'the callback',
+    'Ministry Profile Log out asks for confirmation before firing the '
+    'callback',
     (WidgetTester tester) async {
       tester.view.physicalSize = const Size(428, 2600);
       tester.view.devicePixelRatio = 1.0;
@@ -1968,15 +2000,13 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Log Out'));
+      await tester.tap(find.text('Log out'));
       await tester.pumpAndSettle();
 
       expect(find.text('Log out?'), findsOneWidget);
       expect(loggedOut, isFalse);
 
-      // The Session button remains behind the dialog, so the dialog's
-      // confirm action is the last matching label.
-      await tester.tap(find.text('Log Out').last);
+      await tester.tap(find.text('Log Out'));
       await tester.pumpAndSettle();
 
       expect(loggedOut, isTrue);
@@ -2000,7 +2030,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Log Out'));
+      await tester.tap(find.text('Log out'));
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Cancel'));
@@ -2039,11 +2069,10 @@ void main() {
       expect(find.text('Back to Safety'), findsOneWidget);
 
       // The dimmed backdrop's body content is not interactive — tapping
-      // through it must not start an edit. (The kebab menu itself lives in
-      // the header, outside the dimmed region, so it isn't blocked.)
-      await tester.tap(find.text('Personal Information'), warnIfMissed: false);
+      // the avatar pencil through it must not start an edit.
+      await tester.tap(find.byTooltip('Edit profile'), warnIfMissed: false);
       await tester.pumpAndSettle();
-      expect(find.text('Save Changes'), findsNothing);
+      expect(find.text('Save changes'), findsNothing);
     },
   );
 
@@ -2078,7 +2107,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 600));
 
       expect(find.text('Something went wrong'), findsNothing);
-      expect(find.text('Ministry Supervisor'), findsNWidgets(2));
+      expect(find.text('Ministry Supervisor'), findsOneWidget);
     },
   );
 

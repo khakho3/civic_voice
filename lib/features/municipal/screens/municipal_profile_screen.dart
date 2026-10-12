@@ -1,42 +1,34 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
-import '../../../widgets/confirm_dialog.dart';
 import '../../../widgets/biometric_lock_preference_row.dart';
+import '../../../widgets/confirm_dialog.dart';
 import '../../../widgets/haptics_preference_row.dart';
 import '../../../widgets/language_preference_row.dart';
 import '../../../widgets/profile_action_row.dart';
-import '../../../widgets/profile_edit_action_bar.dart';
-import '../../../widgets/profile_edit_button.dart';
 import '../../../widgets/profile_field_row.dart';
 import '../../../widgets/profile_header_card.dart';
+import '../../../widgets/profile_name_edit_sheet.dart';
 import '../../../widgets/profile_section.dart';
 import '../../../widgets/profile_session_section.dart';
-import '../../../widgets/status_badge.dart';
+import '../../../widgets/profile_status_banner.dart';
 import '../../../widgets/theme_preference_row.dart';
 import '../models/officer_profile.dart';
 import '../widgets/municipal_detail_header.dart';
 
-/// MUN-009 — Municipal Profile.
+/// MUN-009 — Municipal Profile, on the shared grouped-list Profile system.
 ///
 /// Approved states (Figma "09 - Profile" section): Default, Editing,
 /// Loading, Success, Error, Offline.
 ///
-/// "Error" in the approved frame is specifically the *edit form* rejecting
-/// invalid input on Save — not a failure to load the profile in the first
-/// place, so unlike every other screen's "Error" state it isn't a
-/// full-page replacement with a "Try again" action. It's kept as its own
-/// enum value (matching the approved frame, and this module's existing
-/// precedent of giving every named Figma state its own case, e.g. Report
-/// Progress's `missingEvidence`) purely as an entry point for previewing
-/// that scenario — real interactive validation failures stay on [editing]
-/// and surface through [_fieldErrors] instead of switching enum values, so
-/// the field the user is actively correcting doesn't get swapped out from
-/// under them. Email/Phone are no longer editable here (an
-/// admin-provisioned account's contact credentials are admin-only — see
-/// [_ProfileEditForm]'s own doc comment), so Full Name is the only field
-/// that can still fail validation; the preview reproduces a blank-name
-/// error rather than the export's original invalid-email scenario.
+/// Editing happens in the shared name-only sheet opened from the avatar
+/// pencil: Full Name is the only self-editable field. Phone, Officer ID,
+/// Assembly and Region are administrator-provisioned and stay read-only.
+/// [MunicipalProfileViewState.editing] and [MunicipalProfileViewState.error]
+/// remain as preview entry points: they open that sheet on the first frame
+/// (Error with the blank-name validation already shown), so the approved
+/// frames stay reachable without a second, inline editor. A failed save
+/// keeps the sheet open with the entered name.
 enum MunicipalProfileViewState {
   loading,
   loaded,
@@ -60,17 +52,14 @@ class MunicipalProfileScreen extends StatefulWidget {
 
   final MunicipalProfileViewState initialState;
 
-  /// Pops one level — wired to the header's back arrow (Default/Loading/
-  /// Success/Offline) only; the same slot shows a close (X) icon during
-  /// Editing/Error, which cancels the edit instead (see [_cancel]).
+  /// Pops one level — wired to the header's back arrow.
   final VoidCallback? onBack;
 
   /// Opens the shared Change Password screen (AppRoutes.changePassword).
   final VoidCallback? onChangePassword;
   final VoidCallback? onAbout;
 
-  /// Fired after the log-out confirmation dialog is accepted. Nullable:
-  /// there's no real authentication flow to sign out of yet.
+  /// Fired after the log-out confirmation dialog is accepted.
   final VoidCallback? onLogOut;
   final OfficerProfile? initialProfile;
   final Future<bool> Function(String fullName)? onSaveProfile;
@@ -80,77 +69,50 @@ class MunicipalProfileScreen extends StatefulWidget {
 }
 
 class _MunicipalProfileScreenState extends State<MunicipalProfileScreen> {
-  late MunicipalProfileViewState _state = widget.initialState;
+  late MunicipalProfileViewState _state = switch (widget.initialState) {
+    MunicipalProfileViewState.editing ||
+    MunicipalProfileViewState.error => MunicipalProfileViewState.loaded,
+    final state => state,
+  };
   late OfficerProfile _profile = widget.initialProfile ?? OfficerProfile.mock();
-  late final _nameController = TextEditingController(text: _profile.name);
-  Map<String, String> _fieldErrors = {};
-  bool _saving = false;
 
   @override
   void initState() {
     super.initState();
-    // The approved Error frame shows a pre-filled failure scenario rather
-    // than a blank form — reproduce it (via the one field still editable)
-    // so `initialState: .error` previews something instead of nothing.
-    if (widget.initialState == MunicipalProfileViewState.error) {
-      _nameController.text = '';
-      _fieldErrors = {'name': 'Full name is required'};
-    }
-  }
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    super.dispose();
-  }
-
-  void _startEditing() {
-    setState(() {
-      _fieldErrors = {};
-      _state = MunicipalProfileViewState.editing;
-    });
-  }
-
-  void _cancel() {
-    _nameController.text = _profile.name;
-    setState(() {
-      _fieldErrors = {};
-      _state = MunicipalProfileViewState.loaded;
-    });
-  }
-
-  Future<void> _save() async {
-    final name = _nameController.text.trim();
-
-    final errors = <String, String>{};
-    if (name.isEmpty) errors['name'] = 'Full name is required';
-
-    setState(() {
-      _fieldErrors = errors;
-      _state = MunicipalProfileViewState.editing;
-    });
-    if (errors.isNotEmpty) return;
-
-    // The form and its Save/Cancel controls stay on screen through the
-    // save attempt (ProfileEditActionBar's own `saving` shows the button
-    // spinner) instead of swapping to the full-page loading skeleton —
-    // that skeleton is reserved for the initial profile fetch, not for
-    // save, which previously made the whole form (and its buttons) vanish
-    // mid-save with nothing left to show progress.
-    setState(() => _saving = true);
-    final saved = await widget.onSaveProfile?.call(name) ?? true;
-    if (!mounted) return;
-    if (!saved) {
-      setState(() {
-        _saving = false;
-        _state = MunicipalProfileViewState.error;
+    final previewEdit = widget.initialState;
+    if (previewEdit == MunicipalProfileViewState.editing ||
+        previewEdit == MunicipalProfileViewState.error) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _startEditing(
+            showValidation: previewEdit == MunicipalProfileViewState.error,
+          );
+        }
       });
-      return;
     }
-    setState(() {
-      _saving = false;
-      _profile = _profile.copyWith(name: name);
-      _state = MunicipalProfileViewState.success;
+  }
+
+  Future<void> _startEditing({bool showValidation = false}) async {
+    final saved = await showProfileNameEditSheet(
+      context,
+      initialName: showValidation ? '' : _profile.name,
+      showValidationOnOpen: showValidation,
+      onSave: (name) async {
+        final ok =
+            await (widget.onSaveProfile?.call(name) ??
+                Future<bool>.value(true));
+        if (ok && mounted) {
+          setState(() => _profile = _profile.copyWith(name: name));
+        }
+        return ok;
+      },
+    );
+    if (!mounted || !saved) return;
+    setState(() => _state = MunicipalProfileViewState.success);
+    Future<void>.delayed(const Duration(seconds: 3), () {
+      if (mounted && _state == MunicipalProfileViewState.success) {
+        setState(() => _state = MunicipalProfileViewState.loaded);
+      }
     });
   }
 
@@ -167,86 +129,33 @@ class _MunicipalProfileScreenState extends State<MunicipalProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isEditing =
-        _state == MunicipalProfileViewState.editing ||
-        _state == MunicipalProfileViewState.error;
-
     return Scaffold(
       body: Stack(
         children: [
           Positioned.fill(
-            child: SafeArea(
-              top: false,
-              child: Column(
-                children: [
-                  SizedBox(height: MunicipalDetailHeader.topInset(context)),
-                  if (_state == MunicipalProfileViewState.offline)
-                    const _OfflineBanner(),
-                  if (_state == MunicipalProfileViewState.success)
-                    const _SuccessBanner(),
-                  Expanded(
-                    child: switch (_state) {
-                      MunicipalProfileViewState.loading =>
-                        const _LoadingSkeleton(),
-                      MunicipalProfileViewState.loaded => _ProfileView(
-                        profile: _profile,
-                        onEdit: _startEditing,
-                        onChangePassword: widget.onChangePassword,
-                        onAbout: widget.onAbout,
-                        onLogOut: _confirmLogOut,
-                      ),
-                      MunicipalProfileViewState.success => _ProfileView(
-                        profile: _profile,
-                        onEdit: _startEditing,
-                        onChangePassword: widget.onChangePassword,
-                        onAbout: widget.onAbout,
-                        onLogOut: _confirmLogOut,
-                      ),
-                      MunicipalProfileViewState.offline => _ProfileView(
-                        profile: _profile,
-                        onEdit: _startEditing,
-                        onChangePassword: widget.onChangePassword,
-                        onAbout: widget.onAbout,
-                        onLogOut: _confirmLogOut,
-                      ),
-                      MunicipalProfileViewState.editing ||
-                      MunicipalProfileViewState.error => _ProfileEditForm(
-                        profile: _profile,
-                        nameController: _nameController,
-                        fieldErrors: _fieldErrors,
-                      ),
-                    },
-                  ),
-                  if (isEditing)
-                    ProfileEditActionBar(
-                      onCancel: _cancel,
-                      onSave: _save,
-                      saving: _saving,
+            child: _state == MunicipalProfileViewState.loading
+                ? Padding(
+                    padding: EdgeInsets.only(
+                      top: MunicipalDetailHeader.topInset(context),
                     ),
-                ],
-              ),
-            ),
+                    child: const _LoadingSkeleton(),
+                  )
+                : _ProfileView(
+                    profile: _profile,
+                    state: _state,
+                    onEdit: _startEditing,
+                    onChangePassword: widget.onChangePassword,
+                    onAbout: widget.onAbout,
+                    onLogOut: _confirmLogOut,
+                  ),
           ),
           Align(
             alignment: Alignment.topCenter,
             child: MunicipalDetailHeader(
-              title: isEditing ? 'Edit Profile' : 'Municipal Profile',
+              title: 'Municipal Profile',
               referenceId: _profile.employeeId,
               subtitlePrefix: 'ID ',
-              leadingIcon: isEditing ? AppIcons.close : AppIcons.back,
-              onBack: isEditing ? (_saving ? null : _cancel) : widget.onBack,
-              trailing: isEditing
-                  ? TextButton(
-                      onPressed: _saving ? null : _save,
-                      child: _saving
-                          ? const SizedBox(
-                              width: AppIconSize.sm,
-                              height: AppIconSize.sm,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Text('Save'),
-                    )
-                  : null,
+              onBack: widget.onBack,
             ),
           ),
         ],
@@ -254,86 +163,11 @@ class _MunicipalProfileScreenState extends State<MunicipalProfileScreen> {
     );
   }
 }
-
-// ---------------------------------------------------------------------------
-// Offline / success banners
-// ---------------------------------------------------------------------------
-
-class _OfflineBanner extends StatelessWidget {
-  const _OfflineBanner();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.sm,
-      ),
-      color: AppColors.warning.withValues(alpha: 0.12),
-      child: Row(
-        children: [
-          const Icon(
-            AppIcons.offline,
-            size: AppIconSize.sm,
-            color: AppColors.warning,
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Text(
-              'Offline Mode — Profile changes will sync when reconnected',
-              style: Theme.of(
-                context,
-              ).textTheme.labelMedium?.copyWith(color: AppColors.warning),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SuccessBanner extends StatelessWidget {
-  const _SuccessBanner();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.sm,
-      ),
-      color: AppColors.success.withValues(alpha: 0.12),
-      child: Row(
-        children: [
-          const Icon(
-            AppIcons.success,
-            size: AppIconSize.sm,
-            color: AppColors.success,
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Text(
-              'Profile saved successfully',
-              style: Theme.of(
-                context,
-              ).textTheme.labelMedium?.copyWith(color: AppColors.success),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// View mode — Default / Success / Offline share this
-// ---------------------------------------------------------------------------
 
 class _ProfileView extends StatelessWidget {
   const _ProfileView({
     required this.profile,
+    required this.state,
     this.onEdit,
     this.onChangePassword,
     this.onAbout,
@@ -341,6 +175,7 @@ class _ProfileView extends StatelessWidget {
   });
 
   final OfficerProfile profile;
+  final MunicipalProfileViewState state;
   final VoidCallback? onEdit;
   final VoidCallback? onChangePassword;
   final VoidCallback? onAbout;
@@ -348,151 +183,75 @@ class _ProfileView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final padding = MediaQuery.paddingOf(context);
     return ListView(
-      padding: const EdgeInsets.fromLTRB(
+      padding: EdgeInsets.fromLTRB(
         AppSpacing.md,
+        MunicipalDetailHeader.topInset(context) + AppSpacing.md,
         AppSpacing.md,
-        AppSpacing.md,
-        AppSpacing.xl,
+        padding.bottom + AppSpacing.md,
       ),
       children: [
+        if (state == MunicipalProfileViewState.offline) ...[
+          const ProfileStatusBanner(
+            tone: ProfileBannerTone.warning,
+            title: "You're offline",
+            message: "Profile changes can't be saved until you reconnect.",
+          ),
+          const SizedBox(height: AppSpacing.md),
+        ],
+        if (state == MunicipalProfileViewState.success) ...[
+          const ProfileStatusBanner(
+            tone: ProfileBannerTone.success,
+            title: 'Profile saved successfully',
+          ),
+          const SizedBox(height: AppSpacing.md),
+        ],
         ProfileHeaderCard(
           name: profile.name,
           subtitle: profile.role,
-          avatarAction: ProfileEditButton(onPressed: onEdit),
-          pills: [
-            if (profile.verifiedOfficial)
-              const TintedBadge(
-                icon: AppIcons.verify,
-                label: 'Verified Official',
-                color: AppColors.primary,
-                textColor: AppColors.primary,
-              ),
-            TintedBadge(
-              label: 'ID #${profile.employeeId}',
-              color: colorScheme.onSurfaceVariant,
-              textColor: colorScheme.onSurfaceVariant,
-            ),
-          ],
+          pills: [if (profile.verifiedOfficial) 'Verified Official'],
+          onEdit: onEdit,
         ),
-        const SizedBox(height: AppSpacing.lg),
         ProfileSection(
-          icon: AppIcons.profile,
-          title: 'Contact Information',
+          title: 'Account',
           children: [
-            ProfileFieldRow(label: 'Phone', value: profile.phone),
-            const SizedBox(height: AppSpacing.sm),
+            ProfileFieldRow(label: 'Phone number', value: profile.phone),
+            ProfileFieldRow(
+              label: 'Officer ID',
+              value: profile.employeeId,
+              locked: true,
+            ),
             ProfileFieldRow(label: 'Assembly', value: profile.department),
-            const SizedBox(height: AppSpacing.sm),
             ProfileFieldRow(label: 'Region', value: profile.region),
           ],
         ),
         const SizedBox(height: AppSpacing.lg),
-        ProfileSection(
-          icon: AppIcons.systemTheme,
-          title: 'System Preferences',
-          children: const [
+        const ProfileSection(
+          title: 'Preferences',
+          children: [
             ThemePreferenceRow(),
-            Divider(height: AppSpacing.lg),
-            LanguagePreferenceRow(),
-            Divider(height: AppSpacing.lg),
             HapticsPreferenceRow(),
-            Divider(height: AppSpacing.lg),
+            LanguagePreferenceRow(),
             BiometricLockPreferenceRow(),
           ],
         ),
         const SizedBox(height: AppSpacing.lg),
         ProfileSection(
-          icon: AppIcons.info,
-          title: 'About',
           children: [
             ProfileActionRow(
               icon: AppIcons.info,
               label: 'About CivicVoice',
               onTap: onAbout,
             ),
-          ],
-        ),
-        const SizedBox(height: AppSpacing.lg),
-        ProfileSection(
-          icon: AppIcons.shield,
-          title: 'Security',
-          children: [
             ProfileActionRow(
               icon: AppIcons.password,
-              label: 'Change Password',
+              label: 'Change password',
               onTap: onChangePassword,
             ),
           ],
         ),
-        const SizedBox(height: AppSpacing.lg),
         ProfileSessionSection(onLogOut: onLogOut),
-      ],
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Editing mode — Editing / Error share this
-// ---------------------------------------------------------------------------
-
-/// Email and Phone render locked (no [TextFormField], just a caption), same
-/// treatment Department already gets — an admin-provisioned account's
-/// contact credentials are set by whoever provisioned it, not
-/// self-editable. Changing either means a real identity change (a
-/// different sign-in email, a different verified number), so it goes
-/// through an administrator instead of a self-service field. Full Name is
-/// the only field a Municipal Officer can change here.
-class _ProfileEditForm extends StatelessWidget {
-  const _ProfileEditForm({
-    required this.profile,
-    required this.nameController,
-    required this.fieldErrors,
-  });
-
-  final OfficerProfile profile;
-  final TextEditingController nameController;
-  final Map<String, String> fieldErrors;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.md,
-        AppSpacing.md,
-        AppSpacing.md,
-        AppSpacing.xl,
-      ),
-      children: [
-        ProfileHeaderCard(name: profile.name, subtitle: profile.role),
-        const SizedBox(height: AppSpacing.lg),
-        ProfileSection(
-          icon: AppIcons.profile,
-          title: 'Personal Information',
-          children: [
-            ProfileFieldRow(
-              label: 'Full Name',
-              controller: nameController,
-              editable: true,
-              errorText: fieldErrors['name'],
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            ProfileFieldRow(
-              label: 'Phone Number',
-              value: profile.phone,
-              caption: 'Contact your administrator to change this',
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            ProfileFieldRow(
-              label: 'Assembly',
-              value: profile.department,
-              caption: 'Set by your administrator',
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            ProfileFieldRow(label: 'Region', value: profile.region),
-          ],
-        ),
       ],
     );
   }

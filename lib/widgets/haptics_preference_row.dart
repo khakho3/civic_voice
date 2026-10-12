@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../core/theme/app_theme.dart';
 import '../services/app_cache_service.dart';
+import '../services/app_haptics.dart';
+import 'profile_preference_row.dart';
 
-/// Persisted, device-local opt-out for restrained action haptics.
+/// Persisted, device-local opt-out for gentle action haptics (F09), shared
+/// by all five Profiles. Turning it on plays one pulse as confirmation.
+///
+/// Flutter cannot tell whether the device has a vibrator or whether the
+/// system touch-vibration setting is off, so the caption says honestly
+/// that the device can still silence it rather than claiming support.
 class HapticsPreferenceRow extends StatefulWidget {
   const HapticsPreferenceRow({super.key});
 
@@ -13,41 +19,23 @@ class HapticsPreferenceRow extends StatefulWidget {
 }
 
 class _HapticsPreferenceRowState extends State<HapticsPreferenceRow> {
-  late bool _enabled;
-
-  @override
-  void initState() {
-    super.initState();
-    _enabled = AppCacheService.instance.hapticFeedbackEnabled;
-  }
+  late bool _enabled = AppCacheService.instance.hapticFeedbackEnabled;
 
   Future<void> _setEnabled(bool value) async {
     setState(() => _enabled = value);
     await AppCacheService.instance.setHapticFeedbackEnabled(value);
-    if (value) await HapticFeedback.selectionClick();
+    if (value) AppHaptics.activate();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      type: MaterialType.transparency,
-      child: Row(
-        children: [
-          const Icon(Icons.vibration_outlined, size: AppIconSize.md),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: SwitchListTile.adaptive(
-              contentPadding: EdgeInsets.zero,
-              value: _enabled,
-              onChanged: _setEnabled,
-              title: Text(
-                'Haptic feedback',
-                style: Theme.of(context).textTheme.bodyLarge,
-              ),
-            ),
-          ),
-        ],
-      ),
+    return ProfileSwitchRow(
+      icon: AppIcons.haptics,
+      label: 'Haptic feedback',
+      caption: 'Your device settings can still turn vibration off.',
+      value: _enabled,
+      onChanged: _setEnabled,
+      pulseOnToggle: false,
     );
   }
 }

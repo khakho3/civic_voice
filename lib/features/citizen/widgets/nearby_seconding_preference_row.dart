@@ -3,7 +3,12 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../services/app_cache_service.dart';
 import '../../../widgets/glass_dialog_backdrop.dart';
+import '../../../widgets/profile_preference_row.dart';
 
+/// Citizen-only Nearby Reports preference (P03): leading location icon,
+/// switch, and an information dialog. It only controls whether the
+/// dashboard offers one nearby report to confirm — no background location
+/// tracking is promised or performed.
 class NearbySecondingPreferenceRow extends StatefulWidget {
   const NearbySecondingPreferenceRow({super.key});
 
@@ -14,13 +19,7 @@ class NearbySecondingPreferenceRow extends StatefulWidget {
 
 class _NearbySecondingPreferenceRowState
     extends State<NearbySecondingPreferenceRow> {
-  late bool _enabled;
-
-  @override
-  void initState() {
-    super.initState();
-    _enabled = AppCacheService.instance.nearbySecondingEnabled;
-  }
+  late bool _enabled = AppCacheService.instance.nearbySecondingEnabled;
 
   Future<void> _setEnabled(bool value) async {
     setState(() => _enabled = value);
@@ -49,45 +48,17 @@ class _NearbySecondingPreferenceRowState
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    return Material(
-      type: MaterialType.transparency,
-      child: Row(
-        children: [
-          const Icon(AppIcons.location, size: AppIconSize.md),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: SwitchListTile.adaptive(
-              contentPadding: EdgeInsets.zero,
-              value: _enabled,
-              onChanged: _setEnabled,
-              title: Row(
-                children: [
-                  Flexible(
-                    child: Text(
-                      'Nearby Reports',
-                      style: textTheme.bodyLarge,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.xs),
-                  IconButton(
-                    onPressed: _showHelp,
-                    tooltip: 'About Nearby Reports',
-                    iconSize: AppIconSize.sm,
-                    visualDensity: VisualDensity.compact,
-                    constraints: const BoxConstraints.tightFor(
-                      width: AppSpacing.xl,
-                      height: AppSpacing.xl,
-                    ),
-                    icon: const Icon(AppIcons.info),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
+    return ProfileSwitchRow(
+      icon: AppIcons.location,
+      label: 'Nearby Reports',
+      value: _enabled,
+      onChanged: _setEnabled,
+      labelTrailing: IconButton(
+        onPressed: _showHelp,
+        tooltip: 'About Nearby Reports',
+        iconSize: AppIconSize.md,
+        color: Theme.of(context).colorScheme.onSurfaceVariant,
+        icon: const Icon(AppIcons.info),
       ),
     );
   }

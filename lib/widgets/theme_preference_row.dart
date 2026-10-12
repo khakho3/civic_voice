@@ -4,11 +4,16 @@ import 'package:flutter/material.dart';
 
 import '../core/theme/app_theme.dart';
 import '../core/theme/theme_controller.dart';
+import '../services/app_haptics.dart';
+import 'profile_preference_row.dart';
 
 /// Compact System/Light/Dark menu for every Profile preference group.
 ///
-/// The visible row deliberately omits a duplicate selected-value label; the
-/// menu provides the selected checkmark and the row exposes it semantically.
+/// The visible row deliberately omits a duplicate selected-value label: it
+/// shows the leading theme icon and a far-right chevron, the open menu marks
+/// the current choice with a check, and the row exposes the value
+/// semantically. A manual choice beats the OS; System follows it live
+/// ([ThemeController] stays the single source of truth).
 class ThemePreferenceRow extends StatefulWidget {
   const ThemePreferenceRow({super.key});
 
@@ -30,14 +35,14 @@ class _ThemePreferenceRowState extends State<ThemePreferenceRow> {
   ];
 
   void _select(ThemeMode mode) {
+    AppHaptics.activate();
     _menuController.close();
     unawaited(ThemeController.setThemeMode(mode));
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final colorScheme = Theme.of(context).colorScheme;
 
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: ThemeController.mode,
@@ -46,6 +51,7 @@ class _ThemePreferenceRowState extends State<ThemePreferenceRow> {
         return MenuAnchor(
           controller: _menuController,
           consumeOutsideTap: true,
+          alignmentOffset: const Offset(AppSpacing.md, 0),
           style: const MenuStyle(
             padding: WidgetStatePropertyAll(
               EdgeInsets.symmetric(vertical: AppSpacing.xs),
@@ -57,7 +63,12 @@ class _ThemePreferenceRowState extends State<ThemePreferenceRow> {
                 onPressed: () => _select(option.mode),
                 leadingIcon: Icon(option.icon, size: AppIconSize.sm),
                 trailingIcon: option.mode == mode
-                    ? const Icon(AppIcons.success, size: AppIconSize.sm)
+                    ? Icon(
+                        AppIcons.success,
+                        size: AppIconSize.sm,
+                        semanticLabel: 'Selected',
+                        color: AppSemanticColors.of(context).actionText,
+                      )
                     : null,
                 child: Text(option.label),
               ),
@@ -67,44 +78,17 @@ class _ThemePreferenceRowState extends State<ThemePreferenceRow> {
             label: 'Theme',
             value: selected.label,
             hint: 'Choose app theme',
-            child: Material(
-              type: MaterialType.transparency,
-              child: InkWell(
-                onTap: () =>
-                    controller.isOpen ? controller.close() : controller.open(),
-                borderRadius: AppRadius.allSm,
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(
-                    minHeight: AppDimensions.controlHeightStandard,
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.xs,
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          AppIcons.systemTheme,
-                          size: AppIconSize.md,
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                        const SizedBox(width: AppSpacing.md),
-                        Expanded(
-                          child: Text(
-                            'Theme',
-                            style: theme.textTheme.bodyLarge,
-                          ),
-                        ),
-                        Icon(
-                          AppIcons.chevronDown,
-                          size: AppIconSize.sm,
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+            excludeSemantics: true,
+            child: ProfilePreferenceRow(
+              icon: AppIcons.systemTheme,
+              label: 'Theme',
+              trailing: Icon(
+                AppIcons.chevronDown,
+                size: AppIconSize.sm,
+                color: colorScheme.onSurfaceVariant,
               ),
+              onTap: () =>
+                  controller.isOpen ? controller.close() : controller.open(),
             ),
           ),
         );

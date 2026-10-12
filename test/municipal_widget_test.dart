@@ -26,6 +26,7 @@ import 'package:civic_voice/models/team_availability.dart';
 import 'package:civic_voice/utils/time_greeting.dart';
 import 'package:civic_voice/services/notification_directory.dart';
 import 'package:civic_voice/widgets/collapsible_list_header.dart';
+import 'package:civic_voice/widgets/profile_edit_button.dart';
 
 /// Replaces the live `MaintenanceTeamDirectory` with 4 predictable teams for
 /// the Assign Team tests below, restoring the original directory state
@@ -1844,18 +1845,28 @@ void main() {
     expect(find.text('Verified Official'), findsOneWidget);
     expect(find.text('alex.johnston@city.gov'), findsNothing);
     expect(find.text('+233 24 555 0142'), findsOneWidget);
+    // Officer ID, Assembly and Region scope live in the Account group.
+    expect(find.text('Account'), findsOneWidget);
+    expect(find.text('Officer ID'), findsOneWidget);
+    expect(find.text('MUN-000002'), findsOneWidget);
     expect(find.text('Springfield District'), findsOneWidget);
     expect(find.text('Greater Accra'), findsOneWidget);
-    expect(find.text('Change Password'), findsOneWidget);
-    expect(find.text('Session'), findsOneWidget);
-    expect(find.text('Log Out'), findsOneWidget);
+    expect(find.text('Change password'), findsOneWidget);
+    // One standalone Log out row; no Session/Security/About headings.
+    expect(find.text('Log out'), findsOneWidget);
+    expect(find.text('Session'), findsNothing);
+    expect(find.text('Security'), findsNothing);
+    expect(find.text('About'), findsNothing);
     expect(find.text('Two-Factor Authentication'), findsNothing);
     expect(find.text('Login Sessions'), findsNothing);
 
-    // System Preferences: theme control + disabled Language row.
-    expect(find.text('System Preferences'), findsOneWidget);
+    // Preferences: theme menu, haptics, and an inert Language row that
+    // implies no localization value.
+    expect(find.text('Preferences'), findsOneWidget);
+    expect(find.text('Theme'), findsOneWidget);
+    expect(find.text('Haptic feedback'), findsOneWidget);
     expect(find.text('Language'), findsOneWidget);
-    expect(find.text('English'), findsOneWidget);
+    expect(find.text('English'), findsNothing);
     expect(find.text('Coming Soon'), findsOneWidget);
   });
 
@@ -1876,7 +1887,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Change Password'));
+    await tester.tap(find.text('Change password'));
     await tester.pumpAndSettle();
 
     expect(tapped, isTrue);
@@ -1901,17 +1912,16 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Email/Phone are locked (admin-set, not self-editable — see
-      // [_ProfileEditForm]'s own doc comment), so Full Name is the only
-      // field left that can fail validation.
-      expect(find.text('Edit Profile'), findsOneWidget);
-      expect(find.text('Full name is required'), findsOneWidget);
+      // Phone, Assembly and Region are administrator-set, so Full Name is
+      // the only field that can fail validation — previewed in the sheet.
+      expect(find.text('Edit profile'), findsOneWidget);
+      expect(find.text('Full name is required.'), findsOneWidget);
     },
   );
 
   testWidgets(
-    'Municipal Profile kebab menu Edit Profile opens the edit form with '
-    'current values',
+    'Municipal Profile avatar pencil opens the name-only editor with the '
+    'current name',
     (WidgetTester tester) async {
       tester.view.physicalSize = const Size(428, 2600);
       tester.view.devicePixelRatio = 1.0;
@@ -1926,25 +1936,30 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byIcon(AppIcons.more));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Edit Profile'));
+      await tester.tap(find.byTooltip('Edit profile'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Edit Profile'), findsOneWidget);
-      expect(find.text('Personal Information'), findsOneWidget);
-      // Matches both the header's name display and the Full Name field's
-      // current value.
-      expect(find.text('Alex Johnston'), findsNWidgets(2));
-      expect(find.text('alex.johnston@city.gov'), findsNothing);
-      expect(find.text('+233 24 555 0142'), findsOneWidget);
-      // Department is shown but locked, not part of the editable form.
-      expect(find.text('Set by your administrator'), findsOneWidget);
+      expect(find.text('Edit profile'), findsOneWidget);
+      final sheet = find.byType(BottomSheet);
+      expect(
+        find.descendant(of: sheet, matching: find.byType(TextField)),
+        findsOneWidget,
+      );
+      expect(find.widgetWithText(TextField, 'Alex Johnston'), findsOneWidget);
+      // Administrator-controlled fields never appear in the editor.
+      expect(
+        find.descendant(of: sheet, matching: find.text('+233 24 555 0142')),
+        findsNothing,
+      );
+      expect(
+        find.descendant(of: sheet, matching: find.text('Springfield District')),
+        findsNothing,
+      );
     },
   );
 
   testWidgets(
-    'Municipal Profile kebab menu keeps only the Edit Profile action',
+    'Municipal Profile has a single edit entry and no duplicate menu',
     (WidgetTester tester) async {
       tester.view.physicalSize = const Size(428, 2600);
       tester.view.devicePixelRatio = 1.0;
@@ -1959,14 +1974,11 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byIcon(AppIcons.more));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Edit Profile'), findsOneWidget);
+      expect(find.byType(ProfileEditButton), findsOneWidget);
+      expect(find.byIcon(AppIcons.more), findsNothing);
       expect(find.text('Settings'), findsNothing);
-      // Log Out remains a single, dedicated Session-section action rather
-      // than being duplicated in the profile menu.
-      expect(find.text('Log Out'), findsOneWidget);
+      // Log out remains a single, dedicated action.
+      expect(find.text('Log out'), findsOneWidget);
     },
   );
 
@@ -1988,7 +2000,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Log Out'));
+      await tester.tap(find.text('Log out'));
       await tester.pumpAndSettle();
 
       expect(find.text('Log out?'), findsOneWidget);
@@ -2000,11 +2012,10 @@ void main() {
       expect(loggedOut, isFalse);
       expect(find.text('Log out?'), findsNothing);
 
-      // Confirming via the dialog's own button (shares the trigger item's
-      // label, hence .last) does log out.
-      await tester.tap(find.text('Log Out'));
+      // Confirming via the dialog's destructive button does log out.
+      await tester.tap(find.text('Log out'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Log Out').last);
+      await tester.tap(find.text('Log Out'));
       await tester.pumpAndSettle();
 
       expect(loggedOut, isTrue);
@@ -2012,7 +2023,7 @@ void main() {
   );
 
   testWidgets('Municipal Profile Save fails validation on an empty Full Name, '
-      'without leaving the edit form', (WidgetTester tester) async {
+      'without leaving the editor', (WidgetTester tester) async {
     tester.view.physicalSize = const Size(428, 2600);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -2031,13 +2042,12 @@ void main() {
     await tester.enterText(find.byType(TextField).first, '');
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Save Changes'));
+    await tester.tap(find.text('Save changes'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Full name is required'), findsOneWidget);
-    // Still editing — a failed save must not silently drop the user back
-    // to the read-only view.
-    expect(find.text('Personal Information'), findsOneWidget);
+    expect(find.text('Full name is required.'), findsOneWidget);
+    // Still editing — a failed save must not silently close the editor.
+    expect(find.text('Edit profile'), findsOneWidget);
   });
 
   testWidgets(
@@ -2049,11 +2059,16 @@ void main() {
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
 
+      String? savedName;
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.light,
-          home: const MunicipalProfileScreen(
+          home: MunicipalProfileScreen(
             initialState: MunicipalProfileViewState.editing,
+            onSaveProfile: (name) async {
+              savedName = name;
+              return true;
+            },
           ),
         ),
       );
@@ -2062,11 +2077,13 @@ void main() {
       await tester.enterText(find.byType(TextField).first, 'Jordan Reyes');
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Save Changes'));
+      await tester.tap(find.text('Save changes'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
       await tester.pumpAndSettle();
 
+      expect(savedName, 'Jordan Reyes');
+      expect(find.text('Edit profile'), findsNothing);
       expect(find.text('Profile saved successfully'), findsOneWidget);
       expect(find.text('Municipal Profile'), findsOneWidget);
       expect(find.text('Jordan Reyes'), findsOneWidget);
@@ -2076,6 +2093,44 @@ void main() {
       // at the end of the test.
       await tester.pump(const Duration(seconds: 3));
       await tester.pumpAndSettle();
+      expect(find.text('Profile saved successfully'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'Municipal Profile save failure keeps the editor open with the entered '
+    'name and no success banner',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: MunicipalProfileScreen(
+            initialState: MunicipalProfileViewState.editing,
+            onSaveProfile: (_) async => false,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField).first, 'Jordan Reyes');
+      await tester.tap(find.text('Save changes'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Changes not saved'), findsOneWidget);
+      expect(find.text('Edit profile'), findsOneWidget);
+      expect(find.widgetWithText(TextField, 'Jordan Reyes'), findsOneWidget);
+      expect(find.text('Profile saved successfully'), findsNothing);
+
+      // Cancel afterwards leaves the saved record untouched.
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(find.text('Alex Johnston'), findsOneWidget);
+      expect(find.text('Jordan Reyes'), findsNothing);
     },
   );
 
@@ -2104,6 +2159,7 @@ void main() {
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
 
+      expect(find.text('Edit profile'), findsNothing);
       expect(find.text('Municipal Profile'), findsOneWidget);
       expect(find.text('Alex Johnston'), findsOneWidget);
       expect(find.text('Someone Else'), findsNothing);

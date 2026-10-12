@@ -3,59 +3,38 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../widgets/app_state_message.dart';
 import '../../../widgets/biometric_lock_preference_row.dart';
-import '../../../widgets/haptics_preference_row.dart';
 import '../../../widgets/confirm_dialog.dart';
 import '../../../widgets/detail_header.dart';
-import '../../../widgets/profile_edit_button.dart';
+import '../../../widgets/haptics_preference_row.dart';
 import '../../../widgets/language_preference_row.dart';
 import '../../../widgets/profile_action_row.dart';
-import '../../../widgets/profile_edit_action_bar.dart';
 import '../../../widgets/profile_field_row.dart';
 import '../../../widgets/profile_header_card.dart';
 import '../../../widgets/profile_info_button.dart';
+import '../../../widgets/profile_name_edit_sheet.dart';
 import '../../../widgets/profile_section.dart';
 import '../../../widgets/profile_session_section.dart';
-import '../../../widgets/status_badge.dart';
+import '../../../widgets/profile_status_banner.dart';
 import '../../../widgets/theme_preference_row.dart';
 import '../models/ministry_profile_data.dart';
 
-/// MIN-006 — Ministry Profile.
+/// MIN-006 — Ministry Profile, on the shared grouped-list Profile system.
 ///
 /// Approved states (Figma "06/profile" export): Default, Loading, Edit,
 /// Validation ("Full name is required."), Success, Error, Offline,
 /// Unauthorized.
 ///
-/// Per the spec ("17 CivicVoice - Ministry Supervisor Screen
-/// Specifications", MIN-006), entry and exit are both Ministry Dashboard —
-/// the same drill-down shape as MIN-005 Report Insights, reached here via
-/// the header's profile avatar rather than a tab. The approved frame shows
-/// the same persistent 4-tab bottom nav (with mismatched "Directory"/
-/// "Settings" labels and "Profile" highlighted) as every other screen's
-/// copy/paste-from-Dashboard slip, and its own header shows a hamburger
-/// menu rather than a title — both corrected the same way as MIN-005: a
-/// [DetailHeader] with a back arrow, no bottom nav.
+/// Entry and exit are both Ministry Dashboard (reached from the header
+/// avatar), so the header is a [DetailHeader] with ordinary Back and no
+/// bottom nav. Error/Offline/Unauthorized describe failing to *load* the
+/// profile and stay a floating dialog over the dimmed, inert profile shell
+/// with a "Back to Safety" action, matching the approved frames.
 ///
-/// Unlike every other screen this session, Error/Offline/Unauthorized here
-/// are a floating dialog over a dimmed, disabled backdrop of the profile
-/// shell (not a full-page replacement) — confirmed against the approved
-/// frames, which consistently show this treatment across all three states
-/// with a matching "Back to Safety" action, not a one-off copy/paste
-/// artifact the way the header/nav mismatches are.
-///
-/// Edit-mode entry is the header's kebab menu (matching every other
-/// drill-down screen's profile — Municipal Officer's MUN-009), not the
-/// frame's original "tap the whole Personal Information card" gesture,
-/// which the earlier version of this screen's own doc comment flagged as
-/// an unintentional Figma-export artifact rather than a deliberate
-/// affordance. Once editing, the header's leading icon becomes a close (X)
-/// that cancels rather than navigating away.
-///
-/// Log Out lives in the shared Session section, confirmed via
-/// [showConfirmDialog] before firing — the spec lists a "Logout Button"
-/// component and a "Logout" user action but no exported frame shows one
-/// anywhere, so there was no original placement to be faithful to; this
-/// matches Municipal Officer's own profile screen exactly rather than
-/// inventing a third pattern.
+/// Editing is the shared name-only sheet opened from the avatar pencil;
+/// the phone is administrator-controlled. [MinistryProfileViewState.edit]
+/// and [MinistryProfileViewState.validation] open that sheet on the first
+/// frame (Validation with the empty-name error shown). A failed save keeps
+/// the sheet open rather than swapping to the load-failure dialog.
 enum MinistryProfileViewState {
   loading,
   view,
@@ -83,9 +62,6 @@ class MinistryProfileScreen extends StatefulWidget {
   final MinistryProfileViewState initialState;
 
   /// Returns to Ministry Dashboard — the spec's only entry and exit point.
-  /// Also wired to the header's leading icon when not editing; during
-  /// Edit/Validation that slot becomes a close (X) that cancels instead
-  /// (see the class doc comment).
   final VoidCallback? onBack;
 
   final VoidCallback? onNotificationsTap;
@@ -94,8 +70,7 @@ class MinistryProfileScreen extends StatefulWidget {
   final VoidCallback? onChangePassword;
   final VoidCallback? onAbout;
 
-  /// Fired after the log-out confirmation dialog is accepted. Nullable:
-  /// there's no real authentication flow to sign out of yet.
+  /// Fired after the log-out confirmation dialog is accepted.
   final VoidCallback? onLogOut;
   final MinistryProfileData? profile;
   final Future<bool> Function(String fullName)? onSaveProfile;
@@ -105,86 +80,48 @@ class MinistryProfileScreen extends StatefulWidget {
 }
 
 class _MinistryProfileScreenState extends State<MinistryProfileScreen> {
-  late MinistryProfileViewState _state = widget.initialState;
-  late MinistryProfileData _profile;
-  late final TextEditingController _nameController;
-  late final TextEditingController _phoneController;
-  Map<String, String> _fieldErrors = {};
-  bool _saving = false;
+  late MinistryProfileViewState _state = switch (widget.initialState) {
+    MinistryProfileViewState.edit ||
+    MinistryProfileViewState.validation => MinistryProfileViewState.view,
+    final state => state,
+  };
+  late MinistryProfileData _profile =
+      widget.profile ?? MinistryProfileData.mock();
 
   @override
   void initState() {
     super.initState();
-    _profile = widget.profile ?? MinistryProfileData.mock();
-    _nameController = TextEditingController(text: _profile.name);
-    _phoneController = TextEditingController(text: _profile.phone);
-    // The approved Validation frame shows a specific pre-filled failure
-    // (an empty Full Name) rather than a blank-slate form — reproduce it so
-    // `initialState: .validation` previews the actual frame.
-    if (widget.initialState == MinistryProfileViewState.validation) {
-      _nameController.text = '';
-      _fieldErrors = {'name': 'Full name is required.'};
-    }
-  }
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _phoneController.dispose();
-    super.dispose();
-  }
-
-  void _startEditing() {
-    setState(() {
-      _fieldErrors = {};
-      _state = MinistryProfileViewState.edit;
-    });
-  }
-
-  void _cancelEdit() {
-    _nameController.text = _profile.name;
-    _phoneController.text = _profile.phone;
-    setState(() {
-      _fieldErrors = {};
-      _state = MinistryProfileViewState.view;
-    });
-  }
-
-  Future<void> _save() async {
-    final name = _nameController.text.trim();
-
-    final errors = <String, String>{};
-    if (name.isEmpty) errors['name'] = 'Full name is required.';
-
-    setState(() {
-      _fieldErrors = errors;
-      _state = MinistryProfileViewState.edit;
-    });
-    if (errors.isNotEmpty) return;
-
-    // The form and its Save/Cancel controls stay on screen through the
-    // save attempt (ProfileEditActionBar's own `saving` shows the button
-    // spinner) instead of swapping to the full-page loading skeleton —
-    // that skeleton is reserved for the initial profile fetch, not for
-    // save, which previously made the whole form (and its buttons) vanish
-    // mid-save with nothing left to show progress.
-    setState(() => _saving = true);
-    final saved =
-        await (widget.onSaveProfile?.call(name) ?? Future<bool>.value(true));
-    if (!mounted) return;
-    if (!saved) {
-      setState(() {
-        _saving = false;
-        _state = MinistryProfileViewState.error;
+    final preview = widget.initialState;
+    if (preview == MinistryProfileViewState.edit ||
+        preview == MinistryProfileViewState.validation) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _startEditing(
+            showValidation: preview == MinistryProfileViewState.validation,
+          );
+        }
       });
-      return;
     }
-    setState(() {
-      _saving = false;
-      _profile = _profile.copyWith(name: name);
-      _state = MinistryProfileViewState.success;
-    });
-    Future.delayed(const Duration(seconds: 3), () {
+  }
+
+  Future<void> _startEditing({bool showValidation = false}) async {
+    final saved = await showProfileNameEditSheet(
+      context,
+      initialName: showValidation ? '' : _profile.name,
+      showValidationOnOpen: showValidation,
+      onSave: (name) async {
+        final ok =
+            await (widget.onSaveProfile?.call(name) ??
+                Future<bool>.value(true));
+        if (ok && mounted) {
+          setState(() => _profile = _profile.copyWith(name: name));
+        }
+        return ok;
+      },
+    );
+    if (!mounted || !saved) return;
+    setState(() => _state = MinistryProfileViewState.success);
+    Future<void>.delayed(const Duration(seconds: 3), () {
       if (mounted && _state == MinistryProfileViewState.success) {
         setState(() => _state = MinistryProfileViewState.view);
       }
@@ -193,7 +130,7 @@ class _MinistryProfileScreenState extends State<MinistryProfileScreen> {
 
   void _retry() {
     setState(() => _state = MinistryProfileViewState.loading);
-    Future.delayed(const Duration(milliseconds: 500), () {
+    Future<void>.delayed(const Duration(milliseconds: 500), () {
       if (mounted) setState(() => _state = MinistryProfileViewState.view);
     });
   }
@@ -211,9 +148,6 @@ class _MinistryProfileScreenState extends State<MinistryProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isEditing =
-        _state == MinistryProfileViewState.edit ||
-        _state == MinistryProfileViewState.validation;
     final showDialog =
         _state == MinistryProfileViewState.error ||
         _state == MinistryProfileViewState.offline ||
@@ -223,140 +157,103 @@ class _MinistryProfileScreenState extends State<MinistryProfileScreen> {
       body: Stack(
         children: [
           Positioned.fill(
-            child: Padding(
-              padding: EdgeInsets.only(top: DetailHeader.topInset(context)),
-              child: Stack(
-                children: [
-                  Positioned.fill(
-                    child: IgnorePointer(
-                      ignoring: showDialog,
-                      child: Column(
-                        children: [
-                          Expanded(
-                            child: switch (_state) {
-                              MinistryProfileViewState.loading =>
-                                const _LoadingSkeleton(),
-                              _ => _ProfileBody(
-                                profile: _profile,
-                                editing: isEditing,
-                                showSuccessBanner:
-                                    _state == MinistryProfileViewState.success,
-                                nameController: _nameController,
-                                phoneController: _phoneController,
-                                fieldErrors: _fieldErrors,
-                                onEdit: _startEditing,
-                                onChangePassword: widget.onChangePassword,
-                                onAbout: widget.onAbout,
-                                onLogOut: _confirmLogOut,
-                              ),
-                            },
-                          ),
-                          if (isEditing)
-                            ProfileEditActionBar(
-                              onCancel: _cancelEdit,
-                              onSave: _save,
-                              saving: _saving,
-                            ),
-                        ],
+            child: _state == MinistryProfileViewState.loading
+                ? Padding(
+                    padding: EdgeInsets.only(
+                      top: DetailHeader.topInset(context),
+                    ),
+                    child: const _LoadingSkeleton(),
+                  )
+                : IgnorePointer(
+                    ignoring: showDialog,
+                    child: ExcludeSemantics(
+                      excluding: showDialog,
+                      child: _ProfileBody(
+                        profile: _profile,
+                        showSuccessBanner:
+                            _state == MinistryProfileViewState.success,
+                        onEdit: _startEditing,
+                        onChangePassword: widget.onChangePassword,
+                        onAbout: widget.onAbout,
+                        onLogOut: _confirmLogOut,
                       ),
                     ),
                   ),
-                  if (showDialog) ...[
-                    const Positioned.fill(
-                      child: ColoredBox(color: Color(0x80000000)),
-                    ),
-                    Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(AppSpacing.md),
-                        child: switch (_state) {
-                          MinistryProfileViewState.error => AppStateMessage(
-                            icon: AppIcons.warning,
-                            badgeColor: AppColors.error,
-                            title: 'Something went wrong',
-                            message:
-                                'Unable to load profile data. This could be '
-                                'due to a temporary network issue or server '
-                                'maintenance.',
-                            primaryActionLabel: 'Retry',
-                            onPrimaryAction: _retry,
-                            secondaryActionLabel: 'Back to Safety',
-                            onSecondaryAction: widget.onBack,
-                            bordered: true,
-                          ),
-                          MinistryProfileViewState.offline => AppStateMessage(
-                            icon: AppIcons.offline,
-                            badgeColor: AppColors.error,
-                            title: 'You\'re offline',
-                            message:
-                                'Check your connection and retry loading '
-                                'profile data.',
-                            primaryActionLabel: 'Retry connection',
-                            onPrimaryAction: _retry,
-                            secondaryActionLabel: 'Back to Safety',
-                            onSecondaryAction: widget.onBack,
-                            bordered: true,
-                          ),
-                          _ => AppStateMessage(
-                            icon: AppIcons.permissionDenied,
-                            badgeColor: AppColors.error,
-                            title: 'Unauthorized Access',
-                            message:
-                                'You can only view and edit your own '
-                                'ministry profile.',
-                            secondaryActionLabel: 'Back to Safety',
-                            onSecondaryAction: widget.onBack,
-                            bordered: true,
-                          ),
-                        },
-                      ),
-                    ),
-                  ],
-                ],
+          ),
+          if (showDialog) ...[
+            Positioned.fill(
+              child: ColoredBox(
+                color: AppColors.scrimStrong.withValues(alpha: 0.48),
               ),
             ),
-          ),
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                child: switch (_state) {
+                  MinistryProfileViewState.error => AppStateMessage(
+                    icon: AppIcons.warning,
+                    badgeColor: AppColors.error,
+                    title: 'Something went wrong',
+                    message:
+                        'Unable to load profile data. This could be due to a '
+                        'temporary network issue or server maintenance.',
+                    primaryActionLabel: 'Retry',
+                    onPrimaryAction: _retry,
+                    secondaryActionLabel: 'Back to Safety',
+                    onSecondaryAction: widget.onBack,
+                    bordered: true,
+                  ),
+                  MinistryProfileViewState.offline => AppStateMessage(
+                    icon: AppIcons.offline,
+                    badgeColor: AppColors.error,
+                    title: "You're offline",
+                    message:
+                        'Check your connection and retry loading profile '
+                        'data.',
+                    primaryActionLabel: 'Retry connection',
+                    onPrimaryAction: _retry,
+                    secondaryActionLabel: 'Back to Safety',
+                    onSecondaryAction: widget.onBack,
+                    bordered: true,
+                  ),
+                  _ => AppStateMessage(
+                    icon: AppIcons.permissionDenied,
+                    badgeColor: AppColors.error,
+                    title: 'Unauthorized Access',
+                    message:
+                        'You can only view and edit your own ministry '
+                        'profile.',
+                    secondaryActionLabel: 'Back to Safety',
+                    onSecondaryAction: widget.onBack,
+                    bordered: true,
+                  ),
+                },
+              ),
+            ),
+          ],
           Align(
             alignment: Alignment.topCenter,
             child: DetailHeader(
               title: 'My Profile',
-              leadingIcon: isEditing ? AppIcons.close : AppIcons.back,
-              onBack: isEditing
-                  ? (_saving ? null : _cancelEdit)
-                  : widget.onBack,
-              trailing: isEditing
-                  ? TextButton(
-                      onPressed: _saving ? null : _save,
-                      child: _saving
-                          ? const SizedBox(
-                              width: AppIconSize.sm,
-                              height: AppIconSize.sm,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Text('Save'),
-                    )
-                  : Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        SizedBox(
-                          width: AppDimensions.controlHeightStandard,
-                          height: AppDimensions.controlHeightStandard,
-                          child: Material(
-                            color: Colors.transparent,
-                            shape: const RoundedRectangleBorder(
-                              borderRadius: AppComponentRadius.card,
-                            ),
-                            child: InkWell(
-                              borderRadius: AppComponentRadius.card,
-                              onTap: widget.onNotificationsTap,
-                              child: Icon(
-                                AppIcons.notifications,
-                                size: AppIconSize.md,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
+              onBack: widget.onBack,
+              trailing: SizedBox(
+                width: AppDimensions.controlHeightStandard,
+                height: AppDimensions.controlHeightStandard,
+                child: Material(
+                  type: MaterialType.transparency,
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: AppComponentRadius.card,
+                  ),
+                  child: InkWell(
+                    borderRadius: AppComponentRadius.card,
+                    onTap: widget.onNotificationsTap,
+                    child: const Tooltip(
+                      message: 'Notifications',
+                      child: Icon(AppIcons.notifications, size: AppIconSize.md),
                     ),
+                  ),
+                ),
+              ),
             ),
           ),
         ],
@@ -365,18 +262,10 @@ class _MinistryProfileScreenState extends State<MinistryProfileScreen> {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Profile body — shared shape for View/Success/Editing/dialog-backdrop
-// ---------------------------------------------------------------------------
-
 class _ProfileBody extends StatelessWidget {
   const _ProfileBody({
     required this.profile,
-    required this.editing,
     this.showSuccessBanner = false,
-    required this.nameController,
-    required this.phoneController,
-    this.fieldErrors = const {},
     this.onEdit,
     this.onChangePassword,
     this.onAbout,
@@ -384,11 +273,7 @@ class _ProfileBody extends StatelessWidget {
   });
 
   final MinistryProfileData profile;
-  final bool editing;
   final bool showSuccessBanner;
-  final TextEditingController nameController;
-  final TextEditingController phoneController;
-  final Map<String, String> fieldErrors;
   final VoidCallback? onEdit;
   final VoidCallback? onChangePassword;
   final VoidCallback? onAbout;
@@ -401,36 +286,26 @@ class _ProfileBody extends StatelessWidget {
     return ListView(
       padding: EdgeInsets.fromLTRB(
         AppSpacing.md,
+        DetailHeader.topInset(context) + AppSpacing.md,
         AppSpacing.md,
-        AppSpacing.md,
-        bottomInset + AppSpacing.xl,
+        bottomInset + AppSpacing.md,
       ),
       children: [
+        if (showSuccessBanner) ...[
+          const ProfileStatusBanner(
+            tone: ProfileBannerTone.success,
+            title: 'Profile updated',
+            message: 'Your profile changes were saved successfully.',
+          ),
+          const SizedBox(height: AppSpacing.md),
+        ],
         ProfileHeaderCard(
           name: profile.name,
           subtitle: profile.ministry,
-          avatarAction: editing ? null : ProfileEditButton(onPressed: onEdit),
-          pills: [
-            TintedBadge(
-              label: profile.role,
-              color: AppColors.primary,
-              textColor: AppColors.primary,
-            ),
-            TintedBadge(
-              label: 'ID ${profile.publicId}',
-              color: AppColors.primary,
-              textColor: AppColors.primary,
-            ),
-          ],
+          pills: [profile.role],
+          onEdit: onEdit,
         ),
-        if (showSuccessBanner) ...[
-          const SizedBox(height: AppSpacing.md),
-          const _SuccessBanner(),
-        ],
-        const SizedBox(height: AppSpacing.lg),
         ProfileSection(
-          icon: AppIcons.profile,
-          title: 'Personal Information',
           trailing: ProfileInfoButton(
             title: 'Account Access',
             message:
@@ -438,107 +313,41 @@ class _ProfileBody extends StatelessWidget {
             items: profile.metadataBadges,
           ),
           children: [
+            ProfileFieldRow(label: 'Phone number', value: profile.phone),
             ProfileFieldRow(
-              label: 'Full Name',
-              controller: nameController,
-              editable: editing,
-              errorText: fieldErrors['name'],
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            ProfileFieldRow(
-              label: 'Phone',
-              controller: phoneController,
-              caption: editing
-                  ? 'Contact your administrator to change this'
-                  : null,
+              label: 'Supervisor ID',
+              value: profile.publicId,
+              locked: true,
             ),
           ],
         ),
         const SizedBox(height: AppSpacing.lg),
-        ProfileSection(
-          icon: AppIcons.systemTheme,
-          title: 'System Preferences',
-          children: const [
+        const ProfileSection(
+          title: 'Preferences',
+          children: [
             ThemePreferenceRow(),
-            Divider(height: AppSpacing.lg),
-            LanguagePreferenceRow(),
-            Divider(height: AppSpacing.lg),
             HapticsPreferenceRow(),
-            Divider(height: AppSpacing.lg),
+            LanguagePreferenceRow(),
             BiometricLockPreferenceRow(),
           ],
         ),
         const SizedBox(height: AppSpacing.lg),
         ProfileSection(
-          icon: AppIcons.info,
-          title: 'About',
           children: [
             ProfileActionRow(
               icon: AppIcons.info,
               label: 'About CivicVoice',
               onTap: onAbout,
             ),
-          ],
-        ),
-        const SizedBox(height: AppSpacing.lg),
-        ProfileSection(
-          icon: AppIcons.shield,
-          title: 'Security',
-          children: [
             ProfileActionRow(
               icon: AppIcons.password,
-              label: 'Change Password',
+              label: 'Change password',
               onTap: onChangePassword,
             ),
           ],
         ),
-        if (!editing) ...[
-          const SizedBox(height: AppSpacing.lg),
-          ProfileSessionSection(onLogOut: onLogOut),
-        ],
+        ProfileSessionSection(onLogOut: onLogOut),
       ],
-    );
-  }
-}
-
-class _SuccessBanner extends StatelessWidget {
-  const _SuccessBanner();
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.statusResolved.withValues(alpha: 0.12),
-        borderRadius: AppComponentRadius.card,
-        border: Border.all(
-          color: AppColors.statusResolved.withValues(alpha: 0.24),
-        ),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(
-            AppIcons.success,
-            size: AppIconSize.md,
-            color: AppColors.statusResolved,
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Profile updated', style: textTheme.titleSmall),
-                Text(
-                  'Your profile changes were saved successfully.',
-                  style: textTheme.bodySmall,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

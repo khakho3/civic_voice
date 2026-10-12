@@ -1,39 +1,33 @@
 import 'package:flutter/material.dart';
 import 'package:civic_voice/core/theme/app_theme.dart';
 
-import '../../../widgets/confirm_dialog.dart';
 import '../../../widgets/biometric_lock_preference_row.dart';
+import '../../../widgets/confirm_dialog.dart';
 import '../../../widgets/haptics_preference_row.dart';
 import '../../../widgets/language_preference_row.dart';
 import '../../../widgets/profile_action_row.dart';
-import '../../../widgets/profile_edit_action_bar.dart';
-import '../../../widgets/profile_edit_button.dart';
 import '../../../widgets/profile_field_row.dart';
 import '../../../widgets/profile_header_card.dart';
+import '../../../widgets/profile_name_edit_sheet.dart';
 import '../../../widgets/profile_section.dart';
 import '../../../widgets/profile_session_section.dart';
-import '../../../widgets/status_badge.dart';
+import '../../../widgets/profile_status_banner.dart';
 import '../../../widgets/theme_preference_row.dart';
+import '../../admin/services/admin_maintenance_team_directory.dart';
 import '../models/maintenance_profile.dart';
 import '../services/maintenance_session.dart';
 import '../widgets/maintenance_scaffold.dart';
 
-/// MNT-007 — Maintenance Profile.
+/// MNT-007 — Maintenance Profile, on the shared grouped-list Profile system.
 ///
-/// Reads the same real Admin-provisioned account
-/// ([MaintenanceTaskDirectory.currentUserId], Yaw Asare) that Dashboard's
-/// greeting and every task's team lookup already use, rather than an
-/// unrelated made-up "Marcus Johnson" with no backing account, no real
-/// assembly, and no real team membership to show here.
-///
-/// View/Edit is a real toggle now (matching Ministry/Municipal's own
-/// profile screens) rather than an always-open Full Name field sitting next
-/// to an always-visible "Save Changes" button with nothing to actually
-/// enter edit mode through. Edit-mode entry is the "Personal Information"
-/// section's own pencil icon — this screen is tab-embedded (a bottom nav
-/// tab, not a drill-down), so it keeps that entry gesture rather than
-/// Municipal/Ministry's kebab menu, matching Admin Profile's identical
-/// tab-embedded shape.
+/// Reads the signed-in technician's real administrator-provisioned account
+/// from [MaintenanceSession]. Department, Region, Assembly, Team and
+/// Employee ID are administrator-controlled and read-only; Full Name is the
+/// only self-editable field, through the shared name sheet opened from the
+/// avatar pencil. The Team Lead pill appears only when this technician is
+/// the team's *current* lead (resolved from the live team record first,
+/// then the session), and an unassigned technician sees an honest "Not
+/// assigned to a team" rather than a placeholder team.
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({
     super.key,
@@ -44,6 +38,7 @@ class ProfileScreen extends StatefulWidget {
     this.onAbout,
     this.onLogOut,
     this.onSaveProfile,
+    this.initialState = AppScreenState.success,
   });
 
   final VoidCallback? onNavigateToDashboard;
@@ -56,78 +51,37 @@ class ProfileScreen extends StatefulWidget {
   final VoidCallback? onChangePassword;
   final VoidCallback? onAbout;
 
-  /// Fired after the log-out confirmation dialog is accepted. Nullable:
-  /// there's no real authentication flow to sign out of yet.
+  /// Fired after the log-out confirmation dialog is accepted.
   final VoidCallback? onLogOut;
   final Future<bool> Function(String fullName)? onSaveProfile;
+
+  /// Screen state, for previews and tests of the non-default states.
+  final AppScreenState initialState;
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  AppScreenState _state = AppScreenState.success;
-
-  late final MaintenanceProfile _profile =
-      MaintenanceSession.instance.profile.value;
-  late final _nameController = TextEditingController(text: _profile.fullName);
-
-  // Always locked (see [_PersonalInfoForm]'s own doc comment) — still real,
-  // disposed controllers rather than ad-hoc ones rebuilt (and leaked) on
-  // every frame, matching Ministry's identical treatment of its own
-  // locked Email/Phone fields.
-  late final _phoneController = TextEditingController(text: _profile.phone);
-
-  bool _isEditing = false;
-  String? _nameError;
+  late AppScreenState _state = widget.initialState;
   bool _changesSaved = false;
-  bool _saving = false;
 
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _phoneController.dispose();
-    super.dispose();
-  }
-
-  void _startEditing() {
-    setState(() {
-      _isEditing = true;
-      _changesSaved = false;
-      _nameError = null;
-    });
-  }
-
-  void _cancelEditing() {
-    _nameController.text = _profile.fullName;
-    setState(() {
-      _isEditing = false;
-      _nameError = null;
-    });
-  }
-
-  Future<void> _handleSave() async {
-    final name = _nameController.text.trim();
-    if (name.isEmpty) {
-      setState(() => _nameError = 'Full name is required.');
-      return;
-    }
-    setState(() => _saving = true);
-    final saved = await widget.onSaveProfile?.call(name) ?? true;
-    if (!mounted) return;
-    if (!saved) {
-      setState(() {
-        _saving = false;
-        _nameError = 'Could not save changes. Try again.';
-      });
-      return;
-    }
-    MaintenanceSession.instance.updateProfile(fullName: name);
-    setState(() {
-      _saving = false;
-      _nameError = null;
-      _isEditing = false;
-      _changesSaved = true;
+  Future<void> _startEditing(MaintenanceProfile profile) async {
+    final saved = await showProfileNameEditSheet(
+      context,
+      initialName: profile.fullName,
+      onSave: (name) async {
+        final ok =
+            await (widget.onSaveProfile?.call(name) ??
+                Future<bool>.value(true));
+        if (ok) MaintenanceSession.instance.updateProfile(fullName: name);
+        return ok;
+      },
+    );
+    if (!mounted || !saved) return;
+    setState(() => _changesSaved = true);
+    Future<void>.delayed(const Duration(seconds: 3), () {
+      if (mounted) setState(() => _changesSaved = false);
     });
   }
 
@@ -147,7 +101,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return MaintenanceScaffold(
       selectedTab: MaintenanceTab.profile,
       onNotificationsTap: widget.onNotificationsTap,
-      hideBottomNav: _isEditing,
       onTabSelected: (tab) {
         if (tab == MaintenanceTab.dashboard) {
           widget.onNavigateToDashboard?.call();
@@ -159,256 +112,161 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildBody(BuildContext context) {
+    void retry() => setState(() => _state = AppScreenState.success);
     switch (_state) {
       case AppScreenState.loading:
         return const _LoadingView();
       case AppScreenState.empty:
-        return _EmptyView(
-          onRetry: () => setState(() => _state = AppScreenState.success),
-        );
+        return _EmptyView(onRetry: retry);
       case AppScreenState.error:
-        return _ErrorView(
-          onRetry: () => setState(() => _state = AppScreenState.success),
-        );
+        return _ErrorView(onRetry: retry);
       case AppScreenState.offline:
-        return _OfflineView(
-          onRetry: () => setState(() => _state = AppScreenState.success),
-        );
+        return _OfflineView(onRetry: retry);
       case AppScreenState.permission:
-        return _PermissionView(
-          onRetry: () => setState(() => _state = AppScreenState.success),
-        );
+        return _PermissionView(onRetry: retry);
       case AppScreenState.disabled:
-        return _buildForm(context, disabled: true);
+        return _buildProfile(context, disabled: true);
       case AppScreenState.success:
-        return _buildForm(context);
+        return _buildProfile(context);
     }
   }
 
-  Widget _buildForm(BuildContext context, {bool disabled = false}) {
-    return _ProfileForm(
-      disabled: disabled,
-      editing: _isEditing,
-      nameController: _nameController,
-      phoneController: _phoneController,
-      employeeId: _profile.publicId,
-      region: _profile.region,
-      district: _profile.assembly,
-      teamName: _profile.teamName ?? 'Not assigned to a team',
-      nameError: _nameError,
-      changesSaved: _changesSaved,
-      onFieldChanged: disabled
-          ? null
-          : (_) {
-              if (_nameError != null) setState(() => _nameError = null);
-            },
-      onEdit: disabled ? null : _startEditing,
-      onSave: disabled ? null : _handleSave,
-      onCancel: disabled ? null : _cancelEditing,
-      onChangePassword: disabled ? null : widget.onChangePassword,
-      onAbout: disabled ? null : widget.onAbout,
-      onLogOut: disabled ? null : _confirmLogOut,
-      saving: _saving,
+  Widget _buildProfile(BuildContext context, {bool disabled = false}) {
+    return ValueListenableBuilder<MaintenanceProfile>(
+      valueListenable: MaintenanceSession.instance.profile,
+      builder: (context, profile, _) => _ProfileContent(
+        profile: profile,
+        disabled: disabled,
+        changesSaved: _changesSaved,
+        onEdit: disabled ? null : () => _startEditing(profile),
+        onChangePassword: disabled ? null : widget.onChangePassword,
+        onAbout: disabled ? null : widget.onAbout,
+        onLogOut: disabled ? null : _confirmLogOut,
+      ),
     );
   }
 }
 
-/// Email and Phone are always locked — an admin-provisioned account's
-/// contact credentials are set by whoever provisioned it, not
-/// self-editable (changing either means a real identity change: a
-/// different sign-in email, a different verified number). Full Name is the
-/// only field a maintenance technician can change here, and only once
-/// [editing] is entered via the section's own Edit button.
-class _ProfileForm extends StatelessWidget {
-  const _ProfileForm({
+class _ProfileContent extends StatelessWidget {
+  const _ProfileContent({
+    required this.profile,
     required this.disabled,
-    required this.editing,
-    required this.nameController,
-    required this.phoneController,
-    required this.employeeId,
-    required this.region,
-    required this.district,
-    required this.teamName,
-    required this.nameError,
     required this.changesSaved,
-    required this.onFieldChanged,
     required this.onEdit,
-    required this.onSave,
-    required this.onCancel,
     required this.onChangePassword,
     required this.onAbout,
     required this.onLogOut,
-    this.saving = false,
   });
 
+  final MaintenanceProfile profile;
   final bool disabled;
-  final bool editing;
-  final bool saving;
-  final TextEditingController nameController;
-  final TextEditingController phoneController;
-  final String employeeId;
-  final String region;
-  final String district;
-  final String teamName;
-  final String? nameError;
   final bool changesSaved;
-  final ValueChanged<String>? onFieldChanged;
   final VoidCallback? onEdit;
-  final VoidCallback? onSave;
-  final VoidCallback? onCancel;
   final VoidCallback? onChangePassword;
   final VoidCallback? onAbout;
   final VoidCallback? onLogOut;
 
+  /// Current lead, resolved at read time: the live team record wins over
+  /// the value cached at sign-in, so a lead change in Admin shows here on
+  /// the next read without re-login.
+  bool get _isCurrentLead {
+    final teamId = profile.teamId;
+    if (teamId == null || profile.publicId.isEmpty) return false;
+    final leadUserId =
+        MaintenanceTeamDirectory.instance.teamById(teamId)?.leadUserId ??
+        profile.teamLeadUserId;
+    return leadUserId != null && leadUserId == profile.publicId;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final semantic = Theme.of(context).extension<AppSemanticColors>()!;
     final chromeInset = MaintenanceScaffold.contentPadding(context);
+    final teamName = profile.teamName;
 
     return Opacity(
       opacity: disabled ? 0.5 : 1.0,
       child: IgnorePointer(
         ignoring: disabled,
-        child: Column(
+        child: ListView(
+          padding: EdgeInsets.fromLTRB(
+            AppSpacing.md,
+            chromeInset.top + AppSpacing.md,
+            AppSpacing.md,
+            chromeInset.bottom + AppSpacing.md,
+          ),
           children: [
-            Expanded(
-              child: ListView(
-                padding: EdgeInsets.fromLTRB(
-                  AppSpacing.md,
-                  chromeInset.top + AppSpacing.md,
-                  AppSpacing.md,
-                  editing ? AppSpacing.md : chromeInset.bottom + AppSpacing.xl,
-                ),
-                children: [
-                  if (changesSaved) ...[
-                    _SavedBanner(semantic: semantic),
-                    const SizedBox(height: AppSpacing.md),
-                  ],
-                  ProfileHeaderCard(
-                    name: nameController.text,
-                    avatarAction: editing
-                        ? null
-                        : ProfileEditButton(onPressed: onEdit),
-                    pills: const [
-                      TintedBadge(
-                        label: 'Maintenance Technician',
-                        color: AppColors.primary,
-                        textColor: AppColors.primary,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                  ProfileSection(
-                    icon: AppIcons.idCard,
-                    title: 'Account Information',
-                    children: [
-                      const ProfileFieldRow(
-                        label: 'Department',
-                        value: 'Maintenance',
-                        locked: true,
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
-                      ProfileFieldRow(
-                        label: 'Region',
-                        value: region,
-                        locked: true,
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
-                      ProfileFieldRow(
-                        label: 'Assembly',
-                        value: district,
-                        locked: true,
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
-                      ProfileFieldRow(
-                        label: 'Team',
-                        value: teamName,
-                        locked: true,
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
-                      ProfileFieldRow(
-                        label: 'Employee ID',
-                        value: employeeId,
-                        locked: true,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                  ProfileSection(
-                    icon: AppIcons.profile,
-                    title: 'Personal Information',
-                    children: [
-                      ProfileFieldRow(
-                        label: 'Full Name',
-                        controller: nameController,
-                        editable: editing,
-                        onChanged: onFieldChanged,
-                        errorText: nameError,
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
-                      ProfileFieldRow(
-                        label: 'Phone',
-                        controller: phoneController,
-                        caption: editing
-                            ? 'Contact your administrator to change this'
-                            : null,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                  ProfileSection(
-                    icon: AppIcons.systemTheme,
-                    title: 'System Preferences',
-                    children: const [
-                      ThemePreferenceRow(),
-                      Divider(height: AppSpacing.lg),
-                      LanguagePreferenceRow(),
-                      Divider(height: AppSpacing.lg),
-                      HapticsPreferenceRow(),
-                      Divider(height: AppSpacing.lg),
-                      BiometricLockPreferenceRow(),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                  ProfileSection(
-                    icon: AppIcons.info,
-                    title: 'About',
-                    children: [
-                      ProfileActionRow(
-                        icon: AppIcons.info,
-                        label: 'About CivicVoice',
-                        onTap: onAbout,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                  ProfileSection(
-                    icon: AppIcons.shield,
-                    title: 'Security',
-                    children: [
-                      ProfileActionRow(
-                        icon: AppIcons.password,
-                        label: 'Change Password',
-                        onTap: onChangePassword,
-                      ),
-                    ],
-                  ),
-                  if (!editing) ...[
-                    const SizedBox(height: AppSpacing.lg),
-                    ProfileSessionSection(onLogOut: onLogOut),
-                  ],
-                ],
+            if (changesSaved) ...[
+              const ProfileStatusBanner(
+                tone: ProfileBannerTone.success,
+                title: 'Changes saved',
+                message: 'Permitted profile fields were updated.',
               ),
+              const SizedBox(height: AppSpacing.md),
+            ],
+            ProfileHeaderCard(
+              name: profile.fullName,
+              pills: ['Maintenance Team', if (_isCurrentLead) 'Team Lead'],
+              onEdit: onEdit,
             ),
-            // A sticky bar, not the last item in the scrollable list — on a
-            // screen this long, a Save button that only appears after
-            // scrolling all the way down is easy to miss entirely.
-            if (editing)
-              ProfileEditActionBar(
-                onCancel: onCancel,
-                onSave: onSave,
-                saving: saving,
-              ),
+            ProfileSection(
+              title: 'Account',
+              children: [
+                ProfileFieldRow(label: 'Phone number', value: profile.phone),
+                const ProfileFieldRow(
+                  label: 'Department',
+                  value: 'Maintenance',
+                  locked: true,
+                ),
+                ProfileFieldRow(
+                  label: 'Region',
+                  value: profile.region,
+                  locked: true,
+                ),
+                ProfileFieldRow(
+                  label: 'Assembly',
+                  value: profile.assembly,
+                  locked: true,
+                ),
+                ProfileFieldRow(
+                  label: 'Team',
+                  value: teamName == null || teamName.isEmpty
+                      ? 'Not assigned to a team'
+                      : teamName,
+                  locked: true,
+                ),
+                ProfileFieldRow(
+                  label: 'Employee ID',
+                  value: profile.publicId,
+                  locked: true,
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            const ProfileSection(
+              title: 'Preferences',
+              children: [
+                ThemePreferenceRow(),
+                HapticsPreferenceRow(),
+                LanguagePreferenceRow(),
+                BiometricLockPreferenceRow(),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            ProfileSection(
+              children: [
+                ProfileActionRow(
+                  icon: AppIcons.info,
+                  label: 'About CivicVoice',
+                  onTap: onAbout,
+                ),
+                ProfileActionRow(
+                  icon: AppIcons.password,
+                  label: 'Change password',
+                  onTap: onChangePassword,
+                ),
+              ],
+            ),
+            ProfileSessionSection(onLogOut: onLogOut),
           ],
         ),
       ),
@@ -416,54 +274,6 @@ class _ProfileForm extends StatelessWidget {
   }
 }
 
-class _SavedBanner extends StatelessWidget {
-  const _SavedBanner({required this.semantic});
-  final AppSemanticColors semantic;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: semantic.success.withValues(alpha: 0.08),
-        borderRadius: AppComponentRadius.card,
-        border: Border.all(color: semantic.success.withValues(alpha: 0.3)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(AppIcons.success, color: semantic.success),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Changes saved',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleSmall?.copyWith(color: semantic.success),
-                ),
-                Text(
-                  'Permitted profile fields were updated.',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// The team's own self-reported work status — read-only for a regular
-/// member, a real tap-to-change control for the lead (see
-/// [MaintenanceTeamDirectory.updateTeam] at the call site). This is what
-/// Municipal's Assign Team actually reads now, so changing it here is a
-/// real action, not a cosmetic toggle.
 class _LoadingView extends StatelessWidget {
   const _LoadingView();
   @override
@@ -562,7 +372,10 @@ class _ErrorView extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.lg),
             FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: semantic.error),
+              style: FilledButton.styleFrom(
+                backgroundColor: semantic.error,
+                foregroundColor: semantic.onError,
+              ),
               onPressed: onRetry,
               child: const Text('Retry'),
             ),
@@ -589,7 +402,7 @@ class _OfflineView extends StatelessWidget {
             Icon(
               AppIcons.offline,
               size: AppIconSize.xl,
-              color: semantic.warning,
+              color: semantic.warningText,
             ),
             const SizedBox(height: AppSpacing.md),
             Text('Offline', style: Theme.of(context).textTheme.titleMedium),

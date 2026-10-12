@@ -148,7 +148,8 @@ void main() {
       await tester.tap(action);
       await tester.pump();
 
-      expect(find.text('About'), findsOneWidget);
+      // About CivicVoice sits in an untitled group: no "About" heading.
+      expect(find.text('About'), findsNothing);
       expect(tapped, isTrue);
     }
 

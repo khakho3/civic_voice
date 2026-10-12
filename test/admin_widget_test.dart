@@ -2393,18 +2393,24 @@ void main() {
       expect(find.text('Language'), findsOneWidget);
       expect(find.text('English'), findsNothing);
       expect(find.text('Coming Soon'), findsOneWidget);
-      expect(find.text('Security'), findsOneWidget);
+      // Administrator Information and System Preferences are the only
+      // titled sections; About and Change Password have no headings.
+      expect(find.text('Administrator Information'), findsOneWidget);
+      expect(find.text('Security'), findsNothing);
+      expect(find.text('About'), findsNothing);
+      expect(find.text('About CivicVoice'), findsOneWidget);
       expect(find.text('Change Password'), findsOneWidget);
       expect(find.text('Two-factor authentication'), findsNothing);
       expect(find.byTooltip('About Administrative Scope'), findsOneWidget);
       expect(find.text('Roles'), findsNothing);
       expect(find.text('Governance Level'), findsOneWidget);
       expect(find.text('Approved administrator'), findsOneWidget);
-      expect(find.text('Session'), findsOneWidget);
+      expect(find.text('Session'), findsNothing);
       expect(find.text('Last activity'), findsNothing);
-      expect(find.text('Log Out'), findsOneWidget);
+      expect(find.text('Log out'), findsOneWidget);
 
       expect(find.byType(TextFormField), findsNothing);
+      expect(find.byType(TextField), findsNothing);
       expect(find.text('Save Changes'), findsNothing);
       expect(find.text('Cancel'), findsNothing);
 
@@ -2492,36 +2498,41 @@ void main() {
 
       expect(find.text('Home'), findsOneWidget);
 
-      await tester.tap(find.byTooltip('Edit'));
-      await tester.pump();
+      await tester.tap(find.byTooltip('Edit profile'));
+      await tester.pumpAndSettle();
 
       // Only Full Name is self-editable. CivicVoice does not collect email,
-      // while phone, jurisdiction/department, and Admin ID stay locked.
-      expect(find.byType(TextFormField), findsOneWidget);
-      expect(find.text('Save Changes'), findsOneWidget);
+      // while phone, jurisdiction/department, and Admin ID stay locked and
+      // never appear in the modal editor (which also blocks the nav).
+      final sheet = find.byType(BottomSheet);
+      expect(sheet, findsOneWidget);
+      expect(
+        find.descendant(of: sheet, matching: find.byType(TextField)),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: sheet, matching: find.text('ADM-000001')),
+        findsNothing,
+      );
+      expect(find.text('Save changes'), findsOneWidget);
       expect(find.text('Cancel'), findsOneWidget);
-      // The bottom nav hides while editing — it would otherwise sit
-      // directly on top of the sticky Save bar, and navigating away
-      // mid-edit without going through Cancel/Save is more likely a
-      // mistake than an intent.
-      expect(find.text('Home'), findsNothing);
 
       await tester.enterText(
-        find.widgetWithText(TextFormField, 'System Administrator'),
+        find.widgetWithText(TextField, 'System Administrator'),
         'Updated Administrator',
       );
       await tester.pump();
 
       await tester.tap(find.text('Cancel'));
-      await tester.pump();
+      await tester.pumpAndSettle();
 
       // Cancel with unsaved changes confirms before discarding.
       expect(find.text('Discard changes?'), findsOneWidget);
       await tester.tap(find.text('Discard'));
-      await tester.pump();
+      await tester.pumpAndSettle();
 
-      expect(find.byType(TextFormField), findsNothing);
-      expect(find.text('Save Changes'), findsNothing);
+      expect(find.byType(TextField), findsNothing);
+      expect(find.text('Save changes'), findsNothing);
       expect(find.text('Platform Administration'), findsOneWidget);
       expect(find.text('Updated Administrator'), findsNothing);
       expect(find.text('Home'), findsOneWidget);
@@ -2544,7 +2555,7 @@ void main() {
     );
     await tester.pump();
 
-    await tester.tap(find.text('Log Out'));
+    await tester.tap(find.text('Log out'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
@@ -2558,12 +2569,11 @@ void main() {
     expect(signedOut, isFalse);
     expect(find.text('Log out?'), findsNothing);
 
-    // Confirming via the dialog's own button (shares the trigger
-    // button's label, hence .last) does sign out.
-    await tester.tap(find.text('Log Out'));
+    // Confirming via the dialog's destructive button does sign out.
+    await tester.tap(find.text('Log out'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
-    await tester.tap(find.text('Log Out').last);
+    await tester.tap(find.text('Log Out'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
@@ -2584,25 +2594,30 @@ void main() {
       );
       await tester.pump();
 
-      await tester.tap(find.byTooltip('Edit'));
-      await tester.pump();
+      await tester.tap(find.byTooltip('Edit profile'));
+      await tester.pumpAndSettle();
 
       await tester.enterText(
-        find.widgetWithText(TextFormField, 'System Administrator'),
+        find.widgetWithText(TextField, 'System Administrator'),
         'Civic Administrator',
       );
       await tester.pump();
-      await tester.tap(find.text('Save Changes'));
+      await tester.tap(find.text('Save changes'));
       await tester.pump();
 
       // The save completes after a simulated delay — a single pump only
       // advances one frame, not the full delay.
       await tester.pump(const Duration(milliseconds: 600));
+      await tester.pumpAndSettle();
 
       expect(find.text('Profile updated'), findsOneWidget);
+      // The saved record shows the new name; administrator-controlled
+      // fields are untouched.
       expect(find.text('Civic Administrator'), findsNWidgets(2));
-      expect(find.byType(TextFormField), findsNothing);
-      expect(find.text('Save Changes'), findsNothing);
+      expect(find.text('ADM-000001'), findsOneWidget);
+      expect(find.text('Platform Administration'), findsOneWidget);
+      expect(find.byType(TextField), findsNothing);
+      expect(find.text('Save changes'), findsNothing);
     },
   );
 
@@ -2620,20 +2635,20 @@ void main() {
       );
       await tester.pump();
 
-      await tester.tap(find.byTooltip('Edit'));
-      await tester.pump();
+      await tester.tap(find.byTooltip('Edit profile'));
+      await tester.pumpAndSettle();
 
       await tester.enterText(
-        find.widgetWithText(TextFormField, 'System Administrator'),
+        find.widgetWithText(TextField, 'System Administrator'),
         '',
       );
       await tester.pump();
-      await tester.tap(find.text('Save Changes'));
+      await tester.tap(find.text('Save changes'));
       await tester.pump();
 
       expect(find.text('Full name is required.'), findsOneWidget);
-      // Still editing — the failed save doesn't clear the bar.
-      expect(find.text('Save Changes'), findsOneWidget);
+      // Still editing — the failed save doesn't close the editor.
+      expect(find.text('Save changes'), findsOneWidget);
     },
   );
 

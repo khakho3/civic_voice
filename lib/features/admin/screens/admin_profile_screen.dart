@@ -3,59 +3,42 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../widgets/app_state_message.dart';
 import '../../../widgets/biometric_lock_preference_row.dart';
-import '../../../widgets/haptics_preference_row.dart';
 import '../../../widgets/confirm_dialog.dart';
+import '../../../widgets/haptics_preference_row.dart';
 import '../../../widgets/language_preference_row.dart';
 import '../../../widgets/profile_action_row.dart';
-import '../../../widgets/profile_edit_action_bar.dart';
-import '../../../widgets/profile_edit_button.dart';
 import '../../../widgets/profile_field_row.dart';
 import '../../../widgets/profile_header_card.dart';
 import '../../../widgets/profile_info_button.dart';
+import '../../../widgets/profile_name_edit_sheet.dart';
 import '../../../widgets/profile_section.dart';
 import '../../../widgets/profile_session_section.dart';
+import '../../../widgets/profile_status_banner.dart';
 import '../../../widgets/theme_preference_row.dart';
 import '../models/admin_profile_data.dart';
 import '../services/admin_session.dart';
 import '../widgets/admin_scaffold.dart';
 
-/// ADM-008 — Admin Profile.
+/// ADM-008 — Admin Profile (Super and Assembly tiers), on the shared
+/// grouped-list Profile system.
 ///
 /// Approved states (Figma "03/Profile" export): Default, Edit, Loading,
 /// Offline, Error ("Something went wrong"), Unauthorized, Validation,
-/// Success ("Profile updated") — Saving has no dedicated frame of its own
-/// in the export (Edit's own frame is reused for it), matching how the
-/// Save button shows a brief spinner here the same way System Settings'
-/// does. There's no Failed frame either — [AdminProfileSaveState.failed]
-/// exists anyway for architectural parity with `SystemSettingsSaveState`,
-/// preview-only via [initialSaveState] for the same reason: no backend to
-/// actually fail a save against.
+/// Success ("Profile updated"). Load failures stay full-page
+/// [AppStateMessage]s with error-red recovery.
 ///
-/// Super Admin reaches this screen from [AdminScaffold]'s drawer and retains
-/// the tab shell with no selected tab. An assembly-level Admin reaches it
-/// from the header profile shortcut; for that role it behaves as a drill-down
-/// with a leading back button and no bottom navigation.
+/// Super Admin reaches this screen from [AdminScaffold]'s drawer and keeps
+/// the tab shell with no selected tab. An Assembly Admin reaches it from
+/// the header profile shortcut and gets a drill-down with ordinary Back
+/// and no bottom navigation.
 ///
-/// The export's Retry/Retry connection buttons render primary-blue rather
-/// than the error-red every other screen's Offline/Error state uses, and
-/// its Error/Unauthorized titles render in plain text instead of red —
-/// both normalized away here for consistency, the same call already made
-/// for every other floating-card-over-dimmed-content export in this
-/// module ([AppStateMessage] already tints the title from [badgeColor],
-/// so reusing it here doesn't take any extra work to get right).
-///
-/// Editing: the export's Edit frame swaps the header's bell for a "Save"
-/// link — dropped in favor of a single Cancel/Save Changes bar at the
-/// bottom (the same shape System Settings already uses for its own
-/// dirty-state bar), rather than two controls doing the same job. Only
-/// "Administrator Information" (Full Name/Email/Department) is ever
-/// editable — Admin ID, Security, Administrative Scope, and Session are all
-/// read-only, matching what the export's own Edit/
-/// Validation frames actually show changing.
-///
-/// "Change Password" opens the shared, cross-module Change Password screen
-/// (see that screen's own doc comment). Session contains only the explicit
-/// Log Out action rather than read-only activity metadata.
+/// "Administrator Information" and "System Preferences" are the only
+/// titled sections; About and Change Password sit in their own untitled
+/// groups. The administrative scope stays behind the info button. Full
+/// Name is the only self-editable field, through the shared name sheet
+/// (which confirms before discarding unsaved changes); phone, department,
+/// Admin ID and governance level are administrator-controlled and never
+/// rewritten by a save — the screen shows the saved record afterwards.
 enum AdminProfileViewState { loading, loaded, offline, error, unauthorized }
 
 class AdminProfileScreen extends StatefulWidget {
@@ -81,8 +64,8 @@ class AdminProfileScreen extends StatefulWidget {
 
   final AdminProfileViewState initialState;
 
-  /// Preview/test hook for [AdminProfileSaveState.failed] — see that
-  /// enum's own doc comment for why it has no other way to be reached.
+  /// Preview hook for the saved/failed banners. A real failed save keeps
+  /// the edit sheet open with its own error instead.
   final AdminProfileSaveState initialSaveState;
 
   /// Wired by the app shell so Super Admin's bottom nav can switch tabs.
@@ -100,8 +83,7 @@ class AdminProfileScreen extends StatefulWidget {
   final VoidCallback? onChangePassword;
   final VoidCallback? onAbout;
 
-  /// Fired by the "Log Out" button. Nullable: there's no real
-  /// authentication flow to sign out of yet.
+  /// Fired after the log-out confirmation dialog is accepted.
   final VoidCallback? onSignOut;
 
   final VoidCallback? onNotificationsTap;
@@ -120,25 +102,14 @@ class AdminProfileScreen extends StatefulWidget {
 class _AdminProfileScreenState extends State<AdminProfileScreen> {
   late AdminProfileViewState _state = widget.initialState;
   late AdminProfileSaveState _saveState = widget.initialSaveState;
-  bool _editing = false;
-  late AdminProfileData _original;
-  late AdminProfileData _draft;
-
-  @override
-  void initState() {
-    super.initState();
-    _original = widget.initialData ?? mockAdminProfile();
-    _draft = _original;
-  }
+  late AdminProfileData _profile = widget.initialData ?? mockAdminProfile();
 
   @override
   void didUpdateWidget(covariant AdminProfileScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!_editing &&
-        widget.initialData != null &&
+    if (widget.initialData != null &&
         widget.initialData != oldWidget.initialData) {
-      _original = widget.initialData!;
-      _draft = _original;
+      _profile = widget.initialData!;
     }
     if (widget.initialState != oldWidget.initialState) {
       _state = widget.initialState;
@@ -161,61 +132,41 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
     }
   }
 
-  void _startEdit() {
-    setState(() {
-      _editing = true;
-      _saveState = AdminProfileSaveState.idle;
-    });
+  Future<void> _startEdit() async {
+    setState(() => _saveState = AdminProfileSaveState.idle);
+    final saved = await showProfileNameEditSheet(
+      context,
+      initialName: _profile.fullName,
+      confirmDiscard: true,
+      onSave: (name) async {
+        final save = widget.onSaveProfile;
+        final ok = save == null
+            ? await Future<bool>.delayed(
+                const Duration(milliseconds: 500),
+                () => true,
+              )
+            : await save(name);
+        if (ok && mounted) {
+          // Only the name changes; administrator-controlled fields keep
+          // their saved values.
+          setState(() => _profile = _profile.copyWith(fullName: name));
+        }
+        return ok;
+      },
+    );
+    if (!mounted || !saved) return;
+    setState(() => _saveState = AdminProfileSaveState.saved);
   }
 
-  Future<void> _cancelEdit() async {
-    if (_draft != _original) {
-      final confirmed = await showConfirmDialog(
-        context,
-        title: 'Discard changes?',
-        message: 'Your unsaved profile changes will be lost.',
-        confirmLabel: 'Discard',
-        destructive: true,
-      );
-      if (!confirmed || !mounted) return;
-    }
-    setState(() {
-      _editing = false;
-      _draft = _original;
-      _saveState = AdminProfileSaveState.idle;
-    });
-  }
-
-  void _updateDraft(AdminProfileData Function(AdminProfileData) update) {
-    setState(() {
-      _draft = update(_draft);
-      _saveState = AdminProfileSaveState.idle;
-    });
-  }
-
-  Future<void> _saveChanges() async {
-    if (_draft.fullName.trim().isEmpty) {
-      setState(() => _saveState = AdminProfileSaveState.validationError);
-      return;
-    }
-    setState(() => _saveState = AdminProfileSaveState.saving);
-    final save = widget.onSaveProfile;
-    final success = save == null
-        ? await Future<bool>.delayed(
-            const Duration(milliseconds: 500),
-            () => true,
-          )
-        : await save(_draft.fullName.trim());
-    if (!mounted) return;
-    setState(() {
-      if (success) {
-        _original = _draft;
-        _saveState = AdminProfileSaveState.saved;
-        _editing = false;
-      } else {
-        _saveState = AdminProfileSaveState.failed;
-      }
-    });
+  Future<void> _confirmLogOut() async {
+    final confirmed = await showConfirmDialog(
+      context,
+      title: 'Log out?',
+      message: "You'll need to sign back in to access the admin console.",
+      confirmLabel: 'Log Out',
+      destructive: true,
+    );
+    if (confirmed) widget.onSignOut?.call();
   }
 
   @override
@@ -224,7 +175,7 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
     return AdminScaffold(
       selectedTab: null,
       headerTitle: 'Admin Profile',
-      hideBottomNav: _editing || !isSuperAdmin,
+      hideBottomNav: !isSuperAdmin,
       onBack: isSuperAdmin ? null : widget.onBack,
       onNotificationsTap: widget.onNotificationsTap,
       onTabSelected: (tab) {
@@ -241,17 +192,12 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
       body: switch (_state) {
         AdminProfileViewState.loading => const _LoadingSkeleton(),
         AdminProfileViewState.loaded => _ProfileBody(
-          original: _original,
-          draft: _draft,
-          editing: _editing,
+          profile: _profile,
           saveState: _saveState,
-          onStartEdit: _startEdit,
-          onUpdate: _updateDraft,
-          onCancel: _cancelEdit,
-          onSave: _saveChanges,
+          onEdit: _startEdit,
           onChangePassword: widget.onChangePassword,
           onAbout: widget.onAbout,
-          onSignOut: widget.onSignOut,
+          onLogOut: widget.onSignOut == null ? null : _confirmLogOut,
         ),
         _ => Center(
           child: Padding(
@@ -301,168 +247,96 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Body
-// ---------------------------------------------------------------------------
-
 class _ProfileBody extends StatelessWidget {
   const _ProfileBody({
-    required this.original,
-    required this.draft,
-    required this.editing,
+    required this.profile,
     required this.saveState,
-    required this.onStartEdit,
-    required this.onUpdate,
-    required this.onCancel,
-    required this.onSave,
+    required this.onEdit,
     this.onChangePassword,
     this.onAbout,
-    this.onSignOut,
+    this.onLogOut,
   });
 
-  final AdminProfileData original;
-  final AdminProfileData draft;
-  final bool editing;
+  final AdminProfileData profile;
   final AdminProfileSaveState saveState;
-  final VoidCallback onStartEdit;
-  final void Function(AdminProfileData Function(AdminProfileData)) onUpdate;
-  final VoidCallback onCancel;
-  final VoidCallback onSave;
+  final VoidCallback onEdit;
   final VoidCallback? onChangePassword;
   final VoidCallback? onAbout;
-  final VoidCallback? onSignOut;
+  final VoidCallback? onLogOut;
 
   @override
   Widget build(BuildContext context) {
     final chromeInset = AdminScaffold.contentPadding(context);
-    final showNameError =
-        saveState == AdminProfileSaveState.validationError &&
-        draft.fullName.trim().isEmpty;
-
-    return Column(
-      children: [
-        Expanded(child: _buildList(context, chromeInset, showNameError)),
-        // A sticky bar, not the last item in the scrollable list — on a
-        // screen this long, a Save button that only appears after
-        // scrolling all the way down is easy to miss entirely.
-        if (editing)
-          ProfileEditActionBar(
-            onCancel: onCancel,
-            onSave: onSave,
-            saving: saveState == AdminProfileSaveState.saving,
-          ),
-      ],
-    );
-  }
-
-  Widget _buildList(
-    BuildContext context,
-    EdgeInsets chromeInset,
-    bool showNameError,
-  ) {
     return ListView(
       padding: EdgeInsets.fromLTRB(
         AppSpacing.md,
         chromeInset.top + AppSpacing.md,
         AppSpacing.md,
-        editing ? AppSpacing.md : chromeInset.bottom + AppSpacing.xl,
+        chromeInset.bottom + AppSpacing.md,
       ),
       children: [
-        ProfileHeaderCard(
-          name: draft.fullName,
-          subtitle: 'Administrator account · Governance approved',
-          avatarAction: editing
-              ? null
-              : ProfileEditButton(onPressed: onStartEdit),
-        ),
-        const SizedBox(height: AppSpacing.lg),
         if (saveState == AdminProfileSaveState.saved) ...[
-          const _Banner(
-            icon: AppIcons.success,
-            color: AppColors.statusResolved,
+          const ProfileStatusBanner(
+            tone: ProfileBannerTone.success,
             title: 'Profile updated',
             message: 'Administrator profile changes were saved successfully.',
           ),
-          const SizedBox(height: AppSpacing.lg),
+          const SizedBox(height: AppSpacing.md),
         ],
         if (saveState == AdminProfileSaveState.failed) ...[
-          const _Banner(
-            icon: AppIcons.warning,
-            color: AppColors.error,
+          const ProfileStatusBanner(
+            tone: ProfileBannerTone.error,
             title: 'Update Failed',
             message:
                 'Administrator profile changes could not be saved. No '
                 'changes were applied.',
           ),
-          const SizedBox(height: AppSpacing.lg),
+          const SizedBox(height: AppSpacing.md),
         ],
+        ProfileHeaderCard(
+          name: profile.fullName,
+          subtitle: 'Administrator account · Governance approved',
+          onEdit: onEdit,
+        ),
         ProfileSection(
-          icon: AppIcons.roleManagement,
           title: 'Administrator Information',
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ProfileInfoButton(
-                title: 'Administrative Scope',
-                message: 'This account can access these administrative areas:',
-                items: draft.administrativeScope,
-              ),
-            ],
+          trailing: ProfileInfoButton(
+            title: 'Administrative Scope',
+            message: 'This account can access these administrative areas:',
+            items: profile.administrativeScope,
           ),
           children: [
-            ProfileFieldRow(
-              label: 'Full Name',
-              value: draft.fullName,
-              editable: editing,
-              errorText: showNameError ? 'Full name is required.' : null,
-              onChanged: (v) => onUpdate((d) => d.copyWith(fullName: v)),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            ProfileFieldRow(
-              label: 'Phone Number',
-              value: draft.phone,
-              caption: editing
-                  ? 'Contact your administrator to change this'
-                  : null,
-            ),
-            const SizedBox(height: AppSpacing.sm),
+            ProfileFieldRow(label: 'Full Name', value: profile.fullName),
+            ProfileFieldRow(label: 'Phone Number', value: profile.phone),
             ProfileFieldRow(
               label: 'Department',
-              value: draft.department,
+              value: profile.department,
               locked: true,
             ),
-            const SizedBox(height: AppSpacing.sm),
             ProfileFieldRow(
               label: 'Admin ID',
-              value: draft.adminId,
+              value: profile.adminId,
               locked: true,
             ),
-            const SizedBox(height: AppSpacing.sm),
             ProfileFieldRow(
               label: 'Governance Level',
-              value: draft.governanceLevel,
+              value: profile.governanceLevel,
               locked: true,
             ),
           ],
         ),
         const SizedBox(height: AppSpacing.lg),
         const ProfileSection(
-          icon: AppIcons.systemTheme,
           title: 'System Preferences',
           children: [
             ThemePreferenceRow(),
-            Divider(height: AppSpacing.lg),
-            LanguagePreferenceRow(),
-            Divider(height: AppSpacing.lg),
             HapticsPreferenceRow(),
-            Divider(height: AppSpacing.lg),
+            LanguagePreferenceRow(),
             BiometricLockPreferenceRow(),
           ],
         ),
         const SizedBox(height: AppSpacing.lg),
         ProfileSection(
-          icon: AppIcons.info,
-          title: 'About',
           children: [
             ProfileActionRow(
               icon: AppIcons.info,
@@ -473,8 +347,6 @@ class _ProfileBody extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.lg),
         ProfileSection(
-          icon: AppIcons.shield,
-          title: 'Security',
           children: [
             ProfileActionRow(
               icon: AppIcons.password,
@@ -483,73 +355,8 @@ class _ProfileBody extends StatelessWidget {
             ),
           ],
         ),
-        if (!editing) ...[
-          const SizedBox(height: AppSpacing.lg),
-          ProfileSessionSection(
-            onLogOut: onSignOut == null
-                ? null
-                : () async {
-                    final confirmed = await showConfirmDialog(
-                      context,
-                      title: 'Log out?',
-                      message:
-                          'You\'ll need to sign back in to access the admin '
-                          'console.',
-                      confirmLabel: 'Log Out',
-                      destructive: true,
-                    );
-                    if (confirmed) onSignOut!();
-                  },
-          ),
-        ],
+        ProfileSessionSection(onLogOut: onLogOut),
       ],
-    );
-  }
-}
-
-class _Banner extends StatelessWidget {
-  const _Banner({
-    required this.icon,
-    required this.color,
-    required this.title,
-    required this.message,
-  });
-
-  final IconData icon;
-  final Color color;
-  final String title;
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: AppComponentRadius.card,
-        border: Border.all(color: color.withValues(alpha: 0.4)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: color, size: AppIconSize.md),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: textTheme.titleSmall?.copyWith(color: color),
-                ),
-                Text(message, style: textTheme.bodySmall),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
