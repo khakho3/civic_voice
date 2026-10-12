@@ -50,7 +50,10 @@ class GlassFab extends StatelessWidget {
               onTap: onPressed,
               child: Tooltip(
                 message: tooltip ?? '',
-                child: Icon(icon, color: AppColors.primary),
+                child: Icon(
+                  icon,
+                  color: AppSemanticColors.of(context).actionText,
+                ),
               ),
             ),
           ),

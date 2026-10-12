@@ -17,6 +17,7 @@ class UnreadDotBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     if (!show) return child;
     final colorScheme = Theme.of(context).colorScheme;
+    final semantic = AppSemanticColors.of(context);
     return Stack(
       clipBehavior: Clip.none,
       children: [
@@ -24,13 +25,26 @@ class UnreadDotBadge extends StatelessWidget {
         Positioned(
           top: 0,
           right: 0,
-          child: Container(
-            width: 10,
-            height: 10,
-            decoration: BoxDecoration(
-              color: AppColors.primary,
-              shape: BoxShape.circle,
-              border: Border.all(color: colorScheme.surface, width: 1.5),
+          // Error red, not brand gold: gold is 1.47:1 against a light
+          // header, and web's shared unread badge uses the error hue too.
+          // The dot pops in once when unread state appears; reduced motion
+          // shows it immediately.
+          child: TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0.6, end: 1),
+            duration: AppMotion.duration(context, AppMotionDuration.standard),
+            curve: AppMotionCurve.emphasized,
+            builder: (context, scale, dot) => Opacity(
+              opacity: ((scale - 0.6) / 0.4).clamp(0.0, 1.0),
+              child: Transform.scale(scale: scale, child: dot),
+            ),
+            child: Container(
+              width: 10,
+              height: 10,
+              decoration: BoxDecoration(
+                color: semantic.error,
+                shape: BoxShape.circle,
+                border: Border.all(color: colorScheme.surface, width: 1.5),
+              ),
             ),
           ),
         ),

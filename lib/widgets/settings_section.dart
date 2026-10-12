@@ -27,7 +27,11 @@ class SettingsSection extends StatelessWidget {
       children: [
         Row(
           children: [
-            Icon(icon, size: AppIconSize.sm, color: AppColors.primary),
+            Icon(
+              icon,
+              size: AppIconSize.sm,
+              color: AppSemanticColors.of(context).actionText,
+            ),
             const SizedBox(width: AppSpacing.xs),
             Flexible(
               child: Text(

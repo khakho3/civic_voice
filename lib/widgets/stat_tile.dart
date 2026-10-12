@@ -36,7 +36,10 @@ class StatTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final colorScheme = Theme.of(context).colorScheme;
-    final tint = iconColor ?? AppColors.primary;
+    final semantic = AppSemanticColors.of(context);
+    // Glyph and delta are foregrounds on the surface: a hue passed in (gold
+    // by default) is drawn with its readable ink, never the raw fill hue.
+    final tint = semantic.foregroundFor(iconColor ?? semantic.actionText);
 
     final content = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -61,7 +64,9 @@ class StatTile extends StatelessWidget {
               Text(
                 delta!,
                 style: textTheme.labelSmall?.copyWith(
-                  color: deltaColor ?? colorScheme.onSurfaceVariant,
+                  color: deltaColor == null
+                      ? colorScheme.onSurfaceVariant
+                      : semantic.foregroundFor(deltaColor!),
                   fontWeight: AppFontWeight.semiBold,
                 ),
                 maxLines: 1,

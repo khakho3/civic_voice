@@ -18,6 +18,7 @@ class SimpleBarChart extends StatelessWidget {
   Widget build(BuildContext context) {
     final calculatedMax = values.fold<int>(0, (a, b) => a > b ? a : b);
     final maxValue = calculatedMax <= 0 ? 1 : calculatedMax;
+    final fill = AppSemanticColors.of(context).actionFill;
     return SizedBox(
       height: 120,
       child: Row(
@@ -36,10 +37,7 @@ class SimpleBarChart extends StatelessWidget {
                     gradient: LinearGradient(
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
-                      colors: [
-                        AppColors.primary.withValues(alpha: 0.55),
-                        AppColors.primary,
-                      ],
+                      colors: [fill.withValues(alpha: 0.55), fill],
                     ),
                     borderRadius: const BorderRadius.vertical(
                       top: Radius.circular(4),

@@ -159,7 +159,12 @@ class _BannerCardState extends State<_BannerCard>
                             color: widget.color.withValues(alpha: 0.12),
                             shape: BoxShape.circle,
                           ),
-                          child: Icon(widget.icon, color: widget.color),
+                          child: Icon(
+                            widget.icon,
+                            color: AppSemanticColors.of(
+                              context,
+                            ).foregroundFor(widget.color),
+                          ),
                         ),
                         const SizedBox(width: AppSpacing.md),
                         Expanded(

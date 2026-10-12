@@ -34,7 +34,7 @@ class PendingCoverageNotice extends StatelessWidget {
               "report is saved and will stay pending until one is added — "
               "you don't need to do anything else.",
               style: theme.textTheme.bodySmall?.copyWith(
-                color: AppColors.warning,
+                color: AppSemanticColors.of(context).warningText,
               ),
             ),
           ),

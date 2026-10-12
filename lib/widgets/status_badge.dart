@@ -10,6 +10,12 @@ import '../models/report_status.dart';
 /// this exact pill treatment — a tinted, bordered label with no icon mixed
 /// in — rather than each module building its own slightly-different badge
 /// shape.
+///
+/// [color] is the hue for the translucent fill and border. [textColor] is
+/// mapped through [AppSemanticColors.foregroundFor], so a caller that
+/// passes a raw brand/semantic/status hue (gold, amber, green…) still gets
+/// that hue's readable text variant for the current theme; any other color
+/// is used as given.
 class TintedBadge extends StatelessWidget {
   const TintedBadge({
     super.key,
@@ -30,6 +36,7 @@ class TintedBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ink = AppSemanticColors.of(context).foregroundFor(textColor);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
       decoration: BoxDecoration(
@@ -41,14 +48,14 @@ class TintedBadge extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (icon != null) ...[
-            Icon(icon, size: AppIconSize.sm - 2, color: textColor),
+            Icon(icon, size: AppIconSize.sm - 2, color: ink),
             const SizedBox(width: 4),
           ],
           Flexible(
             child: Text(
               label,
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: textColor,
+                color: ink,
                 fontWeight: AppFontWeight.semiBold,
               ),
               maxLines: 1,
@@ -61,6 +68,10 @@ class TintedBadge extends StatelessWidget {
   }
 }
 
+/// Text-only report status pill. The label carries the meaning (and is
+/// what screen readers announce); the hue only tints the fill. Text uses
+/// the theme's readable status ink for that hue rather than the hue itself
+/// — the raw lifecycle hues are 2–4:1 as text on the tinted fill.
 class ReportStatusBadge extends StatelessWidget {
   const ReportStatusBadge({super.key, required this.status});
 
@@ -68,11 +79,14 @@ class ReportStatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final brightness = Theme.of(context).brightness;
-    return TintedBadge(
-      label: status.label,
-      color: status.color,
-      textColor: status.badgeTextColor(brightness),
+    return Semantics(
+      label: 'Status: ${status.label}',
+      excludeSemantics: true,
+      child: TintedBadge(
+        label: status.label,
+        color: status.color,
+        textColor: status.color,
+      ),
     );
   }
 }

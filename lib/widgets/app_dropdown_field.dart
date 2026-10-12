@@ -238,7 +238,9 @@ class _AppDropdownFieldState<T> extends State<AppDropdownField<T>> {
           const SizedBox(height: AppSpacing.xs),
           Text(
             widget.errorText!,
-            style: textTheme.labelSmall?.copyWith(color: AppColors.error),
+            style: textTheme.labelSmall?.copyWith(
+              color: AppSemanticColors.of(context).errorText,
+            ),
           ),
         ],
       ],
@@ -302,7 +304,9 @@ class _DropdownMenuContent<T> extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: textTheme.bodyLarge?.copyWith(
-            color: selected ? AppColors.primary : colorScheme.onSurface,
+            color: selected
+                ? AppSemanticColors.of(context).actionText
+                : colorScheme.onSurface,
             fontWeight: selected ? AppFontWeight.semiBold : null,
           ),
         ),

@@ -38,12 +38,15 @@ class ProfileInfoButton extends StatelessWidget {
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Padding(
-                            padding: EdgeInsets.only(top: 7),
-                            child: Icon(
-                              Icons.circle,
-                              size: 6,
-                              color: AppColors.primary,
+                          Padding(
+                            padding: const EdgeInsets.only(top: 9),
+                            child: Container(
+                              width: 6,
+                              height: 6,
+                              decoration: BoxDecoration(
+                                color: AppSemanticColors.of(context).actionText,
+                                shape: BoxShape.circle,
+                              ),
                             ),
                           ),
                           const SizedBox(width: AppSpacing.sm),

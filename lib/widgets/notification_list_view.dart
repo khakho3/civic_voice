@@ -7,6 +7,7 @@ import '../models/notification_item.dart';
 import '../services/notification_directory.dart';
 import '../features/citizen/services/notification_permission_service.dart';
 import 'app_state_message.dart';
+import 'confirm_dialog.dart';
 import 'glass_card.dart';
 
 /// Shared notification list content for every module's notification
@@ -98,6 +99,21 @@ class _NotificationListViewState extends State<NotificationListView>
     await _refreshPermission();
   }
 
+  /// Clearing every notification is destructive, so it confirms through the
+  /// shared helper first; Cancel or dismissal keeps the list.
+  Future<void> _confirmClearAll() async {
+    final clear = widget.onClearAll;
+    if (clear == null) return;
+    final confirmed = await showConfirmDialog(
+      context,
+      title: 'Clear all notifications?',
+      message: 'They will be removed from this list.',
+      confirmLabel: 'Clear all',
+      destructive: true,
+    );
+    if (confirmed && mounted) clear();
+  }
+
   @override
   Widget build(BuildContext context) {
     final notifications = widget.notifications;
@@ -124,7 +140,7 @@ class _NotificationListViewState extends State<NotificationListView>
             Align(
               alignment: Alignment.centerRight,
               child: TextButton(
-                onPressed: widget.onClearAll,
+                onPressed: _confirmClearAll,
                 child: const Text('Clear all'),
               ),
             ),
@@ -215,6 +231,7 @@ class _NotificationCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final colorScheme = Theme.of(context).colorScheme;
+    final semantic = AppSemanticColors.of(context);
     final isUnread = !notification.read;
 
     return GlassCard(
@@ -232,7 +249,10 @@ class _NotificationCard extends StatelessWidget {
               color: notification.color.withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
-            child: Icon(notification.icon, color: notification.color),
+            child: Icon(
+              notification.icon,
+              color: semantic.foregroundFor(notification.color),
+            ),
           ),
           const SizedBox(width: AppSpacing.md),
           Expanded(
@@ -259,12 +279,15 @@ class _NotificationCard extends StatelessWidget {
                     ),
                     if (isUnread) ...[
                       const SizedBox(width: AppSpacing.xs),
-                      Container(
-                        width: 8,
-                        height: 8,
-                        decoration: const BoxDecoration(
-                          color: AppColors.primary,
-                          shape: BoxShape.circle,
+                      Semantics(
+                        label: 'Unread',
+                        child: Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: semantic.actionFill,
+                            shape: BoxShape.circle,
+                          ),
                         ),
                       ),
                     ],
@@ -320,7 +343,7 @@ class _DismissBackground extends StatelessWidget {
       ),
       child: Icon(
         AppIcons.delete,
-        color: AppColors.error,
+        color: AppSemanticColors.of(context).errorText,
         size: AppIconSize.standard,
       ),
     );
@@ -350,9 +373,9 @@ class _EmptyState extends StatelessWidget {
                 color: AppColors.primary.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
+              child: Icon(
                 AppIcons.notifications,
-                color: AppColors.primary,
+                color: AppSemanticColors.of(context).actionText,
                 size: AppIconSize.lg,
               ),
             ),

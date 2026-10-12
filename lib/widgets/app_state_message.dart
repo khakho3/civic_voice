@@ -52,6 +52,7 @@ class AppStateMessage extends StatelessWidget {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final colorScheme = Theme.of(context).colorScheme;
+    final semantic = AppSemanticColors.of(context);
     final tint = badgeColor ?? colorScheme.onSurfaceVariant;
 
     final content = Column(
@@ -64,7 +65,11 @@ class AppStateMessage extends StatelessWidget {
             color: tint.withValues(alpha: 0.12),
             shape: BoxShape.circle,
           ),
-          child: Icon(icon, size: AppIconSize.md, color: tint),
+          child: Icon(
+            icon,
+            size: AppIconSize.md,
+            color: semantic.foregroundFor(tint),
+          ),
         ),
         const SizedBox(height: AppSpacing.md),
         Text(title, style: textTheme.titleMedium, textAlign: TextAlign.center),
@@ -77,7 +82,10 @@ class AppStateMessage extends StatelessWidget {
             child: FilledButton(
               style: primaryActionColor == null
                   ? null
-                  : FilledButton.styleFrom(backgroundColor: primaryActionColor),
+                  : FilledButton.styleFrom(
+                      backgroundColor: primaryActionColor,
+                      foregroundColor: semantic.onFillFor(primaryActionColor!),
+                    ),
               onPressed: onPrimaryAction,
               child: Text(primaryActionLabel!),
             ),
