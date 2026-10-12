@@ -11,7 +11,7 @@ day for the owner device-feedback follow-up in that review.
 | Repository | khakho3/civic_voice, local checkout `C:/Projects/mobile/civic_voice` |
 | Branch | `codex/flutter-aziz-review-fixes` (local only, no upstream) |
 | Base reviewed | `693c59c3b9b3d68e1e5828ee8c9180f76c18dd24` (Aziz) on integration `75e43b3c80f9cacc037c5b4f0bf41d3778520938` |
-| Repaired HEAD | `75b512a` — 15 small local commits on top of `693c59c` (list below); working tree clean |
+| Repaired HEAD | latest code commit `75b512a` — 15 small local commits on top of `693c59c` (list below), with the docs commits recording this report on top; working tree clean |
 | Commits | made after Francis authorized small commits on 12 October |
 | Pushes / PRs / merges | none |
 | API repo, database, Firebase cloud, production targets | untouched |
