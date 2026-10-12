@@ -721,11 +721,11 @@ class _ReportHeroCard extends StatelessWidget {
               onPressed: actionsDisabled ? null : onReportNow,
               style: FilledButton.styleFrom(
                 backgroundColor: onPrimary,
-                foregroundColor: AppSemanticColors.of(context).actionText,
+                foregroundColor: AppColors.primary,
                 // Without these, a disabled FilledButton falls back to the
                 // global theme's default (a near-transparent dark overlay)
                 // — legible on the app's usual light backgrounds, but
-                // unreadable against this card's own blue gradient.
+                // unreadable against this card's gold gradient.
                 disabledBackgroundColor: onPrimary.withValues(alpha: 0.3),
                 disabledForegroundColor: AppColors.primary.withValues(
                   alpha: 0.5,
