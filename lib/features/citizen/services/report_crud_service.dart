@@ -276,6 +276,7 @@ ReportStatus _statusFromApi(String? value) => switch (value) {
   'UNDER_REVIEW' => ReportStatus.underReview,
   'ASSIGNED' => ReportStatus.assigned,
   'IN_PROGRESS' => ReportStatus.inProgress,
+  'PENDING_APPROVAL' => ReportStatus.pendingApproval,
   'RESOLVED' => ReportStatus.resolved,
   'REJECTED' => ReportStatus.rejected,
   _ => ReportStatus.submitted,
@@ -286,6 +287,7 @@ String _statusToApi(ReportStatus value) => switch (value) {
   ReportStatus.underReview => 'UNDER_REVIEW',
   ReportStatus.assigned => 'ASSIGNED',
   ReportStatus.inProgress => 'IN_PROGRESS',
+  ReportStatus.pendingApproval => 'PENDING_APPROVAL',
   ReportStatus.resolved => 'RESOLVED',
   ReportStatus.rejected => 'REJECTED',
 };

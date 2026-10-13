@@ -165,6 +165,8 @@ class NotificationDirectory {
               NotificationType.citizenReportUnderReview,
             ReportStatus.assigned => NotificationType.citizenReportAssigned,
             ReportStatus.inProgress => NotificationType.citizenReportInProgress,
+            ReportStatus.pendingApproval =>
+              NotificationType.citizenReportPendingApproval,
             ReportStatus.resolved => NotificationType.citizenReportResolved,
             ReportStatus.rejected => NotificationType.citizenReportRejected,
           },
@@ -173,6 +175,7 @@ class NotificationDirectory {
             ReportStatus.underReview => 'Report under review',
             ReportStatus.assigned => 'Report assigned',
             ReportStatus.inProgress => 'Report moved to In Progress',
+            ReportStatus.pendingApproval => 'Awaiting Confirmation',
             ReportStatus.resolved => 'Report resolved',
             ReportStatus.rejected => 'Report rejected',
           },
@@ -185,6 +188,8 @@ class NotificationDirectory {
               'Your report was assigned to a maintenance team.',
             ReportStatus.inProgress =>
               'The maintenance team has started work on this report.',
+            ReportStatus.pendingApproval =>
+              'Repair work is complete and awaiting your confirmation.',
             ReportStatus.resolved =>
               'The responsible team has marked this report as resolved.',
             ReportStatus.rejected =>
@@ -195,6 +200,7 @@ class NotificationDirectory {
           category: switch (report.status) {
             ReportStatus.submitted || ReportStatus.underReview => 'Report',
             ReportStatus.assigned || ReportStatus.inProgress => 'Status',
+            ReportStatus.pendingApproval => 'Confirmation',
             ReportStatus.resolved => 'Resolved',
             ReportStatus.rejected => 'Rejected',
           },

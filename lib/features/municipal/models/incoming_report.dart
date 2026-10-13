@@ -287,9 +287,11 @@ class IncomingReportItem {
   }
 
   static ReportStatus _statusFromApi(String? value) => switch (value) {
+    'SUBMITTED' => ReportStatus.submitted,
     'UNDER_REVIEW' => ReportStatus.underReview,
     'ASSIGNED' => ReportStatus.assigned,
     'IN_PROGRESS' => ReportStatus.inProgress,
+    'PENDING_APPROVAL' => ReportStatus.pendingApproval,
     'RESOLVED' => ReportStatus.resolved,
     'REJECTED' => ReportStatus.rejected,
     _ => ReportStatus.submitted,

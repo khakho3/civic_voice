@@ -519,6 +519,7 @@ class _ReportProgress extends StatelessWidget {
       ReportStatus.underReview => 0.4,
       ReportStatus.assigned => 0.6,
       ReportStatus.inProgress => 0.72,
+      ReportStatus.pendingApproval => 0.9,
       ReportStatus.resolved => 1,
       ReportStatus.rejected => 1,
     };

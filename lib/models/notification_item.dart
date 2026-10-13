@@ -9,6 +9,7 @@ enum NotificationType {
   citizenReportUnderReview,
   citizenReportAssigned,
   citizenReportInProgress,
+  citizenReportPendingApproval,
   citizenReportResolved,
   citizenReportRejected,
   municipalNewIncomingReport,

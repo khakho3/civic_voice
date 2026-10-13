@@ -2540,7 +2540,9 @@ Widget _municipalNotifications(BuildContext context) {
             context,
             ResolvedReportItem.fromReport(report),
           );
-        case ReportStatus.assigned || ReportStatus.inProgress:
+        case ReportStatus.assigned ||
+            ReportStatus.inProgress ||
+            ReportStatus.pendingApproval:
           _pushMunicipalReportProgress(context, report);
         case ReportStatus.submitted || ReportStatus.underReview:
           _pushMunicipalReportReview(context, report);

@@ -89,6 +89,7 @@ class _MunicipalReportProgressScreenState
   }
 
   void _markResolved() {
+    if (widget.status == ReportStatus.pendingApproval) return;
     setState(() => _state = MunicipalReportProgressViewState.loading);
     Future.delayed(const Duration(milliseconds: 500), () {
       if (mounted) {
@@ -134,7 +135,9 @@ class _MunicipalReportProgressScreenState
   @override
   Widget build(BuildContext context) {
     final showActionBar =
-        !_live && _state != MunicipalReportProgressViewState.success;
+        !_live &&
+        widget.status != ReportStatus.pendingApproval &&
+        _state != MunicipalReportProgressViewState.success;
     // widget.status is fixed at whatever it was when this screen opened —
     // it doesn't track _state, so without this the header would keep
     // showing e.g. "In Progress" even after the report's actually been

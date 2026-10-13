@@ -19,6 +19,7 @@ enum ReportStatus {
   underReview,
   assigned,
   inProgress,
+  pendingApproval,
   resolved,
   rejected;
 
@@ -27,6 +28,7 @@ enum ReportStatus {
     ReportStatus.underReview => 'Under Review',
     ReportStatus.assigned => 'Assigned',
     ReportStatus.inProgress => 'In Progress',
+    ReportStatus.pendingApproval => 'Awaiting Confirmation',
     ReportStatus.resolved => 'Resolved',
     ReportStatus.rejected => 'Rejected',
   };
@@ -36,6 +38,7 @@ enum ReportStatus {
     ReportStatus.underReview => AppColors.statusUnderReview,
     ReportStatus.assigned => AppColors.statusAssigned,
     ReportStatus.inProgress => AppColors.statusInProgress,
+    ReportStatus.pendingApproval => AppColors.statusPendingApproval,
     ReportStatus.resolved => AppColors.statusResolved,
     ReportStatus.rejected => AppColors.statusRejected,
   };
@@ -45,8 +48,29 @@ enum ReportStatus {
     ReportStatus.underReview => AppIcons.statusUnderReview,
     ReportStatus.assigned => AppIcons.statusAssigned,
     ReportStatus.inProgress => AppIcons.statusInProgress,
+    ReportStatus.pendingApproval => AppIcons.statusUnderReview,
     ReportStatus.resolved => AppIcons.statusResolved,
     ReportStatus.rejected => AppIcons.statusRejected,
+  };
+
+  int get progressPercent => switch (this) {
+    ReportStatus.submitted => 15,
+    ReportStatus.underReview => 30,
+    ReportStatus.assigned => 50,
+    ReportStatus.inProgress => 70,
+    ReportStatus.pendingApproval => 90,
+    ReportStatus.resolved => 100,
+    ReportStatus.rejected => 100,
+  };
+
+  String get apiValue => switch (this) {
+    ReportStatus.submitted => 'SUBMITTED',
+    ReportStatus.underReview => 'UNDER_REVIEW',
+    ReportStatus.assigned => 'ASSIGNED',
+    ReportStatus.inProgress => 'IN_PROGRESS',
+    ReportStatus.pendingApproval => 'PENDING_APPROVAL',
+    ReportStatus.resolved => 'RESOLVED',
+    ReportStatus.rejected => 'REJECTED',
   };
 
   /// Text color for [color] rendered on its own low-alpha tint (status
@@ -65,6 +89,9 @@ enum ReportStatus {
         isDark ? const Color(0xFFC4B5FD) : const Color(0xFF7C3AED),
       ReportStatus.inProgress =>
         isDark ? const Color(0xFF7DD3FC) : const Color(0xFF0284C7),
+      ReportStatus.pendingApproval => isDark
+          ? AppColors.statusPendingApprovalTextDark
+          : AppColors.statusPendingApprovalTextLight,
       ReportStatus.resolved => AppColors.statusResolved, // AA-safe as-is
       ReportStatus.rejected => AppColors.statusRejected, // AA-safe as-is
     };

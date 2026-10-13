@@ -157,6 +157,7 @@ double _statusProgress(ReportStatus status) {
     ReportStatus.underReview => 0.4,
     ReportStatus.assigned => 0.6,
     ReportStatus.inProgress => 0.8,
+    ReportStatus.pendingApproval => 0.9,
     ReportStatus.resolved => 1,
     ReportStatus.rejected => 1,
   };
@@ -323,6 +324,7 @@ class _TrackingProgress extends StatelessWidget {
     ReportStatus.underReview,
     ReportStatus.assigned,
     ReportStatus.inProgress,
+    ReportStatus.pendingApproval,
     ReportStatus.resolved,
   ];
 
@@ -427,6 +429,7 @@ class _TimelineStep extends StatelessWidget {
       ReportStatus.underReview => 'Under review',
       ReportStatus.assigned => 'Assigned',
       ReportStatus.inProgress => 'In progress',
+      ReportStatus.pendingApproval => 'Awaiting Confirmation',
       ReportStatus.resolved => 'Resolved',
       ReportStatus.rejected => 'Rejected',
     };
@@ -441,6 +444,8 @@ class _TimelineStep extends StatelessWidget {
       ReportStatus.assigned => 'Field team assignment created for repair work.',
       ReportStatus.inProgress =>
         'The assigned team is actively working on this report.',
+      ReportStatus.pendingApproval =>
+        'Repair work is complete and awaiting confirmation.',
       ReportStatus.resolved =>
         'The repair is complete and the report is closed.',
       ReportStatus.rejected =>
@@ -455,6 +460,7 @@ class _TimelineStep extends StatelessWidget {
       ReportStatus.underReview => '09 Jul, 10:15',
       ReportStatus.assigned => '09 Jul, 11:00',
       ReportStatus.inProgress => '09 Jul, 12:30',
+      ReportStatus.pendingApproval => '10 Jul, 08:30',
       ReportStatus.resolved => '10 Jul, 09:00',
       ReportStatus.rejected => '09 Jul, 11:00',
     };
@@ -564,6 +570,8 @@ class _LatestUpdateCard extends StatelessWidget {
         'Your report was assigned to the responsible maintenance team.',
       ReportStatus.inProgress =>
         'Public Works started repair work for this report.',
+      ReportStatus.pendingApproval =>
+        'Repair work is complete and awaiting your confirmation.',
       ReportStatus.resolved => 'The report has been resolved and closed.',
       ReportStatus.rejected =>
         report.rejectionReason?.trim().isNotEmpty == true

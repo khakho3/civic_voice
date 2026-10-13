@@ -6,6 +6,42 @@ import 'package:civic_voice/services/api_client.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  Map<String, dynamic> reportJsonForStatus(String? status) => {
+    'id': 'internal-status',
+    'title': 'Status mapping report',
+    'location': 'High Street',
+    'category': 'Safety',
+    if (status != null) 'status': status,
+    'photoUrls': <String>[],
+    'resolutionPhotoUrls': <String>[],
+  };
+
+  test('maps every supported API report status', () {
+    const expectedStatuses = {
+      'SUBMITTED': ReportStatus.submitted,
+      'UNDER_REVIEW': ReportStatus.underReview,
+      'ASSIGNED': ReportStatus.assigned,
+      'IN_PROGRESS': ReportStatus.inProgress,
+      'PENDING_APPROVAL': ReportStatus.pendingApproval,
+      'RESOLVED': ReportStatus.resolved,
+      'REJECTED': ReportStatus.rejected,
+    };
+
+    for (final entry in expectedStatuses.entries) {
+      final report = IncomingReportItem.fromApi(reportJsonForStatus(entry.key));
+
+      expect(report.status, entry.value, reason: 'status: ${entry.key}');
+    }
+  });
+
+  test('falls back to submitted for unknown or absent API statuses', () {
+    for (final status in ['UNKNOWN_STATUS', null]) {
+      final report = IncomingReportItem.fromApi(reportJsonForStatus(status));
+
+      expect(report.status, ReportStatus.submitted, reason: 'status: $status');
+    }
+  });
+
   test('maps quick rejection reasons to backend enum values', () {
     expect(QuickRejectionReason.duplicateReport.apiValue, 'DUPLICATE_REPORT');
     expect(QuickRejectionReason.falseReport.apiValue, 'FALSE_REPORT');
