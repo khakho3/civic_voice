@@ -7,6 +7,7 @@ import '../models/incoming_report.dart';
 import '../services/municipal_report_directory.dart';
 import '../../../widgets/collapsible_list_header.dart';
 import '../../../widgets/glass_card.dart';
+import '../../../widgets/text_filter_chips.dart';
 import '../widgets/municipal_scaffold.dart';
 import '../widgets/municipal_search_field.dart';
 import '../../../widgets/app_state_message.dart';
@@ -101,6 +102,7 @@ class _MunicipalInboxScreenState extends State<MunicipalInboxScreen> {
   @override
   void initState() {
     super.initState();
+    MunicipalReportDirectory.instance.reports.addListener(_directoryChanged);
     if (widget.initialState == MunicipalInboxViewState.noResults) {
       // Deliberately matches nothing in the mock dataset, exactly like the
       // approved No-Results reference frame.
@@ -109,8 +111,13 @@ class _MunicipalInboxScreenState extends State<MunicipalInboxScreen> {
     _searchController.addListener(() => setState(() {}));
   }
 
+  void _directoryChanged() {
+    if (mounted) setState(() => _reports = _inboxReportsFromDirectory());
+  }
+
   @override
   void dispose() {
+    MunicipalReportDirectory.instance.reports.removeListener(_directoryChanged);
     _searchController.dispose();
     super.dispose();
   }
@@ -240,7 +247,7 @@ class _MunicipalInboxScreenState extends State<MunicipalInboxScreen> {
             primaryActionLabel: 'Request Access',
             // No access-request workflow is specified in Issue 03 —
             // placeholder pending spec.
-            onPrimaryAction: () {},
+            onPrimaryAction: null,
             secondaryActionLabel: 'Return to Dashboard',
             onSecondaryAction: widget.onNavigateToDashboard,
             bordered: true,
@@ -303,6 +310,20 @@ class _InboxContent extends StatelessWidget {
                   MunicipalSearchField(
                     controller: searchController,
                     hintText: 'Search incoming reports...',
+                    screenKey: 'municipal-inbox',
+                    results: (query) => [
+                      for (final item in rawReports)
+                        if ('${item.referenceId} ${item.title} ${item.locationLabel}'
+                            .toLowerCase()
+                            .contains(query.toLowerCase()))
+                          FocusedSearchResult(
+                            title: item.title,
+                            subtitle: item.referenceId,
+                            onSelected: onReportTap == null
+                                ? null
+                                : () => onReportTap!(item),
+                          ),
+                    ],
                     enabled: !loading,
                   ),
                   const SizedBox(height: AppSpacing.sm),
@@ -340,82 +361,22 @@ class _InboxContent extends StatelessWidget {
 
 class _CategoryChips extends StatelessWidget {
   const _CategoryChips({required this.selected, required this.onSelected});
-
   final ReportCategory? selected;
   final ValueChanged<ReportCategory?>? onSelected;
-
   @override
-  Widget build(BuildContext context) {
-    final onSelected = this.onSelected;
-    return SizedBox(
-      height: 40,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        children: [
-          _CategoryChip(
-            label: 'All New',
-            isSelected: selected == null,
-            onTap: onSelected == null ? null : () => onSelected(null),
-          ),
-          for (final category in ReportCategory.values) ...[
-            const SizedBox(width: AppSpacing.sm),
-            _CategoryChip(
-              label: category.label,
-              isSelected: selected == category,
-              onTap: onSelected == null ? null : () => onSelected(category),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _CategoryChip extends StatelessWidget {
-  const _CategoryChip({
-    required this.label,
-    required this.isSelected,
-    this.onTap,
-  });
-
-  final String label;
-  final bool isSelected;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-    return Material(
-      color: isSelected
-          ? AppSemanticColors.of(context).actionFill
-          : colorScheme.surface,
-      shape: StadiumBorder(
-        side: BorderSide(
-          color: isSelected
-              ? AppSemanticColors.of(context).controlBorder
-              : colorScheme.outline,
-        ),
-      ),
-      child: InkWell(
-        customBorder: const StadiumBorder(),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-          child: Center(
-            child: Text(
-              label,
-              style: textTheme.labelLarge?.copyWith(
-                color: isSelected
-                    ? AppSemanticColors.of(context).onAction
-                    : colorScheme.onSurface,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => IgnorePointer(
+    ignoring: onSelected == null,
+    child: TextFilterChips<ReportCategory?>(
+      padding: EdgeInsets.zero,
+      options: [
+        const TextFilterOption(value: null, label: 'All New'),
+        for (final category in ReportCategory.values)
+          TextFilterOption(value: category, label: category.label),
+      ],
+      selected: selected,
+      onSelected: (value) => onSelected?.call(value),
+    ),
+  );
 }
 
 class _ActiveFilterTags extends StatelessWidget {

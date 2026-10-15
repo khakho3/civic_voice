@@ -11,7 +11,7 @@ void main() {
     'title': 'Status mapping report',
     'location': 'High Street',
     'category': 'Safety',
-    if (status != null) 'status': status,
+    'status': ?status,
     'photoUrls': <String>[],
     'resolutionPhotoUrls': <String>[],
   };
@@ -34,11 +34,12 @@ void main() {
     }
   });
 
-  test('falls back to submitted for unknown or absent API statuses', () {
+  test('rejects unsupported or absent workflow states', () {
     for (final status in ['UNKNOWN_STATUS', null]) {
-      final report = IncomingReportItem.fromApi(reportJsonForStatus(status));
-
-      expect(report.status, ReportStatus.submitted, reason: 'status: $status');
+      expect(
+        () => IncomingReportItem.fromApi(reportJsonForStatus(status)),
+        throwsFormatException,
+      );
     }
   });
 

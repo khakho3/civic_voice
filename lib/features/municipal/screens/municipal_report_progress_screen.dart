@@ -1,9 +1,16 @@
+import '../../../core/widgets/ghana_refresh_indicator.dart';
 import 'package:flutter/material.dart';
-import 'package:share_plus/share_plus.dart';
+import '../../../services/public_case_share.dart';
+import '../../../widgets/confirm_dialog.dart';
+import '../../../widgets/busy_indicator.dart';
+import '../../../widgets/evidence_image_viewer.dart';
+import '../../../widgets/app_state_message.dart';
+import '../../admin/services/admin_maintenance_team_directory.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../models/report_status.dart';
 import '../models/report_progress_data.dart';
+import '../models/incoming_report.dart';
 import '../services/municipal_report_directory.dart';
 import '../../../widgets/glass_card.dart';
 import '../../../widgets/kebab_menu_button.dart';
@@ -11,21 +18,9 @@ import '../widgets/municipal_detail_header.dart';
 import '../widgets/officer_contact_row.dart';
 import '../../../widgets/status_badge.dart';
 
-/// MUN-007 — Report Progress.
-///
-/// Approved states (Figma "07 - Report Progress" section): Default,
-/// Loading, Missing Evidence, Success, Offline.
-///
-/// Missing Evidence isn't a separate content shape so much as a substate of
-/// Default (zero evidence photos uploaded, which blocks "Mark Resolved") —
-/// both share [_ProgressBody], differing only in `evidenceCount`, the same
-/// pattern Verification/Report Review use for their own state families.
-///
-/// Reached only from MUN-006 Active Reports (a report already past
-/// triage/assignment), never from Inbox, so unlike Report Review/
-/// Verification/Assign Team there's no separate "return to Dashboard"
-/// concept to distinguish from the header back arrow — both just pop back
-/// to Active Reports.
+/// Municipal monitoring is read-only while the crew works. Submitted
+/// completion exposes evidence review, confirm-and-close, or a reasoned
+/// return to the team. A server rejection never becomes local success.
 enum MunicipalReportProgressViewState {
   loading,
   loaded,
@@ -60,8 +55,17 @@ class MunicipalReportProgressScreen extends StatefulWidget {
 class _MunicipalReportProgressScreenState
     extends State<MunicipalReportProgressScreen> {
   late MunicipalReportProgressViewState _state = widget.initialState;
-  late final bool _live;
-  late final ReportProgressData _data;
+  late ReportProgressData _data;
+  bool _submitting = false;
+  bool _decisionOpen = false;
+  bool get _hasCompletionEvidence =>
+      (_report?.resolutionNotes?.trim().isNotEmpty ?? false) &&
+      (_report?.resolutionPhotoUrls.isNotEmpty ?? false);
+  bool _sentBack = false;
+  bool _missing = false;
+  String? _actionError;
+  IncomingReportItem? get _report =>
+      MunicipalReportDirectory.instance.byReferenceId(widget.referenceId);
   late int _evidenceCount;
 
   @override
@@ -70,9 +74,11 @@ class _MunicipalReportProgressScreenState
     final report = MunicipalReportDirectory.instance.byReferenceId(
       widget.referenceId,
     );
-    _live = report?.apiId != null;
-    _data = _live
-        ? ReportProgressData.fromReport(report!)
+    _data =
+        report != null &&
+            (report.apiId != null ||
+                report.status == ReportStatus.pendingApproval)
+        ? ReportProgressData.fromReport(report)
         : ReportProgressData.mock();
     _evidenceCount =
         widget.initialState == MunicipalReportProgressViewState.missingEvidence
@@ -82,29 +88,97 @@ class _MunicipalReportProgressScreenState
 
   final _timelineKey = GlobalKey();
 
-  bool get _canResolve => _evidenceCount > 0;
-
-  void _addEvidencePhoto() {
-    setState(() => _evidenceCount++);
+  Future<void> _approve() async {
+    if (!_hasCompletionEvidence) return;
+    if (_submitting ||
+        _decisionOpen ||
+        _report?.status != ReportStatus.pendingApproval) {
+      return;
+    }
+    _decisionOpen = true;
+    final confirmed = await showConfirmDialog(
+      context,
+      title: 'Approve and close?',
+      message:
+          'Confirm that the completion notes and evidence show the work is finished. The report will close.',
+      confirmLabel: 'Approve & Close',
+    );
+    _decisionOpen = false;
+    if (!mounted || !confirmed) return;
+    await _submitCompletion(approve: true);
   }
 
-  void _markResolved() {
-    if (widget.status == ReportStatus.pendingApproval) return;
-    setState(() => _state = MunicipalReportProgressViewState.loading);
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (mounted) {
-        setState(() => _state = MunicipalReportProgressViewState.success);
-      }
-    });
+  Future<void> _sendBack() async {
+    if (_submitting ||
+        _decisionOpen ||
+        _report?.status != ReportStatus.pendingApproval) {
+      return;
+    }
+    _decisionOpen = true;
+    final reason = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => const _SendBackForm(),
+    );
+    _decisionOpen = false;
+    if (!mounted || reason == null) return;
+    await _submitCompletion(approve: false, reason: reason);
   }
 
-  void _retrySync() {
-    setState(() => _state = MunicipalReportProgressViewState.loading);
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (mounted) {
-        setState(() => _state = MunicipalReportProgressViewState.loaded);
-      }
+  Future<void> _submitCompletion({
+    required bool approve,
+    String? reason,
+  }) async {
+    if (_submitting) return;
+    setState(() {
+      _submitting = true;
+      _actionError = null;
     });
+    try {
+      if (approve) {
+        await MunicipalReportDirectory.instance.approveCompletion(
+          widget.referenceId,
+        );
+      } else {
+        await MunicipalReportDirectory.instance.sendBackCompletion(
+          widget.referenceId,
+          reason!,
+        );
+      }
+      if (!mounted) return;
+      setState(() {
+        _data = ReportProgressData.fromReport(_report!);
+        _submitting = false;
+        _sentBack = !approve;
+        if (approve) _state = MunicipalReportProgressViewState.success;
+      });
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _submitting = false;
+          _actionError =
+              'The change could not be confirmed. Check your connection and permissions, then refresh before retrying.';
+        });
+      }
+    }
+  }
+
+  Future<void> _retrySync() async {
+    if (_submitting) return;
+    setState(() => _state = MunicipalReportProgressViewState.loading);
+    try {
+      await MunicipalReportDirectory.instance.refresh();
+      if (!mounted) return;
+      setState(() {
+        if (_report != null) _data = ReportProgressData.fromReport(_report!);
+        _missing = _report == null;
+        _state = MunicipalReportProgressViewState.loaded;
+      });
+    } catch (_) {
+      if (mounted) {
+        setState(() => _state = MunicipalReportProgressViewState.offline);
+      }
+    }
   }
 
   void _scrollToTimeline() {
@@ -117,34 +191,56 @@ class _MunicipalReportProgressScreenState
     );
   }
 
-  Future<void> _shareSummary() {
-    return SharePlus.instance.share(
-      ShareParams(
-        text:
-            'Case ${_data.referenceId} — ${_data.title}\n'
-            'District: ${_data.districtLabel}\n'
-            'Officer: ${_data.officerName}\n'
-            'Status: ${_data.completionPercent}% complete\n'
-            'Latest update (${_data.latestUpdateTeam}, '
-            '${_data.latestUpdateTimeAgo}): ${_data.latestUpdateNote}',
-        subject: 'CivicVoice case ${_data.referenceId} — progress',
+  Future<void> _shareSummary() async {
+    final outcome = await PublicCaseShare.share(
+      PublicCaseSummary(
+        reference: _data.referenceId,
+        title: _data.title,
+        status: _data.status.name,
+        locality: _data.districtLabel,
       ),
     );
+    if (!mounted) return;
+    final message = PublicCaseShare.outcomeMessage(outcome);
+    if (message.isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          action: outcome == PublicShareOutcome.failed
+              ? SnackBarAction(
+                  label: 'Copy',
+                  onPressed: () async {
+                    await PublicCaseShare.copy(
+                      PublicCaseSummary(
+                        reference: _data.referenceId,
+                        title: _data.title,
+                        status: _data.status.name,
+                      ),
+                    );
+                  },
+                )
+              : null,
+        ),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final showActionBar =
-        !_live &&
-        widget.status != ReportStatus.pendingApproval &&
-        _state != MunicipalReportProgressViewState.success;
+    final currentTeam = _report?.assignedTeamId == null
+        ? null
+        : MaintenanceTeamDirectory.instance.teamById(_report!.assignedTeamId!);
+    final showApproval =
+        _report?.status == ReportStatus.pendingApproval &&
+        _state == MunicipalReportProgressViewState.loaded &&
+        !_sentBack;
     // widget.status is fixed at whatever it was when this screen opened —
     // it doesn't track _state, so without this the header would keep
     // showing e.g. "In Progress" even after the report's actually been
     // marked Resolved.
     final effectiveStatus = _state == MunicipalReportProgressViewState.success
         ? ReportStatus.resolved
-        : widget.status;
+        : _report?.status ?? widget.status;
 
     return Scaffold(
       body: Stack(
@@ -158,32 +254,124 @@ class _MunicipalReportProgressScreenState
                   if (_state == MunicipalReportProgressViewState.offline)
                     const _OfflineBanner(),
                   Expanded(
-                    child: switch (_state) {
-                      MunicipalReportProgressViewState.loading =>
-                        const _LoadingSkeleton(),
-                      MunicipalReportProgressViewState.loaded ||
-                      MunicipalReportProgressViewState.missingEvidence ||
-                      MunicipalReportProgressViewState.offline => _ProgressBody(
-                        data: _data,
-                        evidenceCount: _evidenceCount,
-                        cached:
-                            _state == MunicipalReportProgressViewState.offline,
-                        timelineKey: _timelineKey,
-                        onAddEvidence: _addEvidencePhoto,
-                        onRetrySync: _retrySync,
-                      ),
-                      MunicipalReportProgressViewState.success => _SuccessBody(
-                        data: _data,
-                        onReturnToActiveReports: widget.onBack,
-                        onShareSummary: _shareSummary,
-                      ),
-                    },
+                    child: _missing
+                        ? AppStateMessage(
+                            icon: AppIcons.empty,
+                            title: 'Report not found',
+                            message:
+                                'This report may have been removed or is no longer in your scope.',
+                            primaryActionLabel: 'Back to Active Reports',
+                            onPrimaryAction: widget.onBack,
+                          )
+                        : _sentBack
+                        ? Column(
+                            children: [
+                              Expanded(
+                                child: AppStateMessage(
+                                  icon: AppIcons.verify,
+                                  title: 'Completion sent back',
+                                  message:
+                                      _report?.sendBackReason ??
+                                      'The assigned team will receive your reason and can submit new evidence.',
+                                  primaryActionLabel:
+                                      'Return to Active Reports',
+                                  onPrimaryAction: widget.onBack,
+                                ),
+                              ),
+                              if (currentTeam?.leadName != null &&
+                                  currentTeam?.leadPhone != null)
+                                Padding(
+                                  padding: const EdgeInsets.all(AppSpacing.md),
+                                  child: OfficerContactRow(
+                                    officerName: currentTeam!.leadName!,
+                                    officerPhone: currentTeam.leadPhone!,
+                                    label: 'Team Lead',
+                                    icon: AppIcons.team,
+                                  ),
+                                ),
+                            ],
+                          )
+                        : switch (_state) {
+                            MunicipalReportProgressViewState.loading =>
+                              const GhanaLoadingIndicator(),
+                            MunicipalReportProgressViewState.loaded ||
+                            MunicipalReportProgressViewState.missingEvidence ||
+                            MunicipalReportProgressViewState.offline =>
+                              _ProgressBody(
+                                data: _data,
+                                evidenceCount: _evidenceCount,
+                                cached:
+                                    _state ==
+                                    MunicipalReportProgressViewState.offline,
+                                timelineKey: _timelineKey,
+                                onRetrySync: _retrySync,
+                              ),
+                            MunicipalReportProgressViewState.success =>
+                              _SuccessBody(
+                                data: _data,
+                                onReturnToActiveReports: widget.onBack,
+                                onShareSummary: _shareSummary,
+                              ),
+                          },
                   ),
-                  if (showActionBar)
-                    _ActionBar(
-                      canResolve: _canResolve,
-                      onResolve: _markResolved,
-                      onViewTimeline: _scrollToTimeline,
+                  if (_actionError != null)
+                    Padding(
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      child: Text(
+                        _actionError!,
+                        style: TextStyle(
+                          color: AppSemanticColors.of(context).errorText,
+                        ),
+                      ),
+                    ),
+                  if (_actionError != null)
+                    TextButton(
+                      onPressed: _submitting ? null : _retrySync,
+                      child: const Text('Refresh report'),
+                    ),
+                  if (showApproval && !_hasCompletionEvidence)
+                    const Padding(
+                      padding: EdgeInsets.all(AppSpacing.md),
+                      child: Text(
+                        'Completion notes and evidence are missing. Return the work to the team rather than approving it.',
+                      ),
+                    ),
+                  if (showApproval)
+                    SafeArea(
+                      top: false,
+                      child: Padding(
+                        padding: const EdgeInsets.all(AppSpacing.md),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SizedBox(
+                              width: double.infinity,
+                              child: FilledButton(
+                                onPressed:
+                                    _submitting || !_hasCompletionEvidence
+                                    ? null
+                                    : _approve,
+                                child: BusyLabel(
+                                  busy: _submitting,
+                                  busyLabel: 'Saving completion decision',
+                                  child: const Text('Approve & Close'),
+                                ),
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: _submitting ? null : _sendBack,
+                              child: const Text('Send Back'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  if (!showApproval &&
+                      !_sentBack &&
+                      _state != MunicipalReportProgressViewState.success)
+                    TextButton(
+                      onPressed: _scrollToTimeline,
+                      child: const Text('View Timeline'),
                     ),
                 ],
               ),
@@ -198,15 +386,16 @@ class _MunicipalReportProgressScreenState
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  ReportStatusBadge(status: effectiveStatus),
-                  KebabMenuButton<void>(
-                    itemBuilder: (context) => [
-                      PopupMenuItem(
-                        onTap: _shareSummary,
-                        child: const Text('Share Summary'),
-                      ),
-                    ],
-                  ),
+                  Expanded(child: ReportStatusBadge(status: effectiveStatus)),
+                  if (_state != MunicipalReportProgressViewState.success)
+                    KebabMenuButton<void>(
+                      itemBuilder: (context) => [
+                        PopupMenuItem(
+                          onTap: _shareSummary,
+                          child: const Text('Share Summary'),
+                        ),
+                      ],
+                    ),
                 ],
               ),
             ),
@@ -250,7 +439,7 @@ class _OfflineBanner extends StatelessWidget {
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(
-              'Offline Mode — Showing cached data from 12 mins ago',
+              'Offline Mode — Showing the last available report data',
               style: Theme.of(context).textTheme.labelMedium?.copyWith(
                 color: AppSemanticColors.of(context).warningText,
               ),
@@ -272,7 +461,6 @@ class _ProgressBody extends StatelessWidget {
     required this.evidenceCount,
     required this.cached,
     required this.timelineKey,
-    required this.onAddEvidence,
     required this.onRetrySync,
   });
 
@@ -280,7 +468,6 @@ class _ProgressBody extends StatelessWidget {
   final int evidenceCount;
   final bool cached;
   final GlobalKey timelineKey;
-  final VoidCallback onAddEvidence;
   final VoidCallback onRetrySync;
 
   @override
@@ -298,15 +485,26 @@ class _ProgressBody extends StatelessWidget {
           const SizedBox(height: AppSpacing.md),
           _FailureNoticeCard(reason: data.failureNote!),
         ],
-        if (evidenceCount == 0) ...[
-          const SizedBox(height: AppSpacing.md),
-          _EvidenceRequiredCard(onUpload: onAddEvidence),
-          const SizedBox(height: AppSpacing.md),
-          _VisualEvidenceCard(
-            photoCount: evidenceCount,
-            onAddPhoto: onAddEvidence,
+        const SizedBox(height: AppSpacing.md),
+        const Text(
+          'Completion evidence is supplied by the maintenance team. Officers review it here; they do not upload or mark work complete.',
+        ),
+        const SizedBox(height: AppSpacing.md),
+        Text(data.latestUpdateNote),
+        for (final photo in data.evidencePhotoUrls)
+          Padding(
+            padding: const EdgeInsets.only(top: AppSpacing.sm),
+            child: InkWell(
+              onTap: () => EvidenceImageViewer.open(context, photo),
+              child: Image.network(
+                photo,
+                height: 160,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stack) =>
+                    const Text('Evidence photo unavailable'),
+              ),
+            ),
           ),
-        ],
         if (cached) ...[
           const SizedBox(height: AppSpacing.md),
           _SyncPendingCard(
@@ -357,13 +555,17 @@ class _SummaryCard extends StatelessWidget {
                 color: colorScheme.onSurfaceVariant,
               ),
               const SizedBox(width: 4),
-              Text(data.districtLabel, style: textTheme.bodySmall),
+              Expanded(
+                child: Text(data.districtLabel, style: textTheme.bodySmall),
+              ),
             ],
           ),
           const SizedBox(height: AppSpacing.sm),
           OfficerContactRow(
             officerName: data.officerName,
             officerPhone: data.officerPhone,
+            label: 'Reviewing Officer',
+            icon: AppIcons.municipalOfficer,
           ),
           if (data.maintenanceContactName != null &&
               data.maintenanceContactPhone != null) ...[
@@ -448,115 +650,6 @@ class _FailureNoticeCard extends StatelessWidget {
   }
 }
 
-class _EvidenceRequiredCard extends StatelessWidget {
-  const _EvidenceRequiredCard({required this.onUpload});
-
-  final VoidCallback onUpload;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.warning.withValues(alpha: 0.08),
-        border: Border.all(color: AppColors.warning.withValues(alpha: 0.24)),
-        borderRadius: AppComponentRadius.card,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(
-                AppIcons.warning,
-                size: AppIconSize.md,
-                color: AppColors.warning,
-              ),
-              const SizedBox(width: AppSpacing.xs),
-              Text('Evidence Required', style: textTheme.titleSmall),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            'Evidence must be uploaded before this report can be marked as '
-            'resolved. This is a mandatory safety requirement.',
-            style: textTheme.bodySmall,
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          FilledButton.icon(
-            onPressed: onUpload,
-            icon: const Icon(AppIcons.upload, size: AppIconSize.sm + 2),
-            label: const Text('Upload Evidence'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _VisualEvidenceCard extends StatelessWidget {
-  const _VisualEvidenceCard({
-    required this.photoCount,
-    required this.onAddPhoto,
-  });
-
-  final int photoCount;
-  final VoidCallback onAddPhoto;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final colorScheme = Theme.of(context).colorScheme;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        border: Border.all(color: colorScheme.outline),
-        borderRadius: AppComponentRadius.card,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text('Visual Evidence', style: textTheme.titleSmall),
-              const Spacer(),
-              Text('$photoCount Photos', style: textTheme.bodySmall),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          InkWell(
-            onTap: onAddPhoto,
-            borderRadius: AppComponentRadius.inputField,
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
-              decoration: BoxDecoration(
-                border: Border.all(color: colorScheme.outline),
-                borderRadius: AppComponentRadius.inputField,
-              ),
-              child: Column(
-                children: [
-                  Icon(
-                    AppIcons.add,
-                    size: AppIconSize.md,
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                  const SizedBox(height: 4),
-                  Text('Add Photo', style: textTheme.bodySmall),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _SyncPendingCard extends StatelessWidget {
   const _SyncPendingCard({required this.pendingCount, required this.onRetry});
 
@@ -616,13 +709,7 @@ class _StatusTimelineCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Text('Status Timeline', style: textTheme.titleSmall),
-              const Spacer(),
-              _LiveBadge(),
-            ],
-          ),
+          Text('Status Timeline', style: textTheme.titleSmall),
           const SizedBox(height: AppSpacing.md),
           for (final step in data.timeline) ...[
             _TimelineStepRow(step: step),
@@ -651,14 +738,14 @@ class _StatusTimelineCard extends StatelessWidget {
                     const SizedBox(width: 4),
                     Text('·', style: textTheme.labelSmall),
                     const SizedBox(width: 4),
-                    Text(
-                      data.latestUpdateTeam,
-                      style: textTheme.labelSmall?.copyWith(
-                        color: AppSemanticColors.of(context).actionText,
+                    Expanded(
+                      child: Text(
+                        data.latestUpdateTeam,
+                        style: textTheme.labelSmall?.copyWith(
+                          color: AppSemanticColors.of(context).actionText,
+                        ),
                       ),
                     ),
-                    const SizedBox(width: AppSpacing.xs),
-                    _NewBadge(),
                   ],
                 ),
                 const SizedBox(height: 4),
@@ -667,50 +754,6 @@ class _StatusTimelineCard extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _LiveBadge extends StatelessWidget {
-  const _LiveBadge();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: AppColors.success.withValues(alpha: 0.12),
-        borderRadius: AppRadius.allXl,
-      ),
-      child: Text(
-        'LIVE',
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: AppSemanticColors.of(context).successText,
-          fontWeight: AppFontWeight.semiBold,
-        ),
-      ),
-    );
-  }
-}
-
-class _NewBadge extends StatelessWidget {
-  const _NewBadge();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: AppSemanticColors.of(context).actionFill,
-        borderRadius: AppRadius.allXs,
-      ),
-      child: Text(
-        'NEW',
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: AppSemanticColors.of(context).onAction,
-          fontWeight: AppFontWeight.semiBold,
-        ),
       ),
     );
   }
@@ -734,7 +777,11 @@ class _TimelineStepRow extends StatelessWidget {
           margin: const EdgeInsets.only(top: 2),
           decoration: BoxDecoration(color: color, shape: BoxShape.circle),
           child: Icon(
-            step.isCurrent ? AppIcons.statusInProgress : AppIcons.success,
+            step.isCurrent && step.label == 'Submitted for Approval'
+                ? AppIcons.verify
+                : step.isCurrent
+                ? AppIcons.statusInProgress
+                : AppIcons.success,
             size: AppIconSize.sm,
             color: AppSemanticColors.of(context).onFillFor(color),
           ),
@@ -744,20 +791,8 @@ class _TimelineStepRow extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      step.label,
-                      style: textTheme.titleSmall,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Text(step.timestamp, style: textTheme.bodySmall),
-                ],
-              ),
+              Text(step.label, style: textTheme.titleSmall),
+              Text(step.timestamp, style: textTheme.bodySmall),
               Text(step.description, style: textTheme.bodySmall),
             ],
           ),
@@ -871,8 +906,7 @@ class _SuccessBody extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.sm),
         Text(
-          'The civic issue has been addressed and verified by the '
-          'assigned team.',
+          'The maintenance team completed the work and a municipal officer confirmed closure.',
           style: textTheme.bodyMedium,
           textAlign: TextAlign.center,
         ),
@@ -893,16 +927,20 @@ class _SuccessBody extends StatelessWidget {
           ),
         ),
         const SizedBox(height: AppSpacing.xl),
-        _CaseSummaryCard(summary: data.caseSummary),
+        _CaseSummaryCard(
+          summary: data.caseSummary,
+          photos: data.evidencePhotoUrls,
+        ),
       ],
     );
   }
 }
 
 class _CaseSummaryCard extends StatelessWidget {
-  const _CaseSummaryCard({required this.summary});
+  const _CaseSummaryCard({required this.summary, this.photos = const []});
 
   final CaseSummary summary;
+  final List<String> photos;
 
   @override
   Widget build(BuildContext context) {
@@ -943,15 +981,20 @@ class _CaseSummaryCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: AppSpacing.sm),
-          Row(
-            children: [
-              for (var i = 0; i < summary.evidencePhotoCount; i++) ...[
-                Expanded(child: _EvidenceThumbnail()),
-                if (i != summary.evidencePhotoCount - 1)
-                  const SizedBox(width: AppSpacing.sm),
-              ],
-            ],
-          ),
+          for (final photo in photos)
+            Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.sm),
+              child: InkWell(
+                onTap: () => EvidenceImageViewer.open(context, photo),
+                child: Image.network(
+                  photo,
+                  height: 160,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stack) =>
+                      const Text('Evidence photo unavailable'),
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -978,148 +1021,66 @@ class _LabeledValue extends StatelessWidget {
   }
 }
 
-class _EvidenceThumbnail extends StatelessWidget {
-  const _EvidenceThumbnail();
-
+class _SendBackForm extends StatefulWidget {
+  const _SendBackForm();
   @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return AspectRatio(
-      aspectRatio: 1,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: colorScheme.surfaceContainer,
-          borderRadius: AppComponentRadius.inputField,
-        ),
-        child: Icon(
-          AppIcons.camera,
-          size: AppIconSize.lg,
-          color: colorScheme.onSurfaceVariant,
-        ),
-      ),
-    );
-  }
+  State<_SendBackForm> createState() => _SendBackFormState();
 }
 
-// ---------------------------------------------------------------------------
-// Loading skeleton
-// ---------------------------------------------------------------------------
-
-class _LoadingSkeleton extends StatefulWidget {
-  const _LoadingSkeleton();
-
-  @override
-  State<_LoadingSkeleton> createState() => _LoadingSkeletonState();
-}
-
-class _LoadingSkeletonState extends State<_LoadingSkeleton>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1000),
-  )..repeat(reverse: true);
-
+class _SendBackFormState extends State<_SendBackForm> {
+  final _reason = TextEditingController();
+  String? _error;
   @override
   void dispose() {
-    _controller.dispose();
+    _reason.dispose();
     super.dispose();
   }
 
   @override
-  Widget build(BuildContext context) {
-    final base = Theme.of(context).colorScheme.surfaceContainer;
-    final highlight = Theme.of(context).colorScheme.surfaceContainerLow;
-    final reduceMotion =
-        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
-
-    Widget block({double height = 96}) {
-      return AnimatedBuilder(
-        animation: _controller,
-        builder: (context, _) {
-          return Container(
-            width: double.infinity,
-            height: height,
-            margin: const EdgeInsets.only(bottom: AppSpacing.md),
-            decoration: BoxDecoration(
-              color: Color.lerp(
-                base,
-                highlight,
-                reduceMotion ? 0.5 : _controller.value,
-              ),
-              borderRadius: AppRadius.allXs,
-            ),
-          );
-        },
-      );
-    }
-
-    return ListView(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      children: [
-        block(height: 140),
-        Row(
-          children: [
-            Expanded(child: block(height: 64)),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(child: block(height: 64)),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(child: block(height: 64)),
-          ],
-        ),
-        block(height: 220),
-      ],
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Bottom action bar
-// ---------------------------------------------------------------------------
-
-class _ActionBar extends StatelessWidget {
-  const _ActionBar({
-    required this.canResolve,
-    required this.onResolve,
-    required this.onViewTimeline,
-  });
-
-  final bool canResolve;
-  final VoidCallback onResolve;
-  final VoidCallback onViewTimeline;
-
-  @override
-  Widget build(BuildContext context) {
-    final semantic = Theme.of(context).extension<AppSemanticColors>()!;
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        border: Border(top: BorderSide(color: semantic.glassBorder)),
-      ),
+  Widget build(BuildContext context) => Padding(
+    padding: EdgeInsets.fromLTRB(
+      AppSpacing.md,
+      AppSpacing.md,
+      AppSpacing.md,
+      MediaQuery.viewInsetsOf(context).bottom +
+          MediaQuery.paddingOf(context).bottom +
+          AppSpacing.md,
+    ),
+    child: SingleChildScrollView(
       child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: canResolve ? onResolve : null,
-              icon: const Icon(AppIcons.success, size: AppIconSize.sm + 2),
-              label: Text(
-                canResolve
-                    ? 'Mark Resolved'
-                    : 'Mark Resolved (Upload Required)',
-              ),
+          Text('Send Back', style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: AppSpacing.md),
+          TextField(
+            controller: _reason,
+            autofocus: true,
+            maxLines: 4,
+            maxLength: 1000,
+            decoration: InputDecoration(
+              labelText: 'Reason for returning the work',
+              errorText: _error,
             ),
           ),
-          const SizedBox(height: AppSpacing.sm),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: onViewTimeline,
-              icon: const Icon(AppIcons.eta, size: AppIconSize.sm + 2),
-              label: const Text('View Timeline'),
-            ),
+          const SizedBox(height: AppSpacing.md),
+          FilledButton(
+            onPressed: () {
+              final value = _reason.text.trim();
+              if (value.isEmpty) {
+                setState(() => _error = 'Explain what needs to be corrected.');
+                return;
+              }
+              Navigator.pop(context, value);
+            },
+            child: const Text('Return to Team'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
 }

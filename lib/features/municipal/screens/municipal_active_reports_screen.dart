@@ -8,6 +8,7 @@ import '../models/incoming_report.dart';
 import '../services/municipal_report_directory.dart';
 import '../../../widgets/collapsible_list_header.dart';
 import '../../../widgets/glass_card.dart';
+import '../../../widgets/text_filter_chips.dart';
 import '../../../widgets/glass_dialog_backdrop.dart';
 import '../widgets/municipal_scaffold.dart';
 import '../widgets/municipal_search_field.dart';
@@ -96,6 +97,7 @@ class _MunicipalActiveReportsScreenState
             (r) =>
                 r.status == ReportStatus.assigned ||
                 r.status == ReportStatus.inProgress ||
+                r.status == ReportStatus.pendingApproval ||
                 r.status == ReportStatus.resolved,
           )
           .toList();
@@ -112,11 +114,17 @@ class _MunicipalActiveReportsScreenState
   @override
   void initState() {
     super.initState();
+    MunicipalReportDirectory.instance.reports.addListener(_directoryChanged);
     _searchController.addListener(() => setState(() {}));
+  }
+
+  void _directoryChanged() {
+    if (mounted) setState(() => _data = _activeReportsFromDirectory());
   }
 
   @override
   void dispose() {
+    MunicipalReportDirectory.instance.reports.removeListener(_directoryChanged);
     _searchController.dispose();
     super.dispose();
   }
@@ -146,6 +154,10 @@ class _MunicipalActiveReportsScreenState
       case ActiveReportFilter.inProgress:
         reports = reports
             .where((r) => r.status == ReportStatus.inProgress)
+            .toList();
+      case ActiveReportFilter.pendingApproval:
+        reports = reports
+            .where((r) => r.status == ReportStatus.pendingApproval)
             .toList();
       case ActiveReportFilter.resolved:
         reports = reports
@@ -242,7 +254,7 @@ class _MunicipalActiveReportsScreenState
           Expanded(
             child: switch (_state) {
               MunicipalActiveReportsViewState.loading =>
-                const _LoadingSkeleton(),
+                const GhanaLoadingIndicator(),
               MunicipalActiveReportsViewState.loaded => GhanaRefreshIndicator(
                 onRefresh: _pullToRefresh,
                 child: _ActiveReportsBody(
@@ -385,123 +397,79 @@ class _ActiveReportsBody extends StatelessWidget {
             MunicipalSearchField(
               controller: searchController,
               hintText: 'Search report ID or street...',
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            SizedBox(
-              height: 40,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: ActiveReportFilter.values.length,
-                separatorBuilder: (_, _) =>
-                    const SizedBox(width: AppSpacing.xs),
-                itemBuilder: (context, index) {
-                  final option = ActiveReportFilter.values[index];
-                  return _FilterChip(
-                    label: option.label,
-                    selected: option == filter,
-                    onTap: () => onFilterChanged(option),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Row(
-              children: [
-                Text(
-                  '${reports.length} report${reports.length == 1 ? '' : 's'}'
-                  '${cached ? ' · cached' : ''}',
-                  style: textTheme.bodySmall,
-                ),
-                const Spacer(),
-                TextButton(onPressed: onSortTap, child: const Text('Sort')),
+              screenKey: 'municipal-active',
+              results: (query) => [
+                for (final item
+                    in MunicipalReportDirectory.instance.reports.value.where(
+                      (r) =>
+                          !r.status.isClosed &&
+                          r.status != ReportStatus.submitted &&
+                          r.status != ReportStatus.underReview,
+                    ))
+                  if ('${item.referenceId} ${item.title} ${item.locationLabel}'
+                      .toLowerCase()
+                      .contains(query.toLowerCase()))
+                    FocusedSearchResult(
+                      title: item.title,
+                      subtitle: item.referenceId,
+                      onSelected: onReportTap == null
+                          ? null
+                          : () => onReportTap!(item),
+                    ),
               ],
             ),
+            TextFilterChips<ActiveReportFilter>(
+              options: [
+                for (final option in ActiveReportFilter.values)
+                  TextFilterOption(value: option, label: option.label),
+              ],
+              selected: filter,
+              onSelected: onFilterChanged,
+              padding: EdgeInsets.zero,
+            ),
+
+            const SizedBox(height: AppSpacing.sm),
           ],
         ),
       ),
-      child: reports.isEmpty
-          ? Center(
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(
-                  AppSpacing.xl,
-                  AppSpacing.xl,
-                  AppSpacing.xl,
-                  AppSpacing.xl +
-                      MunicipalScaffold.contentPadding(context).bottom,
-                ),
-                child: Text(
-                  'No reports match your search.',
-                  style: textTheme.bodyMedium,
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            )
-          : ListView.separated(
-              // Stays draggable even when the collapsed chrome lets a
-              // short (e.g. filtered-down) list fit the viewport — see
-              // Resolved Reports for the failure mode this prevents.
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: EdgeInsets.fromLTRB(
-                AppSpacing.md,
-                0,
-                AppSpacing.md,
-                AppSpacing.xl +
-                    MunicipalScaffold.contentPadding(context).bottom,
-              ),
-              itemCount: reports.length,
-              separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
-              itemBuilder: (context, index) {
-                final report = reports[index];
-                return _ActiveReportCard(
-                  report: report,
-                  onTap: onReportTap == null
-                      ? null
-                      : () => onReportTap!(report),
-                );
-              },
-            ),
-    );
-  }
-}
-
-class _FilterChip extends StatelessWidget {
-  const _FilterChip({required this.label, required this.selected, this.onTap});
-
-  final String label;
-  final bool selected;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Material(
-      color: selected
-          ? AppColors.primary.withValues(alpha: 0.12)
-          : Colors.transparent,
-      shape: StadiumBorder(
-        side: BorderSide(
-          color: selected
-              ? AppSemanticColors.of(context).actionText
-              : colorScheme.outline,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: EdgeInsets.fromLTRB(
+          AppSpacing.md,
+          0,
+          AppSpacing.md,
+          AppSpacing.xl + MunicipalScaffold.contentPadding(context).bottom,
         ),
-      ),
-      child: InkWell(
-        customBorder: const StadiumBorder(),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.sm,
+        children: [
+          Row(
+            children: [
+              Text(
+                '${reports.length} report${reports.length == 1 ? '' : 's'}'
+                '${cached ? ' · cached' : ''}',
+                style: textTheme.bodySmall,
+              ),
+              const Spacer(),
+              TextButton(onPressed: onSortTap, child: const Text('Sort')),
+            ],
           ),
-          child: Text(
-            label,
-            style: Theme.of(context).textTheme.labelMedium?.copyWith(
-              color: selected
-                  ? AppSemanticColors.of(context).actionText
-                  : colorScheme.onSurfaceVariant,
+          if (reports.isEmpty)
+            Padding(
+              padding: const EdgeInsets.all(AppSpacing.xl),
+              child: Text(
+                'No reports match your search.',
+                style: textTheme.bodyMedium,
+                textAlign: TextAlign.center,
+              ),
             ),
-          ),
-        ),
+          for (final report in reports)
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+              child: _ActiveReportCard(
+                report: report,
+                onTap: onReportTap == null ? null : () => onReportTap!(report),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -616,7 +584,12 @@ class _ActiveReportCard extends StatelessWidget {
                   ],
                 ),
               ),
-              OutlinedButton(onPressed: onTap, child: const Text('View')),
+              TextButton.icon(
+                onPressed: onTap,
+                label: const Text('View Details'),
+                icon: const Icon(AppIcons.chevronRight),
+                iconAlignment: IconAlignment.end,
+              ),
             ],
           ),
         ],
@@ -628,79 +601,3 @@ class _ActiveReportCard extends StatelessWidget {
 // ---------------------------------------------------------------------------
 // Loading skeleton
 // ---------------------------------------------------------------------------
-
-class _LoadingSkeleton extends StatefulWidget {
-  const _LoadingSkeleton();
-
-  @override
-  State<_LoadingSkeleton> createState() => _LoadingSkeletonState();
-}
-
-class _LoadingSkeletonState extends State<_LoadingSkeleton>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1000),
-  )..repeat(reverse: true);
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final base = Theme.of(context).colorScheme.surfaceContainer;
-    final highlight = Theme.of(context).colorScheme.surfaceContainerLow;
-    final reduceMotion =
-        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
-
-    Widget block({double? width, double height = 44}) {
-      return AnimatedBuilder(
-        animation: _controller,
-        builder: (context, _) {
-          return Container(
-            width: width,
-            height: height,
-            decoration: BoxDecoration(
-              color: Color.lerp(
-                base,
-                highlight,
-                reduceMotion ? 0.5 : _controller.value,
-              ),
-              borderRadius: AppRadius.allXs,
-            ),
-          );
-        },
-      );
-    }
-
-    return ListView(
-      padding: EdgeInsets.fromLTRB(
-        AppSpacing.md,
-        AppSpacing.md,
-        AppSpacing.md,
-        AppSpacing.md + MunicipalScaffold.contentPadding(context).bottom,
-      ),
-      children: [
-        block(height: 48),
-        const SizedBox(height: AppSpacing.sm),
-        Row(
-          children: [
-            block(width: 64, height: 32),
-            const SizedBox(width: AppSpacing.xs),
-            block(width: 96, height: 32),
-            const SizedBox(width: AppSpacing.xs),
-            block(width: 112, height: 32),
-          ],
-        ),
-        const SizedBox(height: AppSpacing.md),
-        for (var i = 0; i < 4; i++) ...[
-          block(height: 140),
-          if (i != 3) const SizedBox(height: AppSpacing.sm),
-        ],
-      ],
-    );
-  }
-}

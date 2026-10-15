@@ -25,21 +25,47 @@ class MunicipalReportDirectory {
   final ValueNotifier<bool> loading = ValueNotifier(false);
   final ValueNotifier<String?> error = ValueNotifier(null);
   bool hasLiveSnapshot = false;
+  final Set<String> changedReferences = {};
+  final Map<String, Set<int>> verificationDrafts = {};
+  int _sessionRevision = 0;
+  int _refreshRevision = 0;
+  void clearSession() {
+    ++_sessionRevision;
+    ++_refreshRevision;
+    reports.value = const [];
+    loading.value = false;
+    error.value = null;
+    hasLiveSnapshot = false;
+    verificationDrafts.clear();
+    changedReferences.clear();
+  }
 
   Future<void> refresh() async {
+    if (Firebase.apps.isEmpty) return;
+    final revision = _sessionRevision, refresh = ++_refreshRevision;
+    final identity = FirebaseAuth.instance.currentUser;
     final token = await FirebaseAuth.instance.currentUser?.getIdToken();
     if (token == null) throw StateError('A signed-in officer is required');
     loading.value = true;
     error.value = null;
     try {
       final response = await ApiClient.instance.listReports(idToken: token);
+      if (revision != _sessionRevision ||
+          refresh != _refreshRevision ||
+          identity?.uid != FirebaseAuth.instance.currentUser?.uid) {
+        return;
+      }
       reports.value = response.map(IncomingReportItem.fromApi).toList();
       hasLiveSnapshot = true;
     } catch (exception) {
-      error.value = exception.toString();
+      if (revision == _sessionRevision && refresh == _refreshRevision) {
+        error.value = exception.toString();
+      }
       rethrow;
     } finally {
-      loading.value = false;
+      if (revision == _sessionRevision && refresh == _refreshRevision) {
+        loading.value = false;
+      }
     }
   }
 
@@ -54,6 +80,7 @@ class MunicipalReportDirectory {
     String referenceId,
     IncomingReportItem Function(IncomingReportItem report) transform,
   ) {
+    changedReferences.add(referenceId);
     reports.value = [
       for (final report in reports.value)
         if (report.referenceId == referenceId) transform(report) else report,
@@ -93,8 +120,33 @@ class MunicipalReportDirectory {
     );
   }
 
-  Future<void> verifyOnServer(String referenceId) =>
-      _updateOnServer(referenceId, const {'status': 'UNDER_REVIEW'});
+  Future<void> approveCompletion(String referenceId) async {
+    final report = byReferenceId(referenceId);
+    if (report?.status != ReportStatus.pendingApproval) {
+      throw StateError('This completion is no longer pending');
+    }
+    await _updateOnServer(referenceId, const {'status': 'RESOLVED'});
+  }
+
+  Future<void> sendBackCompletion(String referenceId, String reason) async {
+    if (byReferenceId(referenceId)?.status != ReportStatus.pendingApproval) {
+      throw StateError('This completion is no longer pending');
+    }
+    final clean = reason.trim();
+    if (clean.isEmpty || clean.length > 1000) {
+      throw ArgumentError(
+        'Use between 1 and 1000 characters for the return reason',
+      );
+    }
+    await _updateOnServer(referenceId, {
+      'status': 'IN_PROGRESS',
+      'sendBackReason': clean,
+    });
+  }
+
+  Future<void> verifyOnServer(String referenceId) async {
+    await _updateOnServer(referenceId, const {'status': 'UNDER_REVIEW'});
+  }
 
   Future<void> rejectOnServer(
     String referenceId,
@@ -107,6 +159,7 @@ class MunicipalReportDirectory {
   });
 
   Future<IncomingReportItem> claimReviewOnServer(String referenceId) async {
+    final revision = _sessionRevision;
     final current = byReferenceId(referenceId);
     if (current == null) throw StateError('Report not found');
     if (current.hasReviewer) return current;
@@ -117,6 +170,8 @@ class MunicipalReportDirectory {
       current.apiRecordId,
       idToken: token,
     );
+    if (revision != _sessionRevision) throw StateError('Your session changed');
+    ++_refreshRevision;
     final updated = IncomingReportItem.fromApi(response);
     _update(referenceId, (_) => updated);
     return updated;
@@ -130,13 +185,13 @@ class MunicipalReportDirectory {
     'status': 'ASSIGNED',
     'assignedTeamId': teamId,
     'assignedTeamName': teamName,
-    'progressPercent': '0',
   });
 
   Future<void> _updateOnServer(
     String referenceId,
     Map<String, String> fields,
   ) async {
+    final revision = _sessionRevision;
     final current = byReferenceId(referenceId);
     if (current == null) throw StateError('Report not found');
     if (Firebase.apps.isEmpty) {
@@ -150,6 +205,23 @@ class MunicipalReportDirectory {
           reject(referenceId, fields['rejectionReason'] ?? 'Not actionable');
         case 'ASSIGNED':
           assignTeam(referenceId, fields['assignedTeamName'] ?? 'Assigned');
+        case 'RESOLVED':
+          _update(
+            referenceId,
+            (r) => r.copyWith(
+              status: ReportStatus.resolved,
+              approvedAt: DateTime.now(),
+              clearSendBack: true,
+            ),
+          );
+        case 'IN_PROGRESS':
+          _update(
+            referenceId,
+            (r) => r.copyWith(
+              status: ReportStatus.inProgress,
+              sendBackReason: fields['sendBackReason'],
+            ),
+          );
       }
       return;
     }
@@ -160,6 +232,8 @@ class MunicipalReportDirectory {
       idToken: token,
       fields: fields,
     );
+    if (revision != _sessionRevision) throw StateError('Your session changed');
+    ++_refreshRevision;
     final updated = IncomingReportItem.fromApi(response);
     _update(referenceId, (_) => updated);
   }

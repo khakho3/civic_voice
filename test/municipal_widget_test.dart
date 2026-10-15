@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:civic_voice/services/app_cache_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:civic_voice/main.dart' as app;
@@ -94,7 +96,23 @@ void _preserveNotificationReadIds() {
   addTearDown(() => NotificationDirectory.instance.readIds.value = original);
 }
 
+Future<void> _applyFocusedQuery(
+  WidgetTester tester,
+  String hint,
+  String query,
+) async {
+  await tester.tap(find.text(hint));
+  await tester.pumpAndSettle();
+  await tester.enterText(find.byType(TextField), query);
+  await tester.testTextInput.receiveAction(TextInputAction.search);
+  await tester.pumpAndSettle();
+}
+
 void main() {
+  setUp(() async {
+    SharedPreferences.setMockInitialValues({});
+    await AppCacheService.instance.initialize(accountId: 'municipal-test');
+  });
   testWidgets('Municipal Dashboard renders its loaded state', (
     WidgetTester tester,
   ) async {
@@ -277,7 +295,11 @@ void main() {
 
     expect(find.text('Traffic Light Malfunction'), findsOneWidget);
 
-    await tester.enterText(find.byType(TextField), 'Pothole on Main St');
+    await _applyFocusedQuery(
+      tester,
+      'Search incoming reports...',
+      'Pothole on Main St',
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('Traffic Light Malfunction'), findsNothing);
@@ -347,7 +369,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byType(TextField));
+    await tester.tap(find.text('Search incoming reports...'));
     await tester.pumpAndSettle();
     tester.view.viewInsets = const FakeViewPadding(bottom: 340);
     await tester.pumpAndSettle();
@@ -363,7 +385,7 @@ void main() {
       expect(tester.takeException(), isNull, reason: 'after typing "$typed"');
     }
 
-    expect(find.text('No reports match your filters'), findsOneWidget);
+    expect(find.text('No results for "trafi".'), findsOneWidget);
 
     // And back out, character by character, returning to real results.
     while (typed.isNotEmpty) {
@@ -377,6 +399,8 @@ void main() {
       );
     }
 
+    await tester.tap(find.byTooltip('Close search'));
+    await tester.pumpAndSettle();
     expect(find.text('Traffic Light Malfunction'), findsOneWidget);
   });
 
@@ -662,7 +686,7 @@ void main() {
   });
 
   testWidgets(
-    'Municipal Verification quick-reason chip fills the rejection reason '
+    'Municipal Verification category selection preserves the free-text explanation '
     'field',
     (WidgetTester tester) async {
       tester.view.physicalSize = const Size(428, 2600);
@@ -682,7 +706,8 @@ void main() {
       await tester.pumpAndSettle();
 
       final field = tester.widget<TextField>(find.byType(TextField));
-      expect(field.controller!.text, 'Duplicate Report');
+      expect(field.controller!.text, isEmpty);
+      expect(find.text('Rejection category'), findsOneWidget);
     },
   );
 
@@ -706,7 +731,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      find.text('Add a reason before rejecting this report.'),
+      find.text(
+        'Choose a rejection category and add a reason before rejecting this report.',
+      ),
       findsOneWidget,
     );
     expect(find.text('Reject this report?'), findsNothing);
@@ -729,6 +756,8 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      await tester.tap(find.text('False Report'));
+      await tester.pump();
       await tester.enterText(find.byType(TextField), 'Not a real pothole.');
       await tester.tap(find.text('Reject Report'));
       await tester.pumpAndSettle();
@@ -794,7 +823,7 @@ void main() {
       expect(find.text('Unit Delta'), findsOneWidget);
       // Unit Alpha is pre-selected, matching every approved reference frame.
       expect(
-        find.text('Unit Alpha is now assigned to this report.'),
+        find.text('Selected team: Unit Alpha. Confirm below to assign this report.'),
         findsOneWidget,
       );
     },
@@ -847,7 +876,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.enterText(find.byType(TextField), 'Bravo');
+    await _applyFocusedQuery(tester, 'Search teams...', 'Bravo');
     await tester.pumpAndSettle();
 
     expect(find.text('Unit Alpha'), findsNothing);
@@ -875,13 +904,13 @@ void main() {
 
       await tester.tap(find.text('Unit Bravo'));
       await tester.pumpAndSettle();
-      expect(find.textContaining('Unit Bravo is now assigned'), findsOneWidget);
+      expect(find.textContaining('Selected team: Unit Bravo.'), findsOneWidget);
 
       // Unit Delta is off-duty — tapping it must not change the selection.
       await tester.tap(find.text('Unit Delta'));
       await tester.pumpAndSettle();
-      expect(find.textContaining('Unit Bravo is now assigned'), findsOneWidget);
-      expect(find.textContaining('Unit Delta is now assigned'), findsNothing);
+      expect(find.textContaining('Selected team: Unit Bravo.'), findsOneWidget);
+      expect(find.textContaining('Selected team: Unit Delta.'), findsNothing);
     },
   );
 
@@ -911,6 +940,9 @@ void main() {
       );
       await tester.pumpAndSettle(const Duration(milliseconds: 600));
 
+      expect(find.text('Assign this report?'), findsOneWidget);
+      await tester.tap(find.text('Assign Team').last);
+      await tester.pumpAndSettle();
       expect(find.text('Team Assigned'), findsOneWidget);
       expect(
         find.text('Unit Alpha is now assigned to this report.'),
@@ -1074,7 +1106,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.enterText(find.byType(TextField), 'Cedar');
+    await _applyFocusedQuery(tester, 'Search report ID or street...', 'Cedar');
     await tester.pumpAndSettle();
 
     expect(find.text('Water Leak Near Curb'), findsOneWidget);
@@ -1230,25 +1262,14 @@ void main() {
       expect(find.text('65%'), findsOneWidget);
       expect(find.text('Unit Alpha'), findsOneWidget);
 
-      final markResolved = tester.widget<FilledButton>(
-        find.ancestor(
-          of: find.text('Mark Resolved'),
-          matching: find.byType(FilledButton),
-        ),
-      );
-      expect(markResolved.onPressed, isNotNull);
+      expect(find.text('Mark Resolved'), findsNothing);
+      expect(find.textContaining('Officers review it here'), findsOneWidget);
     },
   );
 
   testWidgets(
-    'Municipal Report Progress Missing Evidence disables Mark Resolved '
-    'until a photo is added',
-    (WidgetTester tester) async {
-      tester.view.physicalSize = const Size(428, 2600);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-
+    'Municipal monitoring cannot upload crew evidence or close in-progress work',
+    (tester) async {
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.light,
@@ -1258,32 +1279,14 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-
-      expect(find.text('Evidence Required'), findsOneWidget);
-      expect(find.text('0 Photos'), findsOneWidget);
-      final disabled = tester.widget<FilledButton>(
-        find.ancestor(
-          of: find.text('Mark Resolved (Upload Required)'),
-          matching: find.byType(FilledButton),
-        ),
-      );
-      expect(disabled.onPressed, isNull);
-
-      await tester.tap(find.text('Add Photo'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Mark Resolved'), findsOneWidget);
-      final enabled = tester.widget<FilledButton>(
-        find.ancestor(
-          of: find.text('Mark Resolved'),
-          matching: find.byType(FilledButton),
-        ),
-      );
-      expect(enabled.onPressed, isNotNull);
+      expect(find.text('Upload Evidence'), findsNothing);
+      expect(find.text('Add Photo'), findsNothing);
+      expect(find.text('Mark Resolved'), findsNothing);
+      expect(find.text('Approve & Close'), findsNothing);
     },
   );
 
-  testWidgets('Municipal Report Progress Mark Resolved reaches the resolved '
+  testWidgets('Municipal Report Progress approved outcome renders the resolved '
       'confirmation with the correct case summary', (
     WidgetTester tester,
   ) async {
@@ -1295,18 +1298,12 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.light,
-        home: const MunicipalReportProgressScreen(),
+        home: const MunicipalReportProgressScreen(
+          initialState: MunicipalReportProgressViewState.success,
+        ),
       ),
     );
     await tester.pumpAndSettle();
-
-    await tester.tap(
-      find.ancestor(
-        of: find.text('Mark Resolved'),
-        matching: find.byType(FilledButton),
-      ),
-    );
-    await tester.pumpAndSettle(const Duration(milliseconds: 600));
 
     expect(find.text('Report Resolved Successfully'), findsOneWidget);
     // Regression check: the approved frame's case-recap card showed an
@@ -1345,13 +1342,8 @@ void main() {
       expect(find.text('Sync Pending'), findsOneWidget);
       expect(find.text('Recent Activity'), findsOneWidget);
 
-      final markResolved = tester.widget<FilledButton>(
-        find.ancestor(
-          of: find.text('Mark Resolved'),
-          matching: find.byType(FilledButton),
-        ),
-      );
-      expect(markResolved.onPressed, isNotNull);
+      expect(find.text('Mark Resolved'), findsNothing);
+      expect(find.text('Approve & Close'), findsNothing);
     },
   );
 
@@ -1440,7 +1432,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.enterText(find.byType(TextField), 'Elm');
+    await _applyFocusedQuery(tester, 'Search closed reports...', 'Elm');
     await tester.pumpAndSettle();
 
     expect(find.text('Pothole Cluster — Elm Rd'), findsOneWidget);

@@ -1,3 +1,4 @@
+import '../../../core/widgets/ghana_refresh_indicator.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
@@ -5,6 +6,9 @@ import '../../../models/report_status.dart';
 import '../../../models/team_availability.dart';
 import '../models/team_data.dart';
 import '../../../widgets/glass_card.dart';
+import '../../../widgets/text_filter_chips.dart';
+import '../../../widgets/confirm_dialog.dart';
+import '../../../widgets/busy_indicator.dart';
 import '../../admin/models/admin_maintenance_team_data.dart';
 import '../../admin/services/admin_maintenance_team_directory.dart';
 import '../services/municipal_report_directory.dart';
@@ -80,10 +84,13 @@ class _MunicipalAssignTeamScreenState extends State<MunicipalAssignTeamScreen> {
   // screen manages) rather than a separate Municipal-only mock list, so
   // assigning here is a real action against a real team.
   String? _selectedTeamId;
+  bool _assigning = false;
+  bool _confirming = false;
 
   @override
   void initState() {
     super.initState();
+    MaintenanceTeamDirectory.instance.teams.addListener(_teamsChanged);
     final report = MunicipalReportDirectory.instance.byReferenceId(
       widget.referenceId,
     );
@@ -95,8 +102,13 @@ class _MunicipalAssignTeamScreenState extends State<MunicipalAssignTeamScreen> {
     if (teams.isNotEmpty) _selectedTeamId = teams.first.teamId;
   }
 
+  void _teamsChanged() {
+    if (mounted) setState(() {});
+  }
+
   @override
   void dispose() {
+    MaintenanceTeamDirectory.instance.teams.removeListener(_teamsChanged);
     _searchController.dispose();
     super.dispose();
   }
@@ -131,8 +143,24 @@ class _MunicipalAssignTeamScreenState extends State<MunicipalAssignTeamScreen> {
 
   Future<void> _submitAssign() async {
     final team = _selectedTeam;
-    if (team == null) return;
-    setState(() => _state = MunicipalAssignTeamViewState.loading);
+    if (_assigning ||
+        _confirming ||
+        team == null ||
+        _state != MunicipalAssignTeamViewState.loaded ||
+        team.availability == TeamAvailability.offDuty) {
+      return;
+    }
+    _confirming = true;
+    final confirmed = await showConfirmDialog(
+      context,
+      title: 'Assign this report?',
+      message:
+          'Assign ${widget.referenceId} to ${team.name}? This report can no longer be rejected after assignment.',
+      confirmLabel: 'Assign Team',
+    );
+    _confirming = false;
+    if (!mounted || !confirmed) return;
+    setState(() => _assigning = true);
     try {
       await MunicipalReportDirectory.instance.assignTeamOnServer(
         widget.referenceId,
@@ -140,10 +168,18 @@ class _MunicipalAssignTeamScreenState extends State<MunicipalAssignTeamScreen> {
         team.name,
       );
       if (mounted) {
-        setState(() => _state = MunicipalAssignTeamViewState.assigned);
+        setState(() {
+          _assigning = false;
+          _state = MunicipalAssignTeamViewState.assigned;
+        });
       }
     } catch (_) {
-      if (mounted) setState(() => _state = MunicipalAssignTeamViewState.error);
+      if (mounted) {
+        setState(() {
+          _assigning = false;
+          _state = MunicipalAssignTeamViewState.error;
+        });
+      }
     }
   }
 
@@ -180,7 +216,8 @@ class _MunicipalAssignTeamScreenState extends State<MunicipalAssignTeamScreen> {
         _state == MunicipalAssignTeamViewState.loaded ||
         _state == MunicipalAssignTeamViewState.offline ||
         _state == MunicipalAssignTeamViewState.disabled;
-    final interactive = _state == MunicipalAssignTeamViewState.loaded;
+    final interactive =
+        _state == MunicipalAssignTeamViewState.loaded && !_assigning;
     final selected = _selectedTeam;
     final canAssign =
         interactive &&
@@ -207,7 +244,7 @@ class _MunicipalAssignTeamScreenState extends State<MunicipalAssignTeamScreen> {
                   Expanded(
                     child: switch (_state) {
                       MunicipalAssignTeamViewState.loading =>
-                        const _LoadingSkeleton(),
+                        const GhanaLoadingIndicator(),
                       MunicipalAssignTeamViewState.loaded => _AssignBody(
                         data: _data,
                         teams: _visibleTeams,
@@ -317,7 +354,11 @@ class _MunicipalAssignTeamScreenState extends State<MunicipalAssignTeamScreen> {
                     },
                   ),
                   if (showActionBar)
-                    _ActionBar(enabled: canAssign, onAssign: _submitAssign),
+                    _ActionBar(
+                      enabled: canAssign && !_assigning,
+                      busy: _assigning,
+                      onAssign: _submitAssign,
+                    ),
                 ],
               ),
             ),
@@ -433,27 +474,30 @@ class _AssignBody extends StatelessWidget {
         MunicipalSearchField(
           controller: searchController,
           hintText: 'Search teams...',
+          screenKey: 'municipal-assign-team',
+          results: (query) => [
+            for (final item in MaintenanceTeamDirectory.instance.teams.value)
+              if (item.name.toLowerCase().contains(query.toLowerCase()))
+                FocusedSearchResult(
+                  title: item.name,
+                  subtitle: item.teamId,
+                  onSelected: enabled ? () => onSelect(item) : null,
+                ),
+          ],
           enabled: enabled,
         ),
-        const SizedBox(height: AppSpacing.sm),
-        SizedBox(
-          height: 40,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: TeamFilter.values.length,
-            separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.xs),
-            itemBuilder: (context, index) {
-              final option = TeamFilter.values[index];
-              return _FilterChip(
-                label: option.label,
-                selected: option == filter,
-                onTap: enabled && onFilterChanged != null
-                    ? () => onFilterChanged!(option)
-                    : null,
-              );
-            },
-          ),
+        TextFilterChips<TeamFilter>(
+          options: [
+            for (final option in TeamFilter.values)
+              TextFilterOption(value: option, label: option.label),
+          ],
+          selected: filter,
+          onSelected: (value) {
+            if (enabled) onFilterChanged?.call(value);
+          },
+          padding: EdgeInsets.zero,
         ),
+
         const SizedBox(height: AppSpacing.md),
         if (teams.isEmpty)
           Padding(
@@ -501,10 +545,6 @@ class _ReportSummaryCard extends StatelessWidget {
           const SizedBox(height: AppSpacing.sm),
           _NeutralTag(label: data.category.label),
           const SizedBox(height: AppSpacing.md),
-          OfficerContactRow(
-            officerName: data.officerName,
-            officerPhone: data.officerPhone,
-          ),
         ],
       ),
     );
@@ -529,49 +569,6 @@ class _NeutralTag extends StatelessWidget {
         borderRadius: AppRadius.allXl,
       ),
       child: Text(label, style: Theme.of(context).textTheme.labelMedium),
-    );
-  }
-}
-
-class _FilterChip extends StatelessWidget {
-  const _FilterChip({required this.label, required this.selected, this.onTap});
-
-  final String label;
-  final bool selected;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Material(
-      color: selected
-          ? AppColors.primary.withValues(alpha: 0.12)
-          : Colors.transparent,
-      shape: StadiumBorder(
-        side: BorderSide(
-          color: selected
-              ? AppSemanticColors.of(context).actionText
-              : colorScheme.outline,
-        ),
-      ),
-      child: InkWell(
-        customBorder: const StadiumBorder(),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.sm,
-          ),
-          child: Text(
-            label,
-            style: Theme.of(context).textTheme.labelMedium?.copyWith(
-              color: selected
-                  ? AppSemanticColors.of(context).actionText
-                  : colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ),
-      ),
     );
   }
 }
@@ -701,7 +698,7 @@ class _AssignmentSummaryCard extends StatelessWidget {
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Text(
-                  '${team.name} is now assigned to this report.',
+                  'Selected team: ${team.name}. Confirm below to assign this report.',
                   style: textTheme.bodySmall?.copyWith(
                     color: AppSemanticColors.of(context).actionText,
                   ),
@@ -728,77 +725,15 @@ class _AssignmentSummaryCard extends StatelessWidget {
 // Loading skeleton
 // ---------------------------------------------------------------------------
 
-class _LoadingSkeleton extends StatefulWidget {
-  const _LoadingSkeleton();
-
-  @override
-  State<_LoadingSkeleton> createState() => _LoadingSkeletonState();
-}
-
-class _LoadingSkeletonState extends State<_LoadingSkeleton>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1000),
-  )..repeat(reverse: true);
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final base = Theme.of(context).colorScheme.surfaceContainer;
-    final highlight = Theme.of(context).colorScheme.surfaceContainerLow;
-    final reduceMotion =
-        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
-
-    Widget block({double height = 96}) {
-      return AnimatedBuilder(
-        animation: _controller,
-        builder: (context, _) {
-          return Container(
-            width: double.infinity,
-            height: height,
-            margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-            decoration: BoxDecoration(
-              color: Color.lerp(
-                base,
-                highlight,
-                reduceMotion ? 0.5 : _controller.value,
-              ),
-              borderRadius: AppRadius.allXs,
-            ),
-          );
-        },
-      );
-    }
-
-    return ListView(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      children: [
-        block(height: 100),
-        const SizedBox(height: AppSpacing.sm),
-        block(height: 44),
-        block(height: 112),
-        block(height: 112),
-        block(height: 112),
-        block(height: 112),
-      ],
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Bottom action bar
-// ---------------------------------------------------------------------------
-
 class _ActionBar extends StatelessWidget {
-  const _ActionBar({required this.enabled, required this.onAssign});
+  const _ActionBar({
+    required this.enabled,
+    required this.onAssign,
+    this.busy = false,
+  });
 
   final bool enabled;
+  final bool busy;
   final VoidCallback onAssign;
 
   @override
@@ -814,7 +749,11 @@ class _ActionBar extends StatelessWidget {
         child: FilledButton.icon(
           onPressed: enabled ? onAssign : null,
           icon: const Icon(AppIcons.statusAssigned, size: AppIconSize.sm + 2),
-          label: const Text('Assign Team'),
+          label: BusyLabel(
+            busy: busy,
+            busyLabel: 'Assign Team',
+            child: const Text('Assign Team'),
+          ),
         ),
       ),
     );

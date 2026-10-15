@@ -8,6 +8,7 @@ import '../../../models/report_status.dart';
 import '../services/municipal_report_directory.dart';
 import '../../../widgets/collapsible_list_header.dart';
 import '../../../widgets/glass_card.dart';
+import '../../../widgets/text_filter_chips.dart';
 import '../widgets/municipal_scaffold.dart';
 import '../widgets/municipal_search_field.dart';
 import '../../../widgets/app_state_message.dart';
@@ -75,11 +76,17 @@ class _MunicipalResolvedReportsScreenState
   @override
   void initState() {
     super.initState();
+    MunicipalReportDirectory.instance.reports.addListener(_directoryChanged);
     _searchController.addListener(() => setState(() {}));
+  }
+
+  void _directoryChanged() {
+    if (mounted) setState(() => _data = _resolvedReports());
   }
 
   @override
   void dispose() {
+    MunicipalReportDirectory.instance.reports.removeListener(_directoryChanged);
     _searchController.dispose();
     super.dispose();
   }
@@ -130,7 +137,17 @@ class _MunicipalResolvedReportsScreenState
               )
               .map(ResolvedReportItem.fromReport)
               .toList()
-        : ResolvedReportItem.mock();
+        : [
+            ...ResolvedReportItem.mock(),
+            ...reports
+                .where(
+                  (r) =>
+                      MunicipalReportDirectory.instance.changedReferences
+                          .contains(r.referenceId) &&
+                      r.status.isClosed,
+                )
+                .map(ResolvedReportItem.fromReport),
+          ];
   }
 
   Future<void> _retryLoad() async {
@@ -163,7 +180,7 @@ class _MunicipalResolvedReportsScreenState
     final chromeInset = MunicipalScaffold.contentPadding(context);
     return MunicipalScaffold(
       selectedTab: MunicipalTab.resolved,
-      onNotificationsTap: widget.onNotificationsTap ?? () {},
+      onNotificationsTap: widget.onNotificationsTap,
       onProfileTap: widget.onProfileTap,
       onTabSelected: (tab) {
         if (tab == MunicipalTab.dashboard) widget.onNavigateToDashboard?.call();
@@ -181,7 +198,7 @@ class _MunicipalResolvedReportsScreenState
           Expanded(
             child: switch (_state) {
               MunicipalResolvedReportsViewState.loading =>
-                const _LoadingSkeleton(),
+                const GhanaLoadingIndicator(),
               MunicipalResolvedReportsViewState.loaded => GhanaRefreshIndicator(
                 onRefresh: _pullToRefresh,
                 child: _ResolvedReportsBody(
@@ -307,24 +324,29 @@ class _ResolvedReportsBody extends StatelessWidget {
             MunicipalSearchField(
               controller: searchController,
               hintText: 'Search closed reports...',
+              screenKey: 'municipal-closed',
+              results: (query) => [
+                for (final item in reports)
+                  if ('${item.referenceId} ${item.title} ${item.locationLabel}'
+                      .toLowerCase()
+                      .contains(query.toLowerCase()))
+                    FocusedSearchResult(
+                      title: item.title,
+                      subtitle: item.referenceId,
+                      onSelected: onReportTap == null
+                          ? null
+                          : () => onReportTap!(item),
+                    ),
+              ],
             ),
-            const SizedBox(height: AppSpacing.sm),
-            SizedBox(
-              height: 40,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: ResolvedReportFilter.values.length,
-                separatorBuilder: (_, _) =>
-                    const SizedBox(width: AppSpacing.xs),
-                itemBuilder: (context, index) {
-                  final option = ResolvedReportFilter.values[index];
-                  return _FilterChip(
-                    label: option.label,
-                    selected: option == filter,
-                    onTap: () => onFilterChanged(option),
-                  );
-                },
-              ),
+            TextFilterChips<ResolvedReportFilter>(
+              options: [
+                for (final option in ResolvedReportFilter.values)
+                  TextFilterOption(value: option, label: option.label),
+              ],
+              selected: filter,
+              onSelected: onFilterChanged,
+              padding: EdgeInsets.zero,
             ),
           ],
         ),
@@ -468,49 +490,6 @@ class _StatCard extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _FilterChip extends StatelessWidget {
-  const _FilterChip({required this.label, required this.selected, this.onTap});
-
-  final String label;
-  final bool selected;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Material(
-      color: selected
-          ? AppColors.primary.withValues(alpha: 0.12)
-          : Colors.transparent,
-      shape: StadiumBorder(
-        side: BorderSide(
-          color: selected
-              ? AppSemanticColors.of(context).actionText
-              : colorScheme.outline,
-        ),
-      ),
-      child: InkWell(
-        customBorder: const StadiumBorder(),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.sm,
-          ),
-          child: Text(
-            label,
-            style: Theme.of(context).textTheme.labelMedium?.copyWith(
-              color: selected
-                  ? AppSemanticColors.of(context).actionText
-                  : colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ),
       ),
     );
   }
@@ -666,84 +645,3 @@ class _ClosedBadge extends StatelessWidget {
 // ---------------------------------------------------------------------------
 // Loading skeleton
 // ---------------------------------------------------------------------------
-
-class _LoadingSkeleton extends StatefulWidget {
-  const _LoadingSkeleton();
-
-  @override
-  State<_LoadingSkeleton> createState() => _LoadingSkeletonState();
-}
-
-class _LoadingSkeletonState extends State<_LoadingSkeleton>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1000),
-  )..repeat(reverse: true);
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final base = Theme.of(context).colorScheme.surfaceContainer;
-    final highlight = Theme.of(context).colorScheme.surfaceContainerLow;
-    final reduceMotion =
-        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
-
-    Widget block({double? width, double height = 44}) {
-      return AnimatedBuilder(
-        animation: _controller,
-        builder: (context, _) {
-          return Container(
-            width: width,
-            height: height,
-            decoration: BoxDecoration(
-              color: Color.lerp(
-                base,
-                highlight,
-                reduceMotion ? 0.5 : _controller.value,
-              ),
-              borderRadius: AppRadius.allXs,
-            ),
-          );
-        },
-      );
-    }
-
-    return ListView(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      children: [
-        block(height: 48),
-        const SizedBox(height: AppSpacing.sm),
-        Row(
-          children: [
-            block(width: 64, height: 32),
-            const SizedBox(width: AppSpacing.xs),
-            block(width: 96, height: 32),
-            const SizedBox(width: AppSpacing.xs),
-            block(width: 96, height: 32),
-          ],
-        ),
-        const SizedBox(height: AppSpacing.md),
-        Row(
-          children: [
-            Expanded(child: block(height: 72)),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(child: block(height: 72)),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(child: block(height: 72)),
-          ],
-        ),
-        const SizedBox(height: AppSpacing.md),
-        for (var i = 0; i < 3; i++) ...[
-          block(height: 150),
-          if (i != 2) const SizedBox(height: AppSpacing.sm),
-        ],
-      ],
-    );
-  }
-}

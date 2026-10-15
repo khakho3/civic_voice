@@ -1,3 +1,4 @@
+import '../../../core/widgets/ghana_refresh_indicator.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
@@ -5,9 +6,11 @@ import '../../../models/report_status.dart';
 import '../models/incoming_report.dart';
 import '../models/verification_data.dart';
 import '../services/municipal_report_directory.dart';
+import '../services/municipal_session.dart';
 import '../../../widgets/app_state_message.dart';
 import '../../../widgets/confirm_dialog.dart';
 import '../../../widgets/glass_card.dart';
+import '../../../widgets/busy_indicator.dart';
 import '../../../widgets/status_badge.dart';
 import '../widgets/municipal_detail_header.dart';
 import '../widgets/officer_contact_row.dart';
@@ -70,10 +73,11 @@ class MunicipalVerificationScreen extends StatefulWidget {
 class _MunicipalVerificationScreenState
     extends State<MunicipalVerificationScreen> {
   late MunicipalVerificationViewState _state = widget.initialState;
-  late final VerificationData _data;
-  final Set<int> _checked = {};
+  late VerificationData _data;
+  late final Set<int> _checked;
   final _reasonController = TextEditingController();
   QuickRejectionReason? _selectedQuickReason;
+  bool _submitting = false;
 
   bool get _allConfirmed => _checked.length == _data.checklist.length;
 
@@ -83,6 +87,13 @@ class _MunicipalVerificationScreenState
     final report = MunicipalReportDirectory.instance.byReferenceId(
       widget.referenceId,
     );
+    final drafts = MunicipalReportDirectory.instance.verificationDrafts;
+    final draftKey =
+        '${MunicipalSession.instance.profile.value.employeeId}:${widget.referenceId}';
+    if (!drafts.containsKey(draftKey) && drafts.length >= 100) {
+      drafts.remove(drafts.keys.first);
+    }
+    _checked = drafts.putIfAbsent(draftKey, () => <int>{});
     _data = report?.apiId == null
         ? VerificationData.mock()
         : VerificationData.fromReport(report!);
@@ -104,32 +115,45 @@ class _MunicipalVerificationScreenState
     setState(() {
       final deselecting = _selectedQuickReason == reason;
       _selectedQuickReason = deselecting ? null : reason;
-      _reasonController.text = deselecting ? '' : reason.label;
     });
   }
 
   Future<void> _submitVerify() async {
-    setState(() => _state = MunicipalVerificationViewState.loading);
+    if (_submitting ||
+        _state != MunicipalVerificationViewState.loaded ||
+        !_allConfirmed) {
+      return;
+    }
+    setState(() => _submitting = true);
     try {
       await MunicipalReportDirectory.instance.verifyOnServer(
         widget.referenceId,
       );
       if (mounted) {
-        setState(() => _state = MunicipalVerificationViewState.verified);
+        setState(() {
+          _submitting = false;
+          _state = MunicipalVerificationViewState.verified;
+        });
       }
     } catch (_) {
       if (mounted) {
-        setState(() => _state = MunicipalVerificationViewState.failed);
+        setState(() {
+          _submitting = false;
+          _state = MunicipalVerificationViewState.failed;
+        });
       }
     }
   }
 
   Future<void> _submitReject() async {
+    if (_submitting || _state != MunicipalVerificationViewState.loaded) return;
     final reason = _reasonController.text.trim();
-    if (reason.isEmpty) {
+    if (reason.isEmpty || _selectedQuickReason == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Add a reason before rejecting this report.'),
+          content: Text(
+            'Choose a rejection category and add a reason before rejecting this report.',
+          ),
         ),
       );
       return;
@@ -145,7 +169,7 @@ class _MunicipalVerificationScreenState
     );
     if (!confirmed || !mounted) return;
 
-    setState(() => _state = MunicipalVerificationViewState.loading);
+    setState(() => _submitting = true);
     try {
       await MunicipalReportDirectory.instance.rejectOnServer(
         widget.referenceId,
@@ -153,22 +177,40 @@ class _MunicipalVerificationScreenState
         _selectedQuickReason,
       );
       if (mounted) {
-        setState(() => _state = MunicipalVerificationViewState.rejected);
+        setState(() {
+          _submitting = false;
+          _state = MunicipalVerificationViewState.rejected;
+        });
       }
     } catch (_) {
       if (mounted) {
-        setState(() => _state = MunicipalVerificationViewState.failed);
+        setState(() {
+          _submitting = false;
+          _state = MunicipalVerificationViewState.failed;
+        });
       }
     }
   }
 
-  void _retryLoad() {
+  Future<void> _retryLoad() async {
     setState(() => _state = MunicipalVerificationViewState.loading);
-    Future.delayed(const Duration(milliseconds: 500), () {
+    try {
+      await MunicipalReportDirectory.instance.refresh();
+      final report = MunicipalReportDirectory.instance.byReferenceId(
+        widget.referenceId,
+      );
+      if (!mounted) return;
+      setState(() {
+        if (report?.apiId != null) _data = VerificationData.fromReport(report!);
+        _state = report == null
+            ? MunicipalVerificationViewState.error
+            : MunicipalVerificationViewState.loaded;
+      });
+    } catch (_) {
       if (mounted) {
-        setState(() => _state = MunicipalVerificationViewState.loaded);
+        setState(() => _state = MunicipalVerificationViewState.error);
       }
-    });
+    }
   }
 
   @override
@@ -177,7 +219,13 @@ class _MunicipalVerificationScreenState
         _state == MunicipalVerificationViewState.loaded ||
         _state == MunicipalVerificationViewState.offline ||
         _state == MunicipalVerificationViewState.disabled;
-    final formEnabled = _state == MunicipalVerificationViewState.loaded;
+    final formEnabled =
+        _state == MunicipalVerificationViewState.loaded &&
+        !_submitting &&
+        (MunicipalReportDirectory.instance
+                .byReferenceId(widget.referenceId)
+                ?.canCurrentOfficerReview ??
+            true);
     // widget.status is fixed at whatever it was when this screen opened, so
     // without this the header would keep showing the pre-rejection status
     // (e.g. "Submitted") even after the report's actually been rejected.
@@ -202,11 +250,11 @@ class _MunicipalVerificationScreenState
                   Expanded(
                     child: switch (_state) {
                       MunicipalVerificationViewState.loading =>
-                        const _LoadingSkeleton(),
+                        const GhanaLoadingIndicator(),
                       MunicipalVerificationViewState.loaded =>
                         _VerificationForm(
                           data: _data,
-                          enabled: true,
+                          enabled: formEnabled,
                           checked: _checked,
                           onToggle: _toggleChecklistItem,
                           reasonController: _reasonController,
@@ -308,6 +356,7 @@ class _MunicipalVerificationScreenState
                   ),
                   if (showActionBar)
                     _ActionBar(
+                      busy: _submitting,
                       canVerify: formEnabled && _allConfirmed,
                       canReject: formEnabled,
                       onVerify: _submitVerify,
@@ -457,9 +506,10 @@ class _VerificationForm extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.md),
               OfficerContactRow(
-                officerName: data.officerName,
-                officerPhone: data.officerPhone,
-                label: 'Citizen',
+                officerName: data.citizenContactName,
+                officerPhone: data.citizenPhone,
+                label: 'Citizen Contact',
+                icon: AppIcons.citizen,
               ),
             ],
           ),
@@ -507,7 +557,7 @@ class _VerificationForm extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                'Reason for rejection',
+                'Rejection category',
                 style: textTheme.titleSmall,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -520,6 +570,11 @@ class _VerificationForm extends StatelessWidget {
                   Text('${value.text.length}/500', style: textTheme.bodySmall),
             ),
           ],
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Text(
+          'The category helps assess report quality. The citizen sees your explanation; standing is calculated by the service.',
+          style: textTheme.bodySmall,
         ),
         const SizedBox(height: AppSpacing.sm),
         TextField(
@@ -759,80 +814,17 @@ class _QuickReasonChip extends StatelessWidget {
 // Loading skeleton — no actions shown, per the approved frame.
 // ---------------------------------------------------------------------------
 
-class _LoadingSkeleton extends StatefulWidget {
-  const _LoadingSkeleton();
-
-  @override
-  State<_LoadingSkeleton> createState() => _LoadingSkeletonState();
-}
-
-class _LoadingSkeletonState extends State<_LoadingSkeleton>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1000),
-  )..repeat(reverse: true);
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final base = Theme.of(context).colorScheme.surfaceContainer;
-    final highlight = Theme.of(context).colorScheme.surfaceContainerLow;
-    final reduceMotion =
-        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
-
-    Widget block({double height = 120}) {
-      return AnimatedBuilder(
-        animation: _controller,
-        builder: (context, _) {
-          return Container(
-            width: double.infinity,
-            height: height,
-            margin: const EdgeInsets.only(bottom: AppSpacing.md),
-            decoration: BoxDecoration(
-              color: Color.lerp(
-                base,
-                highlight,
-                reduceMotion ? 0.5 : _controller.value,
-              ),
-              borderRadius: AppRadius.allXs,
-            ),
-          );
-        },
-      );
-    }
-
-    return ListView(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      children: [
-        block(),
-        block(height: 60),
-        block(height: 60),
-        block(height: 200),
-      ],
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Action bar — Verify Report / Reject Report stacked vertically (unlike
-// Report Review's side-by-side layout, matching the approved frame).
-// ---------------------------------------------------------------------------
-
 class _ActionBar extends StatelessWidget {
   const _ActionBar({
     required this.canVerify,
+    this.busy = false,
     required this.canReject,
     required this.onVerify,
     required this.onReject,
   });
 
   final bool canVerify;
+  final bool busy;
   final bool canReject;
   final VoidCallback onVerify;
   final VoidCallback onReject;
@@ -854,7 +846,11 @@ class _ActionBar extends StatelessWidget {
               // — the checklist exists to be completed before verifying.
               onPressed: canVerify ? onVerify : null,
               icon: const Icon(AppIcons.verify, size: AppIconSize.sm + 2),
-              label: const Text('Verify Report'),
+              label: BusyLabel(
+                busy: busy,
+                busyLabel: 'Verify Report',
+                child: const Text('Verify Report'),
+              ),
             ),
           ),
           const SizedBox(height: AppSpacing.sm),

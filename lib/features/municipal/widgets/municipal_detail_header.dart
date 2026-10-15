@@ -85,7 +85,13 @@ class MunicipalDetailHeader extends StatelessWidget {
                     ],
                   ),
                 ),
-                ?trailing,
+                if (trailing != null)
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: MediaQuery.sizeOf(context).width * 0.45,
+                    ),
+                    child: trailing,
+                  ),
               ],
             ),
           ),

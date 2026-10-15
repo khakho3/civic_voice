@@ -6,6 +6,7 @@ import '../models/dashboard_data.dart';
 import '../models/incoming_report.dart';
 import '../services/municipal_report_directory.dart';
 import '../../../widgets/glass_card.dart';
+import '../../../core/widgets/ghana_refresh_indicator.dart';
 import '../widgets/municipal_scaffold.dart';
 import '../../../widgets/app_state_message.dart';
 import '../../../widgets/status_badge.dart';
@@ -109,6 +110,22 @@ class _MunicipalDashboardScreenState extends State<MunicipalDashboardScreen> {
     }
   }
 
+  Future<void> _pullRefresh() async {
+    try {
+      await MunicipalReportDirectory.instance.refresh();
+      if (mounted) {
+        setState(() {
+          _data = MunicipalDashboardData.current();
+          _state = _data.recentReports.isEmpty
+              ? MunicipalDashboardViewState.empty
+              : MunicipalDashboardViewState.loaded;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _state = MunicipalDashboardViewState.error);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return MunicipalScaffold(
@@ -124,75 +141,75 @@ class _MunicipalDashboardScreenState extends State<MunicipalDashboardScreen> {
           widget.onNavigateToResolvedReports?.call();
         }
       },
-      body: switch (_state) {
-        MunicipalDashboardViewState.loading => _DashboardContent(
-          data: _data,
-          loading: true,
-          empty: false,
-          onViewAllReports: widget.onNavigateToInbox,
-          onReportTap: widget.onReportTap,
-        ),
-        MunicipalDashboardViewState.loaded => _DashboardContent(
-          data: _data,
-          loading: false,
-          empty: false,
-          onViewAllReports: widget.onNavigateToInbox,
-          onReportTap: widget.onReportTap,
-        ),
-        MunicipalDashboardViewState.empty => _DashboardContent(
-          data: _data,
-          onViewAllReports: widget.onNavigateToInbox,
-          loading: false,
-          empty: true,
-          onReportTap: widget.onReportTap,
-        ),
-        MunicipalDashboardViewState.error => Padding(
-          padding: MunicipalScaffold.contentPadding(context),
-          child: AppStateMessage(
-            icon: AppIcons.warning,
-            badgeColor: AppColors.error,
-            title: 'Unable to load dashboard',
-            message: 'Refresh the dashboard or try again in a few minutes.',
-            primaryActionLabel: 'Try again',
-            onPrimaryAction: _retry,
-            primaryActionColor: AppColors.error,
-            bordered: true,
+      body: GhanaRefreshIndicator(
+        onRefresh: _pullRefresh,
+        topOffset: MunicipalScaffold.contentPadding(context).top,
+        child: switch (_state) {
+          MunicipalDashboardViewState.loading => const GhanaLoadingIndicator(
+            label: 'Loading dashboard data',
           ),
-        ),
-        MunicipalDashboardViewState.offline => Padding(
-          padding: MunicipalScaffold.contentPadding(context),
-          child: AppStateMessage(
-            icon: AppIcons.offline,
-            badgeColor: AppColors.error,
-            title: 'You\'re offline',
-            message:
-                'Showing saved dashboard content until your connection returns.',
-            primaryActionLabel: 'Retry connection',
-            onPrimaryAction: _retry,
-            primaryActionColor: AppColors.error,
-            bordered: true,
+          MunicipalDashboardViewState.loaded => _DashboardContent(
+            data: _data,
+            loading: false,
+            empty: false,
+            onViewAllReports: widget.onNavigateToInbox,
+            onReportTap: widget.onReportTap,
           ),
-        ),
-        MunicipalDashboardViewState.permissionDenied => Padding(
-          padding: MunicipalScaffold.contentPadding(context),
-          child: AppStateMessage(
-            icon: AppIcons.permissionDenied,
-            badgeColor: AppColors.primary,
-            title: 'Access Restricted',
-            message:
-                'You currently do not have permission to view the Municipal '
-                'Dashboard for this district. Please request access from the '
-                'regional administrator.',
-            primaryActionLabel: 'Request Access',
-            // No access-request workflow is specified in Issue 03 —
-            // placeholder pending spec.
-            onPrimaryAction: () {},
-            secondaryActionLabel: 'Return to Home',
-            onSecondaryAction: () {},
-            bordered: true,
+          MunicipalDashboardViewState.empty => _DashboardContent(
+            data: _data,
+            onViewAllReports: widget.onNavigateToInbox,
+            loading: false,
+            empty: true,
+            onReportTap: widget.onReportTap,
           ),
-        ),
-      },
+          MunicipalDashboardViewState.error => Padding(
+            padding: MunicipalScaffold.contentPadding(context),
+            child: AppStateMessage(
+              icon: AppIcons.warning,
+              badgeColor: AppColors.error,
+              title: 'Unable to load dashboard',
+              message: 'Refresh the dashboard or try again in a few minutes.',
+              primaryActionLabel: 'Try again',
+              onPrimaryAction: _retry,
+              primaryActionColor: AppColors.error,
+              bordered: true,
+            ),
+          ),
+          MunicipalDashboardViewState.offline => Padding(
+            padding: MunicipalScaffold.contentPadding(context),
+            child: AppStateMessage(
+              icon: AppIcons.offline,
+              badgeColor: AppColors.error,
+              title: 'You\'re offline',
+              message:
+                  'Showing saved dashboard content until your connection returns.',
+              primaryActionLabel: 'Retry connection',
+              onPrimaryAction: _retry,
+              primaryActionColor: AppColors.error,
+              bordered: true,
+            ),
+          ),
+          MunicipalDashboardViewState.permissionDenied => Padding(
+            padding: MunicipalScaffold.contentPadding(context),
+            child: AppStateMessage(
+              icon: AppIcons.permissionDenied,
+              badgeColor: AppColors.primary,
+              title: 'Access Restricted',
+              message:
+                  'You currently do not have permission to view the Municipal '
+                  'Dashboard for this district. Please request access from the '
+                  'regional administrator.',
+              primaryActionLabel: 'Request Access',
+              // No access-request workflow is specified in Issue 03 —
+              // placeholder pending spec.
+              onPrimaryAction: null,
+              secondaryActionLabel: 'Return to Home',
+              onSecondaryAction: null,
+              bordered: true,
+            ),
+          ),
+        },
+      ),
     );
   }
 }
@@ -221,6 +238,7 @@ class _DashboardContent extends StatelessWidget {
     final stats = empty ? MunicipalDashboardStats.zero : data.stats;
     final chromeInset = MunicipalScaffold.contentPadding(context);
     return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: EdgeInsets.fromLTRB(
         AppSpacing.md,
         chromeInset.top + AppSpacing.md,
@@ -239,6 +257,36 @@ class _DashboardContent extends StatelessWidget {
         const SizedBox(height: AppSpacing.xl),
         _StatsGrid(stats: stats, isLoading: loading),
         const SizedBox(height: AppSpacing.xl),
+        if (!loading &&
+            MunicipalReportDirectory.instance.reports.value.any(
+              (r) => r.status.name == 'pendingApproval',
+            )) ...[
+          GlassCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Awaiting Confirmation',
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+                for (final report
+                    in MunicipalReportDirectory.instance.reports.value.where(
+                      (r) => r.status.name == 'pendingApproval',
+                    ))
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(report.title),
+                    subtitle: Text(report.referenceId),
+                    trailing: const Icon(AppIcons.chevronRight),
+                    onTap: onReportTap == null
+                        ? null
+                        : () => onReportTap!(report),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+        ],
         _RecentReportsCard(
           reports: data.recentReports,
           isLoading: loading,

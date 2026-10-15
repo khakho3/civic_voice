@@ -1,3 +1,4 @@
+import '../../../core/widgets/ghana_refresh_indicator.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
@@ -72,6 +73,8 @@ class _MunicipalReportReviewScreenState
     extends State<MunicipalReportReviewScreen> {
   late MunicipalReportReviewViewState _state = widget.initialState;
   late ReportReviewData _data;
+  bool _claiming = false;
+  bool _claimFailed = false;
   final ReportReviewData _noEvidenceData = ReportReviewData.mock(
     withEvidence: false,
   );
@@ -86,6 +89,7 @@ class _MunicipalReportReviewScreenState
         ? ReportReviewData.mock()
         : ReportReviewData.fromReport(report!);
     if (report?.apiId != null && !report!.hasReviewer) {
+      _claiming = true;
       _claimReview();
     }
   }
@@ -95,7 +99,11 @@ class _MunicipalReportReviewScreenState
       final claimed = await MunicipalReportDirectory.instance
           .claimReviewOnServer(widget.referenceId);
       if (!mounted) return;
-      setState(() => _data = ReportReviewData.fromReport(claimed));
+      setState(() {
+        _data = ReportReviewData.fromReport(claimed);
+        _claiming = false;
+        _claimFailed = false;
+      });
     } catch (_) {
       try {
         await MunicipalReportDirectory.instance.refresh();
@@ -106,17 +114,37 @@ class _MunicipalReportReviewScreenState
       if (!mounted) return;
       setState(() {
         if (current != null) _data = ReportReviewData.fromReport(current);
+        _claiming = false;
+        _claimFailed = current == null || !current.hasReviewer;
       });
     }
   }
 
-  void _retry() {
+  Future<void> _retry() async {
     setState(() => _state = MunicipalReportReviewViewState.loading);
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (mounted) {
-        setState(() => _state = MunicipalReportReviewViewState.loaded);
+    try {
+      await MunicipalReportDirectory.instance.refresh();
+      final current = MunicipalReportDirectory.instance.byReferenceId(
+        widget.referenceId,
+      );
+      if (!mounted) return;
+      if (current == null) {
+        setState(() => _state = MunicipalReportReviewViewState.error);
+        return;
       }
-    });
+      setState(() {
+        _data = ReportReviewData.fromReport(current);
+        _state = MunicipalReportReviewViewState.loaded;
+      });
+      if (current.apiId != null && !current.hasReviewer) {
+        _claiming = true;
+        await _claimReview();
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _state = MunicipalReportReviewViewState.error);
+      }
+    }
   }
 
   @override
@@ -151,7 +179,7 @@ class _MunicipalReportReviewScreenState
                   Expanded(
                     child: switch (_state) {
                       MunicipalReportReviewViewState.loading =>
-                        const _LoadingSkeleton(),
+                        const GhanaLoadingIndicator(),
                       MunicipalReportReviewViewState.loaded => _ReviewBody(
                         data: _data,
                       ),
@@ -189,15 +217,28 @@ class _MunicipalReportReviewScreenState
                           // Dashboard/Inbox's Permission states instead, for
                           // consistency.
                           primaryActionLabel: 'Request Access',
-                          onPrimaryAction: () {},
+                          onPrimaryAction: null,
                           secondaryActionLabel: 'Return to Dashboard',
                           onSecondaryAction: widget.onNavigateToDashboard,
                         ),
                     },
                   ),
+                  if (_claiming || _claimFailed)
+                    Padding(
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      child: Text(
+                        _claiming
+                            ? 'Claiming this report for review…'
+                            : 'The review could not be claimed. Refresh before continuing.',
+                      ),
+                    ),
                   if (showActionBar)
                     _ActionBar(
-                      enabled: actionsEnabled && _data.canCurrentOfficerReview,
+                      enabled:
+                          actionsEnabled &&
+                          !_claiming &&
+                          !_claimFailed &&
+                          _data.canCurrentOfficerReview,
                       onReject: () => widget.onOpenVerification?.call(),
                       onVerify: () => widget.onOpenVerification?.call(),
                     ),
@@ -856,95 +897,6 @@ class _TimelineRow extends StatelessWidget {
 // Loading skeleton — 4 generic cards (Citizen/Report/Evidence/Location
 // shape); Timeline is skipped and Reject/Verify Report stay visible
 // (disabled), matching the approved frame.
-// ---------------------------------------------------------------------------
-
-class _LoadingSkeleton extends StatefulWidget {
-  const _LoadingSkeleton();
-
-  @override
-  State<_LoadingSkeleton> createState() => _LoadingSkeletonState();
-}
-
-class _LoadingSkeletonState extends State<_LoadingSkeleton>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1000),
-  )..repeat(reverse: true);
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final base = Theme.of(context).colorScheme.surfaceContainer;
-    final highlight = Theme.of(context).colorScheme.surfaceContainerLow;
-    final colorScheme = Theme.of(context).colorScheme;
-    final reduceMotion =
-        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
-
-    Widget block({double? width, double height = 14}) {
-      return AnimatedBuilder(
-        animation: _controller,
-        builder: (context, _) {
-          return Container(
-            width: width,
-            height: height,
-            margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-            decoration: BoxDecoration(
-              color: Color.lerp(
-                base,
-                highlight,
-                reduceMotion ? 0.5 : _controller.value,
-              ),
-              borderRadius: AppRadius.allXs,
-            ),
-          );
-        },
-      );
-    }
-
-    Widget skeletonCard() {
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(AppSpacing.md),
-        margin: const EdgeInsets.only(bottom: AppSpacing.md),
-        decoration: BoxDecoration(
-          color: colorScheme.surface,
-          border: Border.all(color: colorScheme.outline),
-          borderRadius: AppComponentRadius.card,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            block(width: 120, height: 16),
-            block(width: double.infinity),
-            block(width: double.infinity),
-            block(width: 180),
-            const SizedBox(height: AppSpacing.xs),
-            block(height: 80),
-          ],
-        ),
-      );
-    }
-
-    return ListView(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      children: [
-        skeletonCard(),
-        skeletonCard(),
-        skeletonCard(),
-        skeletonCard(),
-      ],
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Bottom action bar
 // ---------------------------------------------------------------------------
 
 class _ActionBar extends StatelessWidget {

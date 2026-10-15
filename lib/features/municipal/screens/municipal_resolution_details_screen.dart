@@ -1,20 +1,17 @@
+import '../../../core/widgets/ghana_refresh_indicator.dart';
 import 'package:flutter/material.dart';
-import 'package:share_plus/share_plus.dart';
+import '../../../services/public_case_share.dart';
+import '../../../widgets/status_badge.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../models/resolved_report.dart';
-import '../../../models/report_status.dart';
 import '../../../widgets/glass_card.dart';
 import '../widgets/municipal_detail_header.dart';
 
 /// MUN-008 — Resolution Details (drill-down from Resolved Reports).
 ///
-/// Approved states show only Default — no separate Loading/Error/Offline
-/// frames like the other drill-down screens. A Loading skeleton is still
-/// included (§19.18 prohibits blank screens on navigation), but Error/
-/// Offline aren't invented: this is a read-only historical record, and if
-/// it fails to load the officer can just back out and reopen it from the
-/// list, which already has its own error/offline handling.
+/// Read-only outcome supplied by the scoped report list.
+/// Navigation loading uses the shared native Ghana indicator.
 enum MunicipalResolutionDetailsViewState { loading, loaded }
 
 class MunicipalResolutionDetailsScreen extends StatefulWidget {
@@ -47,11 +44,7 @@ class _MunicipalResolutionDetailsScreenState
     extends State<MunicipalResolutionDetailsScreen> {
   late final MunicipalResolutionDetailsViewState _state = widget.initialState;
 
-  // Placeholder content pending the Cloud Firestore-backed service (Issue 03
-  // dependency) — always the first mock report regardless of which list
-  // item was actually tapped, the same simplification every other
-  // list-to-detail flow in this module makes (e.g. Active Reports →
-  // Report Progress).
+  // Live navigation supplies the selected record; isolated previews use fixtures.
   late final ResolvedReportItem _data =
       widget.data ?? ResolvedReportItem.mock().first;
 
@@ -69,7 +62,7 @@ class _MunicipalResolutionDetailsScreenState
                   Expanded(
                     child: switch (_state) {
                       MunicipalResolutionDetailsViewState.loading =>
-                        const _LoadingSkeleton(),
+                        const GhanaLoadingIndicator(),
                       MunicipalResolutionDetailsViewState.loaded =>
                         _DetailsBody(data: _data),
                     },
@@ -152,7 +145,7 @@ class _SummaryCard extends StatelessWidget {
                   style: textTheme.labelSmall?.copyWith(letterSpacing: 0.96),
                 ),
               ),
-              _ClosedBadge(status: data.status),
+              ReportStatusBadge(status: data.status),
             ],
           ),
           const SizedBox(height: 2),
@@ -177,38 +170,6 @@ class _SummaryCard extends StatelessWidget {
           _LabeledValue(
             label: data.isRejected ? 'REJECTED ON' : 'RESOLVED ON',
             value: formatResolvedDate(data.resolvedDate),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ClosedBadge extends StatelessWidget {
-  const _ClosedBadge({required this.status});
-
-  final ReportStatus status;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-      decoration: BoxDecoration(
-        color: status.color.withValues(alpha: 0.12),
-        border: Border.all(color: status.color.withValues(alpha: 0.24)),
-        borderRadius: AppRadius.allXl,
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(status.icon, size: AppIconSize.sm, color: status.color),
-          const SizedBox(width: 4),
-          Text(
-            status.label,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: status.color,
-              fontWeight: AppFontWeight.semiBold,
-            ),
           ),
         ],
       ),
@@ -256,8 +217,11 @@ class _StatsRow extends StatelessWidget {
         Expanded(
           child: _MiniStat(
             icon: AppIcons.analytics,
-            label: 'SLA',
-            value: '${data.slaPercent}%',
+            label: data.isRejected ? 'REASON' : 'SLA',
+            value: data.isRejected
+                ? (data.rejectionCategory?.replaceAll('_', ' ').toLowerCase() ??
+                      'Not recorded')
+                : '${data.slaPercent}%',
           ),
         ),
         const SizedBox(width: AppSpacing.sm),
@@ -444,12 +408,12 @@ class _TimelineCard extends StatelessWidget {
                 width: 22,
                 height: 22,
                 margin: const EdgeInsets.only(top: 2),
-                decoration: const BoxDecoration(
-                  color: AppColors.success,
+                decoration: BoxDecoration(
+                  color: data.status.color,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
-                  AppIcons.success,
+                child: Icon(
+                  data.isRejected ? AppIcons.statusRejected : AppIcons.success,
                   size: AppIconSize.sm,
                   color: Colors.white,
                 ),
@@ -487,79 +451,7 @@ class _TimelineCard extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Loading skeleton
-// ---------------------------------------------------------------------------
-
-class _LoadingSkeleton extends StatefulWidget {
-  const _LoadingSkeleton();
-
-  @override
-  State<_LoadingSkeleton> createState() => _LoadingSkeletonState();
-}
-
-class _LoadingSkeletonState extends State<_LoadingSkeleton>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1000),
-  )..repeat(reverse: true);
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final base = Theme.of(context).colorScheme.surfaceContainer;
-    final highlight = Theme.of(context).colorScheme.surfaceContainerLow;
-    final reduceMotion =
-        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
-
-    Widget block({double height = 96}) {
-      return AnimatedBuilder(
-        animation: _controller,
-        builder: (context, _) {
-          return Container(
-            width: double.infinity,
-            height: height,
-            margin: const EdgeInsets.only(bottom: AppSpacing.md),
-            decoration: BoxDecoration(
-              color: Color.lerp(
-                base,
-                highlight,
-                reduceMotion ? 0.5 : _controller.value,
-              ),
-              borderRadius: AppRadius.allXs,
-            ),
-          );
-        },
-      );
-    }
-
-    return ListView(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      children: [
-        block(height: 160),
-        Row(
-          children: [
-            Expanded(child: block(height: 72)),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(child: block(height: 72)),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(child: block(height: 72)),
-          ],
-        ),
-        block(height: 140),
-        block(height: 100),
-      ],
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Bottom action bar
+// Outcome actions
 // ---------------------------------------------------------------------------
 
 class _ActionBar extends StatelessWidget {
@@ -568,21 +460,47 @@ class _ActionBar extends StatelessWidget {
   final ResolvedReportItem data;
   final VoidCallback? onArchive;
 
-  Future<void> _shareSummary() {
-    return SharePlus.instance.share(
-      ShareParams(
-        text:
-            'Case ${data.referenceId} — ${data.title}\n'
-            'Location: ${data.locationLabel}\n'
-            '${data.isRejected ? 'Rejected' : 'Resolved'}: '
-            '${data.resolvedDate.toLocal().toString().split(' ').first} '
-            '(${data.durationDays} days, SLA ${data.slaPercent}%)\n\n'
-            '${data.resolutionNote}',
-        subject:
-            'CivicVoice case ${data.referenceId} — '
-            '${data.isRejected ? 'rejected' : 'resolved'}',
+  Future<void> _shareSummary(BuildContext context) async {
+    final outcome = await PublicCaseShare.share(
+      PublicCaseSummary(
+        reference: data.referenceId,
+        title: data.title,
+        status: data.status.name,
+        locality: data.locationLabel,
+        resolvedAt: data.resolvedDate,
       ),
     );
+    if (!context.mounted) return;
+    final message = PublicCaseShare.outcomeMessage(outcome);
+    if (message.isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          action: outcome == PublicShareOutcome.failed
+              ? SnackBarAction(
+                  label: 'Copy',
+                  onPressed: () async {
+                    final copied = await PublicCaseShare.copy(
+                      PublicCaseSummary(
+                        reference: data.referenceId,
+                        title: data.title,
+                        status: data.status.name,
+                        locality: data.locationLabel,
+                        resolvedAt: data.resolvedDate,
+                      ),
+                    );
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(PublicCaseShare.outcomeMessage(copied)),
+                      ),
+                    );
+                  },
+                )
+              : null,
+        ),
+      );
+    }
   }
 
   @override
@@ -598,7 +516,7 @@ class _ActionBar extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             child: FilledButton.icon(
-              onPressed: _shareSummary,
+              onPressed: () => _shareSummary(context),
               icon: const Icon(AppIcons.share, size: AppIconSize.sm + 2),
               label: const Text('Share Summary'),
             ),
@@ -607,8 +525,11 @@ class _ActionBar extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             child: OutlinedButton(
-              onPressed: onArchive,
-              child: const Text('Archive Report'),
+              onPressed: null,
+              child: const Tooltip(
+                message: 'Archiving is not available in this release.',
+                child: Text('Archive Report'),
+              ),
             ),
           ),
         ],
