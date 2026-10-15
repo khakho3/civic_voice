@@ -2,7 +2,7 @@
 
 ## READY — 15 October 2026: Latif may start
 
-Aziz and Kingsbeng are reviewed and accepted. Kingsbeng's original PR commit 04dd917 and reviewed repair commits through a498f15 are included in integration. The refreshed codex/flutter-latif-modules branch starts from codex/flutter-web-alignment with this guide added. Work only on codex/flutter-latif-modules; PR base codex/flutter-web-alignment. Main remains unchanged. The integrator will verify remote publication before telling Latif to start. This readiness supersedes every older wait instruction in historical reports.
+Aziz and Kingsbeng are reviewed and accepted. Kingsbeng's original PR commit 04dd917 and reviewed repair commits through a498f15 are included in integration. The refreshed codex/flutter-latif-modules branch starts from codex/flutter-web-alignment with this guide added. Work only on codex/flutter-latif-modules; PR base codex/flutter-web-alignment. Main remains unchanged. Remote publication has been verified for both branches; Latif may start. This readiness supersedes every older wait instruction in historical reports.
 
 Sequence: Aziz -> reviewed integration -> Kingsbeng -> reviewed integration -> Latif. Start from the refreshed remote branch, never old main or an old local branch. If a local Latif branch already exists, inspect for unpushed work, fetch, and use git merge --ff-only origin/codex/flutter-latif-modules only when safe. Stop and report divergence; never reset/force-push contributor work.
 
@@ -204,4 +204,3 @@ Web: `AdminSystemActivityPage.jsx`, `AdminSystemSettingsPage.jsx`, `AdminRoleMan
 Citizen Home/My Reports/Track/focused authoring/draft/photo roundtrip/guest conversion/Nearby unavailable states. Ministry Dashboard/Analytics/performance/reports/insights/municipality contacts and filter cancellation; all seven statuses. Both Admin tiers: Dashboard/Users/create/edit/details/Teams list/form/details/Activity/Settings/Roles, drawer open+close, kebab placement, full-width region/assembly defaults, dirty lead changes and creation freeze. Both themes, keyboard/Back, scroll search cycles and large text.
 
 Use a small checklist of exact screens and steps, test credentials/environment approval, actual device/platform, theme, viewport/text scale, failures and pending gates. Screenshot alone is not state/permission validation. Tell the human briefly what to test; wait for confirmation and commit request. Never claim all backlog complete when a future dependency is still blocked. Send PR to Francis only when authorized; do not message another teammate from tools without human authorization.
-
