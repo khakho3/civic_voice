@@ -212,6 +212,44 @@ class _RefreshContentState extends State<_RefreshContent>
   }
 }
 
+/// Shared native page loading, retaining the Ghana flag/star identity.
+/// Busy controls use BusyIndicator; pages never borrow the web orb.
+class GhanaLoadingIndicator extends StatelessWidget {
+  const GhanaLoadingIndicator({super.key, this.label = 'Loading'});
+  final String label;
+  @override
+  Widget build(BuildContext context) => Center(
+    child: Semantics(
+      liveRegion: true,
+      label: label,
+      child: ExcludeSemantics(
+        child: SizedBox(
+          width: 240,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox.square(
+                dimension: AppIconSize.xl,
+                child: CustomPaint(
+                  painter: _StarPainter(
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? AppColors.ghanaGold
+                        : AppColors.scrimStrong,
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              const _GhanaLinearProgress(),
+              const SizedBox(height: AppSpacing.md),
+              Text(label, textAlign: TextAlign.center),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
 class _GhanaLinearProgress extends StatefulWidget {
   const _GhanaLinearProgress();
 
@@ -229,7 +267,17 @@ class _GhanaLinearProgressState extends State<_GhanaLinearProgress>
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 1),
-    )..repeat();
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (AppMotion.reduceMotion(context)) {
+      _controller.stop();
+    } else if (!_controller.isAnimating) {
+      _controller.repeat();
+    }
   }
 
   @override
