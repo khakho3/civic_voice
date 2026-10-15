@@ -1,5 +1,12 @@
 # Kingsbeng repair report — 14 October 2026
 
+## Integration published — 15 October 2026
+
+Owner authorized promotion and Latif preparation. Accepted repair commits through a498f15 were fast-forwarded into codex/flutter-web-alignment. GitHub PR #19 is MERGED (15 October 2026, 13:34 UTC). Fresh fetch proved the old Latif branch contained no unique contributor commits; it was safely recreated from integration and both branches published atomically by ordinary fast-forward, with upstreams. Shared guide publication checkpoint c097f6f includes docs/flutter-team/LATIF_AGENT.md. Latif may now start; this supersedes all older waiting/uncommitted/integration-pending notes. Main remains 75e43b3; production configuration unchanged.
+
+Use codex/flutter-latif-modules; PR base codex/flutter-web-alignment. Contributor agents must read the guide directly from the refreshed Flutter branch, inspect local unpushed work before any update, keep web test read-only, and never reset/force-push or work on main/integration. Follow the guide's exact ID allocation and explicit outstanding search/API/device gates. The API fix efe742e remains on its separate local integration branch and is not deployed by this Flutter promotion. Production login investigation stays paused.
+
+
 ## Accepted repair commits — 15 October 2026
 
 Owner accepted the tested DEV workflow and requested scoped commits. Flutter repair branch codex/flutter-kingsbeng-review-fixes now contains 7461625 (lifecycle/models), b9917f3 (shared loader/headers), 803c7b1 (Municipal flows), ca225c8 (Maintenance completion/rework), bca09f0 (Citizen jurisdiction, notifications, session safety and regression tests). API branch codex/api-web-integration contains efe742e (scoped approval/return authorization and truthful jurisdiction; 76 tests). Source content is the previously verified 708-test/analyzer-clean Flutter tree. Commits are local; no push, merge or branch recreation is implied. Integration remains bb1e6fc and Latif waits for the integration checkpoint. Production login investigation is explicitly paused at owner's request.
