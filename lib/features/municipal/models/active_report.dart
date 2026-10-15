@@ -5,6 +5,7 @@ enum ActiveReportFilter {
   all('All'),
   assigned('Assigned'),
   inProgress('In Progress'),
+  pendingApproval('Awaiting Confirmation'),
   resolved('Resolved');
 
   const ActiveReportFilter(this.label);

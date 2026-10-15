@@ -68,6 +68,7 @@ class ReportProgressData {
     this.maintenanceContactName,
     this.maintenanceContactPhone,
     this.failureNote,
+    this.evidencePhotoUrls = const [],
   });
 
   final String referenceId;
@@ -101,6 +102,7 @@ class ReportProgressData {
   /// this is the one place that reason is visible outside the transient
   /// notification it was also sent as.
   final String? failureNote;
+  final List<String> evidencePhotoUrls;
 
   /// Placeholder content matching the approved MUN-007 design, used until
   /// the Cloud Firestore-backed service (Issue 03 dependency) is wired up.
@@ -194,6 +196,7 @@ class ReportProgressData {
       officerName: report.reviewerName ?? 'Reviewing officer unavailable',
       officerPhone: report.reviewerPhone ?? 'Contact unavailable',
       status: report.status,
+      evidencePhotoUrls: report.resolutionPhotoUrls,
       completionPercent: progress,
       timeline: [
         ProgressTimelineStep(
@@ -210,16 +213,49 @@ class ReportProgressData {
         if (report.teamName != null)
           ProgressTimelineStep(
             label: 'Assigned',
-            timestamp: report.updatedLabel ?? 'Assigned',
+            timestamp:
+                report.assignedAt?.toLocal().toString().split('.').first ??
+                'Time not recorded',
             description: '$team is responsible for this report.',
             isCurrent: report.status == ReportStatus.assigned,
           ),
-        if (report.status == ReportStatus.inProgress)
+        if (report.startedAt != null ||
+            report.status == ReportStatus.inProgress ||
+            report.status == ReportStatus.pendingApproval)
           ProgressTimelineStep(
             label: 'In Progress',
-            timestamp: report.updatedLabel ?? 'In progress',
+            timestamp:
+                report.startedAt?.toLocal().toString().split('.').first ??
+                'Time not recorded',
             description: '$team reported $progress% completion.',
-            isCurrent: true,
+            isCurrent: report.status == ReportStatus.inProgress,
+          ),
+        if (report.sendBackReason?.trim().isNotEmpty == true)
+          ProgressTimelineStep(
+            label: 'Completion sent back',
+            timestamp: 'Time not recorded',
+            description: report.sendBackReason!,
+          ),
+        if (report.completionSubmittedAt != null ||
+            report.status == ReportStatus.pendingApproval)
+          ProgressTimelineStep(
+            label: 'Submitted for Approval',
+            timestamp:
+                report.completionSubmittedAt
+                    ?.toLocal()
+                    .toString()
+                    .split('.')
+                    .first ??
+                'Time not recorded',
+            description: 'Awaiting municipal confirmation',
+            isCurrent: report.status == ReportStatus.pendingApproval,
+          ),
+        if (report.approvedAt != null)
+          ProgressTimelineStep(
+            label: 'Approved and closed',
+            timestamp: report.approvedAt!.toLocal().toString().split('.').first,
+            description: 'Completion confirmed by a municipal officer',
+            isCurrent: report.status == ReportStatus.resolved,
           ),
       ],
       latestUpdateTeam: team,

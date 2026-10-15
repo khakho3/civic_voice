@@ -91,7 +91,8 @@ class MunicipalDashboardData {
                   .where(
                     (report) =>
                         report.status.name == 'assigned' ||
-                        report.status.name == 'inProgress',
+                        report.status.name == 'inProgress' ||
+                        report.status.name == 'pendingApproval',
                   )
                   .length,
               resolved: reports
@@ -152,7 +153,8 @@ class MunicipalDashboardData {
             .where(
               (report) =>
                   report.status.name == 'assigned' ||
-                  report.status.name == 'inProgress',
+                  report.status.name == 'inProgress' ||
+                  report.status.name == 'pendingApproval',
             )
             .length,
         resolved: reports

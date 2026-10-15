@@ -64,6 +64,7 @@ class IncomingReportItem {
     required this.status,
     required this.timeAgo,
     this.teamName,
+    this.assignedTeamId,
     this.progressPercent,
     this.updatedLabel,
     this.photoUrl,
@@ -92,6 +93,12 @@ class IncomingReportItem {
     this.maintenanceContactPhone,
     this.confidence,
     this.citizenLowTrust = false,
+    this.assignedAt,
+    this.startedAt,
+    this.completionSubmittedAt,
+    this.approvedAt,
+    this.sendBackReason,
+    this.rejectionCategory,
   });
 
   /// Internal database identifier used for API calls. [referenceId] remains
@@ -110,6 +117,7 @@ class IncomingReportItem {
   /// [MunicipalReportDirectory.assignTeam]. Null beforehand: a report still
   /// in triage (submitted/under review) has no team yet.
   final String? teamName;
+  final String? assignedTeamId;
 
   /// 0-100. Null until assigned, mirroring [teamName] — there's no progress
   /// to show before a team is on the case.
@@ -134,6 +142,13 @@ class IncomingReportItem {
   final String? resolutionNotes;
   final String? rejectionReason;
   final DateTime? rejectedAt;
+  final DateTime? assignedAt;
+  final DateTime? startedAt;
+  final DateTime? completionSubmittedAt;
+  final DateTime? approvedAt;
+  final String? sendBackReason;
+  final String? rejectionCategory;
+
   final String? maintenanceFailureNotes;
   final DateTime? maintenanceFailedAt;
   final String? assembly;
@@ -174,6 +189,7 @@ class IncomingReportItem {
       status: _statusFromApi(json['status'] as String?),
       timeAgo: _relativeTime(createdAt),
       teamName: json['assignedTeamName'] as String?,
+      assignedTeamId: json['assignedTeamId'] as String?,
       progressPercent: (json['progressPercent'] as num?)?.round(),
       updatedLabel: updatedAt == null ? null : _relativeTime(updatedAt),
       photoUrl: photos.isEmpty ? null : ApiClient.assetUrl(photos.first),
@@ -197,6 +213,14 @@ class IncomingReportItem {
       resolutionNotes: json['resolutionNotes'] as String?,
       rejectionReason: json['rejectionReason'] as String?,
       rejectedAt: DateTime.tryParse(json['rejectedAt'] as String? ?? ''),
+      assignedAt: DateTime.tryParse(json['assignedAt'] as String? ?? ''),
+      startedAt: DateTime.tryParse(json['startedAt'] as String? ?? ''),
+      completionSubmittedAt: DateTime.tryParse(
+        json['completionSubmittedAt'] as String? ?? '',
+      ),
+      approvedAt: DateTime.tryParse(json['approvedAt'] as String? ?? ''),
+      sendBackReason: json['sendBackReason'] as String?,
+      rejectionCategory: json['rejectionCategory'] as String?,
       maintenanceFailureNotes: json['maintenanceFailureNotes'] as String?,
       maintenanceFailedAt: DateTime.tryParse(
         json['maintenanceFailedAt'] as String? ?? '',
@@ -234,6 +258,9 @@ class IncomingReportItem {
     String? updatedLabel,
     String? rejectionReason,
     DateTime? rejectedAt,
+    String? sendBackReason,
+    DateTime? approvedAt,
+    bool clearSendBack = false,
   }) {
     return IncomingReportItem(
       apiId: apiId,
@@ -245,6 +272,7 @@ class IncomingReportItem {
       status: status ?? this.status,
       timeAgo: timeAgo,
       teamName: teamName ?? this.teamName,
+      assignedTeamId: assignedTeamId,
       progressPercent: progressPercent ?? this.progressPercent,
       updatedLabel: updatedLabel ?? this.updatedLabel,
       photoUrl: photoUrl,
@@ -260,6 +288,14 @@ class IncomingReportItem {
       resolutionNotes: resolutionNotes,
       rejectionReason: rejectionReason ?? this.rejectionReason,
       rejectedAt: rejectedAt ?? this.rejectedAt,
+      assignedAt: assignedAt,
+      startedAt: startedAt,
+      completionSubmittedAt: completionSubmittedAt,
+      approvedAt: approvedAt ?? this.approvedAt,
+      sendBackReason: clearSendBack
+          ? null
+          : sendBackReason ?? this.sendBackReason,
+      rejectionCategory: rejectionCategory,
       maintenanceFailureNotes: maintenanceFailureNotes,
       maintenanceFailedAt: maintenanceFailedAt,
       assembly: assembly,
@@ -286,16 +322,8 @@ class IncomingReportItem {
     );
   }
 
-  static ReportStatus _statusFromApi(String? value) => switch (value) {
-    'SUBMITTED' => ReportStatus.submitted,
-    'UNDER_REVIEW' => ReportStatus.underReview,
-    'ASSIGNED' => ReportStatus.assigned,
-    'IN_PROGRESS' => ReportStatus.inProgress,
-    'PENDING_APPROVAL' => ReportStatus.pendingApproval,
-    'RESOLVED' => ReportStatus.resolved,
-    'REJECTED' => ReportStatus.rejected,
-    _ => ReportStatus.submitted,
-  };
+  static ReportStatus _statusFromApi(String? value) =>
+      ReportStatus.fromApi(value);
 
   static String _relativeTime(DateTime? value) {
     if (value == null) return 'Recently';

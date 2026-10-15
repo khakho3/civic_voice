@@ -24,6 +24,11 @@ class CivicReport {
     required this.timeLabel,
     required this.status,
     this.hasMunicipalCoverage,
+    this.assignedAt,
+    this.startedAt,
+    this.completionSubmittedAt,
+    this.approvedAt,
+    this.sendBackReason,
   });
 
   final String id;
@@ -51,6 +56,12 @@ class CivicReport {
   final DateTime? submittedAt;
   final String? rejectionReason;
   final DateTime? rejectedAt;
+  final DateTime? assignedAt;
+  final DateTime? startedAt;
+  final DateTime? completionSubmittedAt;
+  final DateTime? approvedAt;
+  final String? sendBackReason;
+
   final String timeLabel;
   final ReportStatus status;
 
@@ -92,6 +103,13 @@ class CivicReport {
         (status) => status.name == statusName,
         orElse: () => ReportStatus.submitted,
       ),
+      assignedAt: DateTime.tryParse(map['assignedAt'] as String? ?? ''),
+      startedAt: DateTime.tryParse(map['startedAt'] as String? ?? ''),
+      completionSubmittedAt: DateTime.tryParse(
+        map['completionSubmittedAt'] as String? ?? '',
+      ),
+      approvedAt: DateTime.tryParse(map['approvedAt'] as String? ?? ''),
+      sendBackReason: map['sendBackReason'] as String?,
       hasMunicipalCoverage: map['hasMunicipalCoverage'] as bool?,
     );
   }
@@ -116,6 +134,11 @@ class CivicReport {
       'rejectedAt': rejectedAt?.toIso8601String(),
       'timeLabel': timeLabel,
       'status': status.name,
+      'assignedAt': assignedAt?.toIso8601String(),
+      'startedAt': startedAt?.toIso8601String(),
+      'completionSubmittedAt': completionSubmittedAt?.toIso8601String(),
+      'approvedAt': approvedAt?.toIso8601String(),
+      'sendBackReason': sendBackReason,
       'hasMunicipalCoverage': hasMunicipalCoverage,
     };
   }
@@ -160,6 +183,11 @@ class CivicReport {
       rejectedAt: rejectedAt ?? this.rejectedAt,
       timeLabel: timeLabel ?? this.timeLabel,
       status: status ?? this.status,
+      assignedAt: assignedAt,
+      startedAt: startedAt,
+      completionSubmittedAt: completionSubmittedAt,
+      approvedAt: approvedAt,
+      sendBackReason: sendBackReason,
       hasMunicipalCoverage: hasMunicipalCoverage ?? this.hasMunicipalCoverage,
     );
   }

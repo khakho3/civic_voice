@@ -22,6 +22,7 @@ import '../../../services/api_client.dart';
 enum MaintenanceTaskStatus {
   assigned('Assigned', AppColors.statusAssigned),
   inProgress('In Progress', AppColors.statusInProgress),
+  pendingApproval('Awaiting Confirmation', AppColors.statusPendingApproval),
   completed('Completed', AppColors.statusResolved),
   failed('Failed', AppColors.statusRejected);
 
@@ -40,6 +41,10 @@ enum MaintenanceTaskStatus {
         isDark ? const Color(0xFFC4B5FD) : const Color(0xFF7C3AED),
       MaintenanceTaskStatus.inProgress =>
         isDark ? const Color(0xFF7DD3FC) : const Color(0xFF0284C7),
+      MaintenanceTaskStatus.pendingApproval =>
+        isDark
+            ? AppColors.statusPendingApprovalTextDark
+            : AppColors.statusPendingApprovalTextLight,
       MaintenanceTaskStatus.completed => AppColors.statusResolved,
       MaintenanceTaskStatus.failed => AppColors.statusRejected,
     };
@@ -76,6 +81,14 @@ class MaintenanceTask {
     this.completionNotes,
     this.completedAtLabel,
     this.completedWeekday,
+    this.assignedAt,
+    this.startedAt,
+    this.completionSubmittedAt,
+    this.approvedAt,
+    this.sendBackReason,
+    this.sendBackCount = 0,
+    this.maintenanceContactPublicId,
+    this.maintenanceContactName,
   });
 
   final String id;
@@ -126,10 +139,19 @@ class MaintenanceTask {
   /// Completion" chart this task counts toward. Only meaningful once
   /// [status] is [MaintenanceTaskStatus.completed].
   final int? completedWeekday;
+  final DateTime? assignedAt;
+  final DateTime? startedAt;
+  final DateTime? completionSubmittedAt;
+  final DateTime? approvedAt;
+  final String? sendBackReason;
+  final int sendBackCount;
+  final String? maintenanceContactPublicId;
+  final String? maintenanceContactName;
 
   bool get needsEvidence =>
       status != MaintenanceTaskStatus.completed &&
-      status != MaintenanceTaskStatus.failed;
+      status != MaintenanceTaskStatus.failed &&
+      status != MaintenanceTaskStatus.pendingApproval;
 
   /// Whether this task's own fields mention [query] — used by Assigned
   /// Tasks' search field.
@@ -152,6 +174,9 @@ class MaintenanceTask {
     String? completionNotes,
     String? completedAtLabel,
     int? completedWeekday,
+    List<String>? resolutionPhotoUrls,
+    DateTime? completionSubmittedAt,
+    bool clearSendBack = false,
   }) {
     return MaintenanceTask(
       id: id,
@@ -170,15 +195,32 @@ class MaintenanceTask {
       teamName: teamName,
       reportPhotoCount: reportPhotoCount,
       reportPhotoUrls: reportPhotoUrls,
-      resolutionPhotoUrls: resolutionPhotoUrls,
+      resolutionPhotoUrls: resolutionPhotoUrls ?? this.resolutionPhotoUrls,
       completionNotes: completionNotes ?? this.completionNotes,
       completedAtLabel: completedAtLabel ?? this.completedAtLabel,
       completedWeekday: completedWeekday ?? this.completedWeekday,
+      assignedAt: assignedAt,
+      startedAt: startedAt,
+      completionSubmittedAt:
+          completionSubmittedAt ?? this.completionSubmittedAt,
+      approvedAt: approvedAt,
+      sendBackReason: clearSendBack ? null : sendBackReason,
+      sendBackCount: sendBackCount,
+      maintenanceContactPublicId: maintenanceContactPublicId,
+      maintenanceContactName: maintenanceContactName,
     );
   }
 
   factory MaintenanceTask.fromApi(Map<String, dynamic> json) {
     final status = json['status'] as String?;
+    if (![
+      'ASSIGNED',
+      'IN_PROGRESS',
+      'PENDING_APPROVAL',
+      'RESOLVED',
+    ].contains(status)) {
+      throw const FormatException('Unsupported maintenance status');
+    }
     final failed = (json['maintenanceFailureNotes'] as String?)?.trim();
     final createdAt = DateTime.tryParse(json['createdAt'] as String? ?? '');
     final updatedAt = DateTime.tryParse(json['updatedAt'] as String? ?? '');
@@ -205,9 +247,18 @@ class MaintenanceTask {
           : switch (status) {
               'RESOLVED' => MaintenanceTaskStatus.completed,
               'IN_PROGRESS' => MaintenanceTaskStatus.inProgress,
-              _ => MaintenanceTaskStatus.assigned,
+              'PENDING_APPROVAL' => MaintenanceTaskStatus.pendingApproval,
+              'ASSIGNED' => MaintenanceTaskStatus.assigned,
+              _ => throw const FormatException(
+                'Unsupported maintenance status',
+              ),
             },
-      eta: status == 'ASSIGNED' ? 'Awaiting dispatch' : 'Work underway',
+      eta: switch (status) {
+        'ASSIGNED' => 'Awaiting dispatch',
+        'PENDING_APPROVAL' => 'Awaiting municipal confirmation',
+        'RESOLVED' => 'Completed',
+        _ => 'Work underway',
+      },
       distanceLabel: 'Open map for directions',
       teamNote: _relativeTime(updatedAt ?? createdAt),
       teamId: json['assignedTeamId'] as String? ?? 'unassigned-team',
@@ -218,12 +269,39 @@ class MaintenanceTask {
       completionNotes: failed?.isNotEmpty == true
           ? failed
           : json['resolutionNotes'] as String?,
-      completedAtLabel: updatedAt == null ? null : _dateLabel(updatedAt),
+      completedAtLabel: status == 'PENDING_APPROVAL'
+          ? _dateLabelOrMissing(
+              DateTime.tryParse(json['completionSubmittedAt'] as String? ?? ''),
+            )
+          : status == 'RESOLVED'
+          ? _dateLabelOrMissing(
+              DateTime.tryParse(json['approvedAt'] as String? ?? ''),
+            )
+          : updatedAt == null
+          ? null
+          : _dateLabel(updatedAt),
+      assignedAt: DateTime.tryParse(json['assignedAt'] as String? ?? ''),
+      startedAt: DateTime.tryParse(json['startedAt'] as String? ?? ''),
+      completionSubmittedAt: DateTime.tryParse(
+        json['completionSubmittedAt'] as String? ?? '',
+      ),
+      approvedAt: DateTime.tryParse(json['approvedAt'] as String? ?? ''),
+      sendBackReason: json['sendBackReason'] as String?,
+      sendBackCount: (json['sendBackCount'] as num?)?.toInt() ?? 0,
+      maintenanceContactPublicId:
+          (json['maintenanceContact'] as Map<String, dynamic>?)?['publicId']
+              as String?,
+      maintenanceContactName:
+          (json['maintenanceContact'] as Map<String, dynamic>?)?['fullName']
+              as String?,
       completedWeekday: status == 'RESOLVED'
           ? (updatedAt ?? DateTime.now()).weekday - 1
           : null,
     );
   }
+
+  static String _dateLabelOrMissing(DateTime? date) =>
+      date == null ? 'Time not recorded' : _dateLabel(date);
 
   static String _relativeTime(DateTime? value) {
     if (value == null) return 'Recently updated';
@@ -260,8 +338,8 @@ List<MaintenanceTask> mockMaintenanceTasks() {
           'vehicles at night.',
       category: 'Street Lighting',
       locationLabel: '242 Main Avenue, Central District',
-      latitude: 6.5244,
-      longitude: 3.3792,
+      latitude: 6.6885,
+      longitude: -1.6244,
       status: MaintenanceTaskStatus.inProgress,
       eta: 'On site',
       distanceLabel: '1.2 km',
@@ -276,8 +354,8 @@ List<MaintenanceTask> mockMaintenanceTasks() {
           'Deep pothole spanning both lanes, drivers swerving to avoid it.',
       category: 'Road Repair',
       locationLabel: 'Elm Street & 4th Cross',
-      latitude: 6.5312,
-      longitude: 3.3689,
+      latitude: 6.6961,
+      longitude: -1.6172,
       status: MaintenanceTaskStatus.assigned,
       eta: 'Today 2:30 PM',
       distanceLabel: '3.8 km',
@@ -291,8 +369,8 @@ List<MaintenanceTask> mockMaintenanceTasks() {
       description: 'Shallow pothole reported near the downtown crossing.',
       category: 'Road Repair',
       locationLabel: '1242 Oak Street, Downtown',
-      latitude: 6.5201,
-      longitude: 3.3765,
+      latitude: 6.6801,
+      longitude: -1.6265,
       status: MaintenanceTaskStatus.assigned,
       eta: 'Tomorrow 9:00 AM',
       distanceLabel: '2.1 km',
@@ -306,8 +384,8 @@ List<MaintenanceTask> mockMaintenanceTasks() {
       description: 'Routine inspection and valve service for fire hydrant.',
       category: 'Utilities',
       locationLabel: 'West Park Perimeter',
-      latitude: 6.5178,
-      longitude: 3.3821,
+      latitude: 6.6878,
+      longitude: -1.6321,
       status: MaintenanceTaskStatus.completed,
       eta: 'Completed',
       distanceLabel: '0.9 km',
@@ -325,8 +403,8 @@ List<MaintenanceTask> mockMaintenanceTasks() {
       description: 'Second visit to confirm the earlier ballast repair held.',
       category: 'Street Lighting',
       locationLabel: 'Maple Ave & 5th Crossing',
-      latitude: 6.5299,
-      longitude: 3.3711,
+      latitude: 6.6999,
+      longitude: -1.6211,
       status: MaintenanceTaskStatus.completed,
       eta: 'Completed',
       distanceLabel: '1.6 km',

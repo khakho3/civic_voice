@@ -32,7 +32,7 @@ void main() {
       status.badgeTextColor(Brightness.dark),
       AppColors.statusPendingApprovalTextDark,
     );
-    expect(status.icon, AppIcons.statusUnderReview);
+    expect(status.icon, AppIcons.verify);
   });
 
   test('maps lifecycle progress percentages', () {

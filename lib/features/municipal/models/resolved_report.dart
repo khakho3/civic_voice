@@ -15,6 +15,7 @@ class ResolvedReportItem {
     required this.evidencePhotoCount,
     required this.resolutionNote,
     this.evidencePhotoUrls = const [],
+    this.rejectionCategory,
     this.status = ReportStatus.resolved,
   });
 
@@ -39,11 +40,16 @@ class ResolvedReportItem {
   final String resolutionNote;
   final List<String> evidencePhotoUrls;
   final ReportStatus status;
+  final String? rejectionCategory;
 
   bool get isRejected => status == ReportStatus.rejected;
 
   factory ResolvedReportItem.fromReport(IncomingReportItem report) {
-    final resolvedAt = report.rejectedAt ?? report.updatedAt ?? DateTime.now();
+    final resolvedAt =
+        report.rejectedAt ??
+        report.approvedAt ??
+        report.updatedAt ??
+        DateTime.now();
     final createdAt = report.createdAt ?? resolvedAt;
     final duration = resolvedAt.difference(createdAt).inDays;
     return ResolvedReportItem(
@@ -67,6 +73,7 @@ class ResolvedReportItem {
           ? report.photoUrls
           : report.resolutionPhotoUrls,
       status: report.status,
+      rejectionCategory: report.rejectionCategory,
     );
   }
 

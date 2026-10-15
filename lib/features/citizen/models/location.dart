@@ -7,6 +7,7 @@ class Location {
     required this.administrativeArea,
     required this.country,
     this.landmark,
+    this.assembly,
   });
 
   final String formattedAddress;
@@ -16,6 +17,7 @@ class Location {
   final String administrativeArea;
   final String country;
   final String? landmark;
+  final String? assembly;
 
   bool get hasReadableAddress => formattedAddress.trim().isNotEmpty;
 }

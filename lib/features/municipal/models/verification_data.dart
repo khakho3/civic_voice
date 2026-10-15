@@ -34,8 +34,8 @@ class VerificationData {
     required this.locationSummary,
     required this.category,
     required this.citizenName,
-    required this.officerName,
-    required this.officerPhone,
+    required this.citizenContactName,
+    required this.citizenPhone,
     required this.checklist,
     this.confidence,
   });
@@ -47,8 +47,8 @@ class VerificationData {
   final String citizenName;
 
   /// The Municipal Officer verifying this report — see [OfficerContactRow].
-  final String officerName;
-  final String officerPhone;
+  final String citizenContactName;
+  final String citizenPhone;
   final List<ChecklistItem> checklist;
   final ReportConfidence? confidence;
 
@@ -61,8 +61,8 @@ class VerificationData {
       locationSummary: '1200 Block, Main St · Reported 2h ago',
       category: ReportCategory.infrastructure,
       citizenName: 'Eleanor Vance',
-      officerName: 'Alex Johnston',
-      officerPhone: '+233 24 555 0142',
+      citizenContactName: 'Eleanor Vance',
+      citizenPhone: '+233 24 555 0142',
       checklist: [
         ChecklistItem(
           label: 'Issue confirmed',
@@ -101,8 +101,8 @@ class VerificationData {
       locationSummary: '${report.locationLabel} · ${report.timeAgo}',
       category: report.category,
       citizenName: report.citizenName ?? 'Citizen',
-      officerName: report.citizenName ?? 'Citizen',
-      officerPhone: report.citizenPhone ?? 'Phone unavailable',
+      citizenContactName: report.citizenName ?? 'Citizen',
+      citizenPhone: report.citizenPhone ?? 'Phone unavailable',
       checklist: const [
         ChecklistItem(
           label: 'Issue confirmed',

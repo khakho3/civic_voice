@@ -23,6 +23,15 @@ enum ReportStatus {
   resolved,
   rejected;
 
+  static ReportStatus fromApi(String? value) {
+    for (final status in values) {
+      if (status.apiValue == value) return status;
+    }
+    throw FormatException('Unsupported report status');
+  }
+
+  bool get isClosed => this == resolved || this == rejected;
+
   String get label => switch (this) {
     ReportStatus.submitted => 'Submitted',
     ReportStatus.underReview => 'Under Review',
@@ -48,7 +57,7 @@ enum ReportStatus {
     ReportStatus.underReview => AppIcons.statusUnderReview,
     ReportStatus.assigned => AppIcons.statusAssigned,
     ReportStatus.inProgress => AppIcons.statusInProgress,
-    ReportStatus.pendingApproval => AppIcons.statusUnderReview,
+    ReportStatus.pendingApproval => AppIcons.verify,
     ReportStatus.resolved => AppIcons.statusResolved,
     ReportStatus.rejected => AppIcons.statusRejected,
   };
@@ -89,9 +98,10 @@ enum ReportStatus {
         isDark ? const Color(0xFFC4B5FD) : const Color(0xFF7C3AED),
       ReportStatus.inProgress =>
         isDark ? const Color(0xFF7DD3FC) : const Color(0xFF0284C7),
-      ReportStatus.pendingApproval => isDark
-          ? AppColors.statusPendingApprovalTextDark
-          : AppColors.statusPendingApprovalTextLight,
+      ReportStatus.pendingApproval =>
+        isDark
+            ? AppColors.statusPendingApprovalTextDark
+            : AppColors.statusPendingApprovalTextLight,
       ReportStatus.resolved => AppColors.statusResolved, // AA-safe as-is
       ReportStatus.rejected => AppColors.statusRejected, // AA-safe as-is
     };
