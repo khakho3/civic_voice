@@ -514,15 +514,7 @@ class _ReportProgress extends StatelessWidget {
   final ReportStatus status;
 
   double get _progress {
-    return switch (status) {
-      ReportStatus.submitted => 0.2,
-      ReportStatus.underReview => 0.4,
-      ReportStatus.assigned => 0.6,
-      ReportStatus.inProgress => 0.72,
-      ReportStatus.pendingApproval => 0.9,
-      ReportStatus.resolved => 1,
-      ReportStatus.rejected => 1,
-    };
+    return status.progressPercent / 100;
   }
 
   @override

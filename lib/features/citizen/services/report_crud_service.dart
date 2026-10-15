@@ -248,6 +248,13 @@ class ReportCrudService implements ReportsRepository {
       rejectedAt: DateTime.tryParse(json['rejectedAt'] as String? ?? ''),
       timeLabel: created == null ? '' : _relative(created),
       status: _statusFromApi(json['status'] as String?),
+      assignedAt: DateTime.tryParse(json['assignedAt'] as String? ?? ''),
+      startedAt: DateTime.tryParse(json['startedAt'] as String? ?? ''),
+      completionSubmittedAt: DateTime.tryParse(
+        json['completionSubmittedAt'] as String? ?? '',
+      ),
+      approvedAt: DateTime.tryParse(json['approvedAt'] as String? ?? ''),
+      sendBackReason: json['sendBackReason'] as String?,
       hasMunicipalCoverage: json['hasMunicipalCoverage'] as bool?,
     );
   }
@@ -272,15 +279,7 @@ Region? _region(String? name) {
   return null;
 }
 
-ReportStatus _statusFromApi(String? value) => switch (value) {
-  'UNDER_REVIEW' => ReportStatus.underReview,
-  'ASSIGNED' => ReportStatus.assigned,
-  'IN_PROGRESS' => ReportStatus.inProgress,
-  'PENDING_APPROVAL' => ReportStatus.pendingApproval,
-  'RESOLVED' => ReportStatus.resolved,
-  'REJECTED' => ReportStatus.rejected,
-  _ => ReportStatus.submitted,
-};
+ReportStatus _statusFromApi(String? value) => ReportStatus.fromApi(value);
 
 String _statusToApi(ReportStatus value) => switch (value) {
   ReportStatus.submitted => 'SUBMITTED',

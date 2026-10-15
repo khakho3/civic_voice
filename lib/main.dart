@@ -195,10 +195,13 @@ Future<void> _refreshForPush(RemoteMessage message) async {
       await ReportCrudService.instance.refresh();
     case 'municipal-report':
     case 'municipal-report-status':
+    case 'municipal-approval-pending':
     case 'ministry-resolution':
       await MunicipalReportDirectory.instance.refresh();
     case 'maintenance-task':
     case 'maintenance-task-status':
+    case 'maintenance-completion-submitted':
+    case 'maintenance-task-returned':
       await MaintenanceTaskDirectory.instance.refresh();
     case 'admin-coverage-gap':
     case 'admin-team-readiness':
@@ -208,14 +211,62 @@ Future<void> _refreshForPush(RemoteMessage message) async {
 }
 
 void _handleOpenedPush(RemoteMessage message) {
-  final route = _notificationsRouteForRole(MockAuthService().getCurrentRole());
+  final role = MockAuthService().getCurrentRole();
   final navigator = _navigatorKey.currentState;
-  if (route == null || navigator == null) {
+  if (role == null || navigator == null) {
     _pendingOpenedPush = message;
     return;
   }
-  unawaited(_refreshForPushSafely(message));
-  navigator.pushNamed(route);
+  unawaited(_openWorkflowPush(message, role));
+}
+
+Future<void> _openWorkflowPush(RemoteMessage message, AppRole role) async {
+  final identity = Firebase.apps.isEmpty
+      ? null
+      : FirebaseAuth.instance.currentUser?.uid;
+  await _refreshForPushSafely(message);
+  if (MockAuthService().getCurrentRole() != role ||
+      (Firebase.apps.isNotEmpty &&
+          FirebaseAuth.instance.currentUser?.uid != identity)) {
+    return;
+  }
+  final navigator = _navigatorKey.currentState;
+  if (navigator == null) return;
+  final id = message.data['reportId'];
+  if (message.data['type'] == 'municipal-approval-pending' &&
+      role == AppRole.municipalOfficer) {
+    final matches = MunicipalReportDirectory.instance.reports.value.where(
+      (r) => r.apiId == id || r.referenceId == id,
+    );
+    if (matches.isNotEmpty) {
+      final report = matches.first;
+      navigator.pushNamed(
+        _reportRoute(AppRoutes.municipalReportProgress, report.referenceId),
+        arguments: report,
+      );
+      return;
+    }
+  }
+  if ([
+        'maintenance-task-returned',
+        'maintenance-completion-submitted',
+      ].contains(message.data['type']) &&
+      role == AppRole.maintenanceTeam) {
+    final matches = MaintenanceTaskDirectory.instance.tasks.value.where(
+      (t) => t.apiId == id || t.id == id,
+    );
+    if (matches.isNotEmpty) {
+      navigator.pushNamed(
+        Uri(
+          path: AppRoutes.maintenanceTaskDetails,
+          queryParameters: {'taskId': matches.first.id},
+        ).toString(),
+      );
+      return;
+    }
+  }
+  final route = _notificationsRouteForRole(role);
+  if (route != null) navigator.pushNamed(route);
 }
 
 Future<void> _refreshForPushSafely(RemoteMessage message) async {
@@ -2029,8 +2080,7 @@ Widget _adminProfile(BuildContext context) {
         onAbout: () => Navigator.of(context).pushNamed(AppRoutes.about),
         onNavigateToMaintenanceTeams: () =>
             Navigator.of(context).pushNamed(AppRoutes.adminMaintenanceTeams),
-        onBack: () =>
-            _popOrReplaceWith(context, AppRoutes.adminDashboard),
+        onBack: () => _popOrReplaceWith(context, AppRoutes.adminDashboard),
         onNotificationsTap: () => _openAdminNotifications(context),
         onSignOut: () => signOut(context),
       );
@@ -2232,6 +2282,14 @@ void _pushMunicipalReportReview(
   BuildContext context,
   IncomingReportItem report,
 ) {
+  if ([
+    ReportStatus.assigned,
+    ReportStatus.inProgress,
+    ReportStatus.pendingApproval,
+  ].contains(report.status)) {
+    _pushMunicipalReportProgress(context, report);
+    return;
+  }
   Navigator.of(context).pushNamed(
     _reportRoute(AppRoutes.municipalReportReview, report.referenceId),
     arguments: report,
@@ -2619,9 +2677,23 @@ Widget _maintenanceTaskCompleted(BuildContext context, MaintenanceTask? task) {
   }
   return maintenance_completed.TaskCompletedScreen(
     task: task,
-    onNavigateToDashboard: () => Navigator.of(
-      context,
-    ).pushNamedAndRemoveUntil(AppRoutes.maintenanceDashboard, (_) => false),
+    onNavigateToDashboard: () {
+      var foundDetails = false;
+      Navigator.of(context).popUntil((route) {
+        foundDetails =
+            Uri.tryParse(route.settings.name ?? '')?.path ==
+            AppRoutes.maintenanceTaskDetails;
+        return foundDetails || route.isFirst;
+      });
+      if (!foundDetails) {
+        Navigator.of(context).pushReplacementNamed(
+          Uri(
+            path: AppRoutes.maintenanceTaskDetails,
+            queryParameters: {'taskId': task.id},
+          ).toString(),
+        );
+      }
+    },
   );
 }
 

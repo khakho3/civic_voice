@@ -7,7 +7,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../models/region.dart';
-import '../../../models/ghana_assemblies_data.dart';
+import '../services/report_jurisdiction.dart';
 import '../../../models/report_category.dart';
 import '../../../services/app_cache_service.dart';
 import '../widgets/civic_glass_card.dart';
@@ -85,6 +85,7 @@ class _CreateReportScreenState extends State<CreateReportScreen>
         locality: cached.community,
         administrativeArea: cached.region?.name ?? '',
         country: 'Ghana',
+        assembly: cached.assembly,
       );
       _locationAddress = cached.location;
       _locationCommunity = cached.community;
@@ -139,6 +140,7 @@ class _CreateReportScreenState extends State<CreateReportScreen>
     _locationPickerOpening = false;
 
     if (!mounted || location == null) return;
+    ++_locationLookupId; // Ignore an older GPS address lookup after map selection.
     setState(() {
       _selectedLocation = location;
       _state = CreateReportViewState.ready;
@@ -149,6 +151,7 @@ class _CreateReportScreenState extends State<CreateReportScreen>
       _locationRegion = Region.fromAdministrativeArea(
         location.administrativeArea,
       );
+      _locationAssembly = location.assembly;
       _locationLabel = location.formattedAddress;
       _locationError = null;
       _locationLoading = false;
@@ -288,29 +291,8 @@ class _CreateReportScreenState extends State<CreateReportScreen>
     return unique.isEmpty ? 'Nearby community' : unique.take(2).join(', ');
   }
 
-  String? _matchAssembly(geocoding.Placemark place, Region? region) {
-    if (region == null) return null;
-    String normalize(String value) => value
-        .toLowerCase()
-        .replaceAll(
-          RegExp(r'\b(metropolitan|municipal|district|assembly)\b'),
-          '',
-        )
-        .replaceAll(RegExp(r'[^a-z0-9]'), '');
-    final candidates = [
-      place.subAdministrativeArea,
-      place.locality,
-    ].map(_clean).where((value) => value.isNotEmpty).map(normalize).toList();
-    for (final assembly in ghanaAssemblies[region] ?? const []) {
-      final name = normalize(assembly.name);
-      if (candidates.any(
-        (candidate) => candidate.contains(name) || name.contains(candidate),
-      )) {
-        return assembly.name;
-      }
-    }
-    return null;
-  }
+  String? _matchAssembly(geocoding.Placemark place, Region? region) =>
+      reportAssemblyFor(region, [place.subAdministrativeArea, place.locality]);
 
   List<String> _dedupe(List<String> values) {
     final seen = <String>{};

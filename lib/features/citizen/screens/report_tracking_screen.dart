@@ -98,9 +98,11 @@ class ReportTrackingScreen extends StatelessWidget {
                   children: [
                     _ReportSummaryCard(report: report),
                     if (report.status == ReportStatus.submitted &&
-                        report.hasMunicipalCoverage == false) ...[
+                        report.hasMunicipalCoverage != true) ...[
                       const SizedBox(height: AppSpacing.md),
-                      const PendingCoverageNotice(),
+                      PendingCoverageNotice(
+                        coverageUnknown: report.hasMunicipalCoverage == null,
+                      ),
                     ],
                     const SizedBox(height: AppSpacing.md),
                     _CurrentStatusCard(report: report),
@@ -152,15 +154,7 @@ class ReportTrackingScreen extends StatelessWidget {
 }
 
 double _statusProgress(ReportStatus status) {
-  return switch (status) {
-    ReportStatus.submitted => 0.2,
-    ReportStatus.underReview => 0.4,
-    ReportStatus.assigned => 0.6,
-    ReportStatus.inProgress => 0.8,
-    ReportStatus.pendingApproval => 0.9,
-    ReportStatus.resolved => 1,
-    ReportStatus.rejected => 1,
-  };
+  return status.progressPercent / 100;
 }
 
 class _ReportSummaryCard extends StatelessWidget {
@@ -440,7 +434,7 @@ class _TimelineStep extends StatelessWidget {
       ReportStatus.submitted =>
         'Reference ${report.referenceNumber} was received by CivicVoice.',
       ReportStatus.underReview =>
-        'The municipality confirmed the report details and location.',
+        'A municipal officer is reviewing the report details and evidence.',
       ReportStatus.assigned => 'Field team assignment created for repair work.',
       ReportStatus.inProgress =>
         'The assigned team is actively working on this report.',
@@ -455,15 +449,18 @@ class _TimelineStep extends StatelessWidget {
 
   String get _time {
     if (!complete) return 'Not started';
-    return switch (status) {
-      ReportStatus.submitted => '09 Jul, 08:42',
-      ReportStatus.underReview => '09 Jul, 10:15',
-      ReportStatus.assigned => '09 Jul, 11:00',
-      ReportStatus.inProgress => '09 Jul, 12:30',
-      ReportStatus.pendingApproval => '10 Jul, 08:30',
-      ReportStatus.resolved => '10 Jul, 09:00',
-      ReportStatus.rejected => '09 Jul, 11:00',
+    final date = switch (status) {
+      ReportStatus.submitted => report.submittedAt,
+      ReportStatus.underReview => null,
+      ReportStatus.assigned => report.assignedAt,
+      ReportStatus.inProgress => report.startedAt,
+      ReportStatus.pendingApproval => report.completionSubmittedAt,
+      ReportStatus.resolved => report.approvedAt,
+      ReportStatus.rejected => report.rejectedAt,
     };
+    return date == null
+        ? 'Time not recorded'
+        : date.toLocal().toString().split('.').first;
   }
 
   @override
@@ -571,7 +568,7 @@ class _LatestUpdateCard extends StatelessWidget {
       ReportStatus.inProgress =>
         'Public Works started repair work for this report.',
       ReportStatus.pendingApproval =>
-        'Repair work is complete and awaiting your confirmation.',
+        'Repair work is complete and awaiting municipal confirmation.',
       ReportStatus.resolved => 'The report has been resolved and closed.',
       ReportStatus.rejected =>
         report.rejectionReason?.trim().isNotEmpty == true

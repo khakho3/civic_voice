@@ -5,6 +5,8 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
 
 import '../models/location.dart';
+import '../../../models/region.dart';
+import 'report_jurisdiction.dart';
 
 class PlaceSuggestion {
   const PlaceSuggestion({
@@ -147,6 +149,14 @@ class PlacesService {
         'administrative_area_level_1',
       ]),
       country: _component(components, const ['country']),
+      assembly: reportAssemblyFor(
+        Region.fromAdministrativeArea(
+          _component(components, const ['administrative_area_level_1']),
+        ),
+        [
+          _component(components, const ['administrative_area_level_2']),
+        ],
+      ),
     );
   }
 

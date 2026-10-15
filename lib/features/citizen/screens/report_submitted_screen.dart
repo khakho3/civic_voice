@@ -63,9 +63,13 @@ class _ReportSubmittedScreenState extends State<ReportSubmittedScreen> {
                 const _SuccessIntro(),
                 const SizedBox(height: AppSpacing.xl),
                 _ReferenceCard(referenceNumber: referenceNumber),
-                if (widget.hasMunicipalCoverage == false) ...[
+                if (widget.hasMunicipalCoverage == false ||
+                    (widget.reportId != null &&
+                        widget.hasMunicipalCoverage == null)) ...[
                   const SizedBox(height: AppSpacing.md),
-                  const PendingCoverageNotice(),
+                  PendingCoverageNotice(
+                    coverageUnknown: widget.hasMunicipalCoverage == null,
+                  ),
                 ],
                 const SizedBox(height: AppSpacing.xl),
                 const _TimelineSection(),

@@ -179,24 +179,27 @@ class NotificationDirectory {
             ReportStatus.resolved => 'Report resolved',
             ReportStatus.rejected => 'Report rejected',
           },
-          message: switch (report.status) {
-            ReportStatus.submitted =>
-              'Your report has been submitted and is waiting for review.',
-            ReportStatus.underReview =>
-              'Your report is being reviewed by the civic team.',
-            ReportStatus.assigned =>
-              'Your report was assigned to a maintenance team.',
-            ReportStatus.inProgress =>
-              'The maintenance team has started work on this report.',
-            ReportStatus.pendingApproval =>
-              'Repair work is complete and awaiting your confirmation.',
-            ReportStatus.resolved =>
-              'The responsible team has marked this report as resolved.',
-            ReportStatus.rejected =>
-              report.rejectionReason?.trim().isNotEmpty == true
-                  ? 'Reason: ${report.rejectionReason}'
-                  : 'Your report was reviewed and could not be accepted.',
-          },
+          message: [
+            '${report.referenceNumber}: ${report.title}',
+            switch (report.status) {
+              ReportStatus.submitted =>
+                'Your report has been submitted and is waiting for review.',
+              ReportStatus.underReview =>
+                'Your report is being reviewed by the civic team.',
+              ReportStatus.assigned =>
+                'Your report was assigned to a maintenance team.',
+              ReportStatus.inProgress =>
+                'The maintenance team has started work on this report.',
+              ReportStatus.pendingApproval =>
+                'Repair work is complete and awaiting municipal confirmation.',
+              ReportStatus.resolved =>
+                'The responsible team has marked this report as resolved.',
+              ReportStatus.rejected =>
+                report.rejectionReason?.trim().isNotEmpty == true
+                    ? 'Reason: ${report.rejectionReason}'
+                    : 'Your report was reviewed and could not be accepted.',
+            },
+          ].join('\n'),
           category: switch (report.status) {
             ReportStatus.submitted || ReportStatus.underReview => 'Report',
             ReportStatus.assigned || ReportStatus.inProgress => 'Status',
@@ -245,6 +248,19 @@ class NotificationDirectory {
             timeLabel: report.updatedLabel ?? 'Recently',
             icon: AppIcons.statusInProgress,
             color: ReportStatus.inProgress.color,
+            referenceId: report.referenceId,
+          )
+        else if (report.status == ReportStatus.pendingApproval)
+          _build(
+            id: 'municipal-$officerId-report-${report.referenceId}-pending',
+            type: NotificationType.municipalCompletionSubmitted,
+            title: 'Completion awaiting confirmation',
+            message:
+                '${report.teamName ?? 'The assigned team'} submitted ${report.referenceId} for your review.',
+            category: 'Confirmation',
+            timeLabel: report.updatedLabel ?? 'Time not recorded',
+            icon: AppIcons.verify,
+            color: AppColors.statusPendingApproval,
             referenceId: report.referenceId,
           )
         else if (report.status == ReportStatus.resolved)
@@ -316,50 +332,80 @@ class NotificationDirectory {
     final tasks = MaintenanceTaskDirectory.instance.tasks.value;
     final items = [
       for (final task in tasks)
-        _build(
-          id:
-              'maintenance-${MaintenanceSession.instance.profile.value.publicId}'
-              '-task-${task.id}-${task.status.name}',
-          type: switch (task.status) {
-            MaintenanceTaskStatus.assigned =>
-              NotificationType.maintenanceTaskAssigned,
-            MaintenanceTaskStatus.inProgress =>
-              NotificationType.maintenanceTaskInProgress,
-            MaintenanceTaskStatus.completed || MaintenanceTaskStatus.failed =>
-              NotificationType.maintenanceTaskCompleted,
-          },
-          title: switch (task.status) {
-            MaintenanceTaskStatus.assigned => 'New task assigned',
-            MaintenanceTaskStatus.inProgress => 'Team task in progress',
-            MaintenanceTaskStatus.completed => 'Team task completed',
-            MaintenanceTaskStatus.failed => 'Team task needs attention',
-          },
-          message: switch (task.status) {
-            MaintenanceTaskStatus.assigned =>
-              '${task.title} was assigned to your team.',
-            MaintenanceTaskStatus.inProgress =>
-              'Your team has started work on ${task.id}.',
-            MaintenanceTaskStatus.completed =>
-              '${task.id} was marked completed.',
-            MaintenanceTaskStatus.failed =>
-              '${task.id} could not be completed and needs attention.',
-          },
-          category: switch (task.status) {
-            MaintenanceTaskStatus.assigned => 'New',
-            MaintenanceTaskStatus.inProgress => 'Progress',
-            MaintenanceTaskStatus.completed => 'Completed',
-            MaintenanceTaskStatus.failed => 'Attention',
-          },
-          timeLabel: task.teamNote,
-          icon: switch (task.status) {
-            MaintenanceTaskStatus.assigned => AppIcons.statusAssigned,
-            MaintenanceTaskStatus.inProgress => AppIcons.statusInProgress,
-            MaintenanceTaskStatus.completed => AppIcons.statusResolved,
-            MaintenanceTaskStatus.failed => AppIcons.statusRejected,
-          },
-          color: task.status.color,
-          referenceId: task.id,
-        ),
+        if (task.status != MaintenanceTaskStatus.pendingApproval ||
+            (task.maintenanceContactPublicId != null &&
+                task.maintenanceContactPublicId !=
+                    MaintenanceSession.instance.profile.value.publicId &&
+                (MaintenanceTaskDirectory.instance
+                            .teamForTask(task)
+                            ?.leadUserId ??
+                        MaintenanceSession
+                            .instance
+                            .profile
+                            .value
+                            .teamLeadUserId) ==
+                    MaintenanceSession.instance.profile.value.publicId))
+          _build(
+            id:
+                'maintenance-${MaintenanceSession.instance.profile.value.publicId}'
+                '-task-${task.id}-${task.sendBackReason?.trim().isNotEmpty == true ? 'returned-${task.sendBackCount}' : task.status.name}',
+            type: task.sendBackReason?.trim().isNotEmpty == true
+                ? NotificationType.maintenanceCompletionReturned
+                : switch (task.status) {
+                    MaintenanceTaskStatus.assigned =>
+                      NotificationType.maintenanceTaskAssigned,
+                    MaintenanceTaskStatus.inProgress =>
+                      NotificationType.maintenanceTaskInProgress,
+                    MaintenanceTaskStatus.pendingApproval =>
+                      NotificationType.maintenanceCompletionSubmitted,
+                    MaintenanceTaskStatus.completed ||
+                    MaintenanceTaskStatus.failed =>
+                      NotificationType.maintenanceTaskCompleted,
+                  },
+            title: task.sendBackReason?.trim().isNotEmpty == true
+                ? 'Completion sent back'
+                : switch (task.status) {
+                    MaintenanceTaskStatus.assigned => 'New task assigned',
+                    MaintenanceTaskStatus.inProgress => 'Team task in progress',
+                    MaintenanceTaskStatus.pendingApproval =>
+                      'Completion submitted for approval',
+                    MaintenanceTaskStatus.completed => 'Team task completed',
+                    MaintenanceTaskStatus.failed => 'Team task needs attention',
+                  },
+            message: task.sendBackReason?.trim().isNotEmpty == true
+                ? '${task.id}: ${task.sendBackReason}'
+                : switch (task.status) {
+                    MaintenanceTaskStatus.assigned =>
+                      '${task.title} was assigned to your team.',
+                    MaintenanceTaskStatus.inProgress =>
+                      'Your team has started work on ${task.id}.',
+                    MaintenanceTaskStatus.pendingApproval =>
+                      '${task.maintenanceContactName ?? 'A team member'} submitted ${task.id} for municipal confirmation.',
+                    MaintenanceTaskStatus.completed =>
+                      '${task.id} was marked completed.',
+                    MaintenanceTaskStatus.failed =>
+                      '${task.id} could not be completed and needs attention.',
+                  },
+            category: switch (task.status) {
+              MaintenanceTaskStatus.assigned => 'New',
+              MaintenanceTaskStatus.inProgress => 'Progress',
+              MaintenanceTaskStatus.pendingApproval => 'Confirmation',
+              MaintenanceTaskStatus.completed => 'Completed',
+              MaintenanceTaskStatus.failed => 'Attention',
+            },
+            timeLabel: task.teamNote,
+            icon: switch (task.status) {
+              MaintenanceTaskStatus.assigned => AppIcons.statusAssigned,
+              MaintenanceTaskStatus.inProgress => AppIcons.statusInProgress,
+              MaintenanceTaskStatus.pendingApproval => AppIcons.verify,
+              MaintenanceTaskStatus.completed => AppIcons.statusResolved,
+              MaintenanceTaskStatus.failed => AppIcons.statusRejected,
+            },
+            color: task.sendBackReason?.trim().isNotEmpty == true
+                ? AppColors.warning
+                : task.status.color,
+            referenceId: task.id,
+          ),
     ];
     return items.where((item) => !isDismissed(item.id)).toList();
   }

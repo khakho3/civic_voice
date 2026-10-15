@@ -5,6 +5,8 @@ import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../models/location.dart';
+import '../../../models/region.dart';
+import 'report_jurisdiction.dart';
 
 enum LocationAccessStatus {
   ready,
@@ -158,6 +160,10 @@ class LocationService {
       ]),
       administrativeArea: _clean(place.administrativeArea),
       country: _clean(place.country),
+      assembly: reportAssemblyFor(
+        Region.fromAdministrativeArea(place.administrativeArea),
+        [place.subAdministrativeArea, place.locality],
+      ),
     );
   }
 

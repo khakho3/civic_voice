@@ -9,7 +9,9 @@ import '../core/theme/app_theme.dart';
 /// computed fresh on every read, so the notice disappears on its own once
 /// an officer is provisioned for the area.
 class PendingCoverageNotice extends StatelessWidget {
-  const PendingCoverageNotice({super.key});
+  const PendingCoverageNotice({super.key, this.coverageUnknown = false});
+
+  final bool coverageUnknown;
 
   @override
   Widget build(BuildContext context) {
@@ -30,9 +32,12 @@ class PendingCoverageNotice extends StatelessWidget {
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(
-              'No municipal officer is set up for your area yet. Your '
-              "report is saved and will stay pending until one is added — "
-              "you don't need to do anything else.",
+              coverageUnknown
+                  ? 'Your report is saved, but its assembly coverage could not be '
+                        'confirmed. It may wait for routing before review.'
+                  : 'No municipal officer is set up for your area yet. Your '
+                        "report is saved and will stay pending until one is added — "
+                        "you don't need to do anything else.",
               style: theme.textTheme.bodySmall?.copyWith(
                 color: AppSemanticColors.of(context).warningText,
               ),

@@ -21,16 +21,10 @@ abstract final class SessionDataService {
     ProfileCrudService.instance.clearSession();
     DashboardStateService.instance.reset();
 
-    MunicipalReportDirectory.instance.reports.value = const [];
-    MunicipalReportDirectory.instance.loading.value = false;
-    MunicipalReportDirectory.instance.error.value = null;
-    MunicipalReportDirectory.instance.hasLiveSnapshot = false;
+    MunicipalReportDirectory.instance.clearSession();
     MunicipalSession.instance.clearSession();
 
-    MaintenanceTaskDirectory.instance.tasks.value = const [];
-    MaintenanceTaskDirectory.instance.loading.value = false;
-    MaintenanceTaskDirectory.instance.error.value = null;
-    MaintenanceTaskDirectory.instance.hasLiveSnapshot = false;
+    MaintenanceTaskDirectory.instance.clearSession();
     MaintenanceSession.instance.clearSession();
     MaintenanceTeamDirectory.instance.teams.value = const [];
 
