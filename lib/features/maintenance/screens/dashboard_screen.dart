@@ -54,30 +54,46 @@ class _DashboardScreenState extends State<DashboardScreen> {
         // MaintenanceScaffold's own Stack), so without this the pull
         // indicator would grow in from behind it.
         topOffset: MaintenanceScaffold.contentPadding(context).top,
-        child: ValueListenableBuilder<List<MaintenanceTask>>(
-          valueListenable: MaintenanceTaskDirectory.instance.tasks,
-          builder: (context, tasks, _) => _buildBody(context, tasks),
+        child: ListenableBuilder(
+          listenable: Listenable.merge([
+            MaintenanceTaskDirectory.instance.tasks,
+            MaintenanceTaskDirectory.instance.loading,
+            MaintenanceTaskDirectory.instance.error,
+          ]),
+          builder: (context, _) => _buildBody(
+            context,
+            MaintenanceTaskDirectory.instance.tasks.value,
+          ),
         ),
       ),
     );
   }
 
+  Future<void> _reload() async {
+    try {
+      await MaintenanceTaskDirectory.instance.refresh();
+      if (mounted) setState(() => _state = AppScreenState.success);
+    } catch (_) {
+      if (mounted) setState(() => _state = AppScreenState.error);
+    }
+  }
+
   Widget _buildBody(BuildContext context, List<MaintenanceTask> tasks) {
+    if (MaintenanceTaskDirectory.instance.loading.value) {
+      return const GhanaLoadingIndicator();
+    }
+    if (MaintenanceTaskDirectory.instance.error.value != null) {
+      return _ErrorView(onRetry: _reload);
+    }
     switch (_state) {
       case AppScreenState.loading:
-        return const _LoadingView();
+        return const GhanaLoadingIndicator();
       case AppScreenState.empty:
-        return _EmptyView(
-          onRefresh: () => setState(() => _state = AppScreenState.success),
-        );
+        return _EmptyView(onRefresh: _reload);
       case AppScreenState.error:
-        return _ErrorView(
-          onRetry: () => setState(() => _state = AppScreenState.success),
-        );
+        return _ErrorView(onRetry: _reload);
       case AppScreenState.offline:
-        return _OfflineView(
-          onRetry: () => setState(() => _state = AppScreenState.success),
-        );
+        return _OfflineView(onRetry: _reload);
       case AppScreenState.permission:
         return const _PermissionView();
       case AppScreenState.disabled:
@@ -474,13 +490,6 @@ class _TaskListTile extends StatelessWidget {
       ),
     );
   }
-}
-
-class _LoadingView extends StatelessWidget {
-  const _LoadingView();
-  @override
-  Widget build(BuildContext context) =>
-      const Center(child: CircularProgressIndicator());
 }
 
 class _EmptyView extends StatelessWidget {

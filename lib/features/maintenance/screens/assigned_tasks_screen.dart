@@ -3,6 +3,8 @@ import 'package:civic_voice/core/theme/app_theme.dart';
 
 import '../../../core/widgets/ghana_refresh_indicator.dart';
 import '../../../widgets/glass_card.dart';
+import '../../../widgets/focused_search.dart';
+import '../../../widgets/text_filter_chips.dart';
 import '../../../widgets/status_badge.dart';
 import '../models/maintenance_task.dart';
 import '../services/maintenance_task_directory.dart';
@@ -16,6 +18,7 @@ class AssignedTasksScreen extends StatefulWidget {
     this.onNavigateToProfile,
     this.onNotificationsTap,
     this.onOpenTaskDetails,
+    this.initialState = AppScreenState.success,
   });
 
   final VoidCallback? onNavigateToDashboard;
@@ -26,13 +29,14 @@ class AssignedTasksScreen extends StatefulWidget {
 
   /// Opens Task Details for the tapped task, by [MaintenanceTask.id].
   final ValueChanged<String>? onOpenTaskDetails;
+  final AppScreenState initialState;
 
   @override
   State<AssignedTasksScreen> createState() => _AssignedTasksScreenState();
 }
 
 class _AssignedTasksScreenState extends State<AssignedTasksScreen> {
-  AppScreenState _state = AppScreenState.success;
+  late AppScreenState _state = widget.initialState;
   String _query = '';
   MaintenanceTaskStatus? _statusFilter;
 
@@ -53,34 +57,48 @@ class _AssignedTasksScreenState extends State<AssignedTasksScreen> {
         // MaintenanceScaffold's own Stack), so without this the pull
         // indicator would grow in from behind it.
         topOffset: MaintenanceScaffold.contentPadding(context).top,
-        child: ValueListenableBuilder<List<MaintenanceTask>>(
-          valueListenable: MaintenanceTaskDirectory.instance.tasks,
-          builder: (context, tasks, _) => _buildBody(context, tasks),
+        child: ListenableBuilder(
+          listenable: Listenable.merge([
+            MaintenanceTaskDirectory.instance.tasks,
+            MaintenanceTaskDirectory.instance.loading,
+            MaintenanceTaskDirectory.instance.error,
+          ]),
+          builder: (context, _) => _buildBody(
+            context,
+            MaintenanceTaskDirectory.instance.tasks.value,
+          ),
         ),
       ),
     );
   }
 
+  Future<void> _reload() async {
+    try {
+      await MaintenanceTaskDirectory.instance.refresh();
+      if (mounted) setState(() => _state = AppScreenState.success);
+    } catch (_) {
+      if (mounted) setState(() => _state = AppScreenState.error);
+    }
+  }
+
   Widget _buildBody(BuildContext context, List<MaintenanceTask> tasks) {
+    if (MaintenanceTaskDirectory.instance.loading.value) {
+      return const GhanaLoadingIndicator();
+    }
+    if (MaintenanceTaskDirectory.instance.error.value != null) {
+      return _ErrorView(onRetry: _reload);
+    }
     switch (_state) {
       case AppScreenState.loading:
-        return const _LoadingView();
+        return const GhanaLoadingIndicator();
       case AppScreenState.empty:
-        return _EmptyView(
-          onRetry: () => setState(() => _state = AppScreenState.success),
-        );
+        return _EmptyView(onRetry: _reload);
       case AppScreenState.error:
-        return _ErrorView(
-          onRetry: () => setState(() => _state = AppScreenState.success),
-        );
+        return _ErrorView(onRetry: _reload);
       case AppScreenState.offline:
-        return _OfflineView(
-          onRetry: () => setState(() => _state = AppScreenState.success),
-        );
+        return _OfflineView(onRetry: _reload);
       case AppScreenState.permission:
-        return _PermissionView(
-          onRetry: () => setState(() => _state = AppScreenState.success),
-        );
+        return _PermissionView(onRetry: _reload);
       case AppScreenState.disabled:
       case AppScreenState.success:
         // Open/active work only — completed and failed tasks have their own
@@ -93,6 +111,7 @@ class _AssignedTasksScreenState extends State<AssignedTasksScreen> {
                   task.status != MaintenanceTaskStatus.failed,
             )
             .toList(growable: false);
+        if (openTasks.isEmpty) return _EmptyView(onRetry: _reload);
         return _AssignedTasksContent(
           tasks: openTasks,
           query: _query,
@@ -128,7 +147,6 @@ class _AssignedTasksContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    final semantic = Theme.of(context).extension<AppSemanticColors>()!;
     final chromeInset = MaintenanceScaffold.contentPadding(context);
     final filteredTasks = tasks
         .where((task) {
@@ -154,19 +172,30 @@ class _AssignedTasksContent extends StatelessWidget {
             chromeInset.bottom + AppSpacing.xl,
           ),
           children: [
-            TextField(
-              onChanged: onQueryChanged,
-              // Glass — see MunicipalSearchField's doc comment.
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: semantic.glassSurface,
-                hintText: 'Search assigned tasks...',
-                prefixIcon: const Icon(AppIcons.search),
-                border: OutlineInputBorder(
-                  borderRadius: AppComponentRadius.inputField,
-                  borderSide: BorderSide.none,
-                ),
-              ),
+            SearchTriggerField(
+              hintText: 'Search assigned tasks...',
+              query: query,
+              onClear: () => onQueryChanged(''),
+              onOpen: () async {
+                final value = await showFocusedSearch(
+                  context,
+                  screenKey: 'maintenance-tasks',
+                  hintText: 'Search assigned tasks...',
+                  initialQuery: query,
+                  results: (term) => [
+                    for (final task in tasks)
+                      if (task.matches(term))
+                        FocusedSearchResult(
+                          title: task.title,
+                          subtitle: task.id,
+                          onSelected: onOpenTaskDetails == null
+                              ? null
+                              : () => onOpenTaskDetails!(task.id),
+                        ),
+                  ],
+                );
+                if (context.mounted && value != null) onQueryChanged(value);
+              },
             ),
             const SizedBox(height: AppSpacing.md),
             _QueueOverview(tasks: tasks),
@@ -303,99 +332,29 @@ class _FilterRail extends StatelessWidget {
     required this.statusFilter,
     required this.onStatusChanged,
   });
-
   final MaintenanceTaskStatus? statusFilter;
   final ValueChanged<MaintenanceTaskStatus?> onStatusChanged;
-
   @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final statusOptions = const [
-      (null, 'All', AppIcons.filter),
-      (MaintenanceTaskStatus.assigned, 'New', AppIcons.statusAssigned),
-      (MaintenanceTaskStatus.inProgress, 'Active', AppIcons.activityPulse),
-    ];
-
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.xs),
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerLow,
-        borderRadius: AppComponentRadius.inputField,
+  Widget build(BuildContext context) => TextFilterChips<MaintenanceTaskStatus?>(
+    padding: EdgeInsets.zero,
+    options: const [
+      TextFilterOption(value: null, label: 'All'),
+      TextFilterOption(
+        value: MaintenanceTaskStatus.assigned,
+        label: 'Assigned',
       ),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: [
-            for (final option in statusOptions)
-              Padding(
-                padding: const EdgeInsets.only(right: AppSpacing.xs),
-                child: _CuteFilterPill(
-                  icon: option.$3,
-                  label: option.$2,
-                  selected: statusFilter == option.$1,
-                  onTap: () => onStatusChanged(option.$1),
-                ),
-              ),
-          ],
-        ),
+      TextFilterOption(
+        value: MaintenanceTaskStatus.inProgress,
+        label: 'In Progress',
       ),
-    );
-  }
-}
-
-class _CuteFilterPill extends StatelessWidget {
-  const _CuteFilterPill({
-    required this.icon,
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Material(
-      color: selected ? colorScheme.primary : colorScheme.surface,
-      borderRadius: BorderRadius.circular(AppRadius.xl),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.xl),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.sm,
-            vertical: AppSpacing.sm,
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                icon,
-                size: AppIconSize.sm,
-                color: selected
-                    ? colorScheme.onPrimary
-                    : colorScheme.onSurfaceVariant,
-              ),
-              const SizedBox(width: AppSpacing.xs),
-              Text(
-                label,
-                style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color: selected
-                      ? colorScheme.onPrimary
-                      : colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
-        ),
+      TextFilterOption(
+        value: MaintenanceTaskStatus.pendingApproval,
+        label: 'Awaiting Confirmation',
       ),
-    );
-  }
+    ],
+    selected: statusFilter,
+    onSelected: onStatusChanged,
+  );
 }
 
 class _CountPill extends StatelessWidget {
@@ -578,13 +537,6 @@ class _TaskCard extends StatelessWidget {
       ),
     );
   }
-}
-
-class _LoadingView extends StatelessWidget {
-  const _LoadingView();
-  @override
-  Widget build(BuildContext context) =>
-      const Center(child: CircularProgressIndicator());
 }
 
 class _EmptyView extends StatelessWidget {

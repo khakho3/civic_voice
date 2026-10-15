@@ -66,6 +66,10 @@ Future<void> _attachThreeEvidencePhotos(WidgetTester tester) async {
     await tester.ensureVisible(find.text(label));
     await tester.tap(find.text(label));
     await tester.pumpAndSettle();
+    if (find.text('Camera').evaluate().isNotEmpty) {
+      await tester.tap(find.text('Camera'));
+      await tester.pumpAndSettle();
+    }
     if (find.text('Allow Camera').evaluate().isNotEmpty) {
       await tester.tap(find.text('Allow Camera'));
       await tester.pumpAndSettle();
@@ -74,6 +78,7 @@ Future<void> _attachThreeEvidencePhotos(WidgetTester tester) async {
 }
 
 void main() {
+  setUp(_preserveMaintenanceTaskDirectory);
   setUpAll(() {
     ImagePickerPlatform.instance = _FakeImagePickerPlatform();
   });
@@ -210,8 +215,8 @@ void main() {
 
     await tester.tap(find.text('Completed'));
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('Save Update'));
-    await tester.tap(find.text('Save Update'));
+    await tester.ensureVisible(find.text('Submit for Approval'));
+    await tester.tap(find.text('Submit for Approval'));
     await tester.pumpAndSettle();
 
     // Shown twice by design — the inline field error plus a SnackBar, since
@@ -228,11 +233,14 @@ void main() {
       find.byType(EditableText).first,
       'Completed the required repair.',
     );
-    await tester.ensureVisible(find.text('Save Update'));
-    await tester.tap(find.text('Save Update'));
+    await tester.ensureVisible(find.text('Submit for Approval'));
+    await tester.tap(find.text('Submit for Approval'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Attach 3 photos to mark this completed.'), findsWidgets);
+    expect(
+      find.text('Attach 3 photos to submit this for approval.'),
+      findsWidgets,
+    );
 
     await tester.enterText(find.byType(EditableText).first, '');
     await tester.tap(find.text('Failed'));
@@ -384,7 +392,7 @@ void main() {
       find.text('Problem Description', skipOffstage: false),
       findsOneWidget,
     );
-    expect(find.text('Report Photos (2)'), findsOneWidget);
+    expect(find.text('Report Photos (0)'), findsOneWidget);
     expect(find.text('Problem Location'), findsOneWidget);
     expect(
       find.text('Assignment received by maintenance team'),
@@ -419,14 +427,14 @@ void main() {
       find.byType(EditableText).first,
       'Replaced the damaged wiring and verified the light is working.',
     );
-    await tester.ensureVisible(find.text('Save Update'));
-    await tester.tap(find.text('Save Update'));
+    await tester.ensureVisible(find.text('Submit for Approval'));
+    await tester.tap(find.text('Submit for Approval'));
     await tester.pump(const Duration(milliseconds: 700));
     await tester.pumpAndSettle();
 
     // No separate evidence-upload step — saving a Completed update lands
     // straight on Task Completed with the real task's own data.
-    expect(find.text('Task Completed'), findsWidgets);
+    expect(find.text('Submitted for Approval'), findsWidgets);
     expect(find.text('Task Summary'), findsOneWidget);
     expect(find.text('Broken Street Light at Main Ave'), findsOneWidget);
     expect(
@@ -435,14 +443,18 @@ void main() {
       ),
       findsOneWidget,
     );
-    expect(find.text('Go to Dashboard'), findsOneWidget);
+    expect(find.text('Back to Task Details'), findsOneWidget);
 
-    await tester.ensureVisible(find.text('Go to Dashboard'));
-    await tester.tap(find.text('Go to Dashboard'));
+    await tester.ensureVisible(find.text('Back to Task Details'));
+    await tester.tap(find.text('Back to Task Details'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Scheduled Work'), findsOneWidget);
+    expect(find.text('Task Timeline'), findsOneWidget);
     expect(find.text('Update Progress'), findsNothing);
+    expect(
+      find.textContaining('Awaiting municipal confirmation'),
+      findsOneWidget,
+    );
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pumpAndSettle();
@@ -497,12 +509,12 @@ void main() {
         find.byType(EditableText).first,
         'Pothole filled and surface leveled.',
       );
-      await tester.ensureVisible(find.text('Save Update'));
-      await tester.tap(find.text('Save Update'));
+      await tester.ensureVisible(find.text('Submit for Approval'));
+      await tester.tap(find.text('Submit for Approval'));
       await tester.pump(const Duration(milliseconds: 700));
       await tester.pumpAndSettle();
 
-      expect(find.text('Task Completed'), findsWidgets);
+      expect(find.text('Submitted for Approval'), findsWidgets);
 
       // Task Completed is a drill-down with no bottom nav of its own —
       // jump directly to Dashboard/Tasks to confirm MaintenanceTaskDirectory
@@ -517,7 +529,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Pothole Repair Request'), findsNothing);
+      expect(find.text('Pothole Repair Request'), findsOneWidget);
 
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pumpAndSettle();
@@ -528,7 +540,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Pothole Repair Request'), findsNothing);
+      expect(find.text('Pothole Repair Request'), findsOneWidget);
     },
   );
 
@@ -593,7 +605,9 @@ void main() {
   );
 
   testWidgets('Maintenance Update Progress blocks evidence submission when the '
-      'signed-in technician is not the team lead', (WidgetTester tester) async {
+      'signed-in technician is not the team lead (any member may submit)', (
+    WidgetTester tester,
+  ) async {
     tester.view.physicalSize = const Size(428, 1800);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -626,9 +640,9 @@ void main() {
 
     expect(
       find.textContaining('Only Kojo Mensah-Boateng can submit'),
-      findsOneWidget,
+      findsNothing,
     );
-    expect(find.text('Add 1'), findsNothing);
+    expect(find.text('Add 1'), findsOneWidget);
   });
 
   testWidgets(

@@ -7,9 +7,11 @@ import 'package:civic_voice/core/theme/app_theme.dart';
 
 import '../../../widgets/confirm_dialog.dart';
 import '../../../widgets/detail_header.dart';
-import '../../../widgets/glass_card.dart';
 import '../../../widgets/glass_dialog_backdrop.dart';
-import '../../admin/services/admin_user_directory.dart';
+import '../../../widgets/busy_indicator.dart';
+import '../../../services/app_haptics.dart';
+import '../../../services/api_client.dart';
+import '../widgets/returned_work_notice.dart';
 import '../models/maintenance_task.dart';
 import '../services/maintenance_task_directory.dart';
 
@@ -46,6 +48,8 @@ class UpdateProgressScreen extends StatefulWidget {
 
 class _UpdateProgressScreenState extends State<UpdateProgressScreen> {
   final ImagePicker _imagePicker = ImagePicker();
+  final FocusNode _notesFocus = FocusNode();
+  bool _pickingPhoto = false;
   late MaintenanceTaskStatus _selectedStatus =
       widget.task.status == MaintenanceTaskStatus.assigned
       ? MaintenanceTaskStatus.inProgress
@@ -57,28 +61,62 @@ class _UpdateProgressScreenState extends State<UpdateProgressScreen> {
   bool _cameraPermissionExplained = false;
   bool _saved = false;
   bool _submitting = false;
+  bool _accessUnavailable = false;
+  MaintenanceTask get _task =>
+      MaintenanceTaskDirectory.instance.taskById(widget.task.id) ?? widget.task;
 
   static const int _minNotesLength = 10;
   static const int _requiredEvidencePhotos = 3;
 
   @override
   void dispose() {
+    _notesFocus.dispose();
     _notesController.dispose();
     super.dispose();
   }
 
   Future<void> _captureEvidencePhoto() async {
-    if (_evidencePhotos.length >= _requiredEvidencePhotos) return;
+    if (_submitting ||
+        _pickingPhoto ||
+        !_task.needsEvidence ||
+        _evidencePhotos.length >= _requiredEvidencePhotos) {
+      return;
+    }
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(AppIcons.camera),
+              title: const Text('Camera'),
+              onTap: () => Navigator.pop(context, ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(AppIcons.camera),
+              title: const Text('Gallery'),
+              onTap: () => Navigator.pop(context, ImageSource.gallery),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (!mounted || source == null) return;
+    _pickingPhoto = true;
 
-    if (!_cameraPermissionExplained) {
+    if (source == ImageSource.camera && !_cameraPermissionExplained) {
       final allowed = await _confirmCameraUse();
-      if (!mounted || !allowed) return;
+      if (!mounted || !allowed) {
+        _pickingPhoto = false;
+        return;
+      }
       _cameraPermissionExplained = true;
     }
 
     try {
       final photo = await _imagePicker.pickImage(
-        source: ImageSource.camera,
+        source: source,
         imageQuality: 82,
         maxWidth: 1600,
       );
@@ -97,9 +135,11 @@ class _UpdateProgressScreenState extends State<UpdateProgressScreen> {
       if (!mounted) return;
       setState(() {
         _evidenceError =
-            'Camera permission is required to capture completion evidence.';
+            'Photo access is required to attach completion evidence.';
         _saved = false;
       });
+    } finally {
+      _pickingPhoto = false;
     }
   }
 
@@ -148,6 +188,7 @@ class _UpdateProgressScreenState extends State<UpdateProgressScreen> {
   }
 
   Future<void> _handleSave() async {
+    if (_submitting || !_task.needsEvidence) return;
     final notes = _notesController.text.trim();
     if (_selectedStatus == MaintenanceTaskStatus.completed &&
         notes.length < _minNotesLength) {
@@ -159,6 +200,7 @@ class _UpdateProgressScreenState extends State<UpdateProgressScreen> {
         _saved = false;
       });
       _showValidationSnackBar(message);
+      _notesFocus.requestFocus();
       return;
     }
     if (_selectedStatus == MaintenanceTaskStatus.failed &&
@@ -170,25 +212,14 @@ class _UpdateProgressScreenState extends State<UpdateProgressScreen> {
         _saved = false;
       });
       _showValidationSnackBar(message);
-      return;
-    }
-
-    if (_selectedStatus == MaintenanceTaskStatus.completed &&
-        !MaintenanceTaskDirectory.instance.canSubmitEvidence(widget.task)) {
-      final message = _leadOnlyMessage(context);
-      setState(() {
-        _validationError = null;
-        _evidenceError = message;
-        _saved = false;
-      });
-      _showValidationSnackBar(message);
+      _notesFocus.requestFocus();
       return;
     }
 
     if (_selectedStatus == MaintenanceTaskStatus.completed &&
         _evidencePhotos.length < _requiredEvidencePhotos) {
       final message =
-          'Attach $_requiredEvidencePhotos photos to mark this completed.';
+          'Attach $_requiredEvidencePhotos photos to submit this for approval.';
       setState(() {
         _validationError = null;
         _evidenceError = message;
@@ -198,10 +229,11 @@ class _UpdateProgressScreenState extends State<UpdateProgressScreen> {
       return;
     }
 
+    AppHaptics.activate();
     setState(() => _submitting = true);
     try {
       await MaintenanceTaskDirectory.instance.updateTaskOnServer(
-        widget.task,
+        _task,
         status: _selectedStatus,
         notes: notes,
         evidencePhotoPaths: _evidencePhotos.map((photo) => photo.path).toList(),
@@ -213,37 +245,52 @@ class _UpdateProgressScreenState extends State<UpdateProgressScreen> {
         _saved = true;
         _submitting = false;
       });
-    } catch (_) {
+    } catch (error) {
       if (!mounted) return;
       setState(() {
-        _validationError = 'Could not save this update. Please try again.';
+        _accessUnavailable =
+            error is ApiException && [401, 403, 404].contains(error.statusCode);
+        _validationError = _accessUnavailable
+            ? 'This task is no longer available to your account. Return to Tasks.'
+            : 'The update could not be confirmed. Refresh the task before retrying.';
         _saved = false;
         _submitting = false;
       });
       return;
     }
-    if (_selectedStatus == MaintenanceTaskStatus.completed) {
-      Future.delayed(const Duration(milliseconds: 600), () {
-        if (mounted) widget.onTaskCompleted?.call(widget.task.id);
-      });
+    if (_selectedStatus == MaintenanceTaskStatus.completed ||
+        _selectedStatus == MaintenanceTaskStatus.failed) {
+      widget.onTaskCompleted?.call(widget.task.id);
     }
   }
 
-  /// The team's lead-only gate exists so a task doesn't get marked
-  /// Completed twice over by different members submitting separately —
-  /// see [MaintenanceTaskDirectory.canSubmitEvidence] for the full rule
-  /// (falls back to "anyone" once no lead is set).
-  String _leadOnlyMessage(BuildContext context) {
-    final team = MaintenanceTaskDirectory.instance.teamForTask(widget.task);
-    final leadName = team?.leadUserId == null
-        ? null
-        : AdminUserDirectory.instance.userById(team!.leadUserId!)?.name;
-    return leadName == null
-        ? 'Only your team lead can submit completion evidence for this task.'
-        : 'Only $leadName can submit completion evidence for this task.';
+  Future<void> _refreshTask() async {
+    if (_submitting) return;
+    setState(() => _submitting = true);
+    try {
+      await MaintenanceTaskDirectory.instance.refresh();
+      if (!mounted) return;
+      setState(() {
+        _accessUnavailable =
+            MaintenanceTaskDirectory.instance.taskById(widget.task.id) == null;
+        _validationError = _accessUnavailable
+            ? 'This task is no longer available to your account. Return to Tasks.'
+            : null;
+        _submitting = false;
+      });
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _submitting = false;
+          _validationError =
+              'Could not refresh this task. Check your connection and try again.';
+        });
+      }
+    }
   }
 
   Future<void> _handleDiscard() async {
+    if (_submitting) return;
     final hasContent =
         _notesController.text.trim().isNotEmpty || _evidencePhotos.isNotEmpty;
     if (hasContent) {
@@ -270,12 +317,12 @@ class _UpdateProgressScreenState extends State<UpdateProgressScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final task = widget.task;
+    final task = _task;
     final readOnly =
         task.status == MaintenanceTaskStatus.completed ||
-        task.status == MaintenanceTaskStatus.failed;
-    final canSubmitEvidence = MaintenanceTaskDirectory.instance
-        .canSubmitEvidence(task);
+        task.status == MaintenanceTaskStatus.failed ||
+        task.status == MaintenanceTaskStatus.pendingApproval ||
+        _accessUnavailable;
 
     return Scaffold(
       body: Stack(
@@ -290,17 +337,27 @@ class _UpdateProgressScreenState extends State<UpdateProgressScreen> {
               validationError: _validationError,
               saved: _saved,
               submitting: _submitting,
-              canSubmitEvidence: canSubmitEvidence,
-              leadOnlyMessage: _leadOnlyMessage(context),
-              onStatusChanged: readOnly
+              notesFocus: _notesFocus,
+              onRemoveEvidence: (index) {
+                if (_submitting) return;
+                setState(() {
+                  _evidencePhotos.removeAt(index);
+                  _saved = false;
+                  _evidenceError = null;
+                });
+              },
+              onStatusChanged: readOnly || _submitting
                   ? null
-                  : (status) => setState(() {
-                      _selectedStatus = status;
-                      _validationError = null;
-                      _evidenceError = null;
-                      _saved = false;
-                    }),
-              onNotesChanged: readOnly
+                  : (status) {
+                      AppHaptics.activate();
+                      setState(() {
+                        _selectedStatus = status;
+                        _validationError = null;
+                        _evidenceError = null;
+                        _saved = false;
+                      });
+                    },
+              onNotesChanged: readOnly || _submitting
                   ? null
                   : (_) {
                       if (_saved || _validationError != null) {
@@ -314,11 +371,12 @@ class _UpdateProgressScreenState extends State<UpdateProgressScreen> {
               evidencePhotos: _evidencePhotos,
               requiredEvidencePhotos: _requiredEvidencePhotos,
               evidenceError: _evidenceError,
-              onAttachEvidence: readOnly || !canSubmitEvidence
+              onAttachEvidence: readOnly || _submitting
                   ? null
                   : _captureEvidencePhoto,
               onSave: readOnly ? null : _handleSave,
-              onDiscard: readOnly ? null : _handleDiscard,
+              onRefresh: _refreshTask,
+              onDiscard: readOnly || _submitting ? null : _handleDiscard,
             ),
           ),
           Align(
@@ -326,7 +384,13 @@ class _UpdateProgressScreenState extends State<UpdateProgressScreen> {
             child: DetailHeader(
               title: 'Update Progress',
               onBack: widget.onBack,
-              trailing: Chip(label: Text('#${task.id}')),
+              trailing: Chip(
+                label: Text(
+                  '#${task.id}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
             ),
           ),
         ],
@@ -348,25 +412,21 @@ class _UpdateProgressForm extends StatelessWidget {
     required this.evidenceError,
     required this.saved,
     required this.submitting,
-    required this.canSubmitEvidence,
-    required this.leadOnlyMessage,
+    required this.notesFocus,
+    required this.onRemoveEvidence,
     required this.onStatusChanged,
     required this.onNotesChanged,
     required this.onAttachEvidence,
     required this.onSave,
+    required this.onRefresh,
     required this.onDiscard,
   });
 
   final MaintenanceTask task;
   final bool disabled;
 
-  /// Whether the signed-in technician may submit completion evidence for
-  /// this task at all — false when the team has a lead and it isn't them.
-  final bool canSubmitEvidence;
-
-  /// Explains [canSubmitEvidence] being false, shown in place of the photo
-  /// capture grid rather than a silently-disabled one.
-  final String leadOnlyMessage;
+  final FocusNode notesFocus;
+  final ValueChanged<int> onRemoveEvidence;
   final MaintenanceTaskStatus selectedStatus;
   final TextEditingController notesController;
   final int minNotesLength;
@@ -380,6 +440,7 @@ class _UpdateProgressForm extends StatelessWidget {
   final ValueChanged<String>? onNotesChanged;
   final VoidCallback? onAttachEvidence;
   final VoidCallback? onSave;
+  final VoidCallback onRefresh;
   final VoidCallback? onDiscard;
 
   @override
@@ -390,195 +451,176 @@ class _UpdateProgressForm extends StatelessWidget {
     final bottomInset = MediaQuery.paddingOf(context).bottom;
     final evidencePhotoCount = evidencePhotos.length;
 
-    return Opacity(
-      opacity: disabled ? 0.5 : 1.0,
-      child: IgnorePointer(
-        ignoring: disabled,
-        child: ListView(
-          padding: EdgeInsets.fromLTRB(
-            AppSpacing.md,
-            DetailHeader.topInset(context) + AppSpacing.md,
-            AppSpacing.md,
-            bottomInset + AppSpacing.xl,
-          ),
-          children: [
-            if (saved) ...[
-              _SavedBanner(semantic: semantic),
-              const SizedBox(height: AppSpacing.md),
-            ],
-            Chip(label: Text('Task ID: #${task.id}')),
-            const SizedBox(height: AppSpacing.sm),
-            Text(task.title, style: textTheme.titleMedium),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              task.description,
-              style: textTheme.bodyMedium?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            Text('Current Status', style: textTheme.titleSmall),
-            const SizedBox(height: AppSpacing.sm),
-            _StatusOption(
-              label: 'In Progress',
-              icon: AppIcons.activityPulse,
-              color: AppColors.statusInProgress,
-              selected: selectedStatus == MaintenanceTaskStatus.inProgress,
-              onTap: onStatusChanged == null
-                  ? null
-                  : () => onStatusChanged!(MaintenanceTaskStatus.inProgress),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            _StatusOption(
-              label: 'Completed',
-              icon: AppIcons.statusResolved,
-              color: semantic.success,
-              selected: selectedStatus == MaintenanceTaskStatus.completed,
-              onTap: onStatusChanged == null
-                  ? null
-                  : () => onStatusChanged!(MaintenanceTaskStatus.completed),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            _StatusOption(
-              label: 'Failed',
-              icon: AppIcons.statusRejected,
-              color: semantic.error,
-              selected: selectedStatus == MaintenanceTaskStatus.failed,
-              onTap: onStatusChanged == null
-                  ? null
-                  : () => onStatusChanged!(MaintenanceTaskStatus.failed),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            Text(
-              selectedStatus == MaintenanceTaskStatus.failed
-                  ? 'Failure Note (required)'
-                  : selectedStatus == MaintenanceTaskStatus.completed
-                  ? 'Completion Notes (required)'
-                  : 'Work Notes',
-              style: textTheme.titleSmall,
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            TextField(
-              controller: notesController,
-              onChanged: onNotesChanged,
-              maxLines: 4,
-              enabled: !disabled,
-              decoration: InputDecoration(
-                hintText: selectedStatus == MaintenanceTaskStatus.failed
-                    ? 'Explain why the task failed and what is needed next...'
-                    : selectedStatus == MaintenanceTaskStatus.completed
-                    ? 'Describe the work completed and the final outcome...'
-                    : 'Describe current progress, encountered issues, or required parts...',
-                errorText: validationError,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            if (validationError == null &&
-                (selectedStatus == MaintenanceTaskStatus.failed ||
-                    selectedStatus == MaintenanceTaskStatus.completed))
-              Text(
-                'Minimum $minNotesLength characters',
-                style: textTheme.bodySmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
-              ),
-            if (selectedStatus == MaintenanceTaskStatus.completed) ...[
-              const SizedBox(height: AppSpacing.lg),
-              Text('Completion Photo Evidence', style: textTheme.titleSmall),
-              const SizedBox(height: AppSpacing.xs),
-              if (!canSubmitEvidence)
-                _LeadOnlyNotice(message: leadOnlyMessage)
-              else ...[
-                Text(
-                  '$evidencePhotoCount of $requiredEvidencePhotos photos attached',
-                  style: textTheme.bodySmall?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                Wrap(
-                  spacing: AppSpacing.sm,
-                  runSpacing: AppSpacing.sm,
-                  children: [
-                    for (var index = 0; index < requiredEvidencePhotos; index++)
-                      _EvidencePhotoSlot(
-                        index: index,
-                        photo: index < evidencePhotos.length
-                            ? evidencePhotos[index]
-                            : null,
-                        disabled:
-                            disabled ||
-                            index > evidencePhotoCount ||
-                            evidencePhotoCount >= requiredEvidencePhotos,
-                        onTap: index == evidencePhotoCount
-                            ? onAttachEvidence
-                            : null,
-                      ),
-                  ],
-                ),
-              ],
-              if (evidenceError != null) ...[
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  evidenceError!,
-                  style: textTheme.bodySmall?.copyWith(
-                    color: semantic.errorText,
-                  ),
-                ),
-              ],
-            ],
-            const SizedBox(height: AppSpacing.xl),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: submitting ? null : onSave,
-                child: Text(submitting ? 'Saving...' : 'Save Update'),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            SizedBox(
-              width: double.infinity,
-              child: TextButton(
-                onPressed: onDiscard,
-                child: const Text('Discard Draft'),
-              ),
-            ),
-          ],
-        ),
+    return ListView(
+      padding: EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        DetailHeader.topInset(context) + AppSpacing.md,
+        AppSpacing.md,
+        bottomInset + AppSpacing.xl,
       ),
-    );
-  }
-}
-
-class _LeadOnlyNotice extends StatelessWidget {
-  const _LeadOnlyNotice({required this.message});
-
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-    return GlassCard(
-      padding: const EdgeInsets.all(AppSpacing.sm),
-      child: Row(
-        children: [
-          Icon(
-            AppIcons.permissionDenied,
-            size: AppIconSize.md,
+      children: [
+        if (task.status == MaintenanceTaskStatus.pendingApproval) ...[
+          const Text(
+            'Submitted for approval. A municipal officer is confirming this work. This task is read-only until they respond.',
+          ),
+          const SizedBox(height: AppSpacing.md),
+        ],
+        if (task.sendBackReason?.trim().isNotEmpty == true) ...[
+          ReturnedWorkNotice(reason: task.sendBackReason!),
+          const SizedBox(height: AppSpacing.md),
+        ],
+        if (saved) ...[
+          _SavedBanner(semantic: semantic),
+          const SizedBox(height: AppSpacing.md),
+        ],
+        Chip(label: Text('Task ID: #${task.id}')),
+        const SizedBox(height: AppSpacing.sm),
+        Text(task.title, style: textTheme.titleMedium),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          task.description,
+          style: textTheme.bodyMedium?.copyWith(
             color: colorScheme.onSurfaceVariant,
           ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Text(
-              message,
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        Text('Current Status', style: textTheme.titleSmall),
+        const SizedBox(height: AppSpacing.sm),
+        _StatusOption(
+          label: 'In Progress',
+          icon: AppIcons.activityPulse,
+          color: AppColors.statusInProgress,
+          selected: selectedStatus == MaintenanceTaskStatus.inProgress,
+          onTap: onStatusChanged == null
+              ? null
+              : () => onStatusChanged!(MaintenanceTaskStatus.inProgress),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        _StatusOption(
+          label: 'Completed',
+          icon: AppIcons.statusResolved,
+          color: semantic.success,
+          selected: selectedStatus == MaintenanceTaskStatus.completed,
+          onTap: onStatusChanged == null
+              ? null
+              : () => onStatusChanged!(MaintenanceTaskStatus.completed),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        _StatusOption(
+          label: 'Failed',
+          icon: AppIcons.statusRejected,
+          color: semantic.error,
+          selected: selectedStatus == MaintenanceTaskStatus.failed,
+          onTap: onStatusChanged == null
+              ? null
+              : () => onStatusChanged!(MaintenanceTaskStatus.failed),
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        Text(
+          selectedStatus == MaintenanceTaskStatus.failed
+              ? 'Failure Note (required)'
+              : selectedStatus == MaintenanceTaskStatus.completed
+              ? 'Completion Notes (required)'
+              : 'Work Notes',
+          style: textTheme.titleSmall,
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        TextField(
+          controller: notesController,
+          focusNode: notesFocus,
+          onChanged: onNotesChanged,
+          maxLines: 4,
+          enabled: !disabled && !submitting,
+          decoration: InputDecoration(
+            hintText: selectedStatus == MaintenanceTaskStatus.failed
+                ? 'Explain why the task failed and what is needed next...'
+                : selectedStatus == MaintenanceTaskStatus.completed
+                ? 'Describe the work completed and the final outcome...'
+                : 'Describe current progress, encountered issues, or required parts...',
+            errorText: validationError,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        if (validationError == null &&
+            (selectedStatus == MaintenanceTaskStatus.failed ||
+                selectedStatus == MaintenanceTaskStatus.completed))
+          Text(
+            'Minimum $minNotesLength characters',
+            style: textTheme.bodySmall?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+            ),
+          ),
+        if (selectedStatus == MaintenanceTaskStatus.completed) ...[
+          const SizedBox(height: AppSpacing.lg),
+          Text('Completion Photo Evidence', style: textTheme.titleSmall),
+          const SizedBox(height: AppSpacing.xs),
+          ...[
+            Text(
+              '$evidencePhotoCount of $requiredEvidencePhotos photos attached',
               style: textTheme.bodySmall?.copyWith(
                 color: colorScheme.onSurfaceVariant,
               ),
             ),
-          ),
+            const SizedBox(height: AppSpacing.sm),
+            Wrap(
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.sm,
+              children: [
+                for (var index = 0; index < requiredEvidencePhotos; index++)
+                  _EvidencePhotoSlot(
+                    index: index,
+                    photo: index < evidencePhotos.length
+                        ? evidencePhotos[index]
+                        : null,
+                    disabled:
+                        disabled ||
+                        index > evidencePhotoCount ||
+                        evidencePhotoCount >= requiredEvidencePhotos,
+                    onRemove: !submitting && index < evidencePhotos.length
+                        ? () => onRemoveEvidence(index)
+                        : null,
+                    onTap: index == evidencePhotoCount
+                        ? onAttachEvidence
+                        : null,
+                  ),
+              ],
+            ),
+          ],
+          if (evidenceError != null) ...[
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              evidenceError!,
+              style: textTheme.bodySmall?.copyWith(color: semantic.errorText),
+            ),
+          ],
         ],
-      ),
+        const SizedBox(height: AppSpacing.xl),
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton(
+            onPressed: submitting ? null : onSave,
+            child: BusyLabel(
+              busy: submitting,
+              busyLabel: selectedStatus == MaintenanceTaskStatus.completed
+                  ? 'Submitting for approval'
+                  : 'Saving update',
+              child: Text(
+                selectedStatus == MaintenanceTaskStatus.completed
+                    ? 'Submit for Approval'
+                    : 'Save Update',
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        SizedBox(
+          width: double.infinity,
+          child: TextButton(
+            onPressed: onDiscard,
+            child: const Text('Discard Draft'),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -687,9 +729,11 @@ class _EvidencePhotoSlot extends StatelessWidget {
     required this.photo,
     required this.disabled,
     required this.onTap,
+    this.onRemove,
   });
 
   final int index;
+  final VoidCallback? onRemove;
   final XFile? photo;
   final bool disabled;
   final VoidCallback? onTap;
@@ -734,19 +778,12 @@ class _EvidencePhotoSlot extends StatelessWidget {
                         ),
                   ),
                   Positioned(
-                    right: AppSpacing.xs,
-                    top: AppSpacing.xs,
-                    child: Container(
-                      padding: const EdgeInsets.all(AppSpacing.xs),
-                      decoration: BoxDecoration(
-                        color: semantic.success,
-                        borderRadius: AppRadius.allXs,
-                      ),
-                      child: Icon(
-                        AppIcons.success,
-                        size: AppIconSize.sm,
-                        color: colorScheme.onPrimary,
-                      ),
+                    right: 0,
+                    top: 0,
+                    child: IconButton.filled(
+                      tooltip: 'Remove photo ${index + 1}',
+                      onPressed: onRemove,
+                      icon: const Icon(AppIcons.close),
                     ),
                   ),
                 ],

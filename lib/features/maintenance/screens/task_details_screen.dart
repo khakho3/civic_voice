@@ -9,6 +9,7 @@ import '../../../widgets/evidence_image_viewer.dart';
 import '../../../widgets/glass_card.dart';
 import '../../../widgets/status_badge.dart';
 import '../models/maintenance_task.dart';
+import '../widgets/returned_work_notice.dart';
 import '../services/maintenance_task_directory.dart';
 
 /// MNT-003 — Maintenance Team Task Details.
@@ -37,9 +38,13 @@ class TaskDetailsScreen extends StatelessWidget {
       body: Stack(
         children: [
           Positioned.fill(
-            child: _TaskDetailsContent(
-              task: task,
-              onUpdateProgress: onUpdateProgress,
+            child: ValueListenableBuilder<List<MaintenanceTask>>(
+              valueListenable: MaintenanceTaskDirectory.instance.tasks,
+              builder: (context, tasks, _) => _TaskDetailsContent(
+                task:
+                    MaintenanceTaskDirectory.instance.taskById(task.id) ?? task,
+                onUpdateProgress: onUpdateProgress,
+              ),
             ),
           ),
           Align(
@@ -47,7 +52,13 @@ class TaskDetailsScreen extends StatelessWidget {
             child: DetailHeader(
               title: task.title,
               onBack: onBack,
-              trailing: Chip(label: Text('#${task.id}')),
+              trailing: Chip(
+                label: Text(
+                  '#${task.id}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
             ),
           ),
         ],
@@ -72,9 +83,7 @@ class _TaskDetailsContent extends StatelessWidget {
     final brightness = Theme.of(context).brightness;
     final bottomInset = MediaQuery.paddingOf(context).bottom;
     final team = MaintenanceTaskDirectory.instance.teamForTask(task);
-    final canUpdate =
-        task.status != MaintenanceTaskStatus.completed &&
-        task.status != MaintenanceTaskStatus.failed;
+    final canUpdate = task.needsEvidence;
 
     return SingleChildScrollView(
       padding: EdgeInsets.fromLTRB(
@@ -86,6 +95,10 @@ class _TaskDetailsContent extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (task.sendBackReason?.trim().isNotEmpty == true) ...[
+            ReturnedWorkNotice(reason: task.sendBackReason!),
+            const SizedBox(height: AppSpacing.md),
+          ],
           Text(task.title, style: textTheme.headlineSmall),
           const SizedBox(height: AppSpacing.sm),
           Row(
@@ -142,7 +155,7 @@ class _TaskDetailsContent extends StatelessWidget {
               ),
               const SizedBox(width: AppSpacing.xs),
               Text(
-                'Report Photos (${task.reportPhotoCount})',
+                'Report Photos (${task.reportPhotoUrls.length})',
                 style: textTheme.titleSmall,
               ),
             ],
@@ -182,6 +195,12 @@ class _TaskDetailsContent extends StatelessWidget {
           Text('Task Timeline', style: textTheme.titleSmall),
           const SizedBox(height: AppSpacing.sm),
           _StatusPipeline(task: task),
+          if (task.status == MaintenanceTaskStatus.pendingApproval) ...[
+            const SizedBox(height: AppSpacing.md),
+            const Text(
+              'Submitted for approval — Awaiting municipal confirmation. This task is read-only until the officer responds.',
+            ),
+          ],
           const SizedBox(height: AppSpacing.lg),
           if (canUpdate)
             SizedBox(
@@ -241,6 +260,7 @@ class _StatusPipeline extends StatelessWidget {
     final semantic = Theme.of(context).extension<AppSemanticColors>()!;
     final status = task.status;
     final dispatched = status != MaintenanceTaskStatus.assigned;
+    final pending = status == MaintenanceTaskStatus.pendingApproval;
     final resolved =
         status == MaintenanceTaskStatus.completed ||
         status == MaintenanceTaskStatus.failed;
@@ -251,30 +271,59 @@ class _StatusPipeline extends StatelessWidget {
         children: [
           _PipelineStep(
             label: 'Assignment received by maintenance team',
-            timestamp: 'Logged',
+            timestamp:
+                task.assignedAt?.toLocal().toString().split('.').first ??
+                'Time not recorded',
             color: semantic.success,
             icon: AppIcons.statusResolved,
             isActive: false,
           ),
           _PipelineStep(
             label: 'Crew dispatched to site',
-            timestamp: dispatched ? 'Dispatched' : task.eta,
+            timestamp:
+                task.startedAt?.toLocal().toString().split('.').first ??
+                (dispatched ? 'Time not recorded' : task.eta),
             color: dispatched ? semantic.success : AppColors.statusAssigned,
             icon: dispatched
                 ? AppIcons.statusResolved
                 : AppIcons.statusAssigned,
             isActive: !dispatched,
           ),
+          if (task.sendBackReason?.trim().isNotEmpty == true)
+            _PipelineStep(
+              label: 'Completion sent back',
+              timestamp: 'Time not recorded',
+              color: semantic.warning,
+              icon: AppIcons.warning,
+              isActive: false,
+            ),
           _PipelineStep(
             label: status == MaintenanceTaskStatus.failed
                 ? 'Work attempted'
                 : 'Work in progress',
-            timestamp: resolved ? 'Complete' : 'Current field status',
+            timestamp: resolved || pending
+                ? 'Work finished'
+                : 'Current field status',
             color: resolved ? semantic.success : AppColors.statusInProgress,
             icon: resolved ? AppIcons.statusResolved : AppIcons.activityPulse,
-            isActive: dispatched && !resolved,
-            isLast: !resolved,
+            isActive: dispatched && !resolved && !pending,
+            isLast: !resolved && !pending,
           ),
+          if (pending)
+            _PipelineStep(
+              label: 'Submitted for approval',
+              timestamp:
+                  task.completionSubmittedAt
+                      ?.toLocal()
+                      .toString()
+                      .split('.')
+                      .first ??
+                  'Time not recorded',
+              color: AppColors.statusPendingApproval,
+              icon: AppIcons.verify,
+              isActive: true,
+              isLast: true,
+            ),
           if (resolved)
             _PipelineStep(
               label: status == MaintenanceTaskStatus.completed

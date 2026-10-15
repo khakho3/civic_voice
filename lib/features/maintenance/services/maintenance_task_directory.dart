@@ -34,21 +34,45 @@ class MaintenanceTaskDirectory {
   final ValueNotifier<bool> loading = ValueNotifier(false);
   final ValueNotifier<String?> error = ValueNotifier(null);
   bool hasLiveSnapshot = false;
+  int _sessionRevision = 0;
+  int _refreshRevision = 0;
+  void clearSession() {
+    ++_sessionRevision;
+    ++_refreshRevision;
+    tasks.value = const [];
+    loading.value = false;
+    error.value = null;
+    hasLiveSnapshot = false;
+  }
 
   Future<void> refresh() async {
-    final token = await FirebaseAuth.instance.currentUser?.getIdToken();
-    if (token == null) throw StateError('A signed-in technician is required');
+    if (Firebase.apps.isEmpty) return;
+    final revision = _sessionRevision, refresh = ++_refreshRevision;
     loading.value = true;
     error.value = null;
     try {
+      await MaintenanceSession.instance.refresh();
+      if (revision != _sessionRevision) return;
+      final identity = FirebaseAuth.instance.currentUser;
+      final token = await identity?.getIdToken();
+      if (token == null) throw StateError('A signed-in technician is required');
       final response = await ApiClient.instance.listReports(idToken: token);
+      if (revision != _sessionRevision ||
+          refresh != _refreshRevision ||
+          identity?.uid != FirebaseAuth.instance.currentUser?.uid) {
+        return;
+      }
       tasks.value = response.map(MaintenanceTask.fromApi).toList();
       hasLiveSnapshot = true;
     } catch (exception) {
-      error.value = exception.toString();
+      if (revision == _sessionRevision && refresh == _refreshRevision) {
+        error.value = exception.toString();
+      }
       rethrow;
     } finally {
-      loading.value = false;
+      if (revision == _sessionRevision && refresh == _refreshRevision) {
+        loading.value = false;
+      }
     }
   }
 
@@ -72,9 +96,23 @@ class MaintenanceTaskDirectory {
     String? notes,
     List<String> evidencePhotoPaths = const [],
   }) async {
+    final revision = _sessionRevision;
+    if (!task.needsEvidence) throw StateError('This task is read-only');
+    if (!canSubmitEvidence(task)) throw StateError('Task is outside your team');
+    if (status == MaintenanceTaskStatus.pendingApproval) {
+      throw StateError('Choose Completed to submit evidence');
+    }
+    final submitting = status == MaintenanceTaskStatus.completed;
+    if (submitting &&
+        ((notes?.trim().length ?? 0) < 10 || evidencePhotoPaths.length < 3)) {
+      throw StateError('Completion requires notes and three evidence photos');
+    }
     if (Firebase.apps.isEmpty) {
       final updated = task.copyWith(
-        status: status,
+        status: submitting ? MaintenanceTaskStatus.pendingApproval : status,
+        resolutionPhotoUrls: submitting ? evidencePhotoPaths : null,
+        completionSubmittedAt: submitting ? DateTime.now() : null,
+        clearSendBack: submitting,
         completionNotes: notes,
         completedAtLabel: status == MaintenanceTaskStatus.completed
             ? 'Just now'
@@ -85,12 +123,24 @@ class MaintenanceTaskDirectory {
     }
     final token = await FirebaseAuth.instance.currentUser?.getIdToken();
     if (token == null) throw StateError('A signed-in technician is required');
+    if (submitting && task.status == MaintenanceTaskStatus.assigned) {
+      final started = await ApiClient.instance.updateReport(
+        task.apiId ?? task.id,
+        idToken: token,
+        fields: const {'status': 'IN_PROGRESS'},
+      );
+      if (revision != _sessionRevision) {
+        throw StateError('Your session changed');
+      }
+      ++_refreshRevision;
+      updateTask(MaintenanceTask.fromApi(started));
+    }
     final fields = <String, String>{
       if (status == MaintenanceTaskStatus.assigned ||
           status == MaintenanceTaskStatus.inProgress)
         'status': 'IN_PROGRESS',
       if (status == MaintenanceTaskStatus.completed) ...{
-        'status': 'RESOLVED',
+        'status': 'PENDING_APPROVAL',
         'progressPercent': '100',
         'resolutionNotes': notes ?? '',
         'maintenanceFailureNotes': '',
@@ -110,6 +160,8 @@ class MaintenanceTaskDirectory {
       fields: fields,
       resolutionPhotoPaths: evidencePhotoPaths,
     );
+    if (revision != _sessionRevision) throw StateError('Your session changed');
+    ++_refreshRevision;
     final updated = MaintenanceTask.fromApi(response);
     updateTask(updated);
     return updated;
@@ -121,22 +173,11 @@ class MaintenanceTaskDirectory {
   MaintenanceTeam? teamForTask(MaintenanceTask task) =>
       MaintenanceTeamDirectory.instance.teamById(task.teamId);
 
-  /// Whether [currentUserId] may submit completion evidence for [task].
-  ///
-  /// If the team has a lead, only the lead may submit — once one member
-  /// submits, [updateTask] above updates the single shared task record, so
-  /// every teammate immediately sees it as done rather than each having
-  /// their own separate copy to individually mark complete. If the team
-  /// has no lead set (or can't be resolved at all), any member may submit,
-  /// since there's no one designated to be the sole submitter.
+  /// Any member of the assigned team may submit; the officer reviews it.
+  /// Server-side authorization remains authoritative for real requests.
   bool canSubmitEvidence(MaintenanceTask task) {
-    final team = teamForTask(task);
-    final leadUserId =
-        team?.leadUserId ??
-        (MaintenanceSession.instance.profile.value.teamId == task.teamId
-            ? MaintenanceSession.instance.profile.value.teamLeadUserId
-            : null);
-    if (leadUserId == null) return true;
-    return leadUserId == currentUserId;
+    if (!task.needsEvidence) return false;
+    if (Firebase.apps.isEmpty) return true;
+    return MaintenanceSession.instance.profile.value.teamId == task.teamId;
   }
 }
