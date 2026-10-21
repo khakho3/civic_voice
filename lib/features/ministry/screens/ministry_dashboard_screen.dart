@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/ghana_refresh_indicator.dart';
+import '../../../models/report_status.dart';
 import '../../../widgets/app_state_message.dart';
 import '../../../widgets/glass_card.dart';
 import '../../../widgets/stat_tile.dart';
@@ -87,15 +88,12 @@ class MinistryDashboardScreen extends StatefulWidget {
 }
 
 class _MinistryDashboardScreenState extends State<MinistryDashboardScreen> {
-  late MinistryDashboardViewState _state = widget.initialState;
-  MinistryDashboardData get _data =>
-      widget.data ?? MinistryDashboardData.mock();
+  late final MinistryDashboardViewState _state = widget.initialState;
 
-  void _retry() {
-    setState(() => _state = MinistryDashboardViewState.loading);
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (mounted) setState(() => _state = MinistryDashboardViewState.loaded);
-    });
+  void _requestRefresh() {
+    // State ownership stays with the real data directory. Do not pretend a
+    // retry succeeded merely because a local timer elapsed.
+    widget.onRefresh?.call();
   }
 
   Widget _wrapWithRefresh(Widget child) {
@@ -127,24 +125,16 @@ class _MinistryDashboardScreenState extends State<MinistryDashboardScreen> {
       body: switch (_state) {
         MinistryDashboardViewState.loading => const _LoadingSkeleton(),
         MinistryDashboardViewState.loaded => _wrapWithRefresh(
-          _DashboardContent(
-            data: _data,
-            onViewAllMunicipalities: widget.onNavigateToMunicipalities,
-            onOpenMunicipality: widget.onOpenMunicipality,
-          ),
+          widget.data == null || widget.data!.stats.totalReports == 0
+              ? _ZeroDashboardContent(onRefresh: widget.onRefresh)
+              : _DashboardContent(
+                  data: widget.data!,
+                  onViewAllMunicipalities: widget.onNavigateToMunicipalities,
+                  onOpenMunicipality: widget.onOpenMunicipality,
+                ),
         ),
-        MinistryDashboardViewState.empty => Padding(
-          padding: MinistryScaffold.contentPadding(context),
-          child: AppStateMessage(
-            icon: AppIcons.report,
-            badgeColor: AppColors.primary,
-            title: 'No Analytics Available',
-            message:
-                'Aggregated ministry analytics will appear here once '
-                'reports are available.',
-            primaryActionLabel: 'Refresh',
-            onPrimaryAction: _retry,
-          ),
+        MinistryDashboardViewState.empty => _wrapWithRefresh(
+          _ZeroDashboardContent(onRefresh: widget.onRefresh),
         ),
         MinistryDashboardViewState.offline => Padding(
           padding: MinistryScaffold.contentPadding(context),
@@ -154,7 +144,7 @@ class _MinistryDashboardScreenState extends State<MinistryDashboardScreen> {
             title: 'You\'re offline',
             message: 'Check your connection and retry loading the dashboard.',
             primaryActionLabel: 'Retry connection',
-            onPrimaryAction: _retry,
+            onPrimaryAction: widget.onRefresh == null ? null : _requestRefresh,
             primaryActionColor: AppColors.error,
           ),
         ),
@@ -168,7 +158,7 @@ class _MinistryDashboardScreenState extends State<MinistryDashboardScreen> {
                 'The ministry dashboard service could not return '
                 'aggregated performance data right now.',
             primaryActionLabel: 'Try again',
-            onPrimaryAction: _retry,
+            onPrimaryAction: widget.onRefresh == null ? null : _requestRefresh,
             primaryActionColor: AppColors.error,
           ),
         ),
@@ -192,6 +182,53 @@ class _MinistryDashboardScreenState extends State<MinistryDashboardScreen> {
 // ---------------------------------------------------------------------------
 // Loaded content
 // ---------------------------------------------------------------------------
+
+class _ZeroDashboardContent extends StatelessWidget {
+  const _ZeroDashboardContent({this.onRefresh});
+
+  final Future<void> Function()? onRefresh;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final chromeInset = MinistryScaffold.contentPadding(context);
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        chromeInset.top + AppSpacing.md,
+        AppSpacing.md,
+        chromeInset.bottom + AppSpacing.xl,
+      ),
+      children: [
+        Text('Ministry Supervisor', style: textTheme.bodySmall),
+        Text('National Dashboard', style: textTheme.headlineSmall),
+        const SizedBox(height: AppSpacing.xl),
+        _StatsGrid(stats: MinistryDashboardData.zero.stats),
+        const SizedBox(height: AppSpacing.xl),
+        GlassCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Welcome to the national dashboard', style: textTheme.titleMedium),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                'Reports and municipality performance will appear here once '
+                'scoped report data is available.',
+                style: textTheme.bodyMedium,
+              ),
+              const SizedBox(height: AppSpacing.md),
+              TextButton(
+                onPressed: onRefresh == null ? null : () => onRefresh!(),
+                child: const Text('Refresh'),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
 
 class _DashboardContent extends StatelessWidget {
   const _DashboardContent({
@@ -290,8 +327,6 @@ class _StatsGrid extends StatelessWidget {
                     iconColor: AppSemanticColors.of(context).actionText,
                     label: 'Total Reports',
                     value: _formatCount(stats.totalReports),
-                    delta: '+${stats.totalReportsChangePercent}%',
-                    deltaColor: AppColors.primary,
                   ),
                 ),
                 const StatTileDivider(),
@@ -299,10 +334,8 @@ class _StatsGrid extends StatelessWidget {
                   child: StatTile(
                     icon: AppIcons.warning,
                     iconColor: AppColors.statusUnderReview,
-                    label: 'Under Review',
-                    value: _formatCount(stats.underReview),
-                    delta: '${stats.underReviewPercent}%',
-                    deltaColor: AppColors.statusUnderReview,
+                    label: 'Open Work',
+                    value: _formatCount(stats.openWork),
                   ),
                 ),
               ],
@@ -319,8 +352,6 @@ class _StatsGrid extends StatelessWidget {
                     iconColor: AppColors.statusResolved,
                     label: 'Resolved',
                     value: _formatCount(stats.resolved),
-                    delta: '${stats.resolvedPercent}%',
-                    deltaColor: AppColors.statusResolved,
                   ),
                 ),
                 const StatTileDivider(),
@@ -330,8 +361,6 @@ class _StatsGrid extends StatelessWidget {
                     iconColor: AppColors.statusAssigned,
                     label: 'Municipalities',
                     value: '${stats.activeMunicipalities}',
-                    delta: 'Active',
-                    deltaColor: AppColors.statusAssigned,
                   ),
                 ),
               ],
@@ -460,7 +489,7 @@ class _QuickInsightsGrid extends StatelessWidget {
                     dotColor: AppColors.statusSubmitted,
                     label: 'Submitted',
                     sublabel:
-                        '${insights.submittedPercent}% of national reports',
+                        '${insights.percent(ReportStatus.submitted)}% of national reports',
                   ),
                 ),
                 const StatTileDivider(),
@@ -469,7 +498,7 @@ class _QuickInsightsGrid extends StatelessWidget {
                     dotColor: AppColors.statusUnderReview,
                     label: 'Under Review',
                     sublabel:
-                        '${insights.underReviewPercent}% of national reports',
+                        '${insights.percent(ReportStatus.underReview)}% of national reports',
                   ),
                 ),
               ],
@@ -485,7 +514,7 @@ class _QuickInsightsGrid extends StatelessWidget {
                     dotColor: AppColors.statusAssigned,
                     label: 'Assigned',
                     sublabel:
-                        '${insights.assignedPercent}% of national reports',
+                        '${insights.percent(ReportStatus.assigned)}% of national reports',
                   ),
                 ),
                 const StatTileDivider(),
@@ -494,11 +523,18 @@ class _QuickInsightsGrid extends StatelessWidget {
                     dotColor: AppColors.statusInProgress,
                     label: 'In Progress',
                     sublabel:
-                        '${insights.inProgressPercent}% of national reports',
+                        '${insights.percent(ReportStatus.inProgress)}% of national reports',
                   ),
                 ),
               ],
             ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          _QuickInsightCard(
+            dotColor: AppColors.statusPendingApproval,
+            label: 'Awaiting Confirmation',
+            sublabel:
+                '${insights.percent(ReportStatus.pendingApproval)}% of national reports',
           ),
         ],
       ),

@@ -7,7 +7,6 @@ import '../../../widgets/app_dropdown_field.dart';
 import '../../../widgets/app_state_message.dart';
 import '../../../widgets/coming_soon_badge.dart';
 import '../../../widgets/confirm_dialog.dart';
-import '../../../widgets/settings_section.dart';
 import '../models/admin_system_settings_data.dart';
 import '../services/admin_system_settings_directory.dart';
 import '../widgets/admin_scaffold.dart';
@@ -117,6 +116,9 @@ class _AdminSystemSettingsScreenState extends State<AdminSystemSettingsScreen> {
     AdminSystemSettingsDirectory.instance.settings.addListener(
       _syncSavedSettings,
     );
+    AdminSystemSettingsDirectory.instance.state.addListener(
+      _syncDirectoryState,
+    );
     if (Firebase.apps.isNotEmpty &&
         widget.initialState == AdminSystemSettingsViewState.loaded &&
         !AdminSystemSettingsDirectory.instance.hasLiveSnapshot) {
@@ -129,7 +131,18 @@ class _AdminSystemSettingsScreenState extends State<AdminSystemSettingsScreen> {
     AdminSystemSettingsDirectory.instance.settings.removeListener(
       _syncSavedSettings,
     );
+    AdminSystemSettingsDirectory.instance.state.removeListener(
+      _syncDirectoryState,
+    );
     super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(covariant AdminSystemSettingsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialState != oldWidget.initialState) {
+      _state = widget.initialState;
+    }
   }
 
   void _syncSavedSettings() {
@@ -140,7 +153,22 @@ class _AdminSystemSettingsScreenState extends State<AdminSystemSettingsScreen> {
     });
   }
 
+  void _syncDirectoryState() {
+    if (mounted) setState(() {});
+  }
+
+  bool get _hasLiveSnapshot =>
+      AdminSystemSettingsDirectory.instance.hasLiveSnapshot;
+
+  bool get _canRetry => AdminSystemSettingsDirectory.instance.canRefresh;
+
+  bool get _showStaleSettings =>
+      AdminSystemSettingsDirectory.instance.state.value ==
+          AdminSystemSettingsDirectoryState.failed &&
+      _hasLiveSnapshot;
+
   Future<void> _load() async {
+    if (!_canRetry) return;
     setState(() => _state = AdminSystemSettingsViewState.loading);
     try {
       await AdminSystemSettingsDirectory.instance.refresh();
@@ -149,12 +177,17 @@ class _AdminSystemSettingsScreenState extends State<AdminSystemSettingsScreen> {
       }
     } catch (_) {
       if (mounted) {
-        setState(() => _state = AdminSystemSettingsViewState.error);
+        setState(
+          () => _state = _hasLiveSnapshot
+              ? AdminSystemSettingsViewState.loaded
+              : AdminSystemSettingsViewState.error,
+        );
       }
     }
   }
 
   void _update(SystemSettingsData Function(SystemSettingsData) update) {
+    if (_saveState == SystemSettingsSaveState.saving) return;
     setState(() {
       _draft = update(_draft);
       _saveState = SystemSettingsSaveState.idle;
@@ -162,6 +195,7 @@ class _AdminSystemSettingsScreenState extends State<AdminSystemSettingsScreen> {
   }
 
   void _resetChanges() {
+    if (_saveState == SystemSettingsSaveState.saving) return;
     setState(() {
       _draft = _original;
       _saveState = SystemSettingsSaveState.idle;
@@ -169,23 +203,27 @@ class _AdminSystemSettingsScreenState extends State<AdminSystemSettingsScreen> {
   }
 
   Future<void> _saveChanges() async {
+    if (_saveState == SystemSettingsSaveState.saving) return;
     final confirmed = await showConfirmDialog(
       context,
       title: 'Save system settings?',
       message:
-          'These changes apply platform-wide and take effect '
-          'immediately for every account.',
+          'Supported settings will be sent to the authorized server. '
+          'Server policy determines where they are enforced.',
       confirmLabel: 'Save Changes',
       destructive: true,
     );
-    if (!confirmed || !mounted) return;
+    if (!confirmed || !mounted || _saveState == SystemSettingsSaveState.saving) {
+      return;
+    }
 
     setState(() => _saveState = SystemSettingsSaveState.saving);
     try {
       await AdminSystemSettingsDirectory.instance.save(_draft);
       if (!mounted) return;
       setState(() {
-        _original = _draft;
+        _original = AdminSystemSettingsDirectory.instance.settings.value;
+        _draft = _original;
         _saveState = SystemSettingsSaveState.saved;
       });
     } catch (_) {
@@ -196,6 +234,16 @@ class _AdminSystemSettingsScreenState extends State<AdminSystemSettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final directoryState = AdminSystemSettingsDirectory.instance.state.value;
+    final directoryLoading =
+        directoryState == AdminSystemSettingsDirectoryState.loading;
+    final directoryUnavailable =
+        directoryState == AdminSystemSettingsDirectoryState.unavailable;
+    final showUnavailable =
+        directoryUnavailable &&
+        !_hasLiveSnapshot &&
+        (_state == AdminSystemSettingsViewState.loaded ||
+            (_state == AdminSystemSettingsViewState.loading && !_canRetry));
     return AdminScaffold(
       selectedTab: AdminTab.settings,
       onNotificationsTap: widget.onNotificationsTap,
@@ -210,12 +258,17 @@ class _AdminSystemSettingsScreenState extends State<AdminSystemSettingsScreen> {
       onOpenRoleManagement: widget.onNavigateToRoles,
       onOpenMaintenanceTeams: widget.onNavigateToMaintenanceTeams,
       onOpenProfile: widget.onOpenProfile,
-      body: switch (_state) {
+      body: directoryLoading
+          ? const _LoadingSkeleton()
+          : showUnavailable
+          ? _UnavailableSystemSettings(onRetry: _canRetry ? _load : null)
+          : switch (_state) {
         AdminSystemSettingsViewState.loading => const _LoadingSkeleton(),
         AdminSystemSettingsViewState.loaded => _SettingsForm(
           original: _original,
           draft: _draft,
           saveState: _saveState,
+          showStaleSettings: _showStaleSettings,
           onUpdate: _update,
           onReset: _resetChanges,
           onSave: _saveChanges,
@@ -237,7 +290,7 @@ class _AdminSystemSettingsScreenState extends State<AdminSystemSettingsScreen> {
                     'Check your connection and retry loading system '
                     'settings.',
                 primaryActionLabel: 'Retry connection',
-                onPrimaryAction: _load,
+                onPrimaryAction: _canRetry ? _load : null,
                 primaryActionColor: AppColors.error,
                 bordered: true,
               ),
@@ -247,7 +300,7 @@ class _AdminSystemSettingsScreenState extends State<AdminSystemSettingsScreen> {
                 title: 'Something went wrong',
                 message: 'Unable to load system settings right now.',
                 primaryActionLabel: 'Retry',
-                onPrimaryAction: _load,
+                onPrimaryAction: _canRetry ? _load : null,
                 primaryActionColor: AppColors.error,
                 bordered: true,
               ),
@@ -277,6 +330,7 @@ class _SettingsForm extends StatelessWidget {
     required this.original,
     required this.draft,
     required this.saveState,
+    required this.showStaleSettings,
     required this.onUpdate,
     required this.onReset,
     required this.onSave,
@@ -285,6 +339,7 @@ class _SettingsForm extends StatelessWidget {
   final SystemSettingsData original;
   final SystemSettingsData draft;
   final SystemSettingsSaveState saveState;
+  final bool showStaleSettings;
   final void Function(SystemSettingsData Function(SystemSettingsData)) onUpdate;
   final VoidCallback onReset;
   final VoidCallback onSave;
@@ -293,6 +348,7 @@ class _SettingsForm extends StatelessWidget {
   Widget build(BuildContext context) {
     final chromeInset = AdminScaffold.contentPadding(context);
     final dirty = draft != original;
+    final isSaving = saveState == SystemSettingsSaveState.saving;
 
     return ListView(
       padding: EdgeInsets.fromLTRB(
@@ -309,7 +365,7 @@ class _SettingsForm extends StatelessWidget {
               icon: AppIcons.success,
               color: AppColors.statusResolved,
               title: 'Configuration saved',
-              message: 'System settings were updated successfully.',
+              message: 'Supported settings were accepted by the server.',
             ),
           ),
           SystemSettingsSaveState.failed => const Padding(
@@ -325,11 +381,13 @@ class _SettingsForm extends StatelessWidget {
           ),
           _ => const SizedBox.shrink(),
         },
-        SettingsSection(
-          icon: AppIcons.filter,
-          title: 'General Configuration',
+        if (showStaleSettings) const Padding(
+          padding: EdgeInsets.only(bottom: AppSpacing.sm),
+          child: _SettingsStaleNotice(),
+        ),
+        _SystemPreferencesSection(
           children: [
-            SettingsRow(
+            _SystemPreferenceRow(
               label: 'Default Language',
               badge: const ComingSoonBadge(),
               trailing: Text(
@@ -339,55 +397,46 @@ class _SettingsForm extends StatelessWidget {
                 ),
               ),
             ),
-            SettingsRow(
+            _SystemPreferenceRow(
               label: 'Maintenance Mode',
               badge: const ComingSoonBadge(),
               description:
                   'Restricts platform access during approved maintenance.',
               trailing: const Switch(value: false, onChanged: null),
             ),
-          ],
-        ),
-        const SizedBox(height: AppSpacing.lg),
-        SettingsSection(
-          icon: AppIcons.shield,
-          title: 'Security & Access',
-          children: [
-            SettingsRow(
+            _SystemPreferenceRow(
               label: 'Session timeout',
               description: 'Signs out an idle session automatically.',
               trailing: _InlineDropdown(
                 value: draft.sessionTimeout,
                 options: kSessionTimeoutOptions,
-                onChanged: (v) =>
-                    onUpdate((d) => d.copyWith(sessionTimeout: v)),
+                onChanged: isSaving
+                    ? null
+                    : (v) => onUpdate((d) => d.copyWith(sessionTimeout: v)),
               ),
             ),
-            SettingsRow(
+            _SystemPreferenceRow(
               label: 'Audit logging',
               description: 'Retains administrative activity records.',
               trailing: Switch(
                 value: draft.auditLogging,
-                onChanged: (v) => onUpdate((d) => d.copyWith(auditLogging: v)),
+                onChanged: isSaving
+                    ? null
+                    : (v) => onUpdate((d) => d.copyWith(auditLogging: v)),
               ),
             ),
-            SettingsRow(
+            _SystemPreferenceRow(
               label: 'Allow new account creation',
               description: 'Turn off to freeze provisioning platform-wide.',
               trailing: Switch(
                 value: draft.allowNewAccountCreation,
-                onChanged: (v) =>
-                    onUpdate((d) => d.copyWith(allowNewAccountCreation: v)),
+                onChanged: isSaving
+                    ? null
+                    : (v) =>
+                          onUpdate((d) => d.copyWith(allowNewAccountCreation: v)),
               ),
             ),
-          ],
-        ),
-        const SizedBox(height: AppSpacing.lg),
-        SettingsSection(
-          icon: AppIcons.globe,
-          title: 'Service Preferences',
-          children: [
-            SettingsRow(
+            _SystemPreferenceRow(
               label: 'Public status page',
               badge: const ComingSoonBadge(),
               description: 'Shows approved system availability updates.',
@@ -395,23 +444,21 @@ class _SettingsForm extends StatelessWidget {
             ),
           ],
         ),
-        if (dirty) ...[
+        if (dirty || isSaving) ...[
           const SizedBox(height: AppSpacing.lg),
           Row(
             children: [
               Expanded(
                 child: OutlinedButton(
-                  onPressed: onReset,
+                  onPressed: isSaving ? null : onReset,
                   child: const Text('Reset Changes'),
                 ),
               ),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: FilledButton(
-                  onPressed: saveState == SystemSettingsSaveState.saving
-                      ? null
-                      : onSave,
-                  child: saveState == SystemSettingsSaveState.saving
+                  onPressed: isSaving ? null : onSave,
+                  child: isSaving
                       ? const SizedBox(
                           width: AppIconSize.sm,
                           height: AppIconSize.sm,
@@ -426,6 +473,120 @@ class _SettingsForm extends StatelessWidget {
       ],
     );
   }
+}
+
+class _UnavailableSystemSettings extends StatelessWidget {
+  const _UnavailableSystemSettings({this.onRetry});
+
+  final Future<void> Function()? onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final retry = onRetry;
+    return SingleChildScrollView(
+      padding: EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AdminScaffold.contentPadding(context).top + AppSpacing.md,
+        AppSpacing.md,
+        AdminScaffold.contentPadding(context).bottom + AppSpacing.md,
+      ),
+      child: AppStateMessage(
+        icon: AppIcons.offline,
+        badgeColor: AppColors.error,
+        title: 'System settings unavailable',
+        message:
+            'Settings are unavailable until an authorized server snapshot is supplied.',
+        primaryActionLabel: onRetry == null ? null : 'Retry',
+        onPrimaryAction: retry == null ? null : () => retry(),
+        primaryActionColor: AppColors.error,
+        bordered: true,
+      ),
+    );
+  }
+}
+
+class _SettingsStaleNotice extends StatelessWidget {
+  const _SettingsStaleNotice();
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    label: 'Settings may be stale',
+    child: Text(
+      'The latest settings could not be refreshed. Showing the last confirmed server snapshot.',
+      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+        color: Theme.of(context).colorScheme.onSurfaceVariant,
+      ),
+    ),
+  );
+}
+
+class _SystemPreferencesSection extends StatelessWidget {
+  const _SystemPreferencesSection({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text('System Preferences', style: Theme.of(context).textTheme.titleMedium),
+      const SizedBox(height: AppSpacing.sm),
+      ...children,
+    ],
+  );
+}
+
+class _SystemPreferenceRow extends StatelessWidget {
+  const _SystemPreferenceRow({
+    required this.label,
+    required this.trailing,
+    this.description,
+    this.badge,
+  });
+
+  final String label;
+  final Widget trailing;
+  final String? description;
+  final Widget? badge;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+    child: Row(
+      crossAxisAlignment: description == null
+          ? CrossAxisAlignment.center
+          : CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: AppSpacing.xs,
+                runSpacing: AppSpacing.xs,
+                children: [
+                  Text(label, style: Theme.of(context).textTheme.bodyLarge),
+                  if (badge != null) badge!,
+                ],
+              ),
+              if (description != null) ...[
+                const SizedBox(height: 2),
+                Text(
+                  description!,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        trailing,
+      ],
+    ),
+  );
 }
 
 class _Banner extends StatelessWidget {

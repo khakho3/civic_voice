@@ -1,108 +1,90 @@
-import '../services/admin_user_directory.dart';
+import '../services/admin_session.dart';
 import '../services/admin_system_activity_directory.dart';
+import '../services/admin_user_directory.dart';
 import 'admin_system_activity_data.dart';
 import 'admin_user_management_data.dart';
 
-/// The four Platform Overview stat cards.
+/// Dashboard values are nullable when their authorized source has not yet
+/// supplied a genuine snapshot. A null value is unavailable, never zero.
 class AdminDashboardStats {
   const AdminDashboardStats({
     required this.totalUsers,
-    required this.totalUsersChangePercent,
     required this.activeRoles,
-    required this.activeRolesChangePercent,
-    required this.adminActionsLabel,
-    required this.openAlerts,
+    required this.adminActions,
+    required this.alertEvents,
   });
 
-  final int totalUsers;
-  final num totalUsersChangePercent;
-  final int activeRoles;
-  final num activeRolesChangePercent;
-
-  /// e.g. "1.8k" — Admin Actions has no percent delta in the approved
-  /// frame, just a "24h" window label, so this is pre-formatted text rather
-  /// than a number + separate delta pair like the other three cards.
-  final String adminActionsLabel;
-  final int openAlerts;
+  final int? totalUsers;
+  final int? activeRoles;
+  final int? adminActions;
+  final int? alertEvents;
 }
 
-/// One row in the "Activity Monitoring" audit log.
+/// A read-only dashboard preview row derived from authorized audit records.
 class AdminActivityItem {
   const AdminActivityItem({required this.title, required this.caption});
 
   final String title;
-
-  /// e.g. "Audit log · read-only".
   final String caption;
 }
 
 /// Data backing ADM-001 Admin Dashboard's loaded state.
 class AdminDashboardData {
-  const AdminDashboardData({required this.stats, required this.activity});
+  const AdminDashboardData({
+    required this.stats,
+    required this.activity,
+    required this.activityAvailable,
+  });
 
   final AdminDashboardStats stats;
   final List<AdminActivityItem> activity;
+  final bool activityAvailable;
 
-  /// Placeholder content matching the approved ADM-001 design, used until
-  /// the Cloud Firestore-backed aggregation service (Issue 05 dependency)
-  /// is wired up.
-  static AdminDashboardData mock() {
-    return const AdminDashboardData(
-      stats: AdminDashboardStats(
-        totalUsers: 12400,
-        totalUsersChangePercent: 4.2,
-        activeRoles: 48,
-        activeRolesChangePercent: 2.1,
-        adminActionsLabel: '1.8k',
-        openAlerts: 12,
-      ),
-      activity: [
-        AdminActivityItem(
-          title: 'Role permission updated',
-          caption: 'Audit log · read-only',
-        ),
-        AdminActivityItem(
-          title: 'New admin account approved',
-          caption: 'Audit log · read-only',
-        ),
-        AdminActivityItem(
-          title: 'System policy reviewed',
-          caption: 'Audit log · read-only',
-        ),
-      ],
-    );
-  }
-
+  /// Builds only from independently authorized, live snapshots. Dashboard
+  /// preview/mock directory contents are deliberately ignored.
   static AdminDashboardData current() {
-    final users = AdminUserDirectory.instance.users.value;
-    final activeUsers = users
-        .where((user) => user.status == AdminUserStatus.active)
-        .toList();
-    final auditItems = AdminSystemActivityDirectory.instance.items.value;
-    final recentAuditItems = auditItems
+    final userDirectory = AdminUserDirectory.instance;
+    final activityDirectory = AdminSystemActivityDirectory.instance;
+    final usersAvailable = userDirectory.hasLiveSnapshot;
+    final activityAvailable = activityDirectory.hasLiveSnapshot;
+    final visibleUsers = usersAvailable
+        ? AdminSession.instance.visibleUsers(userDirectory.users.value)
+        : const <AdminUserItem>[];
+    final visibleActivity = activityAvailable
+        ? AdminSession.instance.visibleActivity(activityDirectory.items.value)
+        : const <ActivityItem>[];
+    final recentActivity = visibleActivity
         .where(
           (item) =>
               DateTime.now().difference(item.timestamp) <=
               const Duration(hours: 24),
         )
         .toList();
+
     return AdminDashboardData(
       stats: AdminDashboardStats(
-        totalUsers: users.length,
-        totalUsersChangePercent: 0,
-        activeRoles: activeUsers.map((user) => user.role).toSet().length,
-        activeRolesChangePercent: 0,
-        adminActionsLabel: '${recentAuditItems.length}',
-        openAlerts: auditItems
-            .where(
-              (item) =>
-                  item.severity == ActivitySeverity.alert ||
-                  item.severity == ActivitySeverity.critical,
-            )
-            .length,
+        totalUsers: usersAvailable ? visibleUsers.length : null,
+        activeRoles: usersAvailable
+            ? visibleUsers
+                  .where((user) => user.status == AdminUserStatus.active)
+                  .map((user) => user.role)
+                  .toSet()
+                  .length
+            : null,
+        adminActions: activityAvailable ? recentActivity.length : null,
+        alertEvents: activityAvailable
+            ? visibleActivity
+                  .where(
+                    (item) =>
+                        item.severity == ActivitySeverity.alert ||
+                        item.severity == ActivitySeverity.critical,
+                  )
+                  .length
+            : null,
       ),
+      activityAvailable: activityAvailable,
       activity: [
-        for (final item in auditItems.take(3))
+        for (final item in visibleActivity.take(3))
           AdminActivityItem(
             title: item.title,
             caption: '${item.tag} · ${item.severity.label}',

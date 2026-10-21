@@ -100,21 +100,13 @@ class AdminRoleManagementScreen extends StatefulWidget {
 }
 
 class _AdminRoleManagementScreenState extends State<AdminRoleManagementScreen> {
-  late AdminRoleManagementViewState _state = widget.initialState;
-
-  void _retry() {
-    setState(() => _state = AdminRoleManagementViewState.loading);
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (mounted) {
-        setState(() => _state = AdminRoleManagementViewState.loaded);
-      }
-    });
-  }
+  late final AdminRoleManagementViewState _state = widget.initialState;
 
   @override
   Widget build(BuildContext context) {
     return AdminScaffold(
       selectedTab: null,
+      activeDrawerDestination: AdminDrawerDestination.roleManagement,
       headerTitle: 'Role Management',
       onNotificationsTap: widget.onNotificationsTap,
       onTabSelected: (tab) {
@@ -130,11 +122,7 @@ class _AdminRoleManagementScreenState extends State<AdminRoleManagementScreen> {
       onOpenProfile: widget.onOpenProfile,
       body: switch (_state) {
         AdminRoleManagementViewState.loading => const _LoadingSkeleton(),
-        _ => _RoleManagementBody(
-          state: _state,
-          onRetry: _retry,
-          onNavigateToActivity: widget.onNavigateToActivity,
-        ),
+        _ => _RoleManagementBody(state: _state),
       },
     );
   }
@@ -145,15 +133,9 @@ class _AdminRoleManagementScreenState extends State<AdminRoleManagementScreen> {
 // ---------------------------------------------------------------------------
 
 class _RoleManagementBody extends StatelessWidget {
-  const _RoleManagementBody({
-    required this.state,
-    required this.onRetry,
-    this.onNavigateToActivity,
-  });
+  const _RoleManagementBody({required this.state});
 
   final AdminRoleManagementViewState state;
-  final VoidCallback onRetry;
-  final VoidCallback? onNavigateToActivity;
 
   @override
   Widget build(BuildContext context) {
@@ -189,27 +171,23 @@ class _RoleManagementBody extends StatelessWidget {
         const SizedBox(height: AppSpacing.lg),
         switch (state) {
           AdminRoleManagementViewState.loading ||
-          AdminRoleManagementViewState.loaded => _LoadedContent(
-            onNavigateToActivity: onNavigateToActivity,
-          ),
-          AdminRoleManagementViewState.offline => AppStateMessage(
+          AdminRoleManagementViewState.loaded => const _LoadedContent(),
+          AdminRoleManagementViewState.offline => const AppStateMessage(
             icon: AppIcons.offline,
             badgeColor: AppColors.error,
             title: 'You\'re offline',
-            message: 'Check your connection and retry loading role management.',
-            primaryActionLabel: 'Retry connection',
-            onPrimaryAction: onRetry,
-            primaryActionColor: AppColors.error,
+            message:
+                'Role reference information is unavailable while offline. '
+                'No live role refresh is available in this build.',
             bordered: true,
           ),
-          AdminRoleManagementViewState.error => AppStateMessage(
+          AdminRoleManagementViewState.error => const AppStateMessage(
             icon: AppIcons.warning,
             badgeColor: AppColors.error,
             title: 'Something went wrong',
-            message: 'Unable to load system roles right now.',
-            primaryActionLabel: 'Retry',
-            onPrimaryAction: onRetry,
-            primaryActionColor: AppColors.error,
+            message:
+                'Role reference information could not be shown. '
+                'No live role refresh is available in this build.',
             bordered: true,
           ),
           AdminRoleManagementViewState.unauthorized => const AppStateMessage(
@@ -230,9 +208,7 @@ class _RoleManagementBody extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _LoadedContent extends StatelessWidget {
-  const _LoadedContent({this.onNavigateToActivity});
-
-  final VoidCallback? onNavigateToActivity;
+  const _LoadedContent();
 
   @override
   Widget build(BuildContext context) {
@@ -249,56 +225,15 @@ class _LoadedContent extends StatelessWidget {
           ),
         const SizedBox(height: AppSpacing.sm),
         GlassCard(
-          border: Border.all(color: AppColors.error.withValues(alpha: 0.4)),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: AppIconSize.lg,
-                    height: AppIconSize.lg,
-                    decoration: BoxDecoration(
-                      color: AppColors.error.withValues(alpha: 0.12),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      AppIcons.shieldAlert,
-                      size: AppIconSize.sm + 2,
-                      color: AppColors.error,
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.md),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Security Audit Required',
-                          style: textTheme.titleSmall,
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Last full permission audit was 14 days ago. '
-                          'Review logs for anomalies.',
-                          style: textTheme.bodySmall,
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.md),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppSemanticColors.of(context).actionFill,
-                  ),
-                  onPressed: onNavigateToActivity,
-                  child: const Text('View Detailed Logs'),
-                ),
+              Text('Audit history unavailable', style: textTheme.titleSmall),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                'Verified permission-audit history and detailed audit '
+                'navigation are not available in this build.',
+                style: textTheme.bodySmall,
               ),
             ],
           ),
@@ -308,7 +243,15 @@ class _LoadedContent extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Quick Permissions Check', style: textTheme.titleMedium),
+              Text(
+                'Reference permission comparison',
+                style: textTheme.titleMedium,
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                'This reference does not verify current server authorization.',
+                style: textTheme.bodySmall,
+              ),
               const SizedBox(height: AppSpacing.md),
               const _PermissionTable(tiers: tiers),
             ],
@@ -328,6 +271,7 @@ class _PermissionTable extends StatelessWidget {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final colorScheme = Theme.of(context).colorScheme;
+    final textScale = MediaQuery.textScalerOf(context).textScaleFactor;
 
     Widget headerCell(String label, {int flex = 1}) => Expanded(
       flex: flex,
@@ -340,6 +284,35 @@ class _PermissionTable extends StatelessWidget {
         overflow: TextOverflow.ellipsis,
       ),
     );
+
+    final isCompact = MediaQuery.sizeOf(context).width < 400 || textScale > 1.2;
+    if (isCompact) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final permission in PermissionType.values) ...[
+            Text(permission.label, style: textTheme.bodyMedium),
+            const SizedBox(height: AppSpacing.xs),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (final tier in tiers)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+                    child: _ReferencePermissionResult(
+                      tier: tier,
+                      permission: permission,
+                      allowed: tier.permissions[permission] ?? false,
+                    ),
+                  ),
+              ],
+            ),
+            if (permission != PermissionType.values.last)
+              const Divider(height: AppSpacing.lg),
+          ],
+        ],
+      );
+    }
 
     return Column(
       children: [
@@ -365,16 +338,11 @@ class _PermissionTable extends StatelessWidget {
               for (final tier in tiers)
                 Expanded(
                   flex: 1,
-                  child: Center(
-                    child: Icon(
-                      tier.permissions[PermissionType.values[i]] ?? false
-                          ? AppIcons.success
-                          : AppIcons.statusRejected,
-                      size: AppIconSize.md,
-                      color: tier.permissions[PermissionType.values[i]] ?? false
-                          ? AppColors.statusResolved
-                          : AppColors.error,
-                    ),
+                  child: _ReferencePermissionResult(
+                    tier: tier,
+                    permission: PermissionType.values[i],
+                    allowed: tier.permissions[PermissionType.values[i]] ?? false,
+                    compact: true,
                   ),
                 ),
             ],
@@ -383,6 +351,52 @@ class _PermissionTable extends StatelessWidget {
             const Divider(height: AppSpacing.lg),
         ],
       ],
+    );
+  }
+}
+
+class _ReferencePermissionResult extends StatelessWidget {
+  const _ReferencePermissionResult({
+    required this.tier,
+    required this.permission,
+    required this.allowed,
+    this.compact = false,
+  });
+
+  final AdminTier tier;
+  final PermissionType permission;
+  final bool allowed;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final label =
+        'Reference permission: ${tier.label} '
+        '${allowed ? 'allows' : 'does not include'} ${permission.label}.';
+    final color = allowed ? AppColors.statusResolved : AppColors.error;
+    final icon = allowed ? AppIcons.success : AppIcons.statusRejected;
+
+    return Semantics(
+      container: true,
+      label: label,
+      child: ExcludeSemantics(
+        child: compact
+            ? Center(child: Icon(icon, size: AppIconSize.md, color: color))
+            : Row(
+                children: [
+                  Icon(icon, size: AppIconSize.md, color: color),
+                  const SizedBox(width: AppSpacing.xs),
+                  Flexible(
+                    child: Text(
+                      '${tier.label}: ${allowed ? 'Allowed' : 'Not included'}',
+                      style: Theme.of(context).textTheme.labelMedium,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+      ),
     );
   }
 }
@@ -444,6 +458,13 @@ class _TierCard extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(tier.description, style: textTheme.bodyMedium),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            'Reference tier — server enforcement is verified separately.',
+            style: textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
           const SizedBox(height: AppSpacing.sm),
           Wrap(
             spacing: AppSpacing.xs,

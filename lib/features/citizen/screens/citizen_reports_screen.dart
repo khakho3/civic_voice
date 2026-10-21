@@ -7,6 +7,7 @@ import '../models/civic_report.dart';
 import '../services/report_crud_service.dart';
 import '../widgets/civic_app_chrome.dart';
 import 'citizen_tab_routes.dart';
+import 'create_report_screen.dart';
 import 'report_tracking_screen.dart';
 
 enum _ReportFilter {
@@ -76,9 +77,11 @@ class _CitizenReportsScreenState extends State<CitizenReportsScreen> {
   }
 
   void _openCreateReport() {
-    Navigator.of(context).pushAndRemoveUntil(
-      citizenCreateReportTabRoute(context),
-      (route) => route.isFirst,
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        settings: const RouteSettings(name: CreateReportScreen.routeName),
+        builder: (_) => const CreateReportScreen(returnToReports: true),
+      ),
     );
   }
 
@@ -269,81 +272,102 @@ class _ReportHistoryCard extends StatelessWidget {
 
   final CivicReport report;
 
+  void _openTracking(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => ReportTrackingScreen(reportId: report.id),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final statusColor = report.status.color;
+    final reference = report.referenceNumber.isEmpty
+        ? 'Reference pending'
+        : report.referenceNumber;
+    final semanticLabel =
+        'Open report ${report.title}. Location: ${report.location}. '
+        'Status: ${report.status.label}. '
+        'Progress: ${report.status.progressPercent}%. Reference: $reference.';
 
-    return CivicGlassCard(
-      borderRadius: AppRadius.allLg,
-      padding: const EdgeInsets.all(AppSpacing.md),
-      backgroundColor: theme.colorScheme.surfaceContainerLow,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
+    return Semantics(
+      key: ValueKey('report-history-card-${report.id}'),
+      container: true,
+      button: true,
+      label: semanticLabel,
+      hint: 'Opens report tracking',
+      onTap: () => _openTracking(context),
+      excludeSemantics: true,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: AppRadius.allLg,
+          onTap: () => _openTracking(context),
+          child: CivicGlassCard(
+            borderRadius: AppRadius.allLg,
+            padding: const EdgeInsets.all(AppSpacing.md),
+            backgroundColor: theme.colorScheme.surfaceContainerLow,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      report.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: AppFontWeight.bold,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            report.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: AppFontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.xs),
+                          _ReportInfoLine(
+                            icon: AppIcons.location,
+                            label: report.location,
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.xs),
-                    _ReportInfoLine(
-                      icon: AppIcons.location,
-                      label: report.location,
+                    _StatusPill(
+                      label: report.status.label,
+                      color: statusColor,
                     ),
                   ],
                 ),
-              ),
-              _StatusPill(label: report.status.label, color: statusColor),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.md),
-          _ReportProgress(status: report.status),
-          const SizedBox(height: AppSpacing.md),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  report.referenceNumber.isEmpty
-                      ? 'Reference pending'
-                      : report.referenceNumber,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: theme.colorScheme.secondary,
-                    fontWeight: AppFontWeight.semiBold,
-                  ),
-                ),
-              ),
-              FilledButton(
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => ReportTrackingScreen(reportId: report.id),
+                const SizedBox(height: AppSpacing.md),
+                _ReportProgress(status: report.status),
+                const SizedBox(height: AppSpacing.md),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        reference,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.secondary,
+                          fontWeight: AppFontWeight.semiBold,
+                        ),
+                      ),
                     ),
-                  );
-                },
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size(104, 42),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.md,
-                  ),
+                    Icon(
+                      AppIcons.chevronRight,
+                      size: AppIconSize.md,
+                      color: theme.colorScheme.secondary,
+                    ),
+                  ],
                 ),
-                child: const Text('View Report'),
-              ),
-            ],
+              ],
+            ),
           ),
-        ],
+        ),
       ),
     );
   }

@@ -131,15 +131,6 @@ class _AdminUserDetailsScreenState extends State<AdminUserDetailsScreen> {
   bool _showSuccess = false;
   bool _saving = false;
 
-  void _retry() {
-    setState(() => _state = AdminUserDetailsViewState.loading);
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (mounted) {
-        setState(() => _state = AdminUserDetailsViewState.loaded);
-      }
-    });
-  }
-
   Future<void> _handleCancel() async {
     final dirty =
         _role != widget.user.role ||
@@ -306,21 +297,17 @@ class _AdminUserDetailsScreenState extends State<AdminUserDetailsScreen> {
                   badgeColor: AppColors.error,
                   title: 'You\'re offline',
                   message:
-                      'Check your connection and retry loading user '
-                      'details.',
-                  primaryActionLabel: 'Retry connection',
-                  onPrimaryAction: _retry,
-                  primaryActionColor: AppColors.error,
+                      'User details cannot be reloaded from this screen '
+                      'while offline.',
                   bordered: true,
                 ),
                 AdminUserDetailsViewState.error => AppStateMessage(
                   icon: AppIcons.warning,
                   badgeColor: AppColors.error,
                   title: 'Something went wrong',
-                  message: 'Unable to load user details right now.',
-                  primaryActionLabel: 'Retry',
-                  onPrimaryAction: _retry,
-                  primaryActionColor: AppColors.error,
+                  message:
+                      'Unable to load user details right now. Reloading '
+                      'details is not available from this screen.',
                   bordered: true,
                 ),
                 AdminUserDetailsViewState.unauthorized => const AppStateMessage(
@@ -427,11 +414,14 @@ class _DetailsForm extends StatelessWidget {
           const _SuccessBanner(),
           const SizedBox(height: AppSpacing.sm),
         ],
-        _ProfileCard(user: user, previewRole: role, previewStatus: status),
+        _CompactIdentity(
+          user: user,
+          previewRole: role,
+          previewStatus: status,
+        ),
         const SizedBox(height: AppSpacing.lg),
         _Section(
-          icon: AppIcons.email,
-          title: 'User Information',
+          title: 'Account information',
           child: Column(
             children: [
               _ReadOnlyField(label: 'Full Name', value: user.name),
@@ -449,8 +439,7 @@ class _DetailsForm extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.lg),
         _Section(
-          icon: AppIcons.shield,
-          title: 'Access Management',
+          title: 'Access',
           child: Column(
             children: [
               if (canEditRole)
@@ -504,8 +493,7 @@ class _DetailsForm extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.lg),
         _Section(
-          icon: AppIcons.shield,
-          title: 'Permissions Summary',
+          title: 'Permissions',
           child: preview.permissionSummary.isEmpty
               ? Text(
                   'No permissions granted.',
@@ -522,7 +510,6 @@ class _DetailsForm extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.lg),
         _Section(
-          icon: AppIcons.task,
           title: 'Account Activity',
           child: Column(
             children: [
@@ -539,6 +526,11 @@ class _DetailsForm extends StatelessWidget {
           ),
         ),
         const SizedBox(height: AppSpacing.lg),
+        Text(
+          'Administrative actions',
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+        const SizedBox(height: AppSpacing.sm),
         Row(
           children: [
             Expanded(
@@ -567,8 +559,8 @@ class _DetailsForm extends StatelessWidget {
   }
 }
 
-class _ProfileCard extends StatelessWidget {
-  const _ProfileCard({
+class _CompactIdentity extends StatelessWidget {
+  const _CompactIdentity({
     required this.user,
     required this.previewRole,
     required this.previewStatus,
@@ -581,67 +573,91 @@ class _ProfileCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    final colorScheme = Theme.of(context).colorScheme;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: AppComponentRadius.card,
-        border: Border.all(color: colorScheme.outlineVariant),
-      ),
-      child: Column(
-        children: [
-          Container(
-            width: 96,
-            height: 96,
+    final actionColor = AppSemanticColors.of(context).actionText;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ExcludeSemantics(
+          child: Container(
+            width: 48,
+            height: 48,
+            alignment: Alignment.center,
             decoration: BoxDecoration(
               color: AppColors.primary.withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
-            child: Icon(
-              AppIcons.profile,
-              size: AppIconSize.xl,
-              color: AppSemanticColors.of(context).actionText,
+            child: Text(
+              user.initials,
+              style: textTheme.titleMedium?.copyWith(
+                color: actionColor,
+                fontWeight: AppFontWeight.semiBold,
+              ),
             ),
           ),
-          const SizedBox(height: AppSpacing.md),
-          Text(
-            user.name,
-            style: textTheme.titleLarge,
-            textAlign: TextAlign.center,
-          ),
-          Text(
-            user.phone,
-            style: textTheme.bodyMedium,
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Wrap(
-            alignment: WrapAlignment.center,
-            spacing: AppSpacing.xs,
-            runSpacing: AppSpacing.xs,
+        ),
+        const SizedBox(width: AppSpacing.md),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _Pill(
-                icon: previewRole.icon,
-                label: previewRole.label,
-                color: AppSemanticColors.of(context).actionText,
+              Semantics(
+                container: true,
+                label:
+                    'User identity: ${user.name}, ${user.phone}, '
+                    '${previewRole.label}',
+                child: ExcludeSemantics(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        user.name,
+                        style: textTheme.titleLarge,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        user.phone,
+                        style: textTheme.bodyMedium,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        previewRole.label,
+                        style: textTheme.bodyMedium?.copyWith(
+                          color: actionColor,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
               ),
-              _Pill(label: previewStatus.label, color: previewStatus.color),
+              const SizedBox(height: AppSpacing.sm),
+              Semantics(
+                label: 'Account status: ${previewStatus.label}',
+                child: ExcludeSemantics(
+                  child: _Pill(
+                    label: previewStatus.label,
+                    color: previewStatus.color,
+                  ),
+                ),
+              ),
             ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
 
 class _Pill extends StatelessWidget {
-  const _Pill({required this.label, required this.color, this.icon});
+  const _Pill({required this.label, required this.color});
 
   final String label;
   final Color color;
-  final IconData? icon;
 
   @override
   Widget build(BuildContext context) {
@@ -657,10 +673,6 @@ class _Pill extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (icon != null) ...[
-            Icon(icon, size: AppIconSize.sm, color: color),
-            const SizedBox(width: AppSpacing.xs),
-          ],
           Flexible(
             child: Text(
               label,
@@ -680,51 +692,27 @@ class _Pill extends StatelessWidget {
 
 class _Section extends StatelessWidget {
   const _Section({
-    required this.icon,
     required this.title,
     required this.child,
   });
 
-  final IconData icon;
   final String title;
   final Widget child;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    final colorScheme = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Icon(
-              icon,
-              size: AppIconSize.sm,
-              color: AppSemanticColors.of(context).actionText,
-            ),
-            const SizedBox(width: AppSpacing.xs),
-            Flexible(
-              child: Text(
-                title,
-                style: textTheme.titleMedium,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
+        Text(
+          title,
+          style: textTheme.titleMedium,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
         const SizedBox(height: AppSpacing.sm),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(AppSpacing.md),
-          decoration: BoxDecoration(
-            color: colorScheme.surface,
-            borderRadius: AppComponentRadius.card,
-            border: Border.all(color: colorScheme.outlineVariant),
-          ),
-          child: child,
-        ),
+        child,
       ],
     );
   }
@@ -739,28 +727,16 @@ class _ReadOnlyField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    final colorScheme = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(label, style: textTheme.bodySmall),
         const SizedBox(height: AppSpacing.xs),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.sm,
-          ),
-          decoration: BoxDecoration(
-            color: colorScheme.surfaceContainer,
-            borderRadius: AppComponentRadius.inputField,
-          ),
-          child: Text(
-            value,
-            style: textTheme.bodyLarge,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
+        Text(
+          value,
+          style: textTheme.bodyLarge,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
         ),
       ],
     );

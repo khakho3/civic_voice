@@ -1,5 +1,6 @@
 import 'package:civic_voice/features/admin/models/admin_role_management_data.dart';
 import 'package:civic_voice/features/admin/models/admin_system_activity_data.dart';
+import 'package:civic_voice/features/admin/models/admin_system_settings_data.dart';
 import 'package:civic_voice/features/admin/models/admin_user_management_data.dart';
 import 'package:civic_voice/models/app_role.dart';
 import 'package:civic_voice/models/region.dart';
@@ -69,6 +70,20 @@ void main() {
     },
   );
 
+  test('rejects an audit event without a source timestamp', () {
+    expect(
+      () => ActivityItem.fromApi({
+        'id': 'audit-without-time',
+        'title': 'Incomplete event',
+        'description': 'No source timestamp was supplied.',
+        'severity': 'INFO',
+        'category': 'SYSTEM_UPDATE',
+        'tag': 'Administration',
+      }),
+      throwsFormatException,
+    );
+  });
+
   test('maps live platform health and formats process uptime', () {
     final health = SystemHealthStats.fromApi({
       'apiOnline': true,
@@ -83,5 +98,39 @@ void main() {
     expect(health.dbLatencyMs, 12);
     expect(health.uptimeLabel, '4d 6h');
     expect(health.checkedAt, isNotNull);
+  });
+
+  test('rejects incomplete platform health instead of inventing measurements', () {
+    expect(
+      () => SystemHealthStats.fromApi({
+        'apiOnline': true,
+        'databaseOnline': true,
+        'dbLatencyMs': 12,
+        'uptimeSeconds': 3600,
+      }),
+      throwsFormatException,
+    );
+  });
+
+  test('maps only a complete server settings response', () {
+    final settings = SystemSettingsData.fromApi({
+      'sessionTimeout': '30 minutes',
+      'auditLogging': false,
+      'allowNewAccountCreation': true,
+    });
+
+    expect(settings.sessionTimeout, '30 minutes');
+    expect(settings.auditLogging, isFalse);
+    expect(settings.allowNewAccountCreation, isTrue);
+  });
+
+  test('rejects partial system settings instead of inventing permissions', () {
+    expect(
+      () => SystemSettingsData.fromApi({
+        'sessionTimeout': '30 minutes',
+        'auditLogging': true,
+      }),
+      throwsFormatException,
+    );
   });
 }

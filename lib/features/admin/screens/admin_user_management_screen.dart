@@ -55,6 +55,7 @@ import '../widgets/admin_scaffold.dart';
 /// both the "Admins" and "Staff" chip buckets.
 enum AdminUserManagementViewState {
   loading,
+  unavailable,
   loaded,
   empty,
   noResults,
@@ -121,6 +122,7 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
   }
 
   Future<void> _retry() async {
+    if (!AdminUserDirectory.instance.canRefresh) return;
     setState(() => _state = AdminUserManagementViewState.loading);
     try {
       await AdminUserDirectory.instance.refresh();
@@ -136,6 +138,35 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
   /// dropping into the full-screen loading state, since
   /// GhanaRefreshIndicator's own bar is already the loading affordance.
   Future<void> _pullToRefresh() => AdminUserDirectory.instance.refresh();
+
+  AdminUserManagementViewState _directoryViewState(
+    AdminUserDirectoryState directoryState,
+  ) {
+    if (widget.initialState != AdminUserManagementViewState.loaded) {
+      return _state;
+    }
+    final directory = AdminUserDirectory.instance;
+    if (!directory.hasLiveSnapshot) {
+      return switch (directoryState) {
+        AdminUserDirectoryState.loading => AdminUserManagementViewState.loading,
+        AdminUserDirectoryState.failed => AdminUserManagementViewState.error,
+        AdminUserDirectoryState.loaded => AdminUserManagementViewState.unavailable,
+        AdminUserDirectoryState.unavailable =>
+          AdminUserManagementViewState.unavailable,
+      };
+    }
+    return switch (directoryState) {
+      AdminUserDirectoryState.loading || AdminUserDirectoryState.loaded =>
+        directory.users.value.isEmpty
+            ? AdminUserManagementViewState.empty
+            : AdminUserManagementViewState.loaded,
+      // Keep a previously confirmed list visible after a failed refresh.
+      AdminUserDirectoryState.failed => directory.users.value.isEmpty
+          ? AdminUserManagementViewState.empty
+          : AdminUserManagementViewState.loaded,
+      AdminUserDirectoryState.unavailable => AdminUserManagementViewState.unavailable,
+    };
+  }
 
   void _clearFilters() {
     setState(() {
@@ -212,14 +243,18 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
 
   @override
   Widget build(BuildContext context) {
+    return ValueListenableBuilder<AdminUserDirectoryState>(
+      valueListenable: AdminUserDirectory.instance.state,
+      builder: (context, directoryState, _) {
+        final viewState = _directoryViewState(directoryState);
     // Empty/No Results keep the chrome fixed (not collapsible) rather than
     // wrapping it in CollapsibleListHeader like Loaded does: their content
     // is a short, centered state card with nothing to scroll, so there's no
     // scroll gesture to drive a collapse in the first place. Offline/Error/
     // Unauthorized go a step further and disable the chrome entirely.
     final chromeEnabled =
-        _state == AdminUserManagementViewState.empty ||
-        _state == AdminUserManagementViewState.noResults;
+        viewState == AdminUserManagementViewState.empty ||
+        viewState == AdminUserManagementViewState.noResults;
 
     // The approved Default frame's own subtitle ("Manage citizen access and
     // administrative permissions.") is wrong on its own terms: citizens
@@ -249,13 +284,16 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
       body: Stack(
         children: [
           Positioned.fill(
-            child: GhanaRefreshIndicator(
-              onRefresh: _pullToRefresh,
-              // The header paints on top of this Positioned.fill (a later
-              // sibling in AdminScaffold's own Stack), so without this the
-              // pull indicator would grow in from behind it.
-              topOffset: AdminScaffold.contentPadding(context).top,
-              child: _buildBody(context, chromeEnabled, subtitle),
+            child: _wrapWithRefresh(
+              context,
+              _buildBody(
+                context,
+                viewState,
+                chromeEnabled,
+                subtitle,
+                showStale: directoryState == AdminUserDirectoryState.failed &&
+                    AdminUserDirectory.instance.hasLiveSnapshot,
+              ),
             ),
           ),
           if (widget.onCreateUser != null)
@@ -271,11 +309,31 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
             ),
         ],
       ),
+        );
+      },
     );
   }
 
-  Widget _buildBody(BuildContext context, bool chromeEnabled, String subtitle) {
-    return switch (_state) {
+  Widget _wrapWithRefresh(BuildContext context, Widget child) {
+    if (!AdminUserDirectory.instance.canRefresh) return child;
+    return GhanaRefreshIndicator(
+      onRefresh: _pullToRefresh,
+      // The header paints on top of this Positioned.fill (a later sibling in
+      // AdminScaffold's own Stack), so without this the pull indicator would
+      // grow in from behind it.
+      topOffset: AdminScaffold.contentPadding(context).top,
+      child: child,
+    );
+  }
+
+  Widget _buildBody(
+    BuildContext context,
+    AdminUserManagementViewState viewState,
+    bool chromeEnabled,
+    String subtitle, {
+    required bool showStale,
+  }) {
+    return switch (viewState) {
       AdminUserManagementViewState.loading => const _LoadingSkeleton(),
       AdminUserManagementViewState.loaded => Padding(
         padding: EdgeInsets.only(
@@ -290,7 +348,22 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
             onQueryChanged: (q) => setState(() => _query = q),
             onFilterSelected: (f) => setState(() => _filter = f),
           ),
-          child: ValueListenableBuilder<List<AdminUserItem>>(
+          child: Column(
+            children: [
+              if (showStale)
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    AppSpacing.md,
+                    0,
+                    AppSpacing.md,
+                    AppSpacing.sm,
+                  ),
+                  child: Text(
+                    'Showing previously confirmed user data. Refresh failed.',
+                  ),
+                ),
+              Expanded(
+                child: ValueListenableBuilder<List<AdminUserItem>>(
             valueListenable: AdminUserDirectory.instance.users,
             builder: (context, users, _) {
               return _UserList(
@@ -305,6 +378,9 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
                 onOpenUserDetails: widget.onOpenUserDetails,
               );
             },
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -324,7 +400,7 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
                 : null,
           ),
           Expanded(
-            child: switch (_state) {
+            child: switch (viewState) {
               AdminUserManagementViewState.loading ||
               AdminUserManagementViewState.loaded => const SizedBox.shrink(),
               AdminUserManagementViewState.empty => Padding(
@@ -333,11 +409,28 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
                   icon: AppIcons.team,
                   badgeColor: AppColors.primary,
                   title: 'No Users',
+                  message: showStale
+                      ? 'The last confirmed user list was empty. The latest '
+                            'refresh failed.'
+                      : 'Platform users will appear here once accounts '
+                            'are available.',
+                  primaryActionLabel: AdminUserDirectory.instance.canRefresh
+                      ? 'Refresh'
+                      : null,
+                  onPrimaryAction: AdminUserDirectory.instance.canRefresh
+                      ? _retry
+                      : null,
+                ),
+              ),
+              AdminUserManagementViewState.unavailable => const Padding(
+                padding: EdgeInsets.all(AppSpacing.md),
+                child: AppStateMessage(
+                  icon: AppIcons.warning,
+                  badgeColor: AppColors.warning,
+                  title: 'User data unavailable',
                   message:
-                      'Platform users will appear here once accounts '
-                      'are available.',
-                  primaryActionLabel: 'Refresh',
-                  onPrimaryAction: _retry,
+                      'User accounts will appear here when the authorized '
+                      'user service is available.',
                 ),
               ),
               AdminUserManagementViewState.noResults => Padding(

@@ -6,6 +6,7 @@ import '../../../widgets/collapsible_list_header.dart';
 import '../../../widgets/detail_header.dart';
 import '../../../widgets/glass_card.dart';
 import '../../../widgets/glass_dialog_backdrop.dart';
+import '../../../models/report_status.dart';
 import '../models/ministry_report_insights_data.dart';
 
 /// MIN-005 — Report Insights.
@@ -59,6 +60,7 @@ class MinistryReportInsightsScreen extends StatefulWidget {
     this.onViewFocusSummary,
     this.data,
     this.dataForFilters,
+    this.onRefresh,
   });
 
   final MinistryReportInsightsViewState initialState;
@@ -67,9 +69,8 @@ class MinistryReportInsightsScreen extends StatefulWidget {
   /// of whether this screen was reached from Analytics or Reports Overview.
   final VoidCallback? onBack;
 
-  /// No dedicated "focus summary" screen is specified yet — placeholder the
-  /// app shell can wire up once one exists, matching this module's other
-  /// unwired forward-references (e.g. Municipal Performance's "View all").
+  /// Retained for source compatibility with the app shell. Focus Summary is
+  /// deliberately unavailable until I06 supplies a grounded implementation.
   final VoidCallback? onViewFocusSummary;
   final MinistryReportInsightsData? data;
   final MinistryReportInsightsData Function(
@@ -78,6 +79,7 @@ class MinistryReportInsightsScreen extends StatefulWidget {
     InsightsStatusFilter status,
   )?
   dataForFilters;
+  final Future<void> Function()? onRefresh;
 
   @override
   State<MinistryReportInsightsScreen> createState() =>
@@ -87,21 +89,23 @@ class MinistryReportInsightsScreen extends StatefulWidget {
 class _MinistryReportInsightsScreenState
     extends State<MinistryReportInsightsScreen> {
   late MinistryReportInsightsViewState _state = widget.initialState;
-  MinistryReportInsightsData get _data =>
+  MinistryReportInsightsData? get _data =>
       widget.dataForFilters?.call(_dateRange, _category, _status) ??
-      widget.data ??
-      MinistryReportInsightsData.mock();
+      widget.data;
   InsightsDateRange _dateRange = InsightsDateRange.last30Days;
   InsightsCategoryFilter _category = InsightsCategoryFilter.all;
   InsightsStatusFilter _status = InsightsStatusFilter.all;
 
-  void _retry() {
+  Future<void> _retry() async {
+    final refresh = widget.onRefresh;
+    if (refresh == null) return;
     setState(() => _state = MinistryReportInsightsViewState.loading);
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (mounted) {
-        setState(() => _state = MinistryReportInsightsViewState.loaded);
-      }
-    });
+    try {
+      await refresh();
+      if (mounted) setState(() => _state = MinistryReportInsightsViewState.loaded);
+    } catch (_) {
+      if (mounted) setState(() => _state = MinistryReportInsightsViewState.error);
+    }
   }
 
   void _clearFilters() {
@@ -170,23 +174,29 @@ class _MinistryReportInsightsScreenState
   Future<void> _pickStatus() async {
     final selected = await showModalBottomSheet<InsightsStatusFilter>(
       context: context,
+      isScrollControlled: true,
       builder: (context) => GlassDialogBackdrop(
         child: SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              for (final option in InsightsStatusFilter.values)
-                ListTile(
-                  title: Text(option.label),
-                  trailing: option == _status
-                      ? Icon(
-                          AppIcons.success,
-                          color: AppSemanticColors.of(context).actionText,
-                        )
-                      : null,
-                  onTap: () => Navigator.of(context).pop(option),
-                ),
-            ],
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.sizeOf(context).height * 0.7,
+            ),
+            child: ListView(
+              shrinkWrap: true,
+              children: [
+                for (final option in InsightsStatusFilter.values)
+                  ListTile(
+                    title: Text(option.label),
+                    trailing: option == _status
+                        ? Icon(
+                            AppIcons.success,
+                            color: AppSemanticColors.of(context).actionText,
+                          )
+                        : null,
+                    onTap: () => Navigator.of(context).pop(option),
+                  ),
+              ],
+            ),
           ),
         ),
       ),
@@ -202,15 +212,26 @@ class _MinistryReportInsightsScreenState
     // scroll gesture to drive a collapse in the first place. Offline/Error/
     // Unauthorized go a step further and disable the chrome entirely, same
     // as before.
+    final data = _data;
+    final hasActiveFilters =
+        _dateRange != InsightsDateRange.last30Days ||
+        _category != InsightsCategoryFilter.all ||
+        _status != InsightsStatusFilter.all;
+    final viewState = _state == MinistryReportInsightsViewState.loaded &&
+            (data == null || data.totalReports == 0)
+        ? hasActiveFilters
+            ? MinistryReportInsightsViewState.noResults
+            : MinistryReportInsightsViewState.empty
+        : _state;
     final chromeEnabled =
-        _state == MinistryReportInsightsViewState.empty ||
-        _state == MinistryReportInsightsViewState.noResults;
+        viewState == MinistryReportInsightsViewState.empty ||
+        viewState == MinistryReportInsightsViewState.noResults;
 
     return Scaffold(
       body: Stack(
         children: [
           Positioned.fill(
-            child: switch (_state) {
+            child: switch (viewState) {
               MinistryReportInsightsViewState.loading =>
                 const _LoadingSkeleton(),
               MinistryReportInsightsViewState.loaded => Padding(
@@ -226,8 +247,7 @@ class _MinistryReportInsightsScreenState
                     onStatusTap: _pickStatus,
                   ),
                   child: _InsightsContent(
-                    data: _data,
-                    onViewFocusSummary: widget.onViewFocusSummary,
+                    data: data!,
                   ),
                 ),
               ),
@@ -244,7 +264,7 @@ class _MinistryReportInsightsScreenState
                     onStatusTap: chromeEnabled ? _pickStatus : null,
                   ),
                   Expanded(
-                    child: switch (_state) {
+                    child: switch (viewState) {
                       MinistryReportInsightsViewState.loading ||
                       MinistryReportInsightsViewState.loaded =>
                         const SizedBox.shrink(),
@@ -258,7 +278,8 @@ class _MinistryReportInsightsScreenState
                               'Aggregated report insights will appear once '
                               'enough reporting data is available.',
                           primaryActionLabel: 'Refresh',
-                          onPrimaryAction: _retry,
+                          onPrimaryAction:
+                              widget.onRefresh == null ? null : _retry,
                         ),
                       ),
                       MinistryReportInsightsViewState.noResults => Padding(
@@ -284,7 +305,8 @@ class _MinistryReportInsightsScreenState
                               'Check your connection and retry loading '
                               'report insights.',
                           primaryActionLabel: 'Retry connection',
-                          onPrimaryAction: _retry,
+                          onPrimaryAction:
+                              widget.onRefresh == null ? null : _retry,
                           primaryActionColor: AppColors.error,
                         ),
                       ),
@@ -298,7 +320,8 @@ class _MinistryReportInsightsScreenState
                               'The insights service could not return '
                               'aggregated analysis right now.',
                           primaryActionLabel: 'Try again',
-                          onPrimaryAction: _retry,
+                          onPrimaryAction:
+                              widget.onRefresh == null ? null : _retry,
                           primaryActionColor: AppColors.error,
                         ),
                       ),
@@ -435,10 +458,9 @@ class _FilterChip extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _InsightsContent extends StatelessWidget {
-  const _InsightsContent({required this.data, this.onViewFocusSummary});
+  const _InsightsContent({required this.data});
 
   final MinistryReportInsightsData data;
-  final VoidCallback? onViewFocusSummary;
 
   @override
   Widget build(BuildContext context) {
@@ -461,7 +483,7 @@ class _InsightsContent extends StatelessWidget {
                 child: _StatCard(
                   label: 'Category Peak',
                   value: data.categoryPeakLabel,
-                  delta: '${data.categoryPeakSharePercent}% share',
+                  delta: '${data.categoryPeakCount} reports',
                   deltaColor: AppColors.primary,
                 ),
               ),
@@ -470,13 +492,16 @@ class _InsightsContent extends StatelessWidget {
                 child: _StatCard(
                   label: 'Resolution',
                   value: '${data.resolutionPercent}%',
-                  delta: data.resolutionDeltaLabel,
+                  delta:
+                      '${data.count(ReportStatus.resolved)} reports resolved',
                   deltaColor: AppColors.statusResolved,
                 ),
               ),
             ],
           ),
         ),
+        const SizedBox(height: AppSpacing.lg),
+        _StatusBreakdown(data: data),
         const SizedBox(height: AppSpacing.lg),
         Text('Critical Insights', style: textTheme.titleMedium),
         const SizedBox(height: AppSpacing.sm),
@@ -486,9 +511,37 @@ class _InsightsContent extends StatelessWidget {
             child: _CriticalInsightRow(item: insight),
           ),
         const SizedBox(height: AppSpacing.md),
-        _StrategicFocusCard(
-          text: data.strategicFocusText,
-          onViewFocusSummary: onViewFocusSummary,
+        _StrategicFocusCard(text: data.strategicFocusText),
+      ],
+    );
+  }
+}
+
+class _StatusBreakdown extends StatelessWidget {
+  const _StatusBreakdown({required this.data});
+
+  final MinistryReportInsightsData data;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Status Breakdown', style: textTheme.titleMedium),
+        const SizedBox(height: AppSpacing.sm),
+        GlassCard(
+          child: Wrap(
+            spacing: AppSpacing.md,
+            runSpacing: AppSpacing.sm,
+            children: [
+              for (final status in ReportStatus.values)
+                Text(
+                  '${status.label}: ${data.count(status)}',
+                  style: textTheme.bodySmall,
+                ),
+            ],
+          ),
         ),
       ],
     );
@@ -590,10 +643,9 @@ class _CriticalInsightRow extends StatelessWidget {
 }
 
 class _StrategicFocusCard extends StatelessWidget {
-  const _StrategicFocusCard({required this.text, this.onViewFocusSummary});
+  const _StrategicFocusCard({required this.text});
 
   final String text;
-  final VoidCallback? onViewFocusSummary;
 
   @override
   Widget build(BuildContext context) {
@@ -631,11 +683,16 @@ class _StrategicFocusCard extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(text, style: textTheme.bodyMedium),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            'Focus Summary is unavailable until I06 provides a grounded AI insight.',
+            style: textTheme.bodySmall,
+          ),
           const SizedBox(height: AppSpacing.md),
           SizedBox(
             width: double.infinity,
             child: FilledButton(
-              onPressed: onViewFocusSummary,
+              onPressed: null,
               child: const Text('View focus summary'),
             ),
           ),

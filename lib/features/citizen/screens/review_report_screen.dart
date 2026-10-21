@@ -9,12 +9,18 @@ import '../../../core/theme/app_theme.dart';
 import '../../../models/region.dart';
 import '../../../services/app_cache_service.dart';
 import '../../../services/api_client.dart';
+import '../models/civic_report.dart';
 import '../widgets/civic_glass_card.dart';
 import '../services/report_crud_service.dart';
 import '../services/location_service.dart';
 import '../widgets/civic_app_chrome.dart';
-import 'citizen_tab_routes.dart';
 import 'report_submitted_screen.dart';
+
+typedef ReportSubmitter = Future<CivicReport> Function(
+  ReportDraft draft, {
+  double? submissionLatitude,
+  double? submissionLongitude,
+});
 
 class ReviewReportScreen extends StatefulWidget {
   const ReviewReportScreen({
@@ -31,6 +37,8 @@ class ReviewReportScreen extends StatefulWidget {
     this.photos = const [],
     this.photoIsFromCamera = const [],
     this.locationService = const LocationService(),
+    this.returnToReports = false,
+    this.submitReport,
   });
 
   static const String routeName = '/citizen/review-report';
@@ -47,6 +55,11 @@ class ReviewReportScreen extends StatefulWidget {
   final List<XFile> photos;
   final List<bool> photoIsFromCamera;
   final LocationService locationService;
+  final bool returnToReports;
+
+  /// A screen-local seam for deterministic UI tests. Production continues to
+  /// use [ReportCrudService.createReport].
+  final ReportSubmitter? submitReport;
 
   @override
   State<ReviewReportScreen> createState() => _ReviewReportScreenState();
@@ -55,6 +68,7 @@ class ReviewReportScreen extends StatefulWidget {
 class _ReviewReportScreenState extends State<ReviewReportScreen> {
   Position? _submissionPosition;
   double? _pinDistanceMeters;
+  bool _isSubmitting = false;
 
   @override
   void initState() {
@@ -82,26 +96,31 @@ class _ReviewReportScreenState extends State<ReviewReportScreen> {
   }
 
   Future<void> _submit() async {
+    if (_isSubmitting) return;
+    setState(() => _isSubmitting = true);
+
     try {
-      final report = await ReportCrudService.instance.createReport(
-        ReportDraft(
-          title: widget.reportTitle ?? '',
-          description: widget.reportDescription ?? '',
-          category: widget.reportCategory ?? '',
-          location: widget.reportLocationLabel ?? '',
-          community: widget.reportCommunity ?? '',
-          latitude: widget.reportLatitude,
-          longitude: widget.reportLongitude,
-          region: widget.reportRegion,
-          assembly: widget.reportAssembly,
-          photoPaths: [for (final photo in widget.photos) photo.path],
-          photoIsFromCamera: [
-            for (var index = 0; index < widget.photos.length; index++)
-              index < widget.photoIsFromCamera.length
-                  ? widget.photoIsFromCamera[index]
-                  : false,
-          ],
-        ),
+      final draft = ReportDraft(
+        title: widget.reportTitle ?? '',
+        description: widget.reportDescription ?? '',
+        category: widget.reportCategory ?? '',
+        location: widget.reportLocationLabel ?? '',
+        community: widget.reportCommunity ?? '',
+        latitude: widget.reportLatitude,
+        longitude: widget.reportLongitude,
+        region: widget.reportRegion,
+        assembly: widget.reportAssembly,
+        photoPaths: [for (final photo in widget.photos) photo.path],
+        photoIsFromCamera: [
+          for (var index = 0; index < widget.photos.length; index++)
+            index < widget.photoIsFromCamera.length
+                ? widget.photoIsFromCamera[index]
+                : false,
+        ],
+      );
+      final report = await (widget.submitReport ??
+          ReportCrudService.instance.createReport)(
+        draft,
         submissionLatitude: _submissionPosition?.latitude,
         submissionLongitude: _submissionPosition?.longitude,
       );
@@ -109,6 +128,7 @@ class _ReviewReportScreenState extends State<ReviewReportScreen> {
       if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute<void>(
+          settings: const RouteSettings(name: ReportSubmittedScreen.routeName),
           builder: (_) => ReportSubmittedScreen(
             referenceNumber: report.referenceNumber,
             reportId: report.id,
@@ -117,9 +137,10 @@ class _ReviewReportScreenState extends State<ReviewReportScreen> {
             reportLocationLabel: widget.reportLocationLabel,
             photoCount: widget.photos.length,
             hasMunicipalCoverage: report.hasMunicipalCoverage,
+            returnToReports: widget.returnToReports,
           ),
         ),
-        (route) => route.isFirst,
+        (route) => !_isAuthoringRoute(route),
       );
     } on ApiException catch (error) {
       if (!mounted) return;
@@ -135,7 +156,18 @@ class _ReviewReportScreenState extends State<ReviewReportScreen> {
           ),
         ),
       );
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
     }
+  }
+
+  bool _isAuthoringRoute(Route<dynamic> route) {
+    final name = route.settings.name;
+    return name == '/citizen/create-report' ||
+        name == '/citizen/photo-upload' ||
+        name == ReviewReportScreen.routeName;
   }
 
   void _editPreviousStep() {
@@ -147,8 +179,11 @@ class _ReviewReportScreenState extends State<ReviewReportScreen> {
     final compact = MediaQuery.sizeOf(context).width < 360;
     final horizontalPadding = compact ? AppSpacing.sm : AppSpacing.md;
 
-    final chromeInset = civicContentPadding(context);
-    final keyboardVisible = MediaQuery.viewInsetsOf(context).bottom > 0;
+    final chromeInset = civicContentPadding(context).copyWith(
+      bottom:
+          MediaQuery.paddingOf(context).bottom +
+          MediaQuery.viewInsetsOf(context).bottom,
+    );
 
     return Scaffold(
       // See create_report_screen.dart's build() for why this is false and
@@ -189,7 +224,11 @@ class _ReviewReportScreenState extends State<ReviewReportScreen> {
                 const SizedBox(height: AppSpacing.lg),
                 _PhotosCard(photos: widget.photos),
                 const SizedBox(height: AppSpacing.lg),
-                _SubmitCard(onSubmit: _submit, onBack: _editPreviousStep),
+                _SubmitCard(
+                  onSubmit: _submit,
+                  onBack: _editPreviousStep,
+                  submitting: _isSubmitting,
+                ),
               ],
             ),
           ),
@@ -201,33 +240,6 @@ class _ReviewReportScreenState extends State<ReviewReportScreen> {
               onBack: () => Navigator.of(context).maybePop(),
             ),
           ),
-          if (!keyboardVisible)
-            Align(
-              alignment: Alignment.bottomCenter,
-              child: CivicBottomNav(
-                selectedIndex: 2,
-                onDestinationSelected: (index) {
-                  if (index == 0) {
-                    Navigator.of(context).popUntil((route) => route.isFirst);
-                  } else if (index == 1) {
-                    Navigator.of(context).pushAndRemoveUntil(
-                      citizenReportsTabRoute(context),
-                      (route) => route.isFirst,
-                    );
-                  } else if (index == 3) {
-                    Navigator.of(context).pushAndRemoveUntil(
-                      citizenAlertsTabRoute(context),
-                      (route) => route.isFirst,
-                    );
-                  } else if (index == 4) {
-                    Navigator.of(context).pushAndRemoveUntil(
-                      citizenProfileTabRoute(context),
-                      (route) => route.isFirst,
-                    );
-                  }
-                },
-              ),
-            ),
         ],
       ),
     );
@@ -541,10 +553,15 @@ class _LocationDiscrepancyBanner extends StatelessWidget {
 }
 
 class _SubmitCard extends StatelessWidget {
-  const _SubmitCard({required this.onSubmit, required this.onBack});
+  const _SubmitCard({
+    required this.onSubmit,
+    required this.onBack,
+    required this.submitting,
+  });
 
   final VoidCallback onSubmit;
   final VoidCallback onBack;
+  final bool submitting;
 
   @override
   Widget build(BuildContext context) {
@@ -570,13 +587,24 @@ class _SubmitCard extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.lg),
           FilledButton.icon(
-            onPressed: onSubmit,
-            icon: const Icon(AppIcons.statusSubmitted),
-            label: const Text('Submit Report'),
+            onPressed: submitting ? null : onSubmit,
+            icon: submitting
+                ? const SizedBox(
+                    width: AppIconSize.sm,
+                    height: AppIconSize.sm,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(AppIcons.statusSubmitted),
+            label: Semantics(
+              liveRegion: true,
+              excludeSemantics: true,
+              label: submitting ? 'Submitting report...' : 'Submit Report',
+              child: Text(submitting ? 'Submitting report...' : 'Submit Report'),
+            ),
           ),
           const SizedBox(height: AppSpacing.sm),
           OutlinedButton(
-            onPressed: onBack,
+            onPressed: submitting ? null : onBack,
             child: const Text('Back to Photos'),
           ),
         ],

@@ -5,6 +5,7 @@ import '../../../widgets/pending_coverage_notice.dart';
 import '../widgets/civic_glass_card.dart';
 import '../widgets/civic_app_chrome.dart';
 import 'citizen_tab_routes.dart';
+import 'create_report_screen.dart';
 import 'report_tracking_screen.dart';
 
 class ReportSubmittedScreen extends StatefulWidget {
@@ -17,6 +18,7 @@ class ReportSubmittedScreen extends StatefulWidget {
     this.reportLocationLabel,
     this.photoCount = 0,
     this.hasMunicipalCoverage,
+    this.returnToReports = false,
   });
 
   static const String routeName = '/citizen/report-submitted';
@@ -28,19 +30,51 @@ class ReportSubmittedScreen extends StatefulWidget {
   final String? reportLocationLabel;
   final int photoCount;
   final bool? hasMunicipalCoverage;
+  final bool returnToReports;
 
   @override
   State<ReportSubmittedScreen> createState() => _ReportSubmittedScreenState();
 }
 
 class _ReportSubmittedScreenState extends State<ReportSubmittedScreen> {
+  void _returnToDashboard() {
+    Navigator.of(context).pushAndRemoveUntil(
+      citizenDashboardTabRoute(context),
+      (route) => false,
+    );
+  }
+
+  void _openReports() {
+    if (widget.returnToReports) {
+      Navigator.of(context).popUntil(
+        (route) => route.settings.name == '/citizen/reports',
+      );
+      return;
+    }
+    Navigator.of(context).pushAndRemoveUntil(
+      citizenReportsTabRoute(context),
+      (route) => route.isFirst,
+    );
+  }
+
+  void _submitAnother() {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute<void>(
+        settings: const RouteSettings(name: CreateReportScreen.routeName),
+        builder: (_) =>
+            CreateReportScreen(returnToReports: widget.returnToReports),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final compact = MediaQuery.sizeOf(context).width < 360;
     final horizontalPadding = compact ? AppSpacing.sm : AppSpacing.md;
-    final referenceNumber = widget.referenceNumber?.trim().isNotEmpty ?? false
-        ? widget.referenceNumber!.trim()
-        : 'CV-2026-004582';
+    final referenceNumber = widget.referenceNumber?.trim();
+    final hasReference = referenceNumber?.isNotEmpty ?? false;
+    final hasConfirmedSubmission =
+        hasReference && (widget.reportId?.trim().isNotEmpty ?? false);
 
     final chromeInset = civicContentPadding(context);
     final keyboardVisible = MediaQuery.viewInsetsOf(context).bottom > 0;
@@ -60,47 +94,50 @@ class _ReportSubmittedScreenState extends State<ReportSubmittedScreen> {
                 chromeInset.bottom + AppSpacing.xl,
               ),
               children: [
-                const _SuccessIntro(),
+                if (hasConfirmedSubmission)
+                  const _SuccessIntro()
+                else
+                  const _SubmissionUnavailableIntro(),
                 const SizedBox(height: AppSpacing.xl),
-                _ReferenceCard(referenceNumber: referenceNumber),
-                if (widget.hasMunicipalCoverage == false ||
+                _ReferenceCard(
+                  referenceNumber: hasReference ? referenceNumber : null,
+                ),
+                if (hasConfirmedSubmission &&
+                    (widget.hasMunicipalCoverage == false ||
                     (widget.reportId != null &&
-                        widget.hasMunicipalCoverage == null)) ...[
+                        widget.hasMunicipalCoverage == null))) ...[
                   const SizedBox(height: AppSpacing.md),
                   PendingCoverageNotice(
                     coverageUnknown: widget.hasMunicipalCoverage == null,
                   ),
                 ],
                 const SizedBox(height: AppSpacing.xl),
-                const _TimelineSection(),
-                const SizedBox(height: AppSpacing.xl),
-                const _NextInfoCard(),
+                if (hasConfirmedSubmission) const _NextInfoCard(),
                 const SizedBox(height: AppSpacing.lg),
                 _ActionCard(
-                  onTrack: () {
+                  onTrack: hasConfirmedSubmission ? () {
                     Navigator.of(context).pushReplacement(
                       MaterialPageRoute<void>(
                         builder: (_) => ReportTrackingScreen(
-                          reportId: widget.reportId ?? '',
+                          reportId: widget.reportId!,
                         ),
                       ),
                     );
-                  },
-                  onDashboard: () =>
-                      Navigator.of(context).popUntil((route) => route.isFirst),
-                  onAnother: () {
-                    Navigator.of(context).pushAndRemoveUntil(
-                      citizenCreateReportTabRoute(context),
-                      (route) => route.isFirst,
-                    );
-                  },
+                  } : null,
+                  onDashboard: _returnToDashboard,
+                  onAnother: _submitAnother,
                 ),
               ],
             ),
           ),
           Align(
             alignment: Alignment.topCenter,
-            child: CivicTopBar(title: 'Submitted', showNotifications: false),
+            child: CivicTopBar(
+              title: hasConfirmedSubmission
+                  ? 'Submitted'
+                  : 'Submission unavailable',
+              showNotifications: false,
+            ),
           ),
           if (!keyboardVisible)
             Align(
@@ -109,17 +146,11 @@ class _ReportSubmittedScreenState extends State<ReportSubmittedScreen> {
                 selectedIndex: 1,
                 onDestinationSelected: (index) {
                   if (index == 0) {
-                    Navigator.of(context).popUntil((route) => route.isFirst);
+                    _returnToDashboard();
                   } else if (index == 1) {
-                    Navigator.of(context).pushAndRemoveUntil(
-                      citizenReportsTabRoute(context),
-                      (route) => route.isFirst,
-                    );
+                    _openReports();
                   } else if (index == 2) {
-                    Navigator.of(context).pushAndRemoveUntil(
-                      citizenCreateReportTabRoute(context),
-                      (route) => route.isFirst,
-                    );
+                    _submitAnother();
                   } else if (index == 3) {
                     Navigator.of(context).pushAndRemoveUntil(
                       citizenAlertsTabRoute(context),
@@ -182,10 +213,51 @@ class _SuccessIntro extends StatelessWidget {
   }
 }
 
+class _SubmissionUnavailableIntro extends StatelessWidget {
+  const _SubmissionUnavailableIntro();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      children: [
+        Container(
+          width: 96,
+          height: 96,
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surfaceContainerLow,
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            AppIcons.info,
+            color: AppSemanticColors.of(context).actionText,
+            size: 52,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        Text(
+          'Submission confirmation unavailable',
+          textAlign: TextAlign.center,
+          style: theme.textTheme.headlineSmall?.copyWith(
+            color: AppSemanticColors.of(context).actionText,
+            fontWeight: AppFontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Text(
+          'A completed report was not supplied to this screen.',
+          textAlign: TextAlign.center,
+          style: theme.textTheme.bodyMedium,
+        ),
+      ],
+    );
+  }
+}
+
 class _ReferenceCard extends StatelessWidget {
   const _ReferenceCard({required this.referenceNumber});
 
-  final String referenceNumber;
+  final String? referenceNumber;
 
   @override
   Widget build(BuildContext context) {
@@ -205,186 +277,13 @@ class _ReferenceCard extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            referenceNumber,
+            referenceNumber ?? 'Reference number unavailable',
             style: theme.textTheme.headlineSmall?.copyWith(
               fontWeight: AppFontWeight.bold,
             ),
           ),
-          const SizedBox(height: AppSpacing.md),
-          const _StatusPill(),
-          const SizedBox(height: AppSpacing.sm),
-          Text('Submitted just now', style: theme.textTheme.bodySmall),
         ],
       ),
-    );
-  }
-}
-
-class _StatusPill extends StatelessWidget {
-  const _StatusPill();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xs,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.success.withValues(alpha: 0.12),
-        borderRadius: AppRadius.allXl,
-        border: Border.all(color: AppColors.success.withValues(alpha: 0.24)),
-      ),
-      child: Text(
-        'Submitted',
-        style: Theme.of(context).textTheme.labelMedium?.copyWith(
-          color: AppSemanticColors.of(context).successText,
-          fontWeight: AppFontWeight.bold,
-        ),
-      ),
-    );
-  }
-}
-
-class _TimelineSection extends StatelessWidget {
-  const _TimelineSection();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
-          child: Text(
-            'Report Timeline',
-            style: theme.textTheme.titleLarge?.copyWith(
-              fontWeight: AppFontWeight.bold,
-            ),
-          ),
-        ),
-        const SizedBox(height: AppSpacing.lg),
-        const _TimelineStep(
-          status: _TimelineStatus.done,
-          title: 'Report Submitted',
-          subtitle: 'Completed just now',
-        ),
-        const _TimelineStep(
-          status: _TimelineStatus.current,
-          title: 'Under Review',
-          subtitle: 'Pending initial validation',
-        ),
-        const _TimelineStep(
-          status: _TimelineStatus.future,
-          title: 'Team Assigned',
-        ),
-        const _TimelineStep(
-          status: _TimelineStatus.future,
-          title: 'Resolution in Progress',
-        ),
-        const _TimelineStep(status: _TimelineStatus.last, title: 'Resolved'),
-      ],
-    );
-  }
-}
-
-enum _TimelineStatus { done, current, future, last }
-
-class _TimelineStep extends StatelessWidget {
-  const _TimelineStep({
-    required this.status,
-    required this.title,
-    this.subtitle,
-  });
-
-  final _TimelineStatus status;
-  final String title;
-  final String? subtitle;
-
-  bool get _active =>
-      status == _TimelineStatus.done || status == _TimelineStatus.current;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final dotColor = switch (status) {
-      _TimelineStatus.done => AppColors.success,
-      _TimelineStatus.current => AppColors.warning,
-      _TimelineStatus.future ||
-      _TimelineStatus.last => theme.colorScheme.outline,
-    };
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Column(
-          children: [
-            Container(
-              width: 24,
-              height: 24,
-              decoration: BoxDecoration(
-                color: status == _TimelineStatus.done
-                    ? AppColors.success
-                    : theme.scaffoldBackgroundColor,
-                shape: BoxShape.circle,
-                border: status == _TimelineStatus.done
-                    ? null
-                    : Border.all(color: dotColor, width: 2),
-              ),
-              child: status == _TimelineStatus.done
-                  ? const Icon(AppIcons.success, color: Colors.white, size: 15)
-                  : Center(
-                      child: status == _TimelineStatus.current
-                          ? const Icon(
-                              AppIcons.statusUnderReview,
-                              color: AppColors.warning,
-                              size: 13,
-                            )
-                          : Container(
-                              width: 8,
-                              height: 8,
-                              decoration: BoxDecoration(
-                                color: theme.colorScheme.outline,
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                    ),
-            ),
-            if (status != _TimelineStatus.last)
-              Container(
-                width: 2,
-                height: 48,
-                color: status == _TimelineStatus.done
-                    ? AppColors.success
-                    : theme.colorScheme.outline,
-              ),
-          ],
-        ),
-        const SizedBox(width: AppSpacing.md),
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.only(bottom: AppSpacing.xl),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    color: _active ? null : theme.colorScheme.secondary,
-                    fontWeight: _active
-                        ? AppFontWeight.bold
-                        : AppFontWeight.regular,
-                  ),
-                ),
-                if (subtitle != null)
-                  Text(subtitle!, style: theme.textTheme.bodySmall),
-              ],
-            ),
-          ),
-        ),
-      ],
     );
   }
 }
@@ -469,7 +368,7 @@ class _ActionCard extends StatelessWidget {
     required this.onAnother,
   });
 
-  final VoidCallback onTrack;
+  final VoidCallback? onTrack;
   final VoidCallback onDashboard;
   final VoidCallback onAnother;
 
@@ -480,11 +379,13 @@ class _ActionCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          FilledButton(
-            onPressed: onTrack,
-            child: const Text('Track My Report'),
-          ),
-          const SizedBox(height: AppSpacing.sm),
+          if (onTrack != null) ...[
+            FilledButton(
+              onPressed: onTrack!,
+              child: const Text('Track My Report'),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+          ],
           OutlinedButton(
             onPressed: onDashboard,
             child: const Text('Return to Dashboard'),

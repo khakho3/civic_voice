@@ -439,7 +439,8 @@ class _TimelineStep extends StatelessWidget {
       ReportStatus.inProgress =>
         'The assigned team is actively working on this report.',
       ReportStatus.pendingApproval =>
-        'Repair work is complete and awaiting confirmation.',
+        'The team finished the work and submitted it. A municipal officer is '
+        'confirming it before the report closes.',
       ReportStatus.resolved =>
         'The repair is complete and the report is closed.',
       ReportStatus.rejected =>

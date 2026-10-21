@@ -795,12 +795,15 @@ class _QuickActionGrid extends StatelessWidget {
       context: context,
       showDragHandle: true,
       builder: (context) {
-        return GlassDialogBackdrop(
-          child: SafeArea(
-            child: ValueListenableBuilder<List<CivicReport>>(
-              valueListenable: ReportCrudService.instance.reports,
-              builder: (context, reports, _) {
-                return Padding(
+        return Semantics(
+          namesRoute: true,
+          label: 'Nearby Issues',
+          child: GlassDialogBackdrop(
+            child: SafeArea(
+              child: ValueListenableBuilder<List<CivicReport>>(
+                valueListenable: ReportCrudService.instance.reports,
+                builder: (context, reports, _) {
+                  return Padding(
                   padding: const EdgeInsets.fromLTRB(
                     AppSpacing.md,
                     AppSpacing.sm,
@@ -811,10 +814,12 @@ class _QuickActionGrid extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Nearby Issues',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: AppFontWeight.bold,
+                      Semantics(
+                        header: true,
+                        child: Text(
+                          'Nearby Issues',
+                          style: Theme.of(context).textTheme.titleLarge
+                              ?.copyWith(fontWeight: AppFontWeight.bold),
                         ),
                       ),
                       const SizedBox(height: AppSpacing.xs),
@@ -882,8 +887,9 @@ class _QuickActionGrid extends StatelessWidget {
                       ),
                     ],
                   ),
-                );
-              },
+                  );
+                },
+              ),
             ),
           ),
         );

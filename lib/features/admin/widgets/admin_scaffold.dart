@@ -53,6 +53,10 @@ enum AdminTab {
   final String headerTitle;
 }
 
+/// Drawer-only destinations. [AdminDrawerDestination.maintenanceTeams]
+/// deliberately covers the list, form, and detail route family.
+enum AdminDrawerDestination { roleManagement, maintenanceTeams, adminProfile }
+
 /// Shared shell (header + drawer + bottom navigation) for System
 /// Administrator screens — the same "Header ↓ Primary Content ↓
 /// Navigation" shell as [MinistryScaffold]/`MunicipalScaffold`, generic
@@ -97,6 +101,7 @@ class AdminScaffold extends StatelessWidget {
     this.onBack,
     this.headerTitle,
     this.hideBottomNav = false,
+    this.activeDrawerDestination,
   });
 
   final Widget body;
@@ -126,6 +131,11 @@ class AdminScaffold extends StatelessWidget {
   /// should return through its header or for a screen mid-edit where the nav
   /// would conflict with the sticky Save bar.
   final bool hideBottomNav;
+
+  /// The current destination when an Admin route belongs to the native drawer
+  /// rather than a bottom-navigation tab. At most one drawer item can be
+  /// selected at a time.
+  final AdminDrawerDestination? activeDrawerDestination;
 
   /// Opens ADM-004 Role Management — the drawer is its only entry point
   /// now that it's no longer a bottom-nav tab (see [AdminTab]'s own doc
@@ -183,6 +193,7 @@ class AdminScaffold extends StatelessWidget {
       resizeToAvoidBottomInset: false,
       drawer: isSuperAdmin
           ? _AdminDrawer(
+              activeDestination: activeDrawerDestination,
               onOpenRoleManagement: onOpenRoleManagement,
               onOpenMaintenanceTeams: onOpenMaintenanceTeams,
               onOpenProfile: onOpenProfile,
@@ -255,9 +266,19 @@ class _Header extends StatelessWidget {
                       _IconButton(
                         icon: AppIcons.menu,
                         onPressed: () => Scaffold.of(context).openDrawer(),
+                        semanticLabel: 'Open navigation menu',
                         semantic: semantic,
                       ),
                       const SizedBox(width: AppSpacing.xs),
+                      if (onBack != null) ...[
+                        _IconButton(
+                          icon: AppIcons.back,
+                          onPressed: onBack,
+                          semanticLabel: 'Go back',
+                          semantic: semantic,
+                        ),
+                        const SizedBox(width: AppSpacing.xs),
+                      ],
                       Expanded(
                         child:
                             tab == AdminTab.dashboard && titleOverride == null
@@ -278,6 +299,7 @@ class _Header extends StatelessWidget {
                       _IconButton(
                         icon: AppIcons.notifications,
                         onPressed: onNotificationsTap,
+                        semanticLabel: 'Notifications',
                         semantic: semantic,
                       ),
                     ],
@@ -288,6 +310,7 @@ class _Header extends StatelessWidget {
                         _IconButton(
                           icon: AppIcons.back,
                           onPressed: onBack,
+                          semanticLabel: 'Go back',
                           semantic: semantic,
                         ),
                         const SizedBox(width: AppSpacing.xs),
@@ -333,29 +356,43 @@ class _Header extends StatelessWidget {
 /// so it visually reads as "your account", matching Ministry/Municipal/
 /// Maintenance's own header avatar.
 class _ProfileButton extends StatelessWidget {
-  const _ProfileButton({this.onTap});
+  const _ProfileButton({this.onTap, this.semanticLabel = 'Admin profile'});
 
   final VoidCallback? onTap;
+  final String semanticLabel;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: AppDimensions.controlHeightStandard,
-      height: AppDimensions.controlHeightStandard,
-      child: Material(
-        color: Colors.transparent,
-        shape: const CircleBorder(),
-        child: InkWell(
-          customBorder: const CircleBorder(),
-          onTap: onTap,
-          child: Center(
-            child: CircleAvatar(
-              radius: AppIconSize.md / 2 + 2,
-              backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-              child: Icon(
-                AppIcons.profile,
-                size: AppIconSize.sm,
-                color: AppSemanticColors.of(context).actionText,
+    return Semantics(
+      container: true,
+      button: true,
+      enabled: onTap != null,
+      label: semanticLabel,
+      onTap: onTap,
+      child: Tooltip(
+        message: semanticLabel,
+        excludeFromSemantics: true,
+        child: ExcludeSemantics(
+          child: SizedBox(
+            width: AppDimensions.controlHeightStandard,
+            height: AppDimensions.controlHeightStandard,
+            child: Material(
+              color: Colors.transparent,
+              shape: const CircleBorder(),
+              child: InkWell(
+                customBorder: const CircleBorder(),
+                onTap: onTap,
+                child: Center(
+                  child: CircleAvatar(
+                    radius: AppIconSize.md / 2 + 2,
+                    backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+                    child: Icon(
+                      AppIcons.profile,
+                      size: AppIconSize.sm,
+                      color: AppSemanticColors.of(context).actionText,
+                    ),
+                  ),
+                ),
               ),
             ),
           ),
@@ -369,28 +406,43 @@ class _IconButton extends StatelessWidget {
   const _IconButton({
     required this.icon,
     required this.semantic,
+    required this.semanticLabel,
     this.onPressed,
   });
 
   final IconData icon;
   final AppSemanticColors semantic;
+  final String semanticLabel;
   final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: AppDimensions.controlHeightStandard,
-      height: AppDimensions.controlHeightStandard,
-      child: Material(
-        color: Colors.transparent,
-        shape: RoundedRectangleBorder(borderRadius: AppRadius.allLg),
-        child: InkWell(
-          borderRadius: AppRadius.allLg,
-          onTap: onPressed,
-          child: Icon(
-            icon,
-            size: AppIconSize.md,
-            color: Theme.of(context).colorScheme.onSurface,
+    return Semantics(
+      container: true,
+      button: true,
+      enabled: onPressed != null,
+      label: semanticLabel,
+      onTap: onPressed,
+      child: Tooltip(
+        message: semanticLabel,
+        excludeFromSemantics: true,
+        child: ExcludeSemantics(
+          child: SizedBox(
+            width: AppDimensions.controlHeightStandard,
+            height: AppDimensions.controlHeightStandard,
+            child: Material(
+              color: Colors.transparent,
+              shape: RoundedRectangleBorder(borderRadius: AppRadius.allLg),
+              child: InkWell(
+                borderRadius: AppRadius.allLg,
+                onTap: onPressed,
+                child: Icon(
+                  icon,
+                  size: AppIconSize.md,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+              ),
+            ),
           ),
         ),
       ),
@@ -404,11 +456,13 @@ class _IconButton extends StatelessWidget {
 
 class _AdminDrawer extends StatelessWidget {
   const _AdminDrawer({
+    this.activeDestination,
     this.onOpenRoleManagement,
     this.onOpenMaintenanceTeams,
     this.onOpenProfile,
   });
 
+  final AdminDrawerDestination? activeDestination;
   final VoidCallback? onOpenRoleManagement;
   final VoidCallback? onOpenMaintenanceTeams;
   final VoidCallback? onOpenProfile;
@@ -443,6 +497,8 @@ class _AdminDrawer extends StatelessWidget {
               _DrawerItem(
                 icon: AppIcons.roleManagement,
                 label: 'Role Management',
+                selected:
+                    activeDestination == AdminDrawerDestination.roleManagement,
                 onTap: onOpenRoleManagement == null
                     ? null
                     : () {
@@ -454,6 +510,9 @@ class _AdminDrawer extends StatelessWidget {
               _DrawerItem(
                 icon: AppIcons.maintenanceTeam,
                 label: 'Maintenance Teams',
+                selected:
+                    activeDestination ==
+                    AdminDrawerDestination.maintenanceTeams,
                 onTap: onOpenMaintenanceTeams == null
                     ? null
                     : () {
@@ -464,6 +523,7 @@ class _AdminDrawer extends StatelessWidget {
             _DrawerItem(
               icon: AppIcons.profile,
               label: 'Admin Profile',
+              selected: activeDestination == AdminDrawerDestination.adminProfile,
               onTap: onOpenProfile == null
                   ? null
                   : () {
@@ -479,20 +539,41 @@ class _AdminDrawer extends StatelessWidget {
 }
 
 class _DrawerItem extends StatelessWidget {
-  const _DrawerItem({required this.icon, required this.label, this.onTap});
+  const _DrawerItem({
+    required this.icon,
+    required this.label,
+    required this.selected,
+    this.onTap,
+  });
 
   final IconData icon;
   final String label;
+  final bool selected;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    return ListTile(
-      leading: Icon(icon, color: colorScheme.onSurfaceVariant),
-      title: Text(label),
-      onTap: onTap,
-      enabled: onTap != null,
+    final selectedColor = AppSemanticColors.of(context).actionText;
+    return Semantics(
+      selected: selected,
+      child: ListTile(
+        selected: selected,
+        selectedColor: selectedColor,
+        selectedTileColor: AppSemanticColors.of(
+          context,
+        ).actionFill.withValues(alpha: 0.10),
+        leading: Icon(
+          icon,
+          color: selected ? selectedColor : colorScheme.onSurfaceVariant,
+        ),
+        title: Text(label),
+        onTap: onTap,
+        // The current route can intentionally have no navigation callback;
+        // keep it enabled for selected-color contrast rather than rendering
+        // the active destination as a disabled grey item.
+        enabled: onTap != null || selected,
+      ),
     );
   }
 }

@@ -50,6 +50,7 @@ class MinistryMunicipalPerformanceScreen extends StatefulWidget {
     this.onNotificationsTap,
     this.onOpenMunicipality,
     this.data,
+    this.onRefresh,
   });
 
   final MinistryMunicipalPerformanceViewState initialState;
@@ -69,6 +70,7 @@ class MinistryMunicipalPerformanceScreen extends StatefulWidget {
   /// Regional Leaders row.
   final ValueChanged<RegionalLeaderItem>? onOpenMunicipality;
   final MunicipalPerformanceData? data;
+  final Future<void> Function()? onRefresh;
 
   @override
   State<MinistryMunicipalPerformanceScreen> createState() =>
@@ -78,24 +80,26 @@ class MinistryMunicipalPerformanceScreen extends StatefulWidget {
 class _MinistryMunicipalPerformanceScreenState
     extends State<MinistryMunicipalPerformanceScreen> {
   late MinistryMunicipalPerformanceViewState _state = widget.initialState;
-  MunicipalPerformanceData get _data =>
-      widget.data ?? MunicipalPerformanceData.mock();
   PerformanceFilter _filter = PerformanceFilter.all;
   EfficiencyMetric _metric = EfficiencyMetric.response;
 
-  /// Null means every region — the real narrowing dimension "plenty
-  /// charts" alone couldn't offer: with all 16 regions represented in
-  /// [MunicipalPerformanceData.mock] now, a Ministry Supervisor overseeing
-  /// the whole country can actually drill into one.
+  /// Null means every region.
   Region? _region;
 
-  void _retry() {
+  Future<void> _retry() async {
+    final refresh = widget.onRefresh;
+    if (refresh == null) return;
     setState(() => _state = MinistryMunicipalPerformanceViewState.loading);
-    Future.delayed(const Duration(milliseconds: 500), () {
+    try {
+      await refresh();
       if (mounted) {
         setState(() => _state = MinistryMunicipalPerformanceViewState.loaded);
       }
-    });
+    } catch (_) {
+      if (mounted) {
+        setState(() => _state = MinistryMunicipalPerformanceViewState.error);
+      }
+    }
   }
 
   void _clearFilters() {
@@ -107,13 +111,9 @@ class _MinistryMunicipalPerformanceScreenState
   }
 
   Future<void> _pickRegion() async {
-    final selected = await pickRegion(context, current: _region);
-    // pickRegion returns null both for "picked All Regions" and
-    // "dismissed with no selection" — a second flag would be needed to
-    // tell those apart, but since re-picking "All Regions" is exactly the
-    // reset already in effect for a dismissed sheet, treating them the
-    // same has no observable difference here.
-    setState(() => _region = selected);
+    final selection = await pickRegion(context, current: _region);
+    if (!mounted || selection == null) return;
+    setState(() => _region = selection.region);
   }
 
   @override
@@ -124,14 +124,19 @@ class _MinistryMunicipalPerformanceScreenState
     // scroll gesture to drive a collapse in the first place. Offline/Error/
     // Unauthorized go a step further and disable the chrome entirely, same
     // as before.
+    final data = widget.data;
+    final viewState = _state == MinistryMunicipalPerformanceViewState.loaded &&
+            (data == null || !data.hasReportData)
+        ? MinistryMunicipalPerformanceViewState.empty
+        : _state;
     final chromeEnabled =
-        _state == MinistryMunicipalPerformanceViewState.empty ||
-        _state == MinistryMunicipalPerformanceViewState.noResults;
+        viewState == MinistryMunicipalPerformanceViewState.empty ||
+        viewState == MinistryMunicipalPerformanceViewState.noResults;
 
     // The approved frames use a longer subtitle on Default than on every
     // other state (which share a terser "Aggregated municipality metrics
     // only.") — honored as written rather than picking one for every state.
-    final subtitle = _state == MinistryMunicipalPerformanceViewState.loaded
+    final subtitle = viewState == MinistryMunicipalPerformanceViewState.loaded
         ? 'Aggregated response and resolution metrics across '
               'municipalities.'
         : 'Aggregated municipality metrics only.';
@@ -145,31 +150,37 @@ class _MinistryMunicipalPerformanceScreenState
         if (tab == MinistryTab.analytics) widget.onNavigateToAnalytics?.call();
         if (tab == MinistryTab.reports) widget.onNavigateToReports?.call();
       },
-      body: switch (_state) {
+      body: switch (viewState) {
         MinistryMunicipalPerformanceViewState.loading =>
           const _LoadingSkeleton(),
         MinistryMunicipalPerformanceViewState.loaded => Padding(
           padding: EdgeInsets.only(
             top: MinistryScaffold.contentPadding(context).top,
           ),
-          child: CollapsibleListHeader(
-            header: _FilterChrome(
-              subtitle: subtitle,
-              filter: _filter,
-              region: _region,
-              enabled: true,
-              onFilterSelected: (f) => setState(() => _filter = f),
-              onRegionTap: _pickRegion,
-            ),
-            child: _PerformanceContent(
-              data: _data,
-              metric: _metric,
-              filter: _filter,
-              region: _region,
-              onMetricChanged: (m) => setState(() => _metric = m),
-              onClearFilters: _clearFilters,
-              onOpenMunicipality: widget.onOpenMunicipality,
-            ),
+          child: Column(
+            children: [
+              _FilterControls(
+                filter: _filter,
+                region: _region,
+                enabled: true,
+                onFilterSelected: (f) => setState(() => _filter = f),
+                onRegionTap: _pickRegion,
+              ),
+              Expanded(
+                child: CollapsibleListHeader(
+                  header: _ExplanatorySubtitle(subtitle: subtitle),
+                  child: _PerformanceContent(
+                    data: data!,
+                    metric: _metric,
+                    filter: _filter,
+                    region: _region,
+                    onMetricChanged: (m) => setState(() => _metric = m),
+                    onClearFilters: _clearFilters,
+                    onOpenMunicipality: widget.onOpenMunicipality,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
         _ => Column(
@@ -186,7 +197,7 @@ class _MinistryMunicipalPerformanceScreenState
               onRegionTap: chromeEnabled ? _pickRegion : null,
             ),
             Expanded(
-              child: switch (_state) {
+              child: switch (viewState) {
                 MinistryMunicipalPerformanceViewState.loading ||
                 MinistryMunicipalPerformanceViewState.loaded =>
                   const SizedBox.shrink(),
@@ -200,7 +211,7 @@ class _MinistryMunicipalPerformanceScreenState
                         'Municipality performance metrics will appear '
                         'once aggregated reports are available.',
                     primaryActionLabel: 'Refresh',
-                    onPrimaryAction: _retry,
+                    onPrimaryAction: widget.onRefresh == null ? null : _retry,
                   ),
                 ),
                 MinistryMunicipalPerformanceViewState.noResults => Padding(
@@ -226,7 +237,7 @@ class _MinistryMunicipalPerformanceScreenState
                         'Check your connection and retry loading '
                         'performance metrics.',
                     primaryActionLabel: 'Retry connection',
-                    onPrimaryAction: _retry,
+                    onPrimaryAction: widget.onRefresh == null ? null : _retry,
                     primaryActionColor: AppColors.error,
                   ),
                 ),
@@ -240,7 +251,7 @@ class _MinistryMunicipalPerformanceScreenState
                         'The performance service could not return '
                         'aggregated metrics right now.',
                     primaryActionLabel: 'Try again',
-                    onPrimaryAction: _retry,
+                    onPrimaryAction: widget.onRefresh == null ? null : _retry,
                     primaryActionColor: AppColors.error,
                   ),
                 ),
@@ -287,7 +298,29 @@ class _FilterChrome extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _ExplanatorySubtitle(subtitle: subtitle),
+        _FilterControls(
+          filter: filter,
+          region: region,
+          enabled: enabled,
+          onFilterSelected: onFilterSelected,
+          onRegionTap: onRegionTap,
+        ),
+      ],
+    );
+  }
+}
+
+class _ExplanatorySubtitle extends StatelessWidget {
+  const _ExplanatorySubtitle({required this.subtitle});
+
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.md,
@@ -295,14 +328,38 @@ class _FilterChrome extends StatelessWidget {
         AppSpacing.md,
         AppSpacing.sm,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(subtitle, style: textTheme.bodySmall),
-          const SizedBox(height: AppSpacing.sm),
-          SizedBox(
-            height: 40,
-            child: ListView.separated(
+      child: Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
+    );
+  }
+}
+
+class _FilterControls extends StatelessWidget {
+  const _FilterControls({
+    required this.filter,
+    required this.region,
+    required this.enabled,
+    this.onFilterSelected,
+    this.onRegionTap,
+  });
+
+  final PerformanceFilter filter;
+  final Region? region;
+  final bool enabled;
+  final ValueChanged<PerformanceFilter>? onFilterSelected;
+  final VoidCallback? onRegionTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        0,
+        AppSpacing.md,
+        AppSpacing.sm,
+      ),
+      child: SizedBox(
+        height: 44,
+        child: ListView.separated(
               scrollDirection: Axis.horizontal,
               // Region picker first — it's the primary narrowing dimension
               // ("which of the 16 regions"), the scope chips after it just
@@ -325,8 +382,6 @@ class _FilterChrome extends StatelessWidget {
                 );
               },
             ),
-          ),
-        ],
       ),
     );
   }
@@ -515,23 +570,18 @@ class _PerformanceContent extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
+              Text('Efficiency Trend', style: textTheme.titleMedium),
+              const SizedBox(height: AppSpacing.xs),
+              Wrap(
+                spacing: AppSpacing.sm,
+                runSpacing: AppSpacing.xs,
                 children: [
-                  Expanded(
-                    child: Text(
-                      'Efficiency Trend',
-                      style: textTheme.titleMedium,
-                    ),
-                  ),
-                  for (final option in EfficiencyMetric.values) ...[
+                  for (final option in EfficiencyMetric.values)
                     _MetricToggle(
                       label: option.label,
                       selected: option == metric,
                       onTap: () => onMetricChanged(option),
                     ),
-                    if (option != EfficiencyMetric.values.last)
-                      const SizedBox(width: AppSpacing.sm),
-                  ],
                 ],
               ),
               const SizedBox(height: AppSpacing.md),
@@ -676,18 +726,20 @@ class _MetricToggle extends StatelessWidget {
       child: InkWell(
         borderRadius: AppRadius.allSm,
         onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.xs,
-            vertical: 2,
-          ),
-          child: Text(
-            label,
-            style: Theme.of(context).textTheme.labelMedium?.copyWith(
-              color: selected
-                  ? AppSemanticColors.of(context).actionText
-                  : colorScheme.onSurfaceVariant,
-              fontWeight: selected ? AppFontWeight.semiBold : null,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 44),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+            child: Center(
+              child: Text(
+                label,
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: selected
+                      ? AppSemanticColors.of(context).actionText
+                      : colorScheme.onSurfaceVariant,
+                  fontWeight: selected ? AppFontWeight.semiBold : null,
+                ),
+              ),
             ),
           ),
         ),

@@ -90,7 +90,7 @@ class MinistryReportsScreen extends StatefulWidget {
 
 class _MinistryReportsScreenState extends State<MinistryReportsScreen> {
   late MinistryReportsViewState _state = widget.initialState;
-  MinistryReportsData get _data => widget.data ?? MinistryReportsData.mock();
+  MinistryReportsData? get _data => widget.data;
   final TextEditingController _searchController = TextEditingController();
   ReportStatusFilter _filter = ReportStatusFilter.all;
   String _query = '';
@@ -106,11 +106,16 @@ class _MinistryReportsScreenState extends State<MinistryReportsScreen> {
     super.dispose();
   }
 
-  void _retry() {
+  Future<void> _retry() async {
+    final refresh = widget.onRefresh;
+    if (refresh == null) return;
     setState(() => _state = MinistryReportsViewState.loading);
-    Future.delayed(const Duration(milliseconds: 500), () {
+    try {
+      await refresh();
       if (mounted) setState(() => _state = MinistryReportsViewState.loaded);
-    });
+    } catch (_) {
+      if (mounted) setState(() => _state = MinistryReportsViewState.error);
+    }
   }
 
   void _clearFilters() {
@@ -124,8 +129,9 @@ class _MinistryReportsScreenState extends State<MinistryReportsScreen> {
   }
 
   Future<void> _pickRegion() async {
-    final selected = await pickRegion(context, current: _region);
-    setState(() => _region = selected);
+    final selection = await pickRegion(context, current: _region);
+    if (!mounted || selection == null) return;
+    setState(() => _region = selection.region);
   }
 
   Widget _wrapWithRefresh(Widget child) {
@@ -149,9 +155,18 @@ class _MinistryReportsScreenState extends State<MinistryReportsScreen> {
     // scroll gesture to drive a collapse in the first place. Offline/Error/
     // Unauthorized go a step further and disable the chrome entirely, same
     // as before.
+    final data = _data;
+    final hasActiveFilters =
+        _query.isNotEmpty || _filter != ReportStatusFilter.all || _region != null;
+    final viewState = _state == MinistryReportsViewState.loaded &&
+            (data == null || data.reports.isEmpty)
+        ? hasActiveFilters
+            ? MinistryReportsViewState.noResults
+            : MinistryReportsViewState.empty
+        : _state;
     final chromeEnabled =
-        _state == MinistryReportsViewState.empty ||
-        _state == MinistryReportsViewState.noResults;
+        viewState == MinistryReportsViewState.empty ||
+        viewState == MinistryReportsViewState.noResults;
 
     return MinistryScaffold(
       selectedTab: MinistryTab.reports,
@@ -164,7 +179,7 @@ class _MinistryReportsScreenState extends State<MinistryReportsScreen> {
           widget.onNavigateToMunicipalities?.call();
         }
       },
-      body: switch (_state) {
+      body: switch (viewState) {
         MinistryReportsViewState.loading => const _LoadingSkeleton(),
         MinistryReportsViewState.loaded => _wrapWithRefresh(
           Padding(
@@ -182,14 +197,14 @@ class _MinistryReportsScreenState extends State<MinistryReportsScreen> {
                 onRegionTap: _pickRegion,
               ),
               child: _ReportsContent(
-                data: _data,
+                data: data!,
                 query: _query,
                 filter: _filter,
                 region: _region,
                 onClearFilters: _clearFilters,
                 onViewReportInsights: widget.onViewReportInsights,
+                ),
               ),
-            ),
           ),
         ),
         _ => Column(
@@ -209,7 +224,7 @@ class _MinistryReportsScreenState extends State<MinistryReportsScreen> {
               onRegionTap: chromeEnabled ? _pickRegion : null,
             ),
             Expanded(
-              child: switch (_state) {
+              child: switch (viewState) {
                 MinistryReportsViewState.loading ||
                 MinistryReportsViewState.loaded => const SizedBox.shrink(),
                 MinistryReportsViewState.empty => Padding(
@@ -222,7 +237,7 @@ class _MinistryReportsScreenState extends State<MinistryReportsScreen> {
                         'Aggregated reports will appear here once ministry '
                         'report data is available.',
                     primaryActionLabel: 'Refresh',
-                    onPrimaryAction: _retry,
+                    onPrimaryAction: widget.onRefresh == null ? null : _retry,
                   ),
                 ),
                 MinistryReportsViewState.noResults => Padding(
@@ -246,7 +261,7 @@ class _MinistryReportsScreenState extends State<MinistryReportsScreen> {
                     title: 'You\'re offline',
                     message: 'Check your connection and retry loading reports.',
                     primaryActionLabel: 'Retry connection',
-                    onPrimaryAction: _retry,
+                    onPrimaryAction: widget.onRefresh == null ? null : _retry,
                     primaryActionColor: AppColors.error,
                   ),
                 ),
@@ -260,7 +275,7 @@ class _MinistryReportsScreenState extends State<MinistryReportsScreen> {
                         'The reports service could not return aggregated '
                         'data right now.',
                     primaryActionLabel: 'Try again',
-                    onPrimaryAction: _retry,
+                    onPrimaryAction: widget.onRefresh == null ? null : _retry,
                     primaryActionColor: AppColors.error,
                   ),
                 ),
@@ -608,51 +623,57 @@ class _ReportCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     return GlassCard(
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: AppDimensions.controlHeightStandard,
-            height: AppDimensions.controlHeightStandard,
-            // Neutral leading glyph (F01): status color lives in the badge
-            // only, so it is not duplicated across the card.
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surfaceContainer,
-              borderRadius: AppRadius.allSm,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: AppDimensions.controlHeightStandard,
+                height: AppDimensions.controlHeightStandard,
+                // Neutral leading glyph (F01): status color lives in the badge
+                // only, so it is not duplicated across the card.
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surfaceContainer,
+                  borderRadius: AppRadius.allSm,
             ),
-            child: Icon(
-              item.status.icon,
-              size: AppIconSize.md,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.title,
-                  style: textTheme.titleSmall,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                child: Icon(
+                  item.status.icon,
+                  size: AppIconSize.md,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
-                const SizedBox(height: 2),
-                Text(
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.title,
+                      style: textTheme.titleSmall,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
                   '${item.municipality} · ${item.category}',
-                  style: textTheme.bodySmall,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                      style: textTheme.bodySmall,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-          const SizedBox(width: AppSpacing.sm),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
+          const SizedBox(height: AppSpacing.sm),
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.xs,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               _StatusBadge(status: item.status),
-              const SizedBox(height: AppSpacing.xs),
               Text(item.dateLabel, style: textTheme.bodySmall),
             ],
           ),
