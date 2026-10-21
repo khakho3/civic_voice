@@ -30,10 +30,10 @@ enum PermissionType {
 enum AdminTier {
   admin(
     label: 'Admin',
-    scope: 'Standard Access',
+    scope: 'Reference standard access',
     description:
-        'Day-to-day administrative access for account and report '
-        'oversight, without destructive or role-management privileges.',
+        'Reference model for day-to-day account and report oversight, '
+        'without destructive or role-management privileges.',
     icon: AppIcons.shieldAlert,
     tint: AppColors.warning,
     permissions: {
@@ -45,11 +45,10 @@ enum AdminTier {
   ),
   superAdmin(
     label: 'Super Admin',
-    scope: 'Full System Authority',
+    scope: 'Reference national access',
     description:
-        'Unrestricted access to every administrator capability, '
-        'including account deletion, role assignment, and system '
-        'configuration.',
+        'Reference model for national administrator capabilities, including '
+        'account deletion, role assignment, and system configuration.',
     icon: AppIcons.shield,
     tint: AppColors.primary,
     permissions: {

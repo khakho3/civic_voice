@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/theme/app_theme.dart';
+import '../../../models/report_status.dart';
 
 /// "Reporting Trends" date-range chip — same three-option shape as MIN-002
 /// Analytics' own date range, default matching the approved MIN-005 frame's
@@ -38,6 +38,7 @@ enum InsightsStatusFilter {
   underReview('Under Review'),
   assigned('Assigned'),
   inProgress('In Progress'),
+  pendingApproval('Awaiting Confirmation'),
   resolved('Resolved'),
   rejected('Rejected');
 
@@ -69,57 +70,34 @@ class CriticalInsightItem {
 /// [criticalInsights] already covers the spec's "Trend Analysis" output
 /// more specifically and more usefully than a generic aggregate percentage
 /// would. This screen's job is synthesis, not a second copy of Analytics'
-/// charts.
+/// charts. Current insights contain no historic comparison or AI-generated
+/// narrative.
 class MinistryReportInsightsData {
   const MinistryReportInsightsData({
     required this.categoryPeakLabel,
-    required this.categoryPeakSharePercent,
+    required this.categoryPeakCount,
     required this.resolutionPercent,
-    required this.resolutionDeltaLabel,
+    required this.statusCounts,
     required this.criticalInsights,
     required this.strategicFocusText,
   });
 
   final String categoryPeakLabel;
-  final int categoryPeakSharePercent;
+  final int categoryPeakCount;
   final int resolutionPercent;
-  final String resolutionDeltaLabel;
+  final Map<ReportStatus, int> statusCounts;
 
   final List<CriticalInsightItem> criticalInsights;
   final String strategicFocusText;
 
-  /// Placeholder content matching the approved MIN-005 design, used until
-  /// the Cloud Firestore-backed aggregation service (Issue 05 dependency) is
-  /// wired up.
-  static MinistryReportInsightsData mock() {
-    return const MinistryReportInsightsData(
-      categoryPeakLabel: 'Sanitation',
-      categoryPeakSharePercent: 31,
-      resolutionPercent: 74,
-      resolutionDeltaLabel: '+6.2%',
-      criticalInsights: [
-        CriticalInsightItem(
-          icon: AppIcons.trendUp,
-          tint: AppColors.warning,
-          title: 'Sanitation reports are rising',
-          subtitle: '+18% from previous period',
-        ),
-        CriticalInsightItem(
-          icon: AppIcons.pace,
-          tint: AppColors.statusResolved,
-          title: 'Resolution pace improved',
-          subtitle: 'Average closure down 6 hours',
-        ),
-        CriticalInsightItem(
-          icon: AppIcons.focusArea,
-          tint: AppColors.primary,
-          title: 'Infrastructure needs focus',
-          subtitle: 'Highest backlog concentration',
-        ),
-      ],
-      strategicFocusText:
-          'Prioritize sanitation response capacity while maintaining gains '
-          'in resolution time.',
-    );
-  }
+  int count(ReportStatus status) => statusCounts[status] ?? 0;
+
+  int get totalReports => statusCounts.values.fold(0, (sum, count) => sum + count);
+
+  int get openBacklog =>
+      count(ReportStatus.submitted) +
+      count(ReportStatus.underReview) +
+      count(ReportStatus.assigned) +
+      count(ReportStatus.inProgress) +
+      count(ReportStatus.pendingApproval);
 }

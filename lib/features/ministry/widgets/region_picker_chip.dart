@@ -4,18 +4,29 @@ import '../../../core/theme/app_theme.dart';
 import '../../../models/region.dart';
 import '../../../widgets/glass_dialog_backdrop.dart';
 
-/// Opens the "All Regions" + all 16 regions picker sheet, returning the
-/// selection (`null` for "All Regions") — shared by Municipal Performance
-/// and Reports Overview rather than each screen duplicating the same
-/// `showModalBottomSheet` call.
+/// An explicit region-picker choice. A `null` [region] means the user chose
+/// "All Regions"; a `null` result from [pickRegion] means the sheet was
+/// dismissed without changing the current selection.
+class RegionPickerSelection {
+  const RegionPickerSelection(this.region);
+
+  final Region? region;
+}
+
+/// Opens the "All Regions" + all 16 regions picker sheet — shared by
+/// Municipal Performance and Reports Overview rather than each screen
+/// duplicating the same `showModalBottomSheet` call.
 ///
 /// `isScrollControlled: true` + a height-capped `ListView` (not a plain
 /// `Column`, which is what this replaced) — 17 rows is taller than a
 /// phone screen has room for below the status bar, and a bare `Column`
 /// inside `SafeArea` has nothing forcing it to respect that limit, so it
 /// silently overflowed rather than scrolling.
-Future<Region?> pickRegion(BuildContext context, {required Region? current}) {
-  return showModalBottomSheet<Region?>(
+Future<RegionPickerSelection?> pickRegion(
+  BuildContext context, {
+  required Region? current,
+}) {
+  return showModalBottomSheet<RegionPickerSelection>(
     context: context,
     isScrollControlled: true,
     builder: (context) => GlassDialogBackdrop(
@@ -35,7 +46,9 @@ Future<Region?> pickRegion(BuildContext context, {required Region? current}) {
                         color: AppSemanticColors.of(context).actionText,
                       )
                     : null,
-                onTap: () => Navigator.of(context).pop<Region?>(null),
+                onTap: () => Navigator.of(
+                  context,
+                ).pop(const RegionPickerSelection(null)),
               ),
               for (final region in Region.values)
                 ListTile(
@@ -46,7 +59,9 @@ Future<Region?> pickRegion(BuildContext context, {required Region? current}) {
                           color: AppSemanticColors.of(context).actionText,
                         )
                       : null,
-                  onTap: () => Navigator.of(context).pop<Region?>(region),
+                  onTap: () => Navigator.of(
+                    context,
+                  ).pop(RegionPickerSelection(region)),
                 ),
             ],
           ),

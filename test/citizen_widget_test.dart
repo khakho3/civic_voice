@@ -1,10 +1,15 @@
+import 'dart:async';
+
 import 'package:civic_voice/core/theme/app_theme.dart';
 import 'package:civic_voice/features/citizen/models/civic_report.dart';
 import 'package:civic_voice/features/citizen/models/citizen_profile.dart';
 import 'package:civic_voice/features/citizen/screens/citizen_dashboard_screen.dart';
+import 'package:civic_voice/features/citizen/screens/create_report_screen.dart';
 import 'package:civic_voice/features/citizen/screens/citizen_profile_screen.dart';
+import 'package:civic_voice/features/citizen/screens/citizen_reports_screen.dart';
 import 'package:civic_voice/features/citizen/screens/citizen_tab_routes.dart';
 import 'package:civic_voice/features/citizen/screens/photo_upload_screen.dart';
+import 'package:civic_voice/features/citizen/screens/report_submitted_screen.dart';
 import 'package:civic_voice/features/citizen/screens/report_tracking_screen.dart';
 import 'package:civic_voice/features/citizen/screens/review_report_screen.dart';
 import 'package:civic_voice/features/citizen/services/location_service.dart';
@@ -12,6 +17,7 @@ import 'package:civic_voice/features/citizen/services/profile_crud_service.dart'
 import 'package:civic_voice/features/citizen/services/report_crud_service.dart';
 import 'package:civic_voice/features/citizen/widgets/nearby_seconding_card.dart';
 import 'package:civic_voice/features/citizen/widgets/nearby_seconding_preference_row.dart';
+import 'package:civic_voice/features/citizen/widgets/civic_app_chrome.dart';
 import 'package:civic_voice/features/authentication/screens/registration_screen.dart';
 import 'package:civic_voice/main.dart' as app;
 import 'package:civic_voice/services/app_cache_service.dart';
@@ -72,7 +78,700 @@ const _nearbyReports = [
   ),
 ];
 
+ReviewReportScreen _reviewForSubmissionTest({
+  required ReportSubmitter submitReport,
+}) =>
+    ReviewReportScreen(
+      reportTitle: 'Submission guard report',
+      reportLocationLabel: 'Test location',
+      locationService: _FakeLocationService(
+        LocationAccessResult(
+          status: LocationAccessStatus.ready,
+          position: _position(5.6, -0.2),
+        ),
+      ),
+      submitReport: submitReport,
+    );
+
+CivicReport _submittedReport() => const CivicReport(
+  id: 'submitted-report-id',
+  referenceNumber: 'CV-2026-SUBMITTED',
+  title: 'Submission guard report',
+  location: 'Test location',
+  timeLabel: 'Just now',
+  status: ReportStatus.submitted,
+);
+
+Finder _filledButtonWithLabel(String label) => find.ancestor(
+  of: find.text(label),
+  // FilledButton.icon creates a FilledButton subtype, so an exact
+  // find.byType(FilledButton) lookup does not match it.
+  matching: find.byWidgetPredicate((widget) => widget is FilledButton),
+);
+
+Future<void> _revealReviewSubmit(WidgetTester tester) async {
+  final scrollable = find.byType(Scrollable).first;
+  await tester.scrollUntilVisible(
+    find.text('Submit Report'),
+    240,
+    scrollable: scrollable,
+  );
+
+  // scrollUntilVisible stops as soon as the label is mounted, which can leave
+  // the button at the lower edge of the 800x600 test viewport. Center the
+  // actual tappable control in its real ListView before tapping it.
+  final submit = _filledButtonWithLabel('Submit Report');
+  await Scrollable.ensureVisible(
+    tester.element(submit),
+    alignment: 0.5,
+    duration: Duration.zero,
+  );
+  await tester.pump();
+
+  final buttonBounds = tester.getRect(submit);
+  final viewportBounds = tester.getRect(scrollable);
+  expect(buttonBounds.top, greaterThan(viewportBounds.top + 64));
+  expect(buttonBounds.bottom, lessThan(viewportBounds.bottom));
+}
+
+/// Waits only for the route produced by a completed submission. This avoids
+/// coupling a submission test to unrelated indefinite animations while still
+/// allowing the real draft-cache cleanup to complete before navigation.
+Future<void> _waitForSubmittedRoute(WidgetTester tester) async {
+  final submittedRoute = find.byType(ReportSubmittedScreen);
+  for (var frame = 0; frame < 20; frame++) {
+    if (submittedRoute.evaluate().isNotEmpty) return;
+    await tester.pump(const Duration(milliseconds: 50));
+  }
+
+  expect(submittedRoute, findsOneWidget);
+}
+
 void main() {
+  testWidgets('C03 Submit Report prevents concurrent submissions', (tester) async {
+    // Review performs the real draft clear before it navigates after a
+    // confirmed submission. Supply the same initialized cache fixture used by
+    // the retry-success path below so this test exercises that success path
+    // instead of a missing SharedPreferences test implementation.
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    await AppCacheService.instance.initialize();
+    addTearDown(AppCacheService.instance.clearReportDraft);
+
+    final response = Completer<CivicReport>();
+    var requests = 0;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: _reviewForSubmissionTest(
+          submitReport: (draft, {submissionLatitude, submissionLongitude}) {
+            requests++;
+            return response.future;
+          },
+        ),
+      ),
+    );
+    await tester.pump();
+
+    await _revealReviewSubmit(tester);
+    final submit = _filledButtonWithLabel('Submit Report');
+    expect(submit, findsOneWidget);
+    await tester.tap(submit);
+    await tester.tap(submit);
+    await tester.pump();
+
+    expect(requests, 1);
+    expect(find.text('Submitting report...'), findsOneWidget);
+    final pendingSubmit = _filledButtonWithLabel('Submitting report...');
+    expect(tester.widget<FilledButton>(pendingSubmit).onPressed, isNull);
+
+    final semantics = tester.ensureSemantics();
+    try {
+      // The disabled FilledButton remains a focusable live-region control.
+      // Assert the announcement itself without rejecting Flutter's valid
+      // button/focus semantics metadata.
+      expect(
+        tester.getSemantics(find.text('Submitting report...')).label,
+        'Submitting report...',
+      );
+    } finally {
+      semantics.dispose();
+    }
+
+    response.complete(_submittedReport());
+    await _waitForSubmittedRoute(tester);
+
+    expect(requests, 1);
+    expect(find.byType(ReportSubmittedScreen), findsOneWidget);
+  });
+
+  testWidgets('C03 failed submission preserves its draft and enables one retry',
+      (tester) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    await AppCacheService.instance.initialize();
+    const draft = ReportDraft(
+      title: 'Submission guard report',
+      description: 'A meaningful draft retained after a failed submission.',
+      category: 'General',
+      location: 'Test location',
+      community: 'Test community',
+    );
+    await AppCacheService.instance.saveReportDraft(draft);
+    addTearDown(AppCacheService.instance.clearReportDraft);
+
+    final firstResponse = Completer<CivicReport>();
+    final retryResponse = Completer<CivicReport>();
+    var requests = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: _reviewForSubmissionTest(
+          submitReport: (draft, {submissionLatitude, submissionLongitude}) =>
+              requests++ == 0 ? firstResponse.future : retryResponse.future,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    await _revealReviewSubmit(tester);
+    final submit = _filledButtonWithLabel('Submit Report');
+    expect(submit, findsOneWidget);
+    await tester.tap(submit);
+    await tester.pump();
+    firstResponse.completeError(StateError('network failed'));
+    await tester.pump();
+    await tester.pump();
+
+    expect(AppCacheService.instance.reportDraft?.title, draft.title);
+    expect(tester.widget<FilledButton>(submit).onPressed, isNotNull);
+
+    await tester.tap(submit);
+    await tester.tap(submit);
+    await tester.pump();
+    expect(requests, 2);
+
+    retryResponse.complete(_submittedReport());
+    await _waitForSubmittedRoute(tester);
+    expect(find.byType(ReportSubmittedScreen), findsOneWidget);
+  });
+
+  testWidgets('C03 ignores a completed submission after Review is disposed',
+      (tester) async {
+    final response = Completer<CivicReport>();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: _reviewForSubmissionTest(
+          submitReport: (draft, {submissionLatitude, submissionLongitude}) =>
+              response.future,
+        ),
+      ),
+    );
+    await tester.pump();
+    await _revealReviewSubmit(tester);
+    await tester.tap(_filledButtonWithLabel('Submit Report'));
+    await tester.pump();
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    response.complete(_submittedReport());
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.byType(ReportSubmittedScreen), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('C03 Submitted shows a supplied genuine reference', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: const ReportSubmittedScreen(
+          reportId: 'confirmed-report',
+          referenceNumber: ' CV-2026-CONFIRMED ',
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('CV-2026-CONFIRMED'), findsOneWidget);
+    expect(find.text('Report Submitted\nSuccessfully'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Track My Report'),
+      240,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text('Track My Report'), findsOneWidget);
+    expect(find.text('Reference number unavailable'), findsNothing);
+  });
+
+  testWidgets('C03 Submitted is honest when its reference is incomplete',
+      (tester) async {
+    for (final reference in <String?>[null, '', '   ']) {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: ReportSubmittedScreen(
+            reportId: 'incomplete-report',
+            referenceNumber: reference,
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('Submission confirmation unavailable'), findsOneWidget);
+      expect(find.text('Reference number unavailable'), findsOneWidget);
+      expect(find.text('Report Submitted\nSuccessfully'), findsNothing);
+      expect(find.text('Track My Report'), findsNothing);
+      expect(find.text('CV-2026-004582'), findsNothing);
+    }
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: const ReportSubmittedScreen(
+          referenceNumber: 'CV-2026-WITHOUT-ID',
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Submission confirmation unavailable'), findsOneWidget);
+    expect(find.text('CV-2026-WITHOUT-ID'), findsOneWidget);
+    expect(find.text('Track My Report'), findsNothing);
+  });
+
+  testWidgets('C03 authoring screens use focused chrome and plain Back', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: Builder(
+          builder: (context) => FilledButton(
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const CreateReportScreen(),
+              ),
+            ),
+            child: const Text('Open authoring'),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open authoring'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(CreateReportScreen), findsOneWidget);
+    expect(find.byTooltip('Back'), findsOneWidget);
+    expect(find.byType(CivicBottomNav), findsNothing);
+
+    await tester.tap(find.byTooltip('Back'));
+    await tester.pumpAndSettle();
+    expect(find.text('Open authoring'), findsOneWidget);
+
+    await tester.pumpWidget(
+      MaterialApp(theme: AppTheme.light, home: const PhotoUploadScreen()),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Back'), findsOneWidget);
+    expect(find.byType(CivicBottomNav), findsNothing);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: ReviewReportScreen(
+          locationService: _FakeLocationService(
+            LocationAccessResult(
+              status: LocationAccessStatus.ready,
+              position: _position(5.6, -0.2),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Back'), findsOneWidget);
+    expect(find.byType(CivicBottomNav), findsNothing);
+  });
+
+  testWidgets(
+    'C03 submitted actions preserve My Reports or start a fresh flow',
+    (tester) async {
+      tester.view.physicalSize = const Size(428, 1800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: Builder(
+            builder: (context) => FilledButton(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  settings: const RouteSettings(
+                    name: CitizenReportsScreen.routeName,
+                  ),
+                  builder: (context) => Scaffold(
+                    body: Center(
+                      child: FilledButton(
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            settings: const RouteSettings(
+                              name: ReportSubmittedScreen.routeName,
+                            ),
+                            builder: (_) => const ReportSubmittedScreen(
+                              returnToReports: true,
+                            ),
+                          ),
+                        ),
+                        child: const Text('Open submitted'),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              child: const Text('Dashboard origin'),
+            ),
+          ),
+        ),
+      );
+
+      Future<void> openSubmitted() async {
+        await tester.tap(find.text('Dashboard origin'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Open submitted'));
+        await tester.pumpAndSettle();
+        expect(find.byType(ReportSubmittedScreen), findsOneWidget);
+      }
+
+      await openSubmitted();
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.text('Open submitted'), findsOneWidget);
+
+      await tester.tap(find.text('Open submitted'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Reports'));
+      await tester.pumpAndSettle();
+      expect(find.text('Open submitted'), findsOneWidget);
+
+      await tester.tap(find.text('Open submitted'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Submit Another Report'));
+      await tester.pumpAndSettle();
+      expect(find.byType(CreateReportScreen), findsOneWidget);
+      expect(find.byType(ReportSubmittedScreen), findsNothing);
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.text('Open submitted'), findsOneWidget);
+
+      await tester.tap(find.text('Open submitted'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Return to Dashboard'));
+      await tester.pumpAndSettle();
+      expect(find.byType(CitizenDashboardScreen), findsOneWidget);
+      expect(find.byType(ReportSubmittedScreen), findsNothing);
+    },
+  );
+
+  testWidgets('C03 cancelling Create retains My Reports search and filter', (
+    tester,
+  ) async {
+    final reports = ReportCrudService.instance;
+    final previousReports = reports.reports.value;
+    addTearDown(() => reports.reports.value = previousReports);
+    reports.reports.value = const [
+      CivicReport(
+        id: 'c03-origin-report',
+        referenceNumber: 'CV-2026-C03',
+        title: 'Broken streetlight',
+        location: 'High Street',
+        timeLabel: 'Today',
+        status: ReportStatus.submitted,
+      ),
+    ];
+    tester.view.physicalSize = const Size(428, 1800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(theme: AppTheme.light, home: const CitizenReportsScreen()),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField), 'streetlight');
+    await tester.tap(find.widgetWithText(ChoiceChip, 'In Progress'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Create report'));
+    await tester.pumpAndSettle();
+    expect(find.byType(CreateReportScreen), findsOneWidget);
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+
+    expect(find.widgetWithText(TextField, 'streetlight'), findsOneWidget);
+    expect(
+      tester.widget<ChoiceChip>(
+        find.widgetWithText(ChoiceChip, 'In Progress'),
+      ).selected,
+      isTrue,
+    );
+  });
+
+  testWidgets('Nearby Issues opens as an accessible native bottom sheet', (
+    tester,
+  ) async {
+    final reports = ReportCrudService.instance;
+    final previousReports = reports.reports.value;
+    addTearDown(() => reports.reports.value = previousReports);
+    reports.reports.value = const [
+      CivicReport(
+        id: 'nearby-sheet-report',
+        referenceNumber: 'CV-2026-NEARBY',
+        title: 'Damaged pavement',
+        location: 'High Street',
+        timeLabel: 'Today',
+        status: ReportStatus.submitted,
+      ),
+    ];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: CitizenDashboardScreen(
+          locationService: _FakeLocationService(
+            const LocationAccessResult(status: LocationAccessStatus.unavailable),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final nearbyIssues = find.text('Nearby Issues').first;
+    final dashboardScrollable = find.byWidgetPredicate(
+      (widget) =>
+          widget is Scrollable &&
+          widget.physics is AlwaysScrollableScrollPhysics,
+    );
+    expect(dashboardScrollable, findsOneWidget);
+    final nearbyIssuesAction = find.ancestor(
+      of: nearbyIssues,
+      matching: find.byType(GestureDetector),
+    );
+    expect(nearbyIssuesAction, findsOneWidget);
+    await tester.drag(dashboardScrollable, const Offset(0, -400));
+    await tester.pumpAndSettle();
+    await tester.tap(nearbyIssuesAction);
+    await tester.pumpAndSettle();
+
+    final sheet = find.byType(BottomSheet);
+    expect(sheet, findsOneWidget);
+    expect(
+      find.descendant(of: sheet, matching: find.text('Nearby Issues')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: sheet, matching: find.text('Damaged pavement')),
+      findsOneWidget,
+    );
+
+    final semantics = tester.ensureSemantics();
+    try {
+      expect(
+        find.descendant(
+          of: sheet,
+          matching: find.bySemanticsLabel(RegExp('Nearby Issues')),
+        ),
+        findsWidgets,
+      );
+    } finally {
+      semantics.dispose();
+    }
+  });
+
+  testWidgets('Nearby Issues keeps native back dismissal', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: CitizenDashboardScreen(
+          locationService: _FakeLocationService(
+            const LocationAccessResult(status: LocationAccessStatus.unavailable),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final nearbyIssues = find.text('Nearby Issues').first;
+    final dashboardScrollable = find.byWidgetPredicate(
+      (widget) =>
+          widget is Scrollable &&
+          widget.physics is AlwaysScrollableScrollPhysics,
+    );
+    expect(dashboardScrollable, findsOneWidget);
+    final nearbyIssuesAction = find.ancestor(
+      of: nearbyIssues,
+      matching: find.byType(GestureDetector),
+    );
+    expect(nearbyIssuesAction, findsOneWidget);
+    await tester.drag(dashboardScrollable, const Offset(0, -400));
+    await tester.pumpAndSettle();
+    await tester.tap(nearbyIssuesAction);
+    await tester.pumpAndSettle();
+    expect(find.byType(BottomSheet), findsOneWidget);
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+
+    expect(find.byType(BottomSheet), findsNothing);
+    expect(find.byType(CitizenDashboardScreen), findsOneWidget);
+  });
+
+  testWidgets('Report Issue quick action opens Create Report', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: CitizenDashboardScreen(
+          locationService: _FakeLocationService(
+            const LocationAccessResult(status: LocationAccessStatus.unavailable),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final reportIssue = find.text('Report Issue').first;
+    final dashboardScrollable = find.byWidgetPredicate(
+      (widget) =>
+          widget is Scrollable &&
+          widget.physics is AlwaysScrollableScrollPhysics,
+    );
+    expect(dashboardScrollable, findsOneWidget);
+    final reportIssueAction = find.ancestor(
+      of: reportIssue,
+      matching: find.byType(GestureDetector),
+    );
+    expect(reportIssueAction, findsOneWidget);
+    await tester.drag(dashboardScrollable, const Offset(0, -400));
+    await tester.pumpAndSettle();
+    await tester.tap(reportIssueAction);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(CreateReportScreen), findsOneWidget);
+  });
+
+  testWidgets(
+    'report history card opens tracking through one accessible card action',
+    (tester) async {
+      final reports = ReportCrudService.instance;
+      final previousReports = reports.reports.value;
+      addTearDown(() => reports.reports.value = previousReports);
+      reports.reports.value = const [
+        CivicReport(
+          id: 'card-tracking-report',
+          referenceNumber: 'CV-2026-CARD',
+          title: 'Broken streetlight',
+          location: 'Independence Avenue',
+          timeLabel: 'Just now',
+          status: ReportStatus.submitted,
+        ),
+      ];
+
+      await tester.pumpWidget(
+        MaterialApp(theme: AppTheme.light, home: const CitizenReportsScreen()),
+      );
+      await tester.pumpAndSettle();
+
+      final card = find.byKey(
+        const ValueKey('report-history-card-card-tracking-report'),
+      );
+      final cardSurface = find.descendant(
+        of: card,
+        matching: find.byType(InkWell),
+      );
+      await tester.ensureVisible(cardSurface);
+      expect(card, findsOneWidget);
+      expect(cardSurface, findsOneWidget);
+      expect(find.text('View Report'), findsNothing);
+      expect(
+        find.descendant(
+          of: card,
+          matching: find.byIcon(AppIcons.chevronRight),
+        ),
+        findsOneWidget,
+      );
+
+      final semantics = tester.ensureSemantics();
+      try {
+        expect(
+          tester.getSemantics(card),
+          matchesSemantics(
+            label:
+                'Open report Broken streetlight. Location: Independence Avenue. '
+                'Status: Submitted. Progress: 15%. Reference: CV-2026-CARD.',
+            hint: 'Opens report tracking',
+            isButton: true,
+            hasTapAction: true,
+          ),
+        );
+      } finally {
+        semantics.dispose();
+      }
+
+      await tester.tapAt(
+        tester.getTopLeft(cardSurface) + const Offset(20, 20),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(ReportTrackingScreen), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'Report Tracking explains Awaiting Confirmation at 90 percent',
+    (tester) async {
+      final reports = ReportCrudService.instance;
+      final previousReports = reports.reports.value;
+      addTearDown(() => reports.reports.value = previousReports);
+      reports.reports.value = const [
+        CivicReport(
+          id: 'pending-approval-tracking-report',
+          referenceNumber: 'CV-2026-PENDING',
+          title: 'Road drainage repair',
+          location: 'Community Road',
+          timeLabel: 'Just now',
+          status: ReportStatus.pendingApproval,
+        ),
+      ];
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: const ReportTrackingScreen(
+            reportId: 'pending-approval-tracking-report',
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Awaiting Confirmation'), findsWidgets);
+      expect(find.text('90%'), findsOneWidget);
+      expect(
+        find.text(
+          'The team finished the work and submitted it. A municipal officer is '
+          'confirming it before the report closes.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Report not found'), findsNothing);
+    },
+  );
+
   testWidgets('guest profile offers account creation instead of editing', (
     tester,
   ) async {
@@ -603,12 +1302,13 @@ void main() {
 
       await pumpRoute(app.AppRoutes.citizenReportSubmitted);
 
-      expect(find.text('Submitted'), findsWidgets);
-      expect(find.text('Track My Report'), findsOneWidget);
+      expect(find.text('Submission confirmation unavailable'), findsOneWidget);
+      expect(find.text('Reference number unavailable'), findsOneWidget);
+      expect(find.text('Track My Report'), findsNothing);
       expect(find.text('Review Estimate'), findsNothing);
       expect(find.text('Within 24-48 hours'), findsNothing);
       expect(find.textContaining('Estimated:'), findsNothing);
-      expect(find.text('Pending initial validation'), findsOneWidget);
+      expect(find.text('Pending initial validation'), findsNothing);
 
       await pumpRoute(
         '${app.AppRoutes.citizenReportTracking}?reportId=missing',

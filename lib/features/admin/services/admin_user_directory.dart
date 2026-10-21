@@ -9,28 +9,66 @@ import '../models/admin_role_management_data.dart';
 import '../models/admin_user_management_data.dart';
 import '../../../services/api_client.dart';
 
-/// In-memory admin user directory — the same "single shared mock service"
-/// pattern as citizen's `ReportCrudService`, so creating a user from
-/// [AdminCreateUserScreen] (not built yet at the time User Management first
-/// shipped) actually shows up back in [AdminUserManagementScreen]'s list
-/// instead of vanishing into an unwired callback. Replaces User
-/// Management's previous screen-local `_users` state, which only
-/// [_toggleActive] ever mutated — now every admin screen reads/writes
-/// through this one list.
+/// In-memory cache of the authorized Admin user directory. Records are only
+/// populated from confirmed server responses; previews and tests seed their
+/// own explicit fixtures.
+enum AdminUserDirectoryState { unavailable, loading, loaded, failed }
+
 class AdminUserDirectory {
   AdminUserDirectory._();
 
   static final AdminUserDirectory instance = AdminUserDirectory._();
 
   final ValueNotifier<List<AdminUserItem>> users = ValueNotifier(
-    Firebase.apps.isEmpty ? mockAdminUsers() : const <AdminUserItem>[],
+    const <AdminUserItem>[],
+  );
+  final ValueNotifier<AdminUserDirectoryState> state = ValueNotifier(
+    AdminUserDirectoryState.unavailable,
   );
   final ValueNotifier<bool> loading = ValueNotifier(false);
   final ValueNotifier<String?> error = ValueNotifier(null);
   bool hasLiveSnapshot = false;
 
-  int _nextUserNumber = 200;
+  /// Invalidates only list reads. A successful mutation advances it *after*
+  /// the server confirms the mutation, so a racing list read cannot replace
+  /// that confirmed result.
+  int _listReadRevision = 0;
+  int _sessionGeneration = 0;
+
+  /// Active mutation revision per user. Entries are removed once their
+  /// operation finishes; revisions themselves come from the monotonic counter
+  /// below so an old completion can never become current after cleanup.
+  final Map<String, int> _mutationRevisions = <String, int>{};
+  int _nextMutationRevision = 0;
   String? currentApiUserId;
+
+  @visibleForTesting
+  bool? firebaseAvailableForTesting;
+  @visibleForTesting
+  Future<String?> Function()? tokenProviderForTesting;
+  @visibleForTesting
+  Future<List<Map<String, dynamic>>> Function(String token)? listUsersForTesting;
+  @visibleForTesting
+  Future<Map<String, dynamic>> Function(
+    String userId,
+    String token,
+    Map<String, dynamic> fields,
+  )?
+  updateUserForTesting;
+  @visibleForTesting
+  Future<void> Function(String userId, String token)? deleteUserForTesting;
+
+  bool get canRefresh => firebaseAvailableForTesting ?? Firebase.apps.isNotEmpty;
+
+  /// A caller that starts an async operation can retain this value and reject
+  /// its result when the signed-in session has since been cleared.
+  int get sessionGeneration => _sessionGeneration;
+
+  bool isSessionGenerationCurrent(int generation) =>
+      generation == _sessionGeneration;
+
+  @visibleForTesting
+  int get pendingMutationCount => _mutationRevisions.length;
 
   AdminUserItem? get currentUser {
     final id = currentApiUserId;
@@ -42,24 +80,50 @@ class AdminUserDirectory {
   }
 
   Future<void> refresh() async {
-    if (Firebase.apps.isEmpty) return;
-    final token = await FirebaseAuth.instance.currentUser?.getIdToken();
-    if (token == null) throw StateError('A signed-in Admin is required');
+    final sessionGeneration = _sessionGeneration;
+    final revision = ++_listReadRevision;
+    if (!canRefresh) {
+      _setUnavailable(
+        'User data is unavailable because Firebase is not configured.',
+      );
+      throw StateError('User data is unavailable without Firebase');
+    }
     loading.value = true;
+    state.value = AdminUserDirectoryState.loading;
     error.value = null;
     try {
-      final response = await ApiClient.instance.listUsers(idToken: token);
+      final token = await _idToken();
+      if (!_isCurrentListRead(revision, sessionGeneration)) return;
+      if (token == null) {
+        throw StateError('A signed-in Admin is required');
+      }
+      final response = await _listUsers(token);
+      if (!_isCurrentListRead(revision, sessionGeneration)) return;
       users.value = response.map(AdminUserItem.fromApi).toList();
       hasLiveSnapshot = true;
+      state.value = AdminUserDirectoryState.loaded;
     } catch (exception) {
+      if (!_isCurrentListRead(revision, sessionGeneration)) return;
       error.value = exception.toString();
+      state.value = AdminUserDirectoryState.failed;
       rethrow;
     } finally {
-      loading.value = false;
+      if (_isCurrentListRead(revision, sessionGeneration)) {
+        loading.value = false;
+      }
     }
   }
 
-  void upsertFromApi(Map<String, dynamic> json) {
+  /// Inserts a record only after a successful authoritative API response and
+  /// returns that exact parsed record to the caller.
+  AdminUserItem upsertFromApi(
+    Map<String, dynamic> json, {
+    int? sessionGeneration,
+  }) {
+    if (sessionGeneration != null &&
+        !isSessionGenerationCurrent(sessionGeneration)) {
+      throw StateError('User response belongs to a previous session');
+    }
     final user = AdminUserItem.fromApi(json);
     // Match on the stable database id, not userId — userId mirrors the
     // backend's publicId, which the server deliberately mints fresh
@@ -73,42 +137,59 @@ class AdminUserDirectory {
       for (final existing in users.value)
         if (existing.apiId != user.apiId) existing,
     ];
+    _applyConfirmedMutation();
+    return user;
   }
 
   Future<void> saveOnServer(AdminUserItem user) async {
-    if (Firebase.apps.isEmpty) {
-      updateUser(user);
-      return;
-    }
-    final token = await FirebaseAuth.instance.currentUser?.getIdToken();
-    if (token == null) throw StateError('A signed-in Admin is required');
-    final response = await ApiClient.instance.updateUser(
-      user.apiRecordId,
-      idToken: token,
-      fields: {
+    final operation = _beginMutation(user.apiRecordId);
+    try {
+      if (!canRefresh) {
+        throw StateError('User updates are unavailable without Firebase');
+      }
+      final token = await _idToken();
+      _requireCurrentMutation(operation);
+      if (token == null) throw StateError('A signed-in Admin is required');
+      final fields = {
         'role': _backendRole(user.role),
         'active': user.status != AdminUserStatus.inactive,
         'adminTier': user.adminTier?.name,
         'region': user.region?.name,
         'assembly': user.assembly?.name,
-      },
-    );
-    upsertFromApi(response);
+      };
+      final response = await _updateUser(
+        user.apiRecordId,
+        token,
+        fields,
+      );
+      _requireCurrentMutation(operation);
+      upsertFromApi(
+        response,
+        sessionGeneration: operation.sessionGeneration,
+      );
+    } finally {
+      _finishMutation(operation);
+    }
   }
 
   Future<void> deleteOnServer(AdminUserItem user) async {
-    if (Firebase.apps.isEmpty) {
+    final operation = _beginMutation(user.apiRecordId);
+    try {
+      if (!canRefresh) {
+        throw StateError('User deletion is unavailable without Firebase');
+      }
+      final token = await _idToken();
+      _requireCurrentMutation(operation);
+      if (token == null) throw StateError('A signed-in Admin is required');
+      await _deleteUser(user.apiRecordId, token);
+      _requireCurrentMutation(operation);
+      _applyConfirmedMutation();
       users.value = users.value
-          .where((existing) => existing.userId != user.userId)
+          .where((existing) => existing.apiId != user.apiRecordId)
           .toList();
-      return;
+    } finally {
+      _finishMutation(operation);
     }
-    final token = await FirebaseAuth.instance.currentUser?.getIdToken();
-    if (token == null) throw StateError('A signed-in Admin is required');
-    await ApiClient.instance.deleteUser(user.apiRecordId, idToken: token);
-    users.value = users.value
-        .where((existing) => existing.userId != user.userId)
-        .toList();
   }
 
   Future<void> toggleActiveOnServer(AdminUserItem user) async {
@@ -120,6 +201,99 @@ class AdminUserDirectory {
     await saveOnServer(updated);
   }
 
+  void _setUnavailable(String message) {
+    loading.value = false;
+    error.value = message;
+    state.value = hasLiveSnapshot
+        ? AdminUserDirectoryState.failed
+        : AdminUserDirectoryState.unavailable;
+  }
+
+  /// Applies a single-record server result without claiming a complete list
+  /// was fetched. It invalidates reads only after the mutation is confirmed.
+  void _applyConfirmedMutation() {
+    _listReadRevision++;
+    if (loading.value) {
+      loading.value = false;
+    }
+    state.value = hasLiveSnapshot
+        ? AdminUserDirectoryState.loaded
+        : AdminUserDirectoryState.unavailable;
+    error.value = null;
+  }
+
+  /// Shared session owners must call this instead of writing directory
+  /// notifiers directly, so stale authenticated reads cannot repopulate data
+  /// after session clear.
+  void invalidateAndClear() {
+    _sessionGeneration++;
+    _listReadRevision++;
+    _mutationRevisions.clear();
+    users.value = const <AdminUserItem>[];
+    loading.value = false;
+    error.value = null;
+    hasLiveSnapshot = false;
+    currentApiUserId = null;
+    state.value = AdminUserDirectoryState.unavailable;
+  }
+
+  _UserMutationOperation _beginMutation(String apiId) {
+    final revision = ++_nextMutationRevision;
+    _mutationRevisions[apiId] = revision;
+    return _UserMutationOperation(
+      apiId: apiId,
+      revision: revision,
+      sessionGeneration: _sessionGeneration,
+    );
+  }
+
+  bool _isCurrentListRead(int revision, int sessionGeneration) =>
+      revision == _listReadRevision &&
+      isSessionGenerationCurrent(sessionGeneration);
+
+  bool _isCurrentMutation(_UserMutationOperation operation) =>
+      isSessionGenerationCurrent(operation.sessionGeneration) &&
+      _mutationRevisions[operation.apiId] == operation.revision;
+
+  void _requireCurrentMutation(_UserMutationOperation operation) {
+    if (!_isCurrentMutation(operation)) {
+      throw StateError('User operation is no longer current');
+    }
+  }
+
+  void _finishMutation(_UserMutationOperation operation) {
+    if (_mutationRevisions[operation.apiId] == operation.revision) {
+      _mutationRevisions.remove(operation.apiId);
+    }
+  }
+
+  Future<String?> _idToken() async {
+    final testTokenProvider = tokenProviderForTesting;
+    if (testTokenProvider != null) {
+      return testTokenProvider();
+    }
+
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return null;
+    return currentUser.getIdToken();
+  }
+
+  Future<List<Map<String, dynamic>>> _listUsers(String token) =>
+      listUsersForTesting?.call(token) ??
+      ApiClient.instance.listUsers(idToken: token);
+
+  Future<Map<String, dynamic>> _updateUser(
+    String userId,
+    String token,
+    Map<String, dynamic> fields,
+  ) =>
+      updateUserForTesting?.call(userId, token, fields) ??
+      ApiClient.instance.updateUser(userId, idToken: token, fields: fields);
+
+  Future<void> _deleteUser(String userId, String token) =>
+      deleteUserForTesting?.call(userId, token) ??
+      ApiClient.instance.deleteUser(userId, idToken: token);
+
   static String _backendRole(AppRole role) => switch (role) {
     AppRole.citizen => 'CITIZEN',
     AppRole.municipalOfficer => 'MUNICIPAL',
@@ -127,58 +301,6 @@ class AdminUserDirectory {
     AppRole.ministrySupervisor => 'MINISTRY',
     AppRole.systemAdministrator => 'ADMIN',
   };
-
-  AdminUserItem createUser({
-    required String name,
-    String? email,
-    required String phone,
-    required AppRole role,
-    AdminTier? adminTier,
-    Region? region,
-    Assembly? assembly,
-  }) {
-    final now = DateTime.now();
-    final effectiveTier = role == AppRole.systemAdministrator
-        ? (adminTier ?? AdminTier.admin)
-        : null;
-    final needsAssembly = AdminUserItem.roleRequiresAssembly(
-      role,
-      effectiveTier,
-    );
-    final newUser = AdminUserItem(
-      name: name,
-      email: email,
-      phone: phone,
-      role: role,
-      status: AdminUserStatus.active,
-      userId:
-          '${_publicIdPrefix(role)}-${(_nextUserNumber++).toString().padLeft(6, '0')}',
-      lastSignIn: now,
-      accountCreated: now,
-      adminTier: effectiveTier,
-      region: (AdminUserItem.roleRequiresRegion(role) || needsAssembly)
-          ? region
-          : null,
-      assembly: needsAssembly ? assembly : null,
-    );
-    users.value = [newUser, ...users.value];
-    return newUser;
-  }
-
-  static String _publicIdPrefix(AppRole role) => switch (role) {
-    AppRole.citizen => 'CIT',
-    AppRole.municipalOfficer => 'MUN',
-    AppRole.maintenanceTeam => 'MNT',
-    AppRole.ministrySupervisor => 'MIN',
-    AppRole.systemAdministrator => 'ADM',
-  };
-
-  void updateUser(AdminUserItem updated) {
-    users.value = [
-      for (final user in users.value)
-        if (user.userId == updated.userId) updated else user,
-    ];
-  }
 
   AdminUserItem? userById(String userId) {
     for (final user in users.value) {
@@ -243,13 +365,16 @@ class AdminUserDirectory {
     return earliest;
   }
 
-  void toggleActive(AdminUserItem user) {
-    updateUser(
-      user.copyWith(
-        status: user.status == AdminUserStatus.inactive
-            ? AdminUserStatus.active
-            : AdminUserStatus.inactive,
-      ),
-    );
-  }
+}
+
+class _UserMutationOperation {
+  const _UserMutationOperation({
+    required this.apiId,
+    required this.revision,
+    required this.sessionGeneration,
+  });
+
+  final String apiId;
+  final int revision;
+  final int sessionGeneration;
 }

@@ -6,62 +6,188 @@ import '../../../services/api_client.dart';
 import '../models/admin_system_activity_data.dart';
 import 'admin_session.dart';
 
+/// Provenance of the administrative audit snapshot held by this directory.
+/// An empty [loaded] snapshot is a real server result; [unavailable] is not.
+enum AdminSystemActivityDirectoryState { unavailable, loading, loaded, failed }
+
 class AdminSystemActivityDirectory {
-  AdminSystemActivityDirectory._();
+  AdminSystemActivityDirectory._({
+    bool Function()? firebaseAvailable,
+    Future<String?> Function()? tokenProvider,
+    Future<List<Map<String, dynamic>>> Function(String token)? activityFetcher,
+    Future<Map<String, dynamic>> Function(String token)? healthFetcher,
+    bool Function()? isSuperAdmin,
+  })  : _firebaseAvailable = firebaseAvailable ?? (() => Firebase.apps.isNotEmpty),
+        _tokenProvider = tokenProvider ?? _firebaseIdToken,
+        _activityFetcher = activityFetcher ??
+            ((token) => ApiClient.instance.listAdminActivity(idToken: token)),
+        _healthFetcher = healthFetcher ??
+            ((token) => ApiClient.instance.getAdminHealth(idToken: token)),
+        _isSuperAdmin = isSuperAdmin ?? (() => AdminSession.instance.isSuperAdmin);
 
   static final instance = AdminSystemActivityDirectory._();
 
+  static Future<String?> _firebaseIdToken() async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return null;
+    return currentUser.getIdToken();
+  }
+
+  /// Isolated request hooks for deterministic directory tests. Production
+  /// continues to use Firebase and the approved Admin API endpoints.
+  @visibleForTesting
+  factory AdminSystemActivityDirectory.forTesting({
+    required bool Function() firebaseAvailable,
+    required Future<String?> Function() tokenProvider,
+    required Future<List<Map<String, dynamic>>> Function(String token)
+        activityFetcher,
+    required Future<Map<String, dynamic>> Function(String token) healthFetcher,
+    required bool Function() isSuperAdmin,
+  }) =>
+      AdminSystemActivityDirectory._(
+        firebaseAvailable: firebaseAvailable,
+        tokenProvider: tokenProvider,
+        activityFetcher: activityFetcher,
+        healthFetcher: healthFetcher,
+        isSuperAdmin: isSuperAdmin,
+      );
+
+  final bool Function() _firebaseAvailable;
+  final Future<String?> Function() _tokenProvider;
+  final Future<List<Map<String, dynamic>>> Function(String token)
+      _activityFetcher;
+  final Future<Map<String, dynamic>> Function(String token) _healthFetcher;
+  final bool Function() _isSuperAdmin;
+
   final ValueNotifier<List<ActivityItem>> items = ValueNotifier(
-    Firebase.apps.isEmpty ? mockActivityItems() : const <ActivityItem>[],
+    const <ActivityItem>[],
   );
-  final ValueNotifier<SystemHealthStats?> health = ValueNotifier(
-    Firebase.apps.isEmpty ? mockSystemHealthStats() : null,
+  final ValueNotifier<SystemHealthStats?> health = ValueNotifier(null);
+  final ValueNotifier<AdminSystemActivityDirectoryState> state = ValueNotifier(
+    AdminSystemActivityDirectoryState.unavailable,
   );
   final ValueNotifier<bool> loading = ValueNotifier(false);
   final ValueNotifier<String?> error = ValueNotifier(null);
   bool hasLiveSnapshot = false;
+  bool hasLiveHealthSnapshot = false;
+
+  /// Last-started refresh wins. A response may update the visible activity,
+  /// loading, error, and activity provenance only while its revision is current.
+  int _refreshRevision = 0;
+
+  /// Health reads have their own ordering lane. Both a health-only read and a
+  /// full Activity refresh can request health, but neither may publish a
+  /// response after a newer health request has started. This intentionally
+  /// does not own Activity loading, error, or record state.
+  int _healthRefreshRevision = 0;
+
+  bool get canRefresh => _firebaseAvailable();
+
+  bool _isCurrentRefresh(int revision) => revision == _refreshRevision;
+
+  bool _isCurrentHealthRefresh(int revision) =>
+      revision == _healthRefreshRevision;
+
+  void _publishFailure(int revision, Object exception) {
+    if (!_isCurrentRefresh(revision)) return;
+    error.value = exception.toString();
+    state.value = hasLiveSnapshot
+        ? AdminSystemActivityDirectoryState.failed
+        : AdminSystemActivityDirectoryState.unavailable;
+  }
 
   Future<void> refresh() async {
-    if (Firebase.apps.isEmpty) return;
-    final token = await FirebaseAuth.instance.currentUser?.getIdToken();
-    if (token == null) throw StateError('A signed-in Admin is required');
+    final revision = ++_refreshRevision;
+    // A new full refresh invalidates health from an older full or health-only
+    // read immediately, even while this refresh is waiting for credentials.
+    final healthFenceRevision = ++_healthRefreshRevision;
+    if (!_firebaseAvailable()) {
+      if (_isCurrentRefresh(revision)) {
+        loading.value = false;
+        _publishFailure(
+          revision,
+          StateError('System Activity is unavailable without Firebase'),
+        );
+      }
+      throw StateError('System Activity is unavailable without Firebase');
+    }
+    final String? token;
+    try {
+      token = await _tokenProvider();
+    } catch (exception) {
+      if (_isCurrentRefresh(revision)) {
+        loading.value = false;
+        _publishFailure(revision, exception);
+      }
+      rethrow;
+    }
+    if (!_isCurrentRefresh(revision)) return;
+    if (token == null) {
+      const message = 'A signed-in Admin is required';
+      loading.value = false;
+      _publishFailure(revision, StateError(message));
+      throw StateError(message);
+    }
     loading.value = true;
+    state.value = AdminSystemActivityDirectoryState.loading;
     error.value = null;
     try {
-      final response = await ApiClient.instance.listAdminActivity(
-        idToken: token,
-      );
+      final response = await _activityFetcher(token);
+      if (!_isCurrentRefresh(revision)) return;
       items.value = response.map(ActivityItem.fromApi).toList();
       hasLiveSnapshot = true;
-      if (AdminSession.instance.isSuperAdmin) {
-        await refreshHealth(idToken: token);
+      state.value = AdminSystemActivityDirectoryState.loaded;
+      if (_isSuperAdmin()) {
+        final healthRevision = ++_healthRefreshRevision;
+        await _refreshHealth(idToken: token, healthRevision: healthRevision);
       } else {
+        if (!_isCurrentRefresh(revision) ||
+            !_isCurrentHealthRefresh(healthFenceRevision)) {
+          return;
+        }
         health.value = null;
+        hasLiveHealthSnapshot = false;
       }
     } catch (exception) {
-      error.value = exception.toString();
+      _publishFailure(revision, exception);
       rethrow;
     } finally {
-      loading.value = false;
+      if (_isCurrentRefresh(revision)) loading.value = false;
     }
   }
 
   Future<void> refreshHealth({String? idToken}) async {
-    if (Firebase.apps.isEmpty || !AdminSession.instance.isSuperAdmin) return;
+    final healthRevision = ++_healthRefreshRevision;
+    await _refreshHealth(
+      idToken: idToken,
+      healthRevision: healthRevision,
+    );
+  }
+
+  Future<void> _refreshHealth({
+    String? idToken,
+    required int healthRevision,
+  }) async {
+    if (!_isCurrentHealthRefresh(healthRevision)) return;
+    if (!_firebaseAvailable() || !_isSuperAdmin()) {
+      if (_isCurrentHealthRefresh(healthRevision)) {
+        hasLiveHealthSnapshot = false;
+        health.value = null;
+      }
+      return;
+    }
     try {
-      final token =
-          idToken ?? await FirebaseAuth.instance.currentUser?.getIdToken();
+      final token = idToken ?? await _tokenProvider();
       if (token == null) throw StateError('A signed-in Admin is required');
-      health.value = SystemHealthStats.fromApi(
-        await ApiClient.instance.getAdminHealth(idToken: token),
-      );
+      final response = await _healthFetcher(token);
+      if (!_isCurrentHealthRefresh(healthRevision)) return;
+      health.value = SystemHealthStats.fromApi(response);
+      hasLiveHealthSnapshot = true;
     } catch (_) {
-      health.value = const SystemHealthStats(
-        apiOnline: false,
-        databaseOnline: false,
-        dbLatencyMs: 0,
-        uptimeSeconds: 0,
-      );
+      if (_isCurrentHealthRefresh(healthRevision)) {
+        hasLiveHealthSnapshot = false;
+        health.value = null;
+      }
     }
   }
 }

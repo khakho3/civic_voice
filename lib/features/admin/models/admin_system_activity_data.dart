@@ -133,13 +133,15 @@ class ActivityItem {
         orElse: () => null,
       );
     }
+    final timestamp = DateTime.tryParse(json['createdAt'] as String? ?? '');
+    if (timestamp == null) {
+      throw const FormatException('Audit activity is missing a timestamp');
+    }
     return ActivityItem(
       id: json['id'] as String?,
       title: json['title'] as String? ?? 'System activity',
       description: json['description'] as String? ?? '',
-      timestamp:
-          DateTime.tryParse(json['createdAt'] as String? ?? '')?.toLocal() ??
-          DateTime.now(),
+      timestamp: timestamp.toLocal(),
       severity: switch (json['severity']) {
         'CRITICAL' => ActivitySeverity.critical,
         'ALERT' => ActivitySeverity.alert,
@@ -189,17 +191,35 @@ class SystemHealthStats {
   }
 
   factory SystemHealthStats.fromApi(Map<String, dynamic> json) {
+    final apiOnline = json['apiOnline'];
+    final databaseOnline = json['databaseOnline'];
+    final dbLatency = json['dbLatencyMs'];
+    final uptime = json['uptimeSeconds'];
+    final checkedAtValue = json['checkedAt'];
+    final checkedAt = checkedAtValue is String
+        ? DateTime.tryParse(checkedAtValue)
+        : null;
+    if (apiOnline is! bool ||
+        databaseOnline is! bool ||
+        dbLatency is! num ||
+        dbLatency < 0 ||
+        uptime is! num ||
+        uptime < 0 ||
+        checkedAt == null) {
+      throw const FormatException('Health response is incomplete');
+    }
     return SystemHealthStats(
-      apiOnline: json['apiOnline'] as bool? ?? false,
-      databaseOnline: json['databaseOnline'] as bool? ?? false,
-      dbLatencyMs: (json['dbLatencyMs'] as num?)?.round() ?? 0,
-      uptimeSeconds: (json['uptimeSeconds'] as num?)?.round() ?? 0,
-      checkedAt: DateTime.tryParse(json['checkedAt'] as String? ?? ''),
+      apiOnline: apiOnline,
+      databaseOnline: databaseOnline,
+      dbLatencyMs: dbLatency.round(),
+      uptimeSeconds: uptime.round(),
+      checkedAt: checkedAt.toLocal(),
     );
   }
 }
 
-/// Placeholder content, used until a real health-check service is wired up.
+/// Explicit sample fixture for isolated tests and previews. Production callers
+/// must obtain health readings from the authorized directory contract.
 SystemHealthStats mockSystemHealthStats() {
   return const SystemHealthStats(
     apiOnline: true,
@@ -209,6 +229,9 @@ SystemHealthStats mockSystemHealthStats() {
   );
 }
 
+/// Explicit sample fixture for isolated tests. It is not production fallback
+/// content; its generated timestamps deliberately stay inside this test-only
+/// helper rather than being inferred from an incomplete server record.
 List<ActivityItem> mockActivityItems() {
   final now = DateTime.now();
   return [

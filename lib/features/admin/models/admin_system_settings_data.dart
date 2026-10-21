@@ -67,18 +67,26 @@ class SystemSettingsData {
   /// [AdminSystemSettingsDirectory].
   final bool allowNewAccountCreation;
 
-  /// Builds from civic_voice_api's GET/PATCH /api/admin/settings response.
-  /// maintenanceMode/publicStatusPage aren't part of that payload at all
-  /// (see the class doc comment — no backend feature exists for either),
-  /// so they keep the same fixed display values [mockSystemSettings] always
-  /// used; only the three real fields actually come from the server.
+  /// Builds only from a complete civic_voice_api GET/PATCH
+  /// /api/admin/settings response. The unsupported Coming Soon rows are
+  /// deliberately fixed, disabled presentation values; they are not settings
+  /// claimed to have been read from the server.
   factory SystemSettingsData.fromApi(Map<String, dynamic> json) {
+    final sessionTimeout = json['sessionTimeout'];
+    final auditLogging = json['auditLogging'];
+    final allowNewAccountCreation = json['allowNewAccountCreation'];
+    if (sessionTimeout is! String ||
+        !kSessionTimeoutOptions.contains(sessionTimeout) ||
+        auditLogging is! bool ||
+        allowNewAccountCreation is! bool) {
+      throw const FormatException('System settings response is incomplete');
+    }
     return SystemSettingsData(
       maintenanceMode: false,
-      sessionTimeout: json['sessionTimeout'] as String? ?? '30 minutes',
-      auditLogging: json['auditLogging'] as bool? ?? true,
-      publicStatusPage: true,
-      allowNewAccountCreation: json['allowNewAccountCreation'] as bool? ?? true,
+      sessionTimeout: sessionTimeout,
+      auditLogging: auditLogging,
+      publicStatusPage: false,
+      allowNewAccountCreation: allowNewAccountCreation,
     );
   }
 
@@ -118,8 +126,8 @@ class SystemSettingsData {
   );
 }
 
-/// Placeholder content matching the approved ADM-007 design, used until a
-/// real settings service is wired up.
+/// Explicit sample fixture for isolated tests and previews. It is never a
+/// production directory fallback.
 SystemSettingsData mockSystemSettings() {
   return const SystemSettingsData(
     maintenanceMode: false,

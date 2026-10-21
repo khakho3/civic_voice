@@ -5,15 +5,20 @@ import 'package:url_launcher_platform_interface/url_launcher_platform_interface.
 
 import 'package:civic_voice/main.dart' as app;
 import 'package:civic_voice/core/theme/app_theme.dart';
+import 'package:civic_voice/features/ministry/models/ministry_analytics_data.dart';
 import 'package:civic_voice/features/ministry/screens/ministry_analytics_screen.dart';
+import 'package:civic_voice/features/ministry/models/ministry_dashboard_data.dart';
+import 'package:civic_voice/features/ministry/models/ministry_reports_data.dart';
 import 'package:civic_voice/features/ministry/screens/ministry_dashboard_screen.dart';
 import 'package:civic_voice/features/ministry/models/municipal_performance_data.dart';
 import 'package:civic_voice/features/ministry/screens/ministry_municipal_performance_screen.dart';
 import 'package:civic_voice/features/ministry/screens/ministry_municipality_detail_screen.dart';
 import 'package:civic_voice/features/ministry/screens/ministry_notifications_screen.dart';
 import 'package:civic_voice/features/ministry/screens/ministry_profile_screen.dart';
+import 'package:civic_voice/features/ministry/models/ministry_report_insights_data.dart';
 import 'package:civic_voice/features/ministry/screens/ministry_report_insights_screen.dart';
 import 'package:civic_voice/features/ministry/screens/ministry_reports_screen.dart';
+import 'package:civic_voice/features/ministry/widgets/region_picker_chip.dart';
 import 'package:civic_voice/models/region.dart';
 import 'package:civic_voice/widgets/glass_dialog_backdrop.dart';
 import 'package:civic_voice/widgets/profile_edit_button.dart';
@@ -41,6 +46,297 @@ class _FakeUrlLauncherPlatform extends UrlLauncherPlatform {
     lastLaunchedUri = Uri.parse(url);
     return launchResult;
   }
+}
+
+MinistryDashboardData ministryDashboardFixture() {
+  const statusCounts = <ReportStatus, int>{
+    ReportStatus.submitted: 744,
+    ReportStatus.underReview: 3200,
+    ReportStatus.assigned: 744,
+    ReportStatus.inProgress: 232,
+    ReportStatus.pendingApproval: 1240,
+    ReportStatus.resolved: 18600,
+    ReportStatus.rejected: 40,
+  };
+  return const MinistryDashboardData(
+    stats: MinistryDashboardStats(
+      statusCounts: statusCounts,
+      activeMunicipalities: 216,
+    ),
+    reportStatistics: ReportStatistics(
+      monthlyValues: [62, 78, 54, 92, 68, 100],
+      rangeLabel: 'Jan–Jun reports',
+      totalLabel: '24.8K total',
+    ),
+    insights: QuickInsights(statusCounts: statusCounts),
+    topMunicipalities: [
+      RegionalLeaderItem(
+        name: 'Accra Metropolitan',
+        region: Region.greaterAccra,
+        resolvedPercent: 92,
+        responseTimeLabel: '14h',
+        officerName: 'Kwame Owusu',
+        officerPhone: '+233 24 555 0101',
+      ),
+      RegionalLeaderItem(
+        name: 'Kumasi Metropolitan',
+        region: Region.ashanti,
+        resolvedPercent: 86,
+        responseTimeLabel: '18h',
+        officerName: 'Abena Boateng',
+        officerPhone: '+233 24 555 0102',
+      ),
+      RegionalLeaderItem(
+        name: 'Sunyani Municipal',
+        region: Region.bono,
+        resolvedPercent: 83,
+        responseTimeLabel: '17h',
+        officerName: 'Comfort Osei',
+        officerPhone: '+233 24 555 0114',
+      ),
+    ],
+  );
+}
+
+MinistryAnalyticsData ministryAnalyticsFixture() {
+  const statusCounts = <ReportStatus, int>{
+    ReportStatus.submitted: 744,
+    ReportStatus.underReview: 3200,
+    ReportStatus.assigned: 744,
+    ReportStatus.inProgress: 232,
+    ReportStatus.pendingApproval: 1240,
+    ReportStatus.resolved: 18600,
+    ReportStatus.rejected: 40,
+  };
+  return const MinistryAnalyticsData(
+    dateRangeLabel: 'Last 30 Days',
+    totalReports: 24800,
+    resolutionRate: 75,
+    trendValues: [62, 78, 54, 92, 68, 100],
+    trendStartLabel: '29 days ago',
+    trendMidLabel: '14 days ago',
+    trendEndLabel: 'Today',
+    breakdownsByDimension: {
+      AnalyticsDimension.category: [
+        AnalyticsBreakdownItem(
+          label: 'Road Infrastructure',
+          percent: 68,
+          color: AppColors.primary,
+        ),
+        AnalyticsBreakdownItem(
+          label: 'Sanitation',
+          percent: 74,
+          color: AppColors.statusResolved,
+        ),
+        AnalyticsBreakdownItem(
+          label: 'Water Services',
+          percent: 51,
+          color: AppColors.warning,
+        ),
+      ],
+      AnalyticsDimension.status: [
+        AnalyticsBreakdownItem(
+          label: 'Submitted',
+          percent: 3,
+          color: AppColors.statusSubmitted,
+        ),
+        AnalyticsBreakdownItem(
+          label: 'Under Review',
+          percent: 13,
+          color: AppColors.statusUnderReview,
+        ),
+        AnalyticsBreakdownItem(
+          label: 'Assigned',
+          percent: 3,
+          color: AppColors.statusAssigned,
+        ),
+        AnalyticsBreakdownItem(
+          label: 'In Progress',
+          percent: 1,
+          color: AppColors.statusInProgress,
+        ),
+        AnalyticsBreakdownItem(
+          label: 'Awaiting Confirmation',
+          percent: 5,
+          color: AppColors.statusPendingApproval,
+        ),
+        AnalyticsBreakdownItem(
+          label: 'Resolved',
+          percent: 75,
+          color: AppColors.statusResolved,
+        ),
+        AnalyticsBreakdownItem(
+          label: 'Rejected',
+          percent: 0,
+          color: AppColors.statusRejected,
+        ),
+      ],
+      AnalyticsDimension.municipality: [
+        AnalyticsBreakdownItem(
+          label: 'Greater Accra',
+          percent: 92,
+          color: AppColors.statusResolved,
+        ),
+      ],
+    },
+    statusCounts: statusCounts,
+    statusDistribution: [
+      StatusSlice(label: 'Submitted', percent: 3, color: AppColors.statusSubmitted),
+      StatusSlice(
+        label: 'Under Review',
+        percent: 13,
+        color: AppColors.statusUnderReview,
+      ),
+      StatusSlice(label: 'Assigned', percent: 3, color: AppColors.statusAssigned),
+      StatusSlice(
+        label: 'In Progress',
+        percent: 1,
+        color: AppColors.statusInProgress,
+      ),
+      StatusSlice(
+        label: 'Awaiting Confirmation',
+        percent: 5,
+        color: AppColors.statusPendingApproval,
+      ),
+      StatusSlice(label: 'Resolved', percent: 75, color: AppColors.statusResolved),
+      StatusSlice(label: 'Rejected', percent: 0, color: AppColors.statusRejected),
+    ],
+    trendInsight: '18,600 of 24,800 reports are resolved nationally.',
+  );
+}
+
+MinistryReportInsightsData ministryReportInsightsFixture() {
+  const statusCounts = <ReportStatus, int>{
+    ReportStatus.submitted: 1,
+    ReportStatus.underReview: 1,
+    ReportStatus.assigned: 1,
+    ReportStatus.inProgress: 1,
+    ReportStatus.pendingApproval: 1,
+    ReportStatus.resolved: 2,
+    ReportStatus.rejected: 1,
+  };
+  return const MinistryReportInsightsData(
+    categoryPeakLabel: 'Sanitation',
+    categoryPeakCount: 3,
+    resolutionPercent: 25,
+    statusCounts: statusCounts,
+    criticalInsights: [
+      CriticalInsightItem(
+        icon: AppIcons.focusArea,
+        tint: AppColors.warning,
+        title: 'Sanitation has the highest report volume',
+        subtitle: '3 national reports',
+      ),
+      CriticalInsightItem(
+        icon: AppIcons.pace,
+        tint: AppColors.statusResolved,
+        title: '25% national resolution rate',
+        subtitle: '2 reports completed',
+      ),
+      CriticalInsightItem(
+        icon: AppIcons.statusUnderReview,
+        tint: AppColors.primary,
+        title: '5 reports are in the open backlog',
+        subtitle:
+            'Submitted, Under Review, Assigned, In Progress, and Awaiting Confirmation',
+      ),
+    ],
+    strategicFocusText:
+        'Sanitation has the highest report volume in the selected reports.',
+  );
+}
+
+MinistryReportsData ministryReportsFixture() {
+  return const MinistryReportsData(
+    stats: MinistryReportsStats(
+      aggregatedReports: 4,
+      underReview: 1,
+      resolved: 1,
+    ),
+    reports: [
+      ReportSummaryItem(
+        title: 'Pothole on Main Street',
+        municipality: 'Accra Metropolitan',
+        region: Region.greaterAccra,
+        category: 'Road Infrastructure',
+        status: ReportStatus.submitted,
+        dateLabel: '2 days ago',
+      ),
+      ReportSummaryItem(
+        title: 'Broken Streetlight',
+        municipality: 'Kumasi Metropolitan',
+        region: Region.ashanti,
+        category: 'Utilities',
+        status: ReportStatus.resolved,
+        dateLabel: 'Yesterday',
+      ),
+      ReportSummaryItem(
+        title: 'Overflowing Drainage',
+        municipality: 'Tamale Metropolitan',
+        region: Region.northern,
+        category: 'Sanitation',
+        status: ReportStatus.underReview,
+        dateLabel: 'Today',
+      ),
+      ReportSummaryItem(
+        title: 'Awaiting Assembly Confirmation',
+        municipality: 'Kumasi Metropolitan',
+        region: Region.ashanti,
+        category: 'Water Services',
+        status: ReportStatus.pendingApproval,
+        dateLabel: '6 hours ago',
+      ),
+    ],
+  );
+}
+
+MunicipalPerformanceData ministryMunicipalPerformanceFixture() {
+  return const MunicipalPerformanceData(
+    stats: MunicipalPerformanceStats(
+      avgResponseLabel: '18h',
+      resolutionPercent: 76,
+      slaMetPercent: 84,
+      backlogLabel: '6',
+    ),
+    regionalLeaders: [
+      RegionalLeaderItem(
+        name: 'Accra Metropolitan',
+        region: Region.greaterAccra,
+        resolvedPercent: 92,
+        responseTimeLabel: '14h',
+        officerName: 'Kwame Owusu',
+        officerPhone: '+233 24 555 0101',
+      ),
+      RegionalLeaderItem(
+        name: 'Kumasi Metropolitan',
+        region: Region.ashanti,
+        resolvedPercent: 86,
+        responseTimeLabel: '18h',
+        officerName: 'Abena Boateng',
+        officerPhone: '+233 24 555 0102',
+      ),
+      RegionalLeaderItem(
+        name: 'Tamale Metropolitan',
+        region: Region.northern,
+        resolvedPercent: 71,
+        responseTimeLabel: '26h',
+        officerName: 'Alhassan Iddrisu',
+        officerPhone: '+233 24 555 0109',
+      ),
+      RegionalLeaderItem(
+        name: 'Jasikan Municipal',
+        region: Region.oti,
+        resolvedPercent: 62,
+        responseTimeLabel: '41h',
+        officerName: 'Ama Kudjo',
+        officerPhone: '+233 24 555 0108',
+      ),
+    ],
+    responseTrend: [46, 62, 54, 88, 66, 40, 28],
+    resolutionTrend: [58, 70, 64, 92, 78, 52, 44],
+    trendCaption: 'Last 7 days · genuine report activity',
+    hasReportData: true,
+  );
 }
 
 void main() {
@@ -94,7 +390,10 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
 
     await tester.pumpWidget(
-      MaterialApp(theme: AppTheme.light, home: const MinistryDashboardScreen()),
+      MaterialApp(
+        theme: AppTheme.light,
+        home: MinistryDashboardScreen(data: ministryDashboardFixture()),
+      ),
     );
     await tester.pumpAndSettle();
 
@@ -104,8 +403,7 @@ void main() {
 
     expect(find.text('Total Reports'), findsOneWidget);
     expect(find.text('24.8K'), findsOneWidget);
-    // Appears on both the stat card and the Quick Insights card.
-    expect(find.text('Under Review'), findsNWidgets(2));
+    expect(find.text('Open Work'), findsOneWidget);
     expect(find.text('Resolved'), findsOneWidget);
     expect(find.text('18.6K'), findsOneWidget);
     // Appears on both the stat card and the bottom-nav tab label.
@@ -117,8 +415,10 @@ void main() {
 
     expect(find.text('Quick Insights'), findsOneWidget);
     expect(find.text('Submitted'), findsOneWidget);
+    expect(find.text('Under Review'), findsOneWidget);
     expect(find.text('Assigned'), findsOneWidget);
     expect(find.text('In Progress'), findsOneWidget);
+    expect(find.text('Awaiting Confirmation'), findsOneWidget);
 
     expect(find.text('Municipality Performance'), findsOneWidget);
     expect(find.text('Accra Metropolitan'), findsOneWidget);
@@ -145,15 +445,37 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('Ministry Dashboard Empty shows the approved copy', (
+  testWidgets('Ministry Dashboard zero state keeps the national summary honest', (
     WidgetTester tester,
   ) async {
     await pumpMinistryDashboard(tester, MinistryDashboardViewState.empty);
-    expect(find.text('No Analytics Available'), findsOneWidget);
+    expect(find.text('National Dashboard'), findsOneWidget);
+    expect(find.text('Total Reports'), findsOneWidget);
+    expect(find.text('Open Work'), findsOneWidget);
+    expect(find.text('Resolved'), findsOneWidget);
+    expect(find.text('Municipalities'), findsWidgets);
+    expect(find.text('0'), findsNWidgets(4));
+    expect(find.text('Welcome to the national dashboard'), findsOneWidget);
     // Matches every other Ministry screen's Empty-state button label —
     // this used to say "Retry" here alone, a real inconsistency, not a
     // deliberate per-screen wording choice.
     expect(find.text('Refresh'), findsOneWidget);
+    expect(find.text('Report Statistics'), findsNothing);
+    expect(find.text('Municipality Performance'), findsNothing);
+    expect(find.text('Accra Metropolitan'), findsNothing);
+    expect(find.textContaining('%'), findsNothing);
+  });
+
+  test('Ministry Dashboard aggregates all seven statuses truthfully', () {
+    final data = ministryDashboardFixture();
+
+    expect(data.stats.statusCounts.keys, containsAll(ReportStatus.values));
+    expect(data.stats.totalReports, 24800);
+    expect(data.stats.openWork, 6160);
+    expect(data.stats.resolved, 18600);
+    expect(data.insights.count(ReportStatus.pendingApproval), 1240);
+    expect(data.insights.percent(ReportStatus.pendingApproval), 5);
+    expect(data.insights.count(ReportStatus.rejected), 40);
   });
 
   testWidgets(
@@ -177,6 +499,18 @@ void main() {
     expect(find.text('Unable to Load Dashboard'), findsOneWidget);
     expect(find.text('Try again'), findsOneWidget);
   });
+
+  testWidgets(
+    'Ministry Dashboard does not claim retry succeeded without a refresh callback',
+    (WidgetTester tester) async {
+      await pumpMinistryDashboard(tester, MinistryDashboardViewState.error);
+      final retry = tester.widget<FilledButton>(find.byType(FilledButton));
+      expect(retry.onPressed, isNull);
+
+      await tester.pump(const Duration(seconds: 1));
+      expect(find.text('Unable to Load Dashboard'), findsOneWidget);
+    },
+  );
 
   testWidgets(
     'Ministry Dashboard Unauthorized shows the approved copy with no action '
@@ -265,8 +599,8 @@ void main() {
     },
   );
 
-  testWidgets('Ministry routes connect Dashboard, Analytics, Insights, '
-      'Municipalities, Reports, and Profile', (WidgetTester tester) async {
+  testWidgets('Ministry routes connect Dashboard, Analytics, Municipalities, '
+      'Reports, and Profile', (WidgetTester tester) async {
     tester.view.physicalSize = const Size(428, 2600);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -288,32 +622,17 @@ void main() {
     await advanceRoute();
 
     expect(find.text('Analytics Dashboard'), findsOneWidget);
-
-    await tester.tap(find.text('Trend Insights'));
-    await advanceRoute();
-
-    expect(find.text('Report Insights'), findsOneWidget);
-
-    await tester.tap(find.byIcon(AppIcons.back));
-    await advanceRoute();
-
-    expect(find.text('Analytics Dashboard'), findsOneWidget);
+    expect(find.text('No Analytics Available'), findsOneWidget);
+    expect(find.text('Trend Insights'), findsNothing);
 
     await tester.tap(find.byIcon(AppIcons.municipality).last);
     await advanceRoute();
 
     expect(find.text('Municipal Performance'), findsOneWidget);
-
-    await tester.tap(find.text('Accra Metropolitan'));
-    await advanceRoute();
-
-    expect(find.text('Municipal Officers'), findsOneWidget);
-    expect(find.text('Kwame Owusu'), findsOneWidget);
-
-    await tester.tap(find.byIcon(AppIcons.back));
-    await advanceRoute();
-
-    expect(find.text('Municipal Performance'), findsOneWidget);
+    // The app route has no injected, confirmed Ministry snapshot. It must
+    // remain honest instead of manufacturing a municipality row to make this
+    // route test navigable. Fixture-backed detail navigation is covered below.
+    expect(find.text('No Performance Data'), findsOneWidget);
 
     await tester.tap(find.text('Reports'));
     await advanceRoute();
@@ -342,6 +661,7 @@ void main() {
         MaterialApp(
           theme: AppTheme.light,
           home: MinistryDashboardScreen(
+            data: ministryDashboardFixture(),
             onNavigateToMunicipalities: () => municipalitiesTapped++,
             onNavigateToReports: () => reportsTapped = true,
             onOpenMunicipality: (item) => openedMunicipality = item.name,
@@ -385,7 +705,10 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.light,
-          home: MinistryAnalyticsScreen(initialState: state),
+          home: MinistryAnalyticsScreen(
+            initialState: state,
+            data: ministryAnalyticsFixture(),
+          ),
         ),
       );
       await tester.pump();
@@ -404,11 +727,12 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.light,
-          home: const MinistryAnalyticsScreen(),
+          home: MinistryAnalyticsScreen(data: ministryAnalyticsFixture()),
         ),
       );
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
+      expect(find.text('Category Resolution Rates'), findsOneWidget);
     },
   );
 
@@ -423,7 +747,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.light,
-          home: const MinistryAnalyticsScreen(),
+          home: MinistryAnalyticsScreen(data: ministryAnalyticsFixture()),
         ),
       );
       await tester.pumpAndSettle();
@@ -434,15 +758,15 @@ void main() {
       expect(find.text('Municipality'), findsOneWidget);
 
       expect(find.text('Total Reports'), findsOneWidget);
-      expect(find.text('12,482'), findsOneWidget);
+      expect(find.text('24,800'), findsOneWidget);
       expect(find.text('Resolution Rate'), findsOneWidget);
-      expect(find.text('74.8%'), findsOneWidget);
+      expect(find.text('75.0%'), findsOneWidget);
 
       expect(find.text('Report Trends'), findsOneWidget);
-      expect(find.text('01 May'), findsOneWidget);
-      expect(find.text('30 May'), findsOneWidget);
+      expect(find.text('29 days ago'), findsOneWidget);
+      expect(find.text('Today'), findsOneWidget);
 
-      expect(find.text('Category Distribution'), findsOneWidget);
+      expect(find.text('Category Resolution Rates'), findsOneWidget);
       expect(find.text('Road Infrastructure'), findsOneWidget);
       expect(find.text('68%'), findsOneWidget);
       expect(find.text('Sanitation'), findsOneWidget);
@@ -451,6 +775,8 @@ void main() {
       expect(find.text('Report Status'), findsOneWidget);
       expect(find.text('Submitted'), findsOneWidget);
       expect(find.text('Under Review'), findsOneWidget);
+      expect(find.text('Awaiting Confirmation'), findsOneWidget);
+      expect(find.text('Rejected'), findsOneWidget);
       // "Resolved" appears both in the Report Status legend and the bottom
       // status-bar icon's semantic role — checked loosely.
       expect(find.text('Resolved'), findsWidgets);
@@ -470,12 +796,12 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.light,
-          home: const MinistryAnalyticsScreen(),
+          home: MinistryAnalyticsScreen(data: ministryAnalyticsFixture()),
         ),
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Category Distribution'), findsOneWidget);
+      expect(find.text('Category Resolution Rates'), findsOneWidget);
       expect(find.text('Road Infrastructure'), findsOneWidget);
 
       await tester.tap(find.text('Status'));
@@ -487,13 +813,48 @@ void main() {
       await tester.tap(find.text('Municipality'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Municipality Distribution'), findsOneWidget);
-      // Reuses the exact figures from MIN-001 Dashboard's Municipality
-      // Performance list, so the same entity reads consistently.
+      expect(find.text('Municipality Resolution Rates'), findsOneWidget);
+      // The fixture is deliberately test-only; genuine production data is
+      // supplied by MinistryDataDirectory.
       expect(find.text('Greater Accra'), findsOneWidget);
       expect(find.text('92%'), findsOneWidget);
     },
   );
+
+  testWidgets('Ministry Analytics uses an honest empty default state', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: const MinistryAnalyticsScreen(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('No Analytics Available'), findsOneWidget);
+    expect(find.text('Report Trends'), findsNothing);
+    expect(find.text('Trend Insights'), findsNothing);
+    expect(find.text('Total Reports'), findsNothing);
+    expect(find.text('Greater Accra'), findsNothing);
+    expect(find.text('29 days ago'), findsNothing);
+  });
+
+  testWidgets('Ministry Analytics omits unsupported comparisons', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: MinistryAnalyticsScreen(data: ministryAnalyticsFixture()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('previous period'), findsNothing);
+    expect(find.textContaining('+0%'), findsNothing);
+    expect(find.textContaining('+12%'), findsNothing);
+  });
 
   testWidgets(
     'Ministry Analytics date range picker opens a bottom sheet and updates '
@@ -526,6 +887,39 @@ void main() {
     },
   );
 
+  testWidgets(
+    'Ministry Analytics keeps dimension filters visible after the date selector collapses',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(375, 812);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: MinistryAnalyticsScreen(data: ministryAnalyticsFixture()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final dateHeader = find.byKey(const ValueKey('collapsible_header'));
+      expect(tester.getSize(dateHeader).height, greaterThan(0));
+
+      await tester.drag(find.byType(ListView).last, const Offset(0, -300));
+      await tester.pumpAndSettle();
+
+      expect(tester.getSize(dateHeader).height, 0);
+      expect(find.text('Category'), findsOneWidget);
+      expect(find.text('Status'), findsOneWidget);
+      expect(find.text('Municipality'), findsOneWidget);
+
+      await tester.tap(find.text('Status'));
+      await tester.pumpAndSettle();
+      expect(find.text('Status Distribution'), findsOneWidget);
+    },
+  );
+
   Future<void> pumpMinistryAnalytics(
     WidgetTester tester,
     MinistryAnalyticsViewState state,
@@ -538,7 +932,10 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.light,
-        home: MinistryAnalyticsScreen(initialState: state),
+        home: MinistryAnalyticsScreen(
+          initialState: state,
+          data: ministryAnalyticsFixture(),
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -570,7 +967,7 @@ void main() {
     await tester.tap(find.text('Clear Filters'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Category Distribution'), findsOneWidget);
+    expect(find.text('Category Resolution Rates'), findsOneWidget);
     expect(find.text('Road Infrastructure'), findsOneWidget);
   });
 
@@ -588,6 +985,16 @@ void main() {
     await pumpMinistryAnalytics(tester, MinistryAnalyticsViewState.error);
     expect(find.text('Unable to Load Analytics'), findsOneWidget);
     expect(find.text('Try again'), findsOneWidget);
+  });
+
+  testWidgets('Ministry Analytics does not invent refresh success', (
+    WidgetTester tester,
+  ) async {
+    await pumpMinistryAnalytics(tester, MinistryAnalyticsViewState.error);
+
+    final retry = tester.widget<FilledButton>(find.byType(FilledButton));
+    expect(retry.onPressed, isNull);
+    expect(find.text('Unable to Load Analytics'), findsOneWidget);
   });
 
   testWidgets('Ministry Analytics Unauthorized shows the approved copy with no '
@@ -670,6 +1077,7 @@ void main() {
           theme: AppTheme.light,
           home: MinistryAnalyticsScreen(
             onViewReportInsights: () => insightsTapped = true,
+            data: ministryAnalyticsFixture(),
           ),
         ),
       );
@@ -698,7 +1106,10 @@ void main() {
         await tester.pumpWidget(
           MaterialApp(
             theme: AppTheme.light,
-            home: MinistryMunicipalPerformanceScreen(initialState: state),
+            home: MinistryMunicipalPerformanceScreen(
+              initialState: state,
+              data: ministryMunicipalPerformanceFixture(),
+            ),
           ),
         );
         await tester.pump();
@@ -719,7 +1130,9 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.light,
-          home: const MinistryMunicipalPerformanceScreen(),
+          home: MinistryMunicipalPerformanceScreen(
+            data: ministryMunicipalPerformanceFixture(),
+          ),
         ),
       );
       await tester.pumpAndSettle();
@@ -739,7 +1152,9 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.light,
-          home: const MinistryMunicipalPerformanceScreen(),
+          home: MinistryMunicipalPerformanceScreen(
+            data: ministryMunicipalPerformanceFixture(),
+          ),
         ),
       );
       await tester.pumpAndSettle();
@@ -768,13 +1183,13 @@ void main() {
       expect(find.text('SLA Met'), findsOneWidget);
       expect(find.text('84%'), findsOneWidget);
       expect(find.text('Backlog'), findsOneWidget);
-      expect(find.text('1.2K'), findsOneWidget);
+      expect(find.text('6'), findsOneWidget);
 
       expect(find.text('Regional Leaders'), findsOneWidget);
       // One real assembly per Ghana region (16) — enough national volume
       // for the region picker and Top 10/Needs Attention scope to do real
       // filtering, unlike the three placeholder entries this replaced.
-      expect(find.text('16 shown'), findsOneWidget);
+      expect(find.text('4 shown'), findsOneWidget);
       expect(find.text('Accra Metropolitan'), findsOneWidget);
       expect(
         find.text('Greater Accra · 92% resolved · 14h response'),
@@ -785,7 +1200,7 @@ void main() {
 
       expect(find.text('Efficiency Trend'), findsOneWidget);
       expect(
-        find.text('Last 7 reporting periods · aggregated only'),
+        find.text('Last 7 days · genuine report activity'),
         findsOneWidget,
       );
     },
@@ -803,7 +1218,9 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.light,
-          home: const MinistryMunicipalPerformanceScreen(),
+          home: MinistryMunicipalPerformanceScreen(
+            data: ministryMunicipalPerformanceFixture(),
+          ),
         ),
       );
       await tester.pumpAndSettle();
@@ -834,7 +1251,9 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.light,
-        home: const MinistryMunicipalPerformanceScreen(),
+        home: MinistryMunicipalPerformanceScreen(
+          data: ministryMunicipalPerformanceFixture(),
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -854,6 +1273,237 @@ void main() {
     expect(find.text('Kumasi Metropolitan'), findsOneWidget);
   });
 
+  testWidgets(
+    'Ministry Municipal Performance keeps filters visible after its subtitle collapses',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(375, 812);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: MinistryMunicipalPerformanceScreen(
+            data: ministryMunicipalPerformanceFixture(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final subtitle = find.text(
+        'Aggregated response and resolution metrics across municipalities.',
+      );
+      expect(subtitle, findsOneWidget);
+      await tester.drag(find.byType(ListView).last, const Offset(0, -300));
+      await tester.pumpAndSettle();
+
+      // CollapsibleListHeader clips its header instead of removing it from
+      // the tree, so assert the actual visual/accessibility behavior rather
+      // than an incorrect widget-removal assumption.
+      expect(subtitle.hitTestable(), findsNothing);
+      expect(find.byType(RegionPickerChip), findsOneWidget);
+      expect(find.text('All'), findsOneWidget);
+      expect(find.text('Top 10'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'Ministry Municipal Performance uses an honest empty default state',
+    (WidgetTester tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: const MinistryMunicipalPerformanceScreen(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('No Performance Data'), findsOneWidget);
+      expect(find.text('Regional Leaders'), findsNothing);
+      expect(find.text('Accra Metropolitan'), findsNothing);
+      expect(find.text('76%'), findsNothing);
+      expect(find.text('1.2K'), findsNothing);
+
+      final refresh = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Refresh'),
+      );
+      expect(refresh.onPressed, isNull);
+    },
+  );
+
+  testWidgets(
+    'Ministry Municipal Performance preserves a region on dismiss and clears it only for All Regions',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(375, 812);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: MinistryMunicipalPerformanceScreen(
+            data: ministryMunicipalPerformanceFixture(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final regionChip = find.byType(RegionPickerChip);
+      await tester.tap(regionChip);
+      await tester.pumpAndSettle();
+      final sheet = find.byType(BottomSheet);
+      await tester.tap(
+        find.descendant(of: sheet, matching: find.text('Ashanti')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.descendant(of: regionChip, matching: find.text('Ashanti')),
+        findsOneWidget,
+      );
+      expect(find.text('Kumasi Metropolitan'), findsOneWidget);
+
+      await tester.tap(regionChip);
+      await tester.pumpAndSettle();
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(
+        find.descendant(of: regionChip, matching: find.text('Ashanti')),
+        findsOneWidget,
+      );
+
+      await tester.tap(regionChip);
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.descendant(of: find.byType(BottomSheet), matching: find.text('All Regions')),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.descendant(of: regionChip, matching: find.text('All Regions')),
+        findsOneWidget,
+      );
+      expect(find.text('Accra Metropolitan'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'Ministry Municipal Performance metrics keep 44px targets on a narrow phone',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(320, 812);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: MinistryMunicipalPerformanceScreen(
+            data: ministryMunicipalPerformanceFixture(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final performanceList = find.byWidgetPredicate(
+        (widget) =>
+            widget is Scrollable && widget.axisDirection == AxisDirection.down,
+      );
+      expect(performanceList, findsOneWidget);
+      await tester.scrollUntilVisible(
+        find.text('Efficiency Trend'),
+        240,
+        scrollable: performanceList,
+      );
+      final responseToggle = find.ancestor(
+        of: find.text('Response'),
+        matching: find.byType(InkWell),
+      );
+      final resolutionToggle = find.ancestor(
+        of: find.text('Resolution').last,
+        matching: find.byType(InkWell),
+      );
+      expect(tester.getSize(responseToggle).height, greaterThanOrEqualTo(44));
+      expect(tester.getSize(resolutionToggle).height, greaterThanOrEqualTo(44));
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('Ministry Reports keeps its selected region when picker closes', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(428, 1800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: MinistryReportsScreen(data: ministryReportsFixture()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final filterRow = find.ancestor(
+      of: find.text('All'),
+      matching: find.byWidgetPredicate(
+        (widget) =>
+            widget is Scrollable &&
+            widget.axisDirection == AxisDirection.right,
+      ),
+    );
+    expect(filterRow, findsOneWidget);
+    final regionChip = find.byType(RegionPickerChip);
+    Future<void> openVisibleRegionPicker({required bool revealFromStart}) async {
+      // The initial reveal must start from the leading status chip. Once a
+      // region has been chosen, that leading lazy child can be evicted while
+      // the rail stays positioned at the trailing picker, so do not resolve
+      // the rail through the no-longer-built `All` chip a second time.
+      if (revealFromStart) {
+        await tester.scrollUntilVisible(
+          regionChip,
+          240,
+          scrollable: filterRow,
+        );
+      }
+      final pickerTapTarget = find.descendant(
+        of: regionChip,
+        matching: find.byType(InkWell),
+      );
+      expect(pickerTapTarget, findsOneWidget);
+      await Scrollable.ensureVisible(
+        tester.element(pickerTapTarget),
+        alignment: 0.5,
+        duration: Duration.zero,
+      );
+      await tester.pump();
+      expect(pickerTapTarget.hitTestable(), findsOneWidget);
+      await tester.tap(pickerTapTarget);
+      await tester.pumpAndSettle();
+      expect(find.byType(BottomSheet), findsOneWidget);
+    }
+
+    await openVisibleRegionPicker(revealFromStart: true);
+    await tester.tap(
+      find.descendant(of: find.byType(BottomSheet), matching: find.text('Ashanti')),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(of: regionChip, matching: find.text('Ashanti')),
+      findsOneWidget,
+    );
+
+    await openVisibleRegionPicker(revealFromStart: false);
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(of: regionChip, matching: find.text('Ashanti')),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('Ministry Municipal Performance Regional Leaders row opens the '
       'Municipal Officer contact detail screen', (WidgetTester tester) async {
     tester.view.physicalSize = const Size(428, 2600);
@@ -866,6 +1516,7 @@ void main() {
       MaterialApp(
         theme: AppTheme.light,
         home: MinistryMunicipalPerformanceScreen(
+          data: ministryMunicipalPerformanceFixture(),
           onOpenMunicipality: (item) => openedMunicipality = item.name,
         ),
       ),
@@ -890,7 +1541,10 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.light,
-        home: MinistryMunicipalPerformanceScreen(initialState: state),
+        home: MinistryMunicipalPerformanceScreen(
+          initialState: state,
+          data: ministryMunicipalPerformanceFixture(),
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -991,8 +1645,9 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.light,
-          home: MinistryMunicipalPerformanceScreen(
-            onNavigateToDashboard: () => dashboardTapped = true,
+        home: MinistryMunicipalPerformanceScreen(
+          data: ministryMunicipalPerformanceFixture(),
+          onNavigateToDashboard: () => dashboardTapped = true,
             onNavigateToAnalytics: () => analyticsTapped = true,
           ),
         ),
@@ -1025,8 +1680,9 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.light,
-          home: MinistryMunicipalPerformanceScreen(
-            onProfileTap: () => profileTapped = true,
+        home: MinistryMunicipalPerformanceScreen(
+          data: ministryMunicipalPerformanceFixture(),
+          onProfileTap: () => profileTapped = true,
           ),
         ),
       );
@@ -1081,6 +1737,84 @@ void main() {
     },
   );
 
+  testWidgets('Ministry Reports Overview uses an honest empty default state', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: const MinistryReportsScreen(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('No Reports'), findsOneWidget);
+    expect(find.text('Aggregated Reports'), findsNothing);
+    expect(find.text('Pothole on Main Street'), findsNothing);
+    expect(find.text('24,812'), findsNothing);
+  });
+
+  testWidgets(
+    'Ministry Reports Overview keeps a long Awaiting Confirmation row readable '
+    'on a narrow phone',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(375, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      const title =
+          'Long drainage obstruction report requiring confirmation from the assembly';
+      const location = 'Accra Metropolitan · Sanitation';
+      const date = 'Yesterday';
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: const MinistryReportsScreen(
+            data: MinistryReportsData(
+              stats: MinistryReportsStats(
+                aggregatedReports: 1,
+                underReview: 0,
+                resolved: 0,
+              ),
+              reports: [
+                ReportSummaryItem(
+                  title: title,
+                  municipality: 'Accra Metropolitan',
+                  region: Region.greaterAccra,
+                  category: 'Sanitation',
+                  status: ReportStatus.pendingApproval,
+                  dateLabel: date,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final titleFinder = find.text(title);
+      final locationFinder = find.text(location);
+      final statusFinder = find.text('Awaiting Confirmation');
+      final dateFinder = find.text(date);
+
+      expect(titleFinder, findsOneWidget);
+      expect(locationFinder, findsOneWidget);
+      expect(statusFinder, findsOneWidget);
+      expect(dateFinder, findsOneWidget);
+      expect(
+        tester.getTopLeft(statusFinder).dy,
+        greaterThan(tester.getTopLeft(locationFinder).dy),
+      );
+      expect(
+        tester.getTopLeft(dateFinder).dy,
+        greaterThan(tester.getTopLeft(locationFinder).dy),
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets(
     'Ministry Reports Overview shows the full report list in its loaded '
     'state',
@@ -1091,7 +1825,10 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
 
       await tester.pumpWidget(
-        MaterialApp(theme: AppTheme.light, home: const MinistryReportsScreen()),
+        MaterialApp(
+          theme: AppTheme.light,
+          home: MinistryReportsScreen(data: ministryReportsFixture()),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -1107,33 +1844,27 @@ void main() {
       // (chip + 4 badges), "Resolved" (chip + stat card label + 4
       // badges). "Review" is chip-only: badges spell out "Under Review"
       // in full, a different string.
-      expect(find.text('Submitted'), findsNWidgets(5));
+      expect(find.text('Submitted'), findsNWidgets(2));
       expect(find.text('Review'), findsOneWidget);
-      expect(find.text('Resolved'), findsNWidgets(6));
+      expect(find.text('Resolved'), findsNWidgets(3));
 
       expect(find.text('Aggregated Reports'), findsOneWidget);
-      expect(find.text('24,812'), findsOneWidget);
+      expect(find.text('4'), findsOneWidget);
       expect(
         find.text('National report volume · current period'),
         findsOneWidget,
       );
-      // Stat card label + 4 underReview badges.
-      expect(find.text('Under Review'), findsNWidgets(5));
-      expect(find.text('3,248'), findsOneWidget);
-      expect(find.text('18,604'), findsOneWidget);
+      // Stat card label + one under-review badge.
+      expect(find.text('Under Review'), findsNWidgets(2));
+      expect(find.text('1'), findsNWidgets(2));
 
-      // Spans all 16 regions, same national volume as Municipal
-      // Performance's Regional Leaders list.
-      expect(find.text('20 shown'), findsOneWidget);
+      expect(find.text('4 shown'), findsOneWidget);
       expect(find.text('Pothole on Main Street'), findsOneWidget);
       expect(
         find.text('Accra Metropolitan · Road Infrastructure'),
         findsOneWidget,
       );
-      // Several of the 20 mock reports happen to share a relative-time
-      // label ("2 days ago") now that there's real national volume —
-      // just confirming the date renders at all, not counting collisions.
-      expect(find.text('2 days ago'), findsWidgets);
+      expect(find.text('2 days ago'), findsOneWidget);
       expect(find.text('Broken Streetlight'), findsOneWidget);
 
       expect(find.text('Report Insights'), findsOneWidget);
@@ -1149,7 +1880,10 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
 
       await tester.pumpWidget(
-        MaterialApp(theme: AppTheme.light, home: const MinistryReportsScreen()),
+        MaterialApp(
+          theme: AppTheme.light,
+          home: MinistryReportsScreen(data: ministryReportsFixture()),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -1171,7 +1905,10 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
 
     await tester.pumpWidget(
-      MaterialApp(theme: AppTheme.light, home: const MinistryReportsScreen()),
+      MaterialApp(
+        theme: AppTheme.light,
+        home: MinistryReportsScreen(data: ministryReportsFixture()),
+      ),
     );
     await tester.pumpAndSettle();
 
@@ -1181,10 +1918,30 @@ void main() {
     await tester.tap(find.text('Review'));
     await tester.pumpAndSettle();
 
-    expect(find.text('4 shown'), findsOneWidget);
+    expect(find.text('1 shown'), findsOneWidget);
     expect(find.text('Overflowing Drainage'), findsOneWidget);
     expect(find.text('Pothole on Main Street'), findsNothing);
   });
+
+  testWidgets(
+    'Ministry Reports Overview keeps national summaries unchanged by filters',
+    (WidgetTester tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: MinistryReportsScreen(data: ministryReportsFixture()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('4'), findsOneWidget);
+      await tester.tap(find.text('Review'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('4'), findsOneWidget);
+      expect(find.text('1 shown'), findsOneWidget);
+    },
+  );
 
   Future<void> pumpMinistryReports(
     WidgetTester tester,
@@ -1198,7 +1955,10 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.light,
-        home: MinistryReportsScreen(initialState: state),
+        home: MinistryReportsScreen(
+          initialState: state,
+          data: ministryReportsFixture(),
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -1230,7 +1990,7 @@ void main() {
       await tester.tap(find.text('Clear Filters'));
       await tester.pumpAndSettle();
 
-      expect(find.text('20 shown'), findsOneWidget);
+      expect(find.text('4 shown'), findsOneWidget);
       expect(find.text('Pothole on Main Street'), findsOneWidget);
     },
   );
@@ -1335,6 +2095,7 @@ void main() {
           theme: AppTheme.light,
           home: MinistryReportsScreen(
             onViewReportInsights: () => insightsTapped = true,
+            data: ministryReportsFixture(),
           ),
         ),
       );
@@ -1392,6 +2153,24 @@ void main() {
     },
   );
 
+  testWidgets('Ministry Report Insights uses an honest empty default state', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: const MinistryReportInsightsScreen(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('No Insights'), findsOneWidget);
+    expect(find.text('Category Peak'), findsNothing);
+    expect(find.text('Status Breakdown'), findsNothing);
+    expect(find.textContaining('+6.2%'), findsNothing);
+    expect(find.textContaining('previous period'), findsNothing);
+  });
+
   testWidgets(
     'Ministry Report Insights has no bottom nav — it is a drill-down, not a '
     'tab',
@@ -1425,7 +2204,9 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.light,
-          home: const MinistryReportInsightsScreen(),
+          home: MinistryReportInsightsScreen(
+            data: ministryReportInsightsFixture(),
+          ),
         ),
       );
       await tester.pumpAndSettle();
@@ -1437,19 +2218,36 @@ void main() {
 
       expect(find.text('Category Peak'), findsOneWidget);
       expect(find.text('Sanitation'), findsOneWidget);
-      expect(find.text('31% share'), findsOneWidget);
+      expect(find.text('3 reports'), findsOneWidget);
       expect(find.text('Resolution'), findsOneWidget);
-      expect(find.text('74%'), findsOneWidget);
-      expect(find.text('+6.2%'), findsOneWidget);
+      expect(find.text('25%'), findsOneWidget);
+      expect(find.text('2 reports resolved'), findsOneWidget);
 
+      expect(find.text('Status Breakdown'), findsOneWidget);
+      for (final status in ReportStatus.values) {
+        expect(
+          find.text(
+            '${status.label}: ${ministryReportInsightsFixture().count(status)}',
+          ),
+          findsOneWidget,
+        );
+      }
       expect(find.text('Critical Insights'), findsOneWidget);
-      expect(find.text('Sanitation reports are rising'), findsOneWidget);
-      expect(find.text('+18% from previous period'), findsOneWidget);
-      expect(find.text('Resolution pace improved'), findsOneWidget);
-      expect(find.text('Infrastructure needs focus'), findsOneWidget);
+      expect(
+        find.text('Sanitation has the highest report volume'),
+        findsOneWidget,
+      );
+      expect(find.text('5 reports are in the open backlog'), findsOneWidget);
+      expect(find.textContaining('MapEntry'), findsNothing);
 
       expect(find.text('Strategic Focus'), findsOneWidget);
       expect(find.text('View focus summary'), findsOneWidget);
+      expect(
+        find.text(
+          'Focus Summary is unavailable until I06 provides a grounded AI insight.',
+        ),
+        findsOneWidget,
+      );
     },
   );
 
@@ -1465,7 +2263,9 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.light,
-          home: const MinistryReportInsightsScreen(),
+          home: MinistryReportInsightsScreen(
+            data: ministryReportInsightsFixture(),
+          ),
         ),
       );
       await tester.pumpAndSettle();
@@ -1491,7 +2291,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.light,
-        home: const MinistryReportInsightsScreen(),
+        home: MinistryReportInsightsScreen(data: ministryReportInsightsFixture()),
       ),
     );
     await tester.pumpAndSettle();
@@ -1508,6 +2308,36 @@ void main() {
     expect(find.text('Category'), findsNothing);
   });
 
+  testWidgets(
+    'Ministry Report Insights includes Awaiting Confirmation in its status filter',
+    (WidgetTester tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: MinistryReportInsightsScreen(data: ministryReportInsightsFixture()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Status'));
+      await tester.pumpAndSettle();
+      final statusSheetList = find.descendant(
+        of: find.byType(BottomSheet),
+        matching: find.byType(Scrollable),
+      );
+      expect(statusSheetList, findsOneWidget);
+      await tester.scrollUntilVisible(
+        find.text('Awaiting Confirmation'),
+        200,
+        scrollable: statusSheetList,
+      );
+      await tester.tap(find.text('Awaiting Confirmation'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Awaiting Confirmation'), findsOneWidget);
+    },
+  );
+
   Future<void> pumpMinistryReportInsights(
     WidgetTester tester,
     MinistryReportInsightsViewState state,
@@ -1520,7 +2350,10 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.light,
-        home: MinistryReportInsightsScreen(initialState: state),
+        home: MinistryReportInsightsScreen(
+          initialState: state,
+          data: ministryReportInsightsFixture(),
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -1584,6 +2417,43 @@ void main() {
   });
 
   testWidgets(
+    'Ministry Municipal Performance does not invent retry success',
+    (WidgetTester tester) async {
+      await pumpMinistryMunicipalPerformance(
+        tester,
+        MinistryMunicipalPerformanceViewState.error,
+      );
+
+      final retry = tester.widget<FilledButton>(find.byType(FilledButton));
+      expect(retry.onPressed, isNull);
+      expect(find.text('Unable to Load Performance'), findsOneWidget);
+    },
+  );
+
+  testWidgets('Ministry Reports Overview does not invent retry success', (
+    WidgetTester tester,
+  ) async {
+    await pumpMinistryReports(tester, MinistryReportsViewState.error);
+
+    final retry = tester.widget<FilledButton>(find.byType(FilledButton));
+    expect(retry.onPressed, isNull);
+    expect(find.text('Unable to Load Reports'), findsOneWidget);
+  });
+
+  testWidgets('Ministry Report Insights does not invent retry success', (
+    WidgetTester tester,
+  ) async {
+    await pumpMinistryReportInsights(
+      tester,
+      MinistryReportInsightsViewState.error,
+    );
+
+    final retry = tester.widget<FilledButton>(find.byType(FilledButton));
+    expect(retry.onPressed, isNull);
+    expect(find.text('Unable to Load Insights'), findsOneWidget);
+  });
+
+  testWidgets(
     'Ministry Report Insights Unauthorized shows the approved copy with no '
     'action buttons',
     (WidgetTester tester) async {
@@ -1621,7 +2491,7 @@ void main() {
   });
 
   testWidgets(
-    'Ministry Report Insights "View focus summary" fires the callback',
+    'Ministry Report Insights disables Focus Summary until I06 is available',
     (WidgetTester tester) async {
       tester.view.physicalSize = const Size(428, 2600);
       tester.view.devicePixelRatio = 1.0;
@@ -1634,15 +2504,17 @@ void main() {
           theme: AppTheme.light,
           home: MinistryReportInsightsScreen(
             onViewFocusSummary: () => focusSummaryTapped = true,
+            data: ministryReportInsightsFixture(),
           ),
         ),
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('View focus summary'));
-      await tester.pumpAndSettle();
-
-      expect(focusSummaryTapped, isTrue);
+      final button = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'View focus summary'),
+      );
+      expect(button.onPressed, isNull);
+      expect(focusSummaryTapped, isFalse);
     },
   );
 

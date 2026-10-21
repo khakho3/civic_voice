@@ -1,4 +1,4 @@
-import '../../../models/region.dart';
+import '../../../models/report_status.dart';
 import 'municipal_performance_data.dart';
 
 /// Data backing MIN-001 Ministry Dashboard's loaded state.
@@ -14,106 +14,72 @@ class MinistryDashboardData {
   final ReportStatistics reportStatistics;
   final QuickInsights insights;
 
-  /// The top 3 [MunicipalPerformanceData.mock] entries by resolved rate,
-  /// reusing [RegionalLeaderItem] directly rather than a separate
-  /// `MunicipalityPerformanceItem` model — the old one carried its own
-  /// disconnected mock values (different municipalities, different
-  /// percentages than Municipal Performance's own list), so the same
-  /// municipality could read two different numbers depending which screen
-  /// you were on. One shared model with one shared officer contact record
-  /// is also what makes tapping a row here open the same detail screen
-  /// Municipal Performance's own rows open.
+  /// A national ranking is only displayed when it comes from available
+  /// scoped report data.
   final List<RegionalLeaderItem> topMunicipalities;
 
-  /// Placeholder content matching the approved MIN-001 design, used until
-  /// the Cloud Firestore-backed aggregation service (Issue 05 dependency)
-  /// is wired up.
-  static MinistryDashboardData mock() {
-    return const MinistryDashboardData(
-      stats: MinistryDashboardStats(
-        totalReports: 24800,
-        totalReportsChangePercent: 12,
-        underReview: 3200,
-        underReviewPercent: 13,
-        resolved: 18600,
-        resolvedPercent: 75,
-        activeMunicipalities: 216,
-      ),
-      reportStatistics: ReportStatistics(
-        // Relative monthly volumes (Jan–Jun) — proportions only, matching
-        // the approved frame's bar chart shape.
-        monthlyValues: [62, 78, 54, 92, 68, 100],
-        rangeLabel: 'Jan–Jun reports',
-        totalLabel: '24.8K total',
-      ),
-      insights: QuickInsights(
-        submittedPercent: 24,
-        underReviewPercent: 13,
-        assignedPercent: 18,
-        inProgressPercent: 20,
-      ),
-      // The top 3 of MunicipalPerformanceData.mock's own regionalLeaders by
-      // resolvedPercent — kept in sync by hand for now since these are two
-      // separate mock() calls, but at least the same entries with the same
-      // numbers, not a parallel dataset that can silently drift.
-      topMunicipalities: [
-        RegionalLeaderItem(
-          name: 'Accra Metropolitan',
-          region: Region.greaterAccra,
-          resolvedPercent: 92,
-          responseTimeLabel: '14h',
-          officerName: 'Kwame Owusu',
-          officerPhone: '+233 24 555 0101',
-        ),
-        RegionalLeaderItem(
-          name: 'Kumasi Metropolitan',
-          region: Region.ashanti,
-          resolvedPercent: 86,
-          responseTimeLabel: '18h',
-          officerName: 'Abena Boateng',
-          officerPhone: '+233 24 555 0102',
-        ),
-        RegionalLeaderItem(
-          name: 'Sunyani Municipal',
-          region: Region.bono,
-          resolvedPercent: 83,
-          responseTimeLabel: '17h',
-          officerName: 'Comfort Osei',
-          officerPhone: '+233 24 555 0114',
-        ),
-      ],
-    );
-  }
+  /// An honest national zero-data projection. It deliberately contains no
+  /// chart series or municipality rows: those would imply activity that does
+  /// not exist.
+  static const zero = MinistryDashboardData(
+    stats: MinistryDashboardStats(
+      statusCounts: {
+        ReportStatus.submitted: 0,
+        ReportStatus.underReview: 0,
+        ReportStatus.assigned: 0,
+        ReportStatus.inProgress: 0,
+        ReportStatus.pendingApproval: 0,
+        ReportStatus.resolved: 0,
+        ReportStatus.rejected: 0,
+      },
+      activeMunicipalities: 0,
+    ),
+    reportStatistics: ReportStatistics(
+      monthlyValues: [0],
+      rangeLabel: '',
+      totalLabel: '',
+    ),
+    insights: QuickInsights(
+      statusCounts: {
+        ReportStatus.submitted: 0,
+        ReportStatus.underReview: 0,
+        ReportStatus.assigned: 0,
+        ReportStatus.inProgress: 0,
+        ReportStatus.pendingApproval: 0,
+        ReportStatus.resolved: 0,
+        ReportStatus.rejected: 0,
+      },
+    ),
+    topMunicipalities: [],
+  );
 }
 
 /// The four National Summary stat cards.
 class MinistryDashboardStats {
   const MinistryDashboardStats({
-    required this.totalReports,
-    required this.totalReportsChangePercent,
-    required this.underReview,
-    required this.underReviewPercent,
-    required this.resolved,
-    required this.resolvedPercent,
+    required this.statusCounts,
     required this.activeMunicipalities,
   });
 
-  final int totalReports;
-
-  /// Period-over-period change, e.g. `12` for "+12%".
-  final int totalReportsChangePercent;
-
-  final int underReview;
-
-  /// Share of [totalReports] currently under review, e.g. `13` for "13%".
-  final int underReviewPercent;
-
-  final int resolved;
-
-  /// Share of [totalReports] resolved, e.g. `75` for "75%".
-  final int resolvedPercent;
+  /// Every lifecycle status is represented, including closed statuses. This
+  /// keeps the dashboard total auditable and prevents approval work from
+  /// disappearing from active workload.
+  final Map<ReportStatus, int> statusCounts;
 
   final int activeMunicipalities;
+
+  int count(ReportStatus status) => statusCounts[status] ?? 0;
+
+  int get totalReports => statusCounts.values.fold(0, (sum, value) => sum + value);
+
+  int get openWork =>
+      count(ReportStatus.submitted) +
+      count(ReportStatus.underReview) +
+      count(ReportStatus.assigned) +
+      count(ReportStatus.inProgress) +
+      count(ReportStatus.pendingApproval);
+
+  int get resolved => count(ReportStatus.resolved);
 }
 
 /// The "Report Statistics" bar chart section.
@@ -130,18 +96,19 @@ class ReportStatistics {
   final String totalLabel;
 }
 
-/// The four "Quick Insights" breakdown cards — status-share percentages of
-/// the national report volume.
+/// Status-share data for the dashboard's active-work highlights.
 class QuickInsights {
-  const QuickInsights({
-    required this.submittedPercent,
-    required this.underReviewPercent,
-    required this.assignedPercent,
-    required this.inProgressPercent,
-  });
+  const QuickInsights({required this.statusCounts});
 
-  final int submittedPercent;
-  final int underReviewPercent;
-  final int assignedPercent;
-  final int inProgressPercent;
+  /// Retains the complete status projection even when the UI only highlights
+  /// active work. Rejected reports therefore remain part of the total.
+  final Map<ReportStatus, int> statusCounts;
+
+  int count(ReportStatus status) => statusCounts[status] ?? 0;
+
+  int percent(ReportStatus status) {
+    final total = statusCounts.values.fold(0, (sum, value) => sum + value);
+    if (total == 0) return 0;
+    return ((count(status) / total) * 100).round();
+  }
 }

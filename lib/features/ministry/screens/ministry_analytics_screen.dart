@@ -46,6 +46,7 @@ class MinistryAnalyticsScreen extends StatefulWidget {
     this.onViewReportInsights,
     this.data,
     this.dataForRange,
+    this.onRefresh,
   });
 
   final MinistryAnalyticsViewState initialState;
@@ -67,6 +68,7 @@ class MinistryAnalyticsScreen extends StatefulWidget {
   final VoidCallback? onViewReportInsights;
   final MinistryAnalyticsData? data;
   final MinistryAnalyticsData Function(AnalyticsDateRange range)? dataForRange;
+  final Future<void> Function()? onRefresh;
 
   @override
   State<MinistryAnalyticsScreen> createState() =>
@@ -75,18 +77,15 @@ class MinistryAnalyticsScreen extends StatefulWidget {
 
 class _MinistryAnalyticsScreenState extends State<MinistryAnalyticsScreen> {
   late MinistryAnalyticsViewState _state = widget.initialState;
-  MinistryAnalyticsData get _data =>
-      widget.dataForRange?.call(_dateRange) ??
-      widget.data ??
-      MinistryAnalyticsData.mock();
+  MinistryAnalyticsData? get _data =>
+      widget.dataForRange?.call(_dateRange) ?? widget.data;
   AnalyticsDimension _dimension = AnalyticsDimension.category;
   AnalyticsDateRange _dateRange = AnalyticsDateRange.last30Days;
 
-  void _retry() {
-    setState(() => _state = MinistryAnalyticsViewState.loading);
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (mounted) setState(() => _state = MinistryAnalyticsViewState.loaded);
-    });
+  void _requestRefresh() {
+    // The data directory owns success/failure state. Do not turn a retry into
+    // a local success merely because a timer elapsed.
+    widget.onRefresh?.call();
   }
 
   void _clearFilters() {
@@ -99,6 +98,14 @@ class _MinistryAnalyticsScreenState extends State<MinistryAnalyticsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final data = _data;
+    final displayState = _state == MinistryAnalyticsViewState.loaded
+        ? data == null
+              ? MinistryAnalyticsViewState.empty
+              : data.totalReports == 0
+              ? MinistryAnalyticsViewState.noResults
+              : MinistryAnalyticsViewState.loaded
+        : _state;
     // Empty/No Results keep the chrome fixed (not collapsible) rather than
     // wrapping it in CollapsibleListHeader like Loaded does: their content
     // is a short, centered state card with nothing to scroll, so there's no
@@ -106,8 +113,8 @@ class _MinistryAnalyticsScreenState extends State<MinistryAnalyticsScreen> {
     // Unauthorized go a step further and disable the chrome entirely, same
     // as before.
     final chromeEnabled =
-        _state == MinistryAnalyticsViewState.empty ||
-        _state == MinistryAnalyticsViewState.noResults;
+        displayState == MinistryAnalyticsViewState.empty ||
+        displayState == MinistryAnalyticsViewState.noResults;
 
     return MinistryScaffold(
       selectedTab: MinistryTab.analytics,
@@ -120,25 +127,34 @@ class _MinistryAnalyticsScreenState extends State<MinistryAnalyticsScreen> {
         }
         if (tab == MinistryTab.reports) widget.onNavigateToReports?.call();
       },
-      body: switch (_state) {
+      body: (switch (displayState) {
         MinistryAnalyticsViewState.loading => const _LoadingSkeleton(),
         MinistryAnalyticsViewState.loaded => Padding(
           padding: EdgeInsets.only(
             top: MinistryScaffold.contentPadding(context).top,
           ),
-          child: CollapsibleListHeader(
-            header: _FilterChrome(
-              dateRange: _dateRange,
-              dimension: _dimension,
-              enabled: true,
-              onDateRangeChanged: (r) => setState(() => _dateRange = r),
-              onDimensionSelected: (d) => setState(() => _dimension = d),
-            ),
-            child: _AnalyticsContent(
-              data: _data,
-              dimension: _dimension,
-              onViewReportInsights: widget.onViewReportInsights,
-            ),
+          child: Column(
+            children: [
+              _DimensionFilterRow(
+                dimension: _dimension,
+                enabled: true,
+                onDimensionSelected: (d) => setState(() => _dimension = d),
+              ),
+              Expanded(
+                child: CollapsibleListHeader(
+                  header: _DateRangeFilter(
+                    dateRange: _dateRange,
+                    enabled: true,
+                    onDateRangeChanged: (r) => setState(() => _dateRange = r),
+                  ),
+                  child: _AnalyticsContent(
+                    data: data!,
+                    dimension: _dimension,
+                    onViewReportInsights: widget.onViewReportInsights,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
         _ => Column(
@@ -156,8 +172,8 @@ class _MinistryAnalyticsScreenState extends State<MinistryAnalyticsScreen> {
                   : null,
             ),
             Expanded(
-              child: switch (_state) {
-                MinistryAnalyticsViewState.loading ||
+              child: (switch (displayState) {
+                MinistryAnalyticsViewState.loading => const SizedBox.shrink(),
                 MinistryAnalyticsViewState.loaded => const SizedBox.shrink(),
                 MinistryAnalyticsViewState.empty => Padding(
                   padding: const EdgeInsets.all(AppSpacing.md),
@@ -169,7 +185,9 @@ class _MinistryAnalyticsScreenState extends State<MinistryAnalyticsScreen> {
                         'Aggregated analytics will appear here once '
                         'reports are available.',
                     primaryActionLabel: 'Refresh',
-                    onPrimaryAction: _retry,
+                    onPrimaryAction: widget.onRefresh == null
+                        ? null
+                        : _requestRefresh,
                   ),
                 ),
                 MinistryAnalyticsViewState.noResults => Padding(
@@ -195,7 +213,9 @@ class _MinistryAnalyticsScreenState extends State<MinistryAnalyticsScreen> {
                         'Check your connection and retry loading '
                         'analytics.',
                     primaryActionLabel: 'Retry connection',
-                    onPrimaryAction: _retry,
+                    onPrimaryAction: widget.onRefresh == null
+                        ? null
+                        : _requestRefresh,
                     primaryActionColor: AppColors.error,
                   ),
                 ),
@@ -209,7 +229,9 @@ class _MinistryAnalyticsScreenState extends State<MinistryAnalyticsScreen> {
                         'The analytics service could not return '
                         'aggregated data right now.',
                     primaryActionLabel: 'Try again',
-                    onPrimaryAction: _retry,
+                    onPrimaryAction: widget.onRefresh == null
+                        ? null
+                        : _requestRefresh,
                     primaryActionColor: AppColors.error,
                   ),
                 ),
@@ -224,11 +246,11 @@ class _MinistryAnalyticsScreenState extends State<MinistryAnalyticsScreen> {
                         'requires supervisor permissions.',
                   ),
                 ),
-              },
+              }),
             ),
           ],
         ),
-      },
+      }),
     );
   }
 }
@@ -254,6 +276,36 @@ class _FilterChrome extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return Column(
+      children: [
+        _DateRangeFilter(
+          dateRange: dateRange,
+          enabled: enabled,
+          onDateRangeChanged: onDateRangeChanged,
+        ),
+        _DimensionFilterRow(
+          dimension: dimension,
+          enabled: enabled,
+          onDimensionSelected: onDimensionSelected,
+        ),
+      ],
+    );
+  }
+}
+
+class _DateRangeFilter extends StatelessWidget {
+  const _DateRangeFilter({
+    required this.dateRange,
+    required this.enabled,
+    this.onDateRangeChanged,
+  });
+
+  final AnalyticsDateRange dateRange;
+  final bool enabled;
+  final ValueChanged<AnalyticsDateRange>? onDateRangeChanged;
+
+  @override
+  Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.md,
@@ -261,48 +313,60 @@ class _FilterChrome extends StatelessWidget {
         AppSpacing.md,
         AppSpacing.sm,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Matches Admin System Activity's own date-range control
-          // (_TimeRangeDropdown) rather than a modal bottom sheet, so the
-          // same kind of filter opens the same way everywhere in the app.
-          AppDropdownField<AnalyticsDateRange>(
-            hint: '',
-            value: dateRange,
-            leadingIcon: AppIcons.calendar,
-            glass: true,
-            items: [
-              for (final range in AnalyticsDateRange.values)
-                AppDropdownItem(value: range, label: range.label),
-            ],
-            onChanged: enabled
-                ? (selected) {
-                    if (selected != null) onDateRangeChanged?.call(selected);
-                  }
-                : null,
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          SizedBox(
-            height: 40,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: AnalyticsDimension.values.length,
-              separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.xs),
-              itemBuilder: (context, index) {
-                final option = AnalyticsDimension.values[index];
-                final selected = option == dimension;
-                return _DimensionChip(
-                  label: option.label,
-                  selected: selected,
-                  onTap: enabled
-                      ? () => onDimensionSelected?.call(option)
-                      : null,
-                );
-              },
-            ),
-          ),
+      child: AppDropdownField<AnalyticsDateRange>(
+        hint: '',
+        value: dateRange,
+        leadingIcon: AppIcons.calendar,
+        glass: true,
+        items: [
+          for (final range in AnalyticsDateRange.values)
+            AppDropdownItem(value: range, label: range.label),
         ],
+        onChanged: enabled
+            ? (selected) {
+                if (selected != null) onDateRangeChanged?.call(selected);
+              }
+            : null,
+      ),
+    );
+  }
+}
+
+class _DimensionFilterRow extends StatelessWidget {
+  const _DimensionFilterRow({
+    required this.dimension,
+    required this.enabled,
+    this.onDimensionSelected,
+  });
+
+  final AnalyticsDimension dimension;
+  final bool enabled;
+  final ValueChanged<AnalyticsDimension>? onDimensionSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.md,
+        AppSpacing.md,
+        AppSpacing.sm,
+      ),
+      child: SizedBox(
+        height: 40,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          itemCount: AnalyticsDimension.values.length,
+          separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.xs),
+          itemBuilder: (context, index) {
+            final option = AnalyticsDimension.values[index];
+            return _DimensionChip(
+              label: option.label,
+              selected: option == dimension,
+              onTap: enabled ? () => onDimensionSelected?.call(option) : null,
+            );
+          },
+        ),
       ),
     );
   }
@@ -369,6 +433,11 @@ class _AnalyticsContent extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
     final chromeInset = MinistryScaffold.contentPadding(context);
     final breakdown = data.breakdownsByDimension[dimension]!;
+    final breakdownTitle = switch (dimension) {
+      AnalyticsDimension.category => 'Category Resolution Rates',
+      AnalyticsDimension.status => 'Status Distribution',
+      AnalyticsDimension.municipality => 'Municipality Resolution Rates',
+    };
     return ListView(
       padding: EdgeInsets.fromLTRB(
         AppSpacing.md,
@@ -385,8 +454,6 @@ class _AnalyticsContent extends StatelessWidget {
                 child: _StatCard(
                   label: 'Total Reports',
                   value: _formatThousands(data.totalReports),
-                  delta: '+${data.totalReportsChangePercent}%',
-                  deltaColor: AppColors.primary,
                 ),
               ),
               const SizedBox(width: AppSpacing.sm),
@@ -394,8 +461,6 @@ class _AnalyticsContent extends StatelessWidget {
                 child: _StatCard(
                   label: 'Resolution Rate',
                   value: '${data.resolutionRate}%',
-                  delta: '+${data.resolutionRateChangePercent}%',
-                  deltaColor: AppColors.statusResolved,
                 ),
               ),
             ],
@@ -420,14 +485,15 @@ class _AnalyticsContent extends StatelessWidget {
               const SizedBox(height: AppSpacing.md),
               SimpleBarChart(values: data.trendValues),
               const SizedBox(height: AppSpacing.sm),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(data.trendStartLabel, style: textTheme.bodySmall),
-                  Text(data.trendMidLabel, style: textTheme.bodySmall),
-                  Text(data.trendEndLabel, style: textTheme.bodySmall),
-                ],
-              ),
+               Wrap(
+                 alignment: WrapAlignment.spaceBetween,
+                 runSpacing: AppSpacing.xs,
+                 children: [
+                   Text(data.trendStartLabel, style: textTheme.bodySmall),
+                   Text(data.trendMidLabel, style: textTheme.bodySmall),
+                   Text(data.trendEndLabel, style: textTheme.bodySmall),
+                 ],
+               ),
             ],
           ),
         ),
@@ -436,10 +502,7 @@ class _AnalyticsContent extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                '${dimension.label} Distribution',
-                style: textTheme.titleMedium,
-              ),
+              Text(breakdownTitle, style: textTheme.titleMedium),
               const SizedBox(height: AppSpacing.md),
               for (final item in breakdown) ...[
                 _BreakdownRow(item: item),
@@ -540,17 +603,10 @@ class _AnalyticsContent extends StatelessWidget {
 }
 
 class _StatCard extends StatelessWidget {
-  const _StatCard({
-    required this.label,
-    required this.value,
-    required this.delta,
-    required this.deltaColor,
-  });
+  const _StatCard({required this.label, required this.value});
 
   final String label;
   final String value;
-  final String delta;
-  final Color deltaColor;
 
   @override
   Widget build(BuildContext context) {
@@ -567,11 +623,6 @@ class _StatCard extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(value, style: textTheme.headlineSmall),
-          const SizedBox(height: 2),
-          Text(
-            delta,
-            style: textTheme.labelMedium?.copyWith(color: deltaColor),
-          ),
         ],
       ),
     );
@@ -686,8 +737,7 @@ class _TrendInsightsCallout extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 /// A ring chart with one arc segment per slice — the fixed "Report Status"
-/// breakdown. Segment order/angles are illustrative: this is placeholder
-/// data with no live backend to compute exact proportions from yet.
+/// breakdown derived from the selected reporting interval.
 class _StatusDonutPainter extends CustomPainter {
   const _StatusDonutPainter(this.slices);
 

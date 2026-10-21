@@ -12,6 +12,7 @@ import '../../../widgets/stat_tile.dart';
 import '../models/admin_dashboard_data.dart';
 import '../models/admin_system_activity_data.dart';
 import '../services/admin_session.dart';
+import '../services/admin_system_activity_directory.dart';
 import '../services/admin_user_directory.dart';
 import '../widgets/admin_scaffold.dart';
 
@@ -69,6 +70,8 @@ class AdminDashboardScreen extends StatefulWidget {
     this.onNotificationsTap,
     this.healthStats,
     this.onRefreshHealth,
+    this.onRefresh,
+    this.data,
   });
 
   final AdminDashboardViewState initialState;
@@ -100,6 +103,8 @@ class AdminDashboardScreen extends StatefulWidget {
   final VoidCallback? onNotificationsTap;
   final SystemHealthStats? healthStats;
   final Future<void> Function()? onRefreshHealth;
+  final Future<void> Function()? onRefresh;
+  final AdminDashboardData? data;
 
   @override
   State<AdminDashboardScreen> createState() => _AdminDashboardScreenState();
@@ -107,7 +112,7 @@ class AdminDashboardScreen extends StatefulWidget {
 
 class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   late AdminDashboardViewState _state = widget.initialState;
-  AdminDashboardData _data = AdminDashboardData.current();
+  late AdminDashboardData _data = widget.data ?? AdminDashboardData.current();
   Timer? _healthTimer;
 
   @override
@@ -130,9 +135,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   Future<void> _retry() async {
+    final refresh = widget.onRefresh;
+    if (refresh == null) return;
     setState(() => _state = AdminDashboardViewState.loading);
     try {
-      await AdminUserDirectory.instance.refresh();
+      await refresh();
       if (mounted) {
         setState(() {
           _data = AdminDashboardData.current();
@@ -149,7 +156,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   /// loading state, since GhanaRefreshIndicator's own bar is already the
   /// loading affordance here.
   Future<void> _pullToRefresh() async {
-    await AdminUserDirectory.instance.refresh();
+    final refresh = widget.onRefresh;
+    if (refresh == null) return;
+    await refresh();
     if (mounted) setState(() => _data = AdminDashboardData.current());
   }
 
@@ -169,28 +178,74 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       onOpenRoleManagement: widget.onNavigateToRoles,
       onOpenMaintenanceTeams: widget.onNavigateToMaintenanceTeams,
       onOpenProfile: widget.onOpenProfile,
-      body: switch (_state) {
-        AdminDashboardViewState.loading => const _LoadingSkeleton(),
-        _ => GhanaRefreshIndicator(
-          onRefresh: _pullToRefresh,
-          // The header paints on top of this body (a later sibling in
-          // AdminScaffold's own Stack), so without this the pull indicator
-          // would grow in from behind it.
-          topOffset: AdminScaffold.contentPadding(context).top,
-          child: _DashboardBody(
-            state: _state,
-            data: _state == AdminDashboardViewState.loaded
-                ? AdminDashboardData.current()
-                : _data,
-            onRetry: _retry,
-            onNavigateToUsers: widget.onNavigateToUsers,
-            onNavigateToRoles: widget.onNavigateToRoles,
-            onNavigateToSettings: widget.onNavigateToSettings,
-            onNavigateToActivity: widget.onNavigateToActivity,
-            healthStats: widget.healthStats,
-          ),
+      body: _dashboardBody(),
+    );
+  }
+
+  Widget _dashboardBody() {
+    if (_state == AdminDashboardViewState.loading) {
+      return const _LoadingSkeleton();
+    }
+
+    Widget buildBody(BuildContext context) {
+      final userDirectory = AdminUserDirectory.instance;
+      final activityDirectory = AdminSystemActivityDirectory.instance;
+      final usesDirectoryData = widget.data == null &&
+          _state == AdminDashboardViewState.loaded;
+      final hasStaleData = usesDirectoryData &&
+          ((userDirectory.hasLiveSnapshot &&
+                  userDirectory.state.value == AdminUserDirectoryState.failed) ||
+              (activityDirectory.hasLiveSnapshot &&
+                  activityDirectory.state.value ==
+                      AdminSystemActivityDirectoryState.failed));
+      final isUpdating = usesDirectoryData &&
+          (userDirectory.loading.value || activityDirectory.loading.value);
+
+      return _wrapWithRefresh(
+        _DashboardBody(
+          state: _state,
+          data: usesDirectoryData ? AdminDashboardData.current() : _data,
+          onRetry: _retry,
+          onNavigateToUsers: widget.onNavigateToUsers,
+          onNavigateToRoles: widget.onNavigateToRoles,
+          onNavigateToSettings: widget.onNavigateToSettings,
+          onNavigateToActivity: widget.onNavigateToActivity,
+          healthStats: widget.healthStats,
+          refreshEnabled: widget.onRefresh != null,
+          hasStaleData: hasStaleData,
+          isUpdating: isUpdating,
         ),
-      },
+      );
+    }
+
+    // The directories own the data and provenance.  Merging their existing
+    // notifiers lets this presentation layer recalculate its honest summary
+    // whenever a confirmed snapshot, loading state, or failure arrives,
+    // without registering listeners or issuing a refresh itself.
+    if (widget.data != null || _state != AdminDashboardViewState.loaded) {
+      return Builder(builder: buildBody);
+    }
+    return AnimatedBuilder(
+      animation: Listenable.merge([
+        AdminUserDirectory.instance.users,
+        AdminUserDirectory.instance.state,
+        AdminUserDirectory.instance.loading,
+        AdminUserDirectory.instance.error,
+        AdminSystemActivityDirectory.instance.items,
+        AdminSystemActivityDirectory.instance.state,
+        AdminSystemActivityDirectory.instance.loading,
+        AdminSystemActivityDirectory.instance.error,
+      ]),
+      builder: (context, _) => buildBody(context),
+    );
+  }
+
+  Widget _wrapWithRefresh(Widget child) {
+    if (widget.onRefresh == null) return child;
+    return GhanaRefreshIndicator(
+      onRefresh: _pullToRefresh,
+      topOffset: AdminScaffold.contentPadding(context).top,
+      child: child,
     );
   }
 }
@@ -209,6 +264,9 @@ class _DashboardBody extends StatelessWidget {
     this.onNavigateToSettings,
     this.onNavigateToActivity,
     this.healthStats,
+    required this.refreshEnabled,
+    required this.hasStaleData,
+    required this.isUpdating,
   });
 
   final AdminDashboardViewState state;
@@ -219,6 +277,9 @@ class _DashboardBody extends StatelessWidget {
   final VoidCallback? onNavigateToSettings;
   final VoidCallback? onNavigateToActivity;
   final SystemHealthStats? healthStats;
+  final bool refreshEnabled;
+  final bool hasStaleData;
+  final bool isUpdating;
 
   @override
   Widget build(BuildContext context) {
@@ -269,6 +330,8 @@ class _DashboardBody extends StatelessWidget {
             onNavigateToRoles: onNavigateToRoles,
             onNavigateToSettings: onNavigateToSettings,
             onNavigateToActivity: onNavigateToActivity,
+            hasStaleData: hasStaleData,
+            isUpdating: isUpdating,
           ),
           AdminDashboardViewState.offline => AppStateMessage(
             icon: AppIcons.offline,
@@ -278,7 +341,7 @@ class _DashboardBody extends StatelessWidget {
                 'Check your connection and retry loading administrator '
                 'dashboard data.',
             primaryActionLabel: 'Retry connection',
-            onPrimaryAction: onRetry,
+            onPrimaryAction: refreshEnabled ? onRetry : null,
             primaryActionColor: AppColors.error,
             bordered: true,
           ),
@@ -290,7 +353,7 @@ class _DashboardBody extends StatelessWidget {
                 'The administrative dashboard service could not return '
                 'system data right now.',
             primaryActionLabel: 'Retry',
-            onPrimaryAction: onRetry,
+            onPrimaryAction: refreshEnabled ? onRetry : null,
             primaryActionColor: AppColors.error,
             bordered: true,
           ),
@@ -335,9 +398,10 @@ class _ApiStatusBadgeState extends State<_ApiStatusBadge>
   @override
   Widget build(BuildContext context) {
     final stats = widget.stats;
+    final live = AdminSystemActivityDirectory.instance.hasLiveHealthSnapshot;
     final online = stats?.apiOnline == true && stats?.databaseOnline == true;
-    final checking = stats == null;
-    final color = checking
+    final unavailable = stats == null;
+    final color = unavailable || !live
         ? Theme.of(context).colorScheme.onSurfaceVariant
         : online
         ? AppColors.statusResolved
@@ -386,11 +450,7 @@ class _ApiStatusBadgeState extends State<_ApiStatusBadge>
               ),
               const SizedBox(width: AppSpacing.xs),
               Text(
-                'API: ${checking
-                    ? 'Checking'
-                    : online
-                    ? 'Online'
-                    : 'Offline'}',
+                'API: ${unavailable ? 'Unavailable' : !live ? 'Sample' : online ? 'Online' : 'Offline'}',
                 style: Theme.of(context).textTheme.labelMedium?.copyWith(
                   color: color,
                   fontWeight: AppFontWeight.semiBold,
@@ -471,6 +531,8 @@ class _LoadedContent extends StatelessWidget {
     this.onNavigateToRoles,
     this.onNavigateToSettings,
     this.onNavigateToActivity,
+    required this.hasStaleData,
+    required this.isUpdating,
   });
 
   final AdminDashboardData data;
@@ -478,28 +540,31 @@ class _LoadedContent extends StatelessWidget {
   final VoidCallback? onNavigateToRoles;
   final VoidCallback? onNavigateToSettings;
   final VoidCallback? onNavigateToActivity;
+  final bool hasStaleData;
+  final bool isUpdating;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final stats = data.stats;
 
-    final onSurfaceVariant = Theme.of(context).colorScheme.onSurfaceVariant;
-    // A zero delta (the real, unscored-yet path always reports 0 for both
-    // — see AdminDashboardData.fromX) is not "up 0%", it's "nothing to
-    // report" — coloring it success-green read as fake positive movement.
-    Color deltaColorFor(num changePercent) =>
-        changePercent > 0 ? AppColors.statusResolved : onSurfaceVariant;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Grounded in one light card rather than four separate ones, and
-        // rather than floating loose on the canvas (the prior all-borderless
-        // pass) — four different accent-colored icons with no boundary read
-        // as scattered, not clean. Only Open Alerts keeps a semantic accent
-        // (warning); the rest share one neutral tone so the alert is what
-        // actually stands out.
+        if (isUpdating || hasStaleData) ...[
+          Text(
+            isUpdating
+                ? 'Updating authorized dashboard data.'
+                : 'Some dashboard data may be stale after a failed refresh.',
+            style: textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+        ],
+        // Keep the four summaries as a quiet two-by-two group, using only
+        // vertical dividers. Values are deliberately text-only: no decorative
+        // stat icons or unsupported change deltas are shown.
         GlassCard(
           child: Column(
             children: [
@@ -508,28 +573,16 @@ class _LoadedContent extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Expanded(
-                      child: StatTile(
-                        icon: AppIcons.team,
-                        iconColor: AppSemanticColors.of(context).actionText,
+                      child: _DashboardMetric(
                         label: 'Total Users',
-                        value: _formatThousands(stats.totalUsers),
-                        delta: '+${stats.totalUsersChangePercent}%',
-                        deltaColor: deltaColorFor(
-                          stats.totalUsersChangePercent,
-                        ),
+                        value: _formatCount(stats.totalUsers),
                       ),
                     ),
                     const StatTileDivider(),
                     Expanded(
-                      child: StatTile(
-                        icon: AppIcons.shield,
-                        iconColor: AppSemanticColors.of(context).actionText,
+                      child: _DashboardMetric(
                         label: 'Active Roles',
-                        value: '${stats.activeRoles}',
-                        delta: '+${stats.activeRolesChangePercent}%',
-                        deltaColor: deltaColorFor(
-                          stats.activeRolesChangePercent,
-                        ),
+                        value: _formatCount(stats.activeRoles),
                       ),
                     ),
                   ],
@@ -541,24 +594,16 @@ class _LoadedContent extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Expanded(
-                      child: StatTile(
-                        icon: AppIcons.activityPulse,
-                        iconColor: AppSemanticColors.of(context).actionText,
-                        label: 'Admin Actions',
-                        value: stats.adminActionsLabel,
-                        delta: '24h',
-                        deltaColor: onSurfaceVariant,
+                      child: _DashboardMetric(
+                        label: 'Admin Actions (24h)',
+                        value: _formatCount(stats.adminActions),
                       ),
                     ),
                     const StatTileDivider(),
                     Expanded(
-                      child: StatTile(
-                        icon: AppIcons.warning,
-                        iconColor: AppSemanticColors.of(context).warningText,
-                        label: 'Open Alerts',
-                        value: '${stats.openAlerts}',
-                        delta: 'Review',
-                        deltaColor: AppSemanticColors.of(context).warningText,
+                      child: _DashboardMetric(
+                        label: 'Alert events',
+                        value: _formatCount(stats.alertEvents),
                       ),
                     ),
                   ],
@@ -566,6 +611,17 @@ class _LoadedContent extends StatelessWidget {
               ),
             ],
           ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Text(
+          'Alert-event filtering is unavailable until the shared Activity '
+          'route handoff is approved.',
+          style: textTheme.bodySmall,
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        const OutlinedButton(
+          onPressed: null,
+          child: Text('View alert events'),
         ),
         const SizedBox(height: AppSpacing.xl),
         Text('Management', style: textTheme.titleMedium),
@@ -611,14 +667,6 @@ class _LoadedContent extends StatelessWidget {
             ),
           ),
         ),
-        // This preview card's own content (AdminActivityItem, below) is
-        // static, platform-wide-sounding mock copy, not scoped to any one
-        // assembly — showing it to an assembly Admin would preview events
-        // that don't match what they'd actually see after tapping through
-        // to their own region-scoped System Activity feed. Kept Super
-        // Admin-only for that reason, not because the destination itself
-        // is gated anymore — see AdminSession.visibleActivity's own doc
-        // comment for how an assembly Admin's own feed now works.
         const SizedBox(height: AppSpacing.xl),
         GlassCard(
           onTap: onNavigateToActivity,
@@ -643,11 +691,23 @@ class _LoadedContent extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: AppSpacing.md),
-              for (var i = 0; i < data.activity.length; i++) ...[
-                _ActivityRow(index: i + 1, item: data.activity[i]),
-                if (i != data.activity.length - 1)
-                  const SizedBox(height: AppSpacing.md),
-              ],
+              if (!data.activityAvailable)
+                Text(
+                  'Audit records are unavailable until an authorized live '
+                  'snapshot is supplied.',
+                  style: textTheme.bodySmall,
+                )
+              else if (data.activity.isEmpty)
+                Text(
+                  'No authorized activity is available for this scope.',
+                  style: textTheme.bodySmall,
+                )
+              else
+                for (var i = 0; i < data.activity.length; i++) ...[
+                  _ActivityRow(index: i + 1, item: data.activity[i]),
+                  if (i != data.activity.length - 1)
+                    const SizedBox(height: AppSpacing.md),
+                ],
             ],
           ),
         ),
@@ -658,10 +718,46 @@ class _LoadedContent extends StatelessWidget {
   /// Comma thousands-abbreviation (e.g. "12.4k") — matches the approved
   /// frame's lowercase "k" exactly (unlike Ministry Dashboard's own
   /// abbreviated stat, which uses an uppercase "K").
-  static String _formatThousands(int value) {
+  static String _formatCount(int? value) {
+    if (value == null) return 'Unavailable';
     if (value < 1000) return '$value';
     final thousands = value / 1000;
     return '${thousands.toStringAsFixed(1)}k';
+  }
+}
+
+class _DashboardMetric extends StatelessWidget {
+  const _DashboardMetric({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final colorScheme = Theme.of(context).colorScheme;
+    return Column(
+      key: ValueKey('admin-dashboard-metric-$label'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          value,
+          style: textTheme.headlineSmall,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        const SizedBox(height: 2),
+        Text(
+          label,
+          style: textTheme.bodySmall?.copyWith(
+            color: colorScheme.onSurfaceVariant,
+          ),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
+    );
   }
 }
 

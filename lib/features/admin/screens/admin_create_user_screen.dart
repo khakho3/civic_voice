@@ -16,6 +16,16 @@ import '../services/admin_user_directory.dart';
 import '../widgets/admin_scaffold.dart';
 import '../widgets/region_assembly_picker.dart';
 
+typedef AdminCreateUserRequest = Future<Map<String, dynamic>> Function({
+  required String idToken,
+  required String fullName,
+  required String phone,
+  required String role,
+  String? adminTier,
+  String? region,
+  String? assembly,
+});
+
 /// civic_voice_api's UserRole string for each provisionable [AppRole] —
 /// the inverse of main.dart's _appRoleForBackendRole. System
 /// Administrator always maps to 'ADMIN' regardless of [AdminTier]: the
@@ -76,6 +86,8 @@ class AdminCreateUserScreen extends StatefulWidget {
     this.onOpenProfile,
     this.onNotificationsTap,
     this.onUserCreated,
+    this.idTokenProvider,
+    this.createUserRequest,
   });
 
   final VoidCallback? onNavigateToDashboard;
@@ -97,6 +109,10 @@ class AdminCreateUserScreen extends StatefulWidget {
   /// [AdminUserDirectory]. Nullable: nothing needs to react beyond the
   /// directory update yet.
   final ValueChanged<AdminUserItem>? onUserCreated;
+
+  /// Test seams retain the Firebase/API production path when omitted.
+  final Future<String?> Function()? idTokenProvider;
+  final AdminCreateUserRequest? createUserRequest;
 
   @override
   State<AdminCreateUserScreen> createState() => _AdminCreateUserScreenState();
@@ -149,13 +165,21 @@ class _AdminCreateUserScreenState extends State<AdminCreateUserScreen> {
     if (!confirmed || !mounted) return;
 
     setState(() => _isSubmitting = true);
+    final directory = AdminUserDirectory.instance;
+    final sessionGeneration = directory.sessionGeneration;
     String? creationWarning;
+    late AdminUserItem created;
     try {
-      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
+      final idToken = await (widget.idTokenProvider?.call() ??
+          FirebaseAuth.instance.currentUser?.getIdToken());
+      if (!directory.isSessionGenerationCurrent(sessionGeneration)) {
+        if (mounted) setState(() => _isSubmitting = false);
+        return;
+      }
       if (idToken == null) {
         throw Exception('Not signed in — sign in again and retry.');
       }
-      final response = await ApiClient.instance.createStaffUser(
+      final response = await _requestCreateUser(
         idToken: idToken,
         fullName: name,
         phone: phone,
@@ -168,11 +192,20 @@ class _AdminCreateUserScreenState extends State<AdminCreateUserScreen> {
             ? (session.isSuperAdmin ? _assembly : session.assembly)?.name
             : null,
       );
-      AdminUserDirectory.instance.upsertFromApi(
+      if (!directory.isSessionGenerationCurrent(sessionGeneration)) {
+        if (mounted) setState(() => _isSubmitting = false);
+        return;
+      }
+      created = directory.upsertFromApi(
         response['user'] as Map<String, dynamic>,
+        sessionGeneration: sessionGeneration,
       );
       creationWarning = response['warning'] as String?;
     } on ApiException catch (error) {
+      if (!directory.isSessionGenerationCurrent(sessionGeneration)) {
+        if (mounted) setState(() => _isSubmitting = false);
+        return;
+      }
       if (!mounted) return;
       setState(() => _isSubmitting = false);
       ScaffoldMessenger.of(
@@ -180,6 +213,10 @@ class _AdminCreateUserScreenState extends State<AdminCreateUserScreen> {
       ).showSnackBar(SnackBar(content: Text(error.message)));
       return;
     } catch (_) {
+      if (!directory.isSessionGenerationCurrent(sessionGeneration)) {
+        if (mounted) setState(() => _isSubmitting = false);
+        return;
+      }
       if (!mounted) return;
       setState(() => _isSubmitting = false);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -190,7 +227,6 @@ class _AdminCreateUserScreenState extends State<AdminCreateUserScreen> {
     if (!mounted) return;
     setState(() => _isSubmitting = false);
 
-    final created = AdminUserDirectory.instance.users.value.first;
     widget.onUserCreated?.call(created);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -204,6 +240,38 @@ class _AdminCreateUserScreenState extends State<AdminCreateUserScreen> {
       );
     }
     widget.onNavigateToUsers?.call();
+  }
+
+  Future<Map<String, dynamic>> _requestCreateUser({
+    required String idToken,
+    required String fullName,
+    required String phone,
+    required String role,
+    String? adminTier,
+    String? region,
+    String? assembly,
+  }) {
+    final request = widget.createUserRequest;
+    if (request != null) {
+      return request(
+        idToken: idToken,
+        fullName: fullName,
+        phone: phone,
+        role: role,
+        adminTier: adminTier,
+        region: region,
+        assembly: assembly,
+      );
+    }
+    return ApiClient.instance.createStaffUser(
+      idToken: idToken,
+      fullName: fullName,
+      phone: phone,
+      role: role,
+      adminTier: adminTier,
+      region: region,
+      assembly: assembly,
+    );
   }
 
   Future<void> _handleCancel() async {
@@ -288,7 +356,6 @@ class _AdminCreateUserScreenState extends State<AdminCreateUserScreen> {
                 children: [
                   if (jurisdictionLocked)
                     _Section(
-                      icon: AppIcons.shieldAlert,
                       title: 'Your Jurisdiction',
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -308,13 +375,14 @@ class _AdminCreateUserScreenState extends State<AdminCreateUserScreen> {
                     ),
                   if (jurisdictionLocked) const SizedBox(height: AppSpacing.lg),
                   _Section(
-                    icon: AppIcons.profile,
                     title: 'Account Details',
                     child: Column(
                       children: [
                         _TextField(
                           label: 'Full Name',
                           controller: _nameController,
+                          autofillHints: const [AutofillHints.name],
+                          textInputAction: TextInputAction.next,
                           errorText: _fieldErrors['name'],
                           onChanged: (_) => setState(() => _fieldErrors = {}),
                         ),
@@ -323,6 +391,8 @@ class _AdminCreateUserScreenState extends State<AdminCreateUserScreen> {
                           label: 'Phone Number',
                           controller: _phoneController,
                           keyboardType: TextInputType.phone,
+                          autofillHints: const [AutofillHints.telephoneNumber],
+                          textInputAction: TextInputAction.done,
                           errorText: _fieldErrors['phone'],
                           onChanged: (_) => setState(() => _fieldErrors = {}),
                         ),
@@ -331,7 +401,6 @@ class _AdminCreateUserScreenState extends State<AdminCreateUserScreen> {
                   ),
                   const SizedBox(height: AppSpacing.lg),
                   _Section(
-                    icon: AppIcons.shield,
                     title: 'Access',
                     child: Column(
                       children: [
@@ -465,51 +534,27 @@ class _AccountCreationFrozenBanner extends StatelessWidget {
 
 class _Section extends StatelessWidget {
   const _Section({
-    required this.icon,
     required this.title,
     required this.child,
   });
 
-  final IconData icon;
   final String title;
   final Widget child;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    final colorScheme = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Icon(
-              icon,
-              size: AppIconSize.sm,
-              color: AppSemanticColors.of(context).actionText,
-            ),
-            const SizedBox(width: AppSpacing.xs),
-            Flexible(
-              child: Text(
-                title,
-                style: textTheme.titleMedium,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
+        Text(
+          title,
+          style: textTheme.titleMedium,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
         const SizedBox(height: AppSpacing.sm),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(AppSpacing.md),
-          decoration: BoxDecoration(
-            color: colorScheme.surface,
-            borderRadius: AppComponentRadius.card,
-            border: Border.all(color: colorScheme.outlineVariant),
-          ),
-          child: child,
-        ),
+        child,
       ],
     );
   }
@@ -519,6 +564,8 @@ class _TextField extends StatelessWidget {
   const _TextField({
     required this.label,
     required this.controller,
+    required this.autofillHints,
+    required this.textInputAction,
     this.keyboardType,
     this.errorText,
     this.onChanged,
@@ -526,6 +573,8 @@ class _TextField extends StatelessWidget {
 
   final String label;
   final TextEditingController controller;
+  final Iterable<String> autofillHints;
+  final TextInputAction textInputAction;
   final TextInputType? keyboardType;
   final String? errorText;
   final ValueChanged<String>? onChanged;
@@ -534,29 +583,46 @@ class _TextField extends StatelessWidget {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final colorScheme = Theme.of(context).colorScheme;
+    final actionColor = AppSemanticColors.of(context).actionText;
+    final underline = UnderlineInputBorder(
+      borderSide: BorderSide(color: colorScheme.outline),
+    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: textTheme.bodySmall),
+        ExcludeSemantics(
+          child: Text(label, style: textTheme.bodySmall),
+        ),
         const SizedBox(height: AppSpacing.xs),
-        TextField(
-          controller: controller,
-          keyboardType: keyboardType,
-          onChanged: onChanged,
-          style: textTheme.bodyLarge,
-          decoration: InputDecoration(
-            isDense: true,
-            filled: true,
-            fillColor: colorScheme.surfaceContainer,
-            border: OutlineInputBorder(
-              borderRadius: AppComponentRadius.inputField,
-              borderSide: BorderSide.none,
+        Semantics(
+          label: label,
+          textField: true,
+          child: TextField(
+            controller: controller,
+            keyboardType: keyboardType,
+            textInputAction: textInputAction,
+            autofillHints: autofillHints,
+            onChanged: onChanged,
+            style: textTheme.bodyLarge,
+            decoration: InputDecoration(
+              isDense: true,
+              filled: false,
+              border: underline,
+              enabledBorder: underline,
+              focusedBorder: UnderlineInputBorder(
+                borderSide: BorderSide(color: actionColor, width: 2),
+              ),
+              errorBorder: UnderlineInputBorder(
+                borderSide: BorderSide(color: colorScheme.error),
+              ),
+              focusedErrorBorder: UnderlineInputBorder(
+                borderSide: BorderSide(color: colorScheme.error, width: 2),
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                vertical: AppSpacing.sm,
+              ),
+              errorText: errorText,
             ),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.md,
-              vertical: AppSpacing.sm,
-            ),
-            errorText: errorText,
           ),
         ),
       ],

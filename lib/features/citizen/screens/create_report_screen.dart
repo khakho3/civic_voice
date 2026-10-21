@@ -17,7 +17,6 @@ import '../models/location.dart';
 import '../services/location_service.dart';
 import '../services/report_category_classifier.dart';
 import '../widgets/civic_app_chrome.dart';
-import 'citizen_tab_routes.dart';
 import 'location_picker_screen.dart';
 import 'photo_upload_screen.dart';
 
@@ -25,11 +24,17 @@ class CreateReportScreen extends StatefulWidget {
   const CreateReportScreen({
     super.key,
     this.initialState = CreateReportViewState.ready,
+    this.returnToReports = false,
   });
 
   static const String routeName = '/citizen/create-report';
 
   final CreateReportViewState initialState;
+
+  /// True only when My Reports remains directly below this authoring flow.
+  /// It lets Submitted return to that existing stateful route instead of
+  /// recreating it after a completed report.
+  final bool returnToReports;
 
   @override
   State<CreateReportScreen> createState() => _CreateReportScreenState();
@@ -334,6 +339,7 @@ class _CreateReportScreenState extends State<CreateReportScreen>
     if (!mounted) return;
     Navigator.of(context).push(
       MaterialPageRoute<void>(
+        settings: const RouteSettings(name: PhotoUploadScreen.routeName),
         builder: (_) => PhotoUploadScreen(
           reportTitle: _titleController.text.trim(),
           reportDescription: _descriptionController.text.trim(),
@@ -348,6 +354,7 @@ class _CreateReportScreenState extends State<CreateReportScreen>
           reportLongitude: selected?.longitude ?? _capturedPosition!.longitude,
           reportRegion: _locationRegion,
           reportAssembly: _locationAssembly,
+          returnToReports: widget.returnToReports,
         ),
       ),
     );
@@ -406,7 +413,6 @@ class _CreateReportScreenState extends State<CreateReportScreen>
 
   @override
   Widget build(BuildContext context) {
-    final keyboardVisible = MediaQuery.viewInsetsOf(context).bottom > 0;
     return Scaffold(
       // CivicTopBar/CivicBottomNav are Align-positioned in a Stack, not real
       // Scaffold slots — the default (true) resize shrank the whole Stack
@@ -425,7 +431,11 @@ class _CreateReportScreenState extends State<CreateReportScreen>
                 final horizontalPadding = compact
                     ? AppSpacing.sm
                     : AppSpacing.md;
-                final chromeInset = civicContentPadding(context);
+                final chromeInset = civicContentPadding(context).copyWith(
+                  bottom:
+                      MediaQuery.paddingOf(context).bottom +
+                      MediaQuery.viewInsetsOf(context).bottom,
+                );
 
                 return ListView(
                   padding: EdgeInsets.fromLTRB(
@@ -511,35 +521,9 @@ class _CreateReportScreenState extends State<CreateReportScreen>
             child: CivicTopBar(
               title: 'Create Report',
               showNotifications: false,
+              onBack: () => Navigator.of(context).maybePop(),
             ),
           ),
-          if (!keyboardVisible)
-            Align(
-              alignment: Alignment.bottomCenter,
-              child: CivicBottomNav(
-                selectedIndex: 2,
-                onDestinationSelected: (index) {
-                  if (index == 0) {
-                    Navigator.of(context).maybePop();
-                  } else if (index == 1) {
-                    Navigator.of(context).pushAndRemoveUntil(
-                      citizenReportsTabRoute(context),
-                      (route) => route.isFirst,
-                    );
-                  } else if (index == 3) {
-                    Navigator.of(context).pushAndRemoveUntil(
-                      citizenAlertsTabRoute(context),
-                      (route) => route.isFirst,
-                    );
-                  } else if (index == 4) {
-                    Navigator.of(context).pushAndRemoveUntil(
-                      citizenProfileTabRoute(context),
-                      (route) => route.isFirst,
-                    );
-                  }
-                },
-              ),
-            ),
         ],
       ),
     );

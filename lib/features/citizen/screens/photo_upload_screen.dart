@@ -13,7 +13,6 @@ import '../widgets/civic_glass_card.dart';
 import '../models/report_draft.dart';
 import '../models/photo_upload_view_state.dart';
 import '../widgets/civic_app_chrome.dart';
-import 'citizen_tab_routes.dart';
 import 'review_report_screen.dart';
 
 class PhotoUploadScreen extends StatefulWidget {
@@ -31,6 +30,7 @@ class PhotoUploadScreen extends StatefulWidget {
     this.reportLongitude,
     this.reportRegion,
     this.reportAssembly,
+    this.returnToReports = false,
   });
 
   static const String routeName = '/citizen/photo-upload';
@@ -47,6 +47,7 @@ class PhotoUploadScreen extends StatefulWidget {
   final double? reportLongitude;
   final Region? reportRegion;
   final String? reportAssembly;
+  final bool returnToReports;
 
   @override
   State<PhotoUploadScreen> createState() => _PhotoUploadScreenState();
@@ -224,6 +225,7 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
   void _openReview() {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
+        settings: const RouteSettings(name: ReviewReportScreen.routeName),
         builder: (_) => ReviewReportScreen(
           reportTitle: widget.reportTitle,
           reportDescription: widget.reportDescription,
@@ -236,6 +238,7 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
           reportAssembly: widget.reportAssembly,
           photos: List<XFile>.of(_photos),
           photoIsFromCamera: List<bool>.of(_photoIsFromCamera),
+          returnToReports: widget.returnToReports,
         ),
       ),
     );
@@ -243,7 +246,6 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final keyboardVisible = MediaQuery.viewInsetsOf(context).bottom > 0;
     return Scaffold(
       // See create_report_screen.dart's build() for why this is false and
       // paired with the keyboardVisible-guarded nav below.
@@ -257,7 +259,11 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
                 final horizontalPadding = compact
                     ? AppSpacing.sm
                     : AppSpacing.md;
-                final chromeInset = civicContentPadding(context);
+                final chromeInset = civicContentPadding(context).copyWith(
+                  bottom:
+                      MediaQuery.paddingOf(context).bottom +
+                      MediaQuery.viewInsetsOf(context).bottom,
+                );
 
                 return ListView(
                   padding: EdgeInsets.fromLTRB(
@@ -320,33 +326,6 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
               onBack: () => Navigator.of(context).maybePop(),
             ),
           ),
-          if (!keyboardVisible)
-            Align(
-              alignment: Alignment.bottomCenter,
-              child: CivicBottomNav(
-                selectedIndex: 2,
-                onDestinationSelected: (index) {
-                  if (index == 0) {
-                    Navigator.of(context).maybePop();
-                  } else if (index == 1) {
-                    Navigator.of(context).pushAndRemoveUntil(
-                      citizenReportsTabRoute(context),
-                      (route) => route.isFirst,
-                    );
-                  } else if (index == 3) {
-                    Navigator.of(context).pushAndRemoveUntil(
-                      citizenAlertsTabRoute(context),
-                      (route) => route.isFirst,
-                    );
-                  } else if (index == 4) {
-                    Navigator.of(context).pushAndRemoveUntil(
-                      citizenProfileTabRoute(context),
-                      (route) => route.isFirst,
-                    );
-                  }
-                },
-              ),
-            ),
         ],
       ),
     );

@@ -8,6 +8,7 @@ import '../../../widgets/collapsible_list_header.dart';
 import '../../../widgets/glass_card.dart';
 import '../models/admin_system_activity_data.dart';
 import '../services/admin_session.dart';
+import '../services/admin_system_activity_directory.dart';
 import '../services/admin_system_settings_directory.dart';
 import '../widgets/admin_scaffold.dart';
 
@@ -117,6 +118,8 @@ class AdminSystemActivityScreen extends StatefulWidget {
     this.items,
     this.healthStats,
     this.onRefresh,
+    this.activitySnapshotAvailable,
+    this.healthSnapshotVerified,
   });
 
   final AdminSystemActivityViewState initialState;
@@ -138,6 +141,14 @@ class AdminSystemActivityScreen extends StatefulWidget {
   final SystemHealthStats? healthStats;
   final Future<void> Function()? onRefresh;
 
+  /// A non-null [items] value is an explicit fixture or parent-provided
+  /// snapshot. Callers that know its provenance may override this value.
+  final bool? activitySnapshotAvailable;
+
+  /// Health supplied for an isolated fixture is labelled Sample unless the
+  /// caller can verify it came from the approved health contract.
+  final bool? healthSnapshotVerified;
+
   @override
   State<AdminSystemActivityScreen> createState() =>
       _AdminSystemActivityScreenState();
@@ -145,12 +156,45 @@ class AdminSystemActivityScreen extends StatefulWidget {
 
 class _AdminSystemActivityScreenState extends State<AdminSystemActivityScreen> {
   late AdminSystemActivityViewState _state = widget.initialState;
-  SystemHealthStats? get _healthStats =>
-      widget.healthStats ??
-      (widget.items == null ? mockSystemHealthStats() : null);
-  List<ActivityItem> get _items =>
-      widget.items ??
-      AdminSession.instance.visibleActivity(mockActivityItems());
+  // A caller that supplies provenance owns that snapshot, even when an empty
+  // test fixture happens to be identical to the directory's empty list.  When
+  // provenance is omitted, the app shell's directory-list identity remains a
+  // reactive directory path; other lists remain isolated fixtures.
+  late final bool _usesDirectorySnapshot =
+      widget.activitySnapshotAvailable == null &&
+      (widget.items == null ||
+          identical(widget.items, AdminSystemActivityDirectory.instance.items.value));
+
+  bool get _hasActivitySnapshot =>
+      widget.activitySnapshotAvailable ??
+      (_usesDirectorySnapshot
+          ? AdminSystemActivityDirectory.instance.hasLiveSnapshot
+          : widget.items != null);
+
+  List<ActivityItem> get _items => _usesDirectorySnapshot
+      ? AdminSystemActivityDirectory.instance.items.value
+      : (widget.items ?? const <ActivityItem>[]);
+
+  SystemHealthStats? get _healthStats => _usesDirectorySnapshot
+      ? AdminSystemActivityDirectory.instance.health.value
+      : widget.healthStats;
+
+  _HealthPresentation get _healthPresentation {
+    if (_healthStats == null) return _HealthPresentation.unavailable;
+    final verified = widget.healthSnapshotVerified ??
+        (_usesDirectorySnapshot &&
+            AdminSystemActivityDirectory.instance.hasLiveHealthSnapshot);
+    return verified ? _HealthPresentation.live : _HealthPresentation.sample;
+  }
+
+  bool get _canRetry =>
+      widget.onRefresh != null &&
+      (!_usesDirectorySnapshot || AdminSystemActivityDirectory.instance.canRefresh);
+  bool get _showStaleActivity =>
+      _usesDirectorySnapshot &&
+      AdminSystemActivityDirectory.instance.state.value ==
+          AdminSystemActivityDirectoryState.failed &&
+      _hasActivitySnapshot;
   ActivityFilter _filter = ActivityFilter.all;
   ActivityTimeRange _timeRange = ActivityTimeRange.last24Hours;
   final _searchController = TextEditingController();
@@ -159,14 +203,18 @@ class _AdminSystemActivityScreenState extends State<AdminSystemActivityScreen> {
   @override
   void initState() {
     super.initState();
-    if (widget.onRefresh != null &&
+    if (_canRetry &&
         widget.initialState == AdminSystemActivityViewState.loaded) {
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         try {
           await widget.onRefresh?.call();
         } catch (_) {
           if (mounted) {
-            setState(() => _state = AdminSystemActivityViewState.error);
+            setState(
+              () => _state = _hasActivitySnapshot
+                  ? AdminSystemActivityViewState.loaded
+                  : AdminSystemActivityViewState.error,
+            );
           }
         }
       });
@@ -182,13 +230,20 @@ class _AdminSystemActivityScreenState extends State<AdminSystemActivityScreen> {
   }
 
   Future<void> _retry() async {
+    final onRefresh = widget.onRefresh;
+    if (onRefresh == null) return;
     setState(() => _state = AdminSystemActivityViewState.loading);
     try {
-      await (widget.onRefresh?.call() ??
-          Future<void>.delayed(const Duration(milliseconds: 500)));
+      await onRefresh();
       if (mounted) setState(() => _state = AdminSystemActivityViewState.loaded);
     } catch (_) {
-      if (mounted) setState(() => _state = AdminSystemActivityViewState.error);
+      if (mounted) {
+        setState(
+          () => _state = _hasActivitySnapshot
+              ? AdminSystemActivityViewState.loaded
+              : AdminSystemActivityViewState.error,
+        );
+      }
     }
   }
 
@@ -204,7 +259,7 @@ class _AdminSystemActivityScreenState extends State<AdminSystemActivityScreen> {
 
   Widget _wrapWithRefresh(Widget child) {
     final onRefresh = widget.onRefresh;
-    if (onRefresh == null) return child;
+    if (!_canRetry || onRefresh == null) return child;
     return GhanaRefreshIndicator(
       onRefresh: onRefresh,
       // The header paints on top of this content (a later sibling in
@@ -227,8 +282,29 @@ class _AdminSystemActivityScreenState extends State<AdminSystemActivityScreen> {
     final chromeEnabled =
         _state == AdminSystemActivityViewState.empty ||
         _state == AdminSystemActivityViewState.noResults;
+    return AnimatedBuilder(
+      animation: _usesDirectorySnapshot
+          ? Listenable.merge([
+              AdminSystemActivityDirectory.instance.items,
+              AdminSystemActivityDirectory.instance.health,
+              AdminSystemActivityDirectory.instance.state,
+            ])
+          : const _NoopListenable(),
+      builder: (context, _) {
+        // Read these inside the reactive builder. Values captured before the
+        // [AnimatedBuilder] retain the initial directory state after a
+        // notifier update, which can leave an unavailable view on screen
+        // while the directory is genuinely loading (or the reverse).
+        final directoryLoading =
+            _usesDirectorySnapshot &&
+            AdminSystemActivityDirectory.instance.state.value ==
+                AdminSystemActivityDirectoryState.loading;
+        final directoryUnavailable =
+            _usesDirectorySnapshot &&
+            AdminSystemActivityDirectory.instance.state.value ==
+                AdminSystemActivityDirectoryState.unavailable;
 
-    return AdminScaffold(
+        return AdminScaffold(
       selectedTab: AdminTab.activity,
       onNotificationsTap: widget.onNotificationsTap,
       onTabSelected: (tab) {
@@ -242,7 +318,18 @@ class _AdminSystemActivityScreenState extends State<AdminSystemActivityScreen> {
       onOpenRoleManagement: widget.onNavigateToRoles,
       onOpenMaintenanceTeams: widget.onNavigateToMaintenanceTeams,
       onOpenProfile: widget.onOpenProfile,
-      body: switch (_state) {
+      body: directoryLoading
+          ? const _LoadingSkeleton()
+          : directoryUnavailable &&
+                !_canRetry &&
+                !_hasActivitySnapshot &&
+                (_state == AdminSystemActivityViewState.loading ||
+                    _state == AdminSystemActivityViewState.loaded)
+          ? _UnavailableActivity(onRetry: _canRetry ? _retry : null)
+          : _state == AdminSystemActivityViewState.loaded &&
+                !_hasActivitySnapshot
+          ? _UnavailableActivity(onRetry: _canRetry ? _retry : null)
+          : switch (_state) {
         AdminSystemActivityViewState.loading => const _LoadingSkeleton(),
         AdminSystemActivityViewState.loaded => _wrapWithRefresh(
           Column(
@@ -252,19 +339,21 @@ class _AdminSystemActivityScreenState extends State<AdminSystemActivityScreen> {
                 child: CollapsibleListHeader(
                   header: _FilterChrome(
                     filter: _filter,
-                    timeRange: _timeRange,
                     searchController: _searchController,
                     enabled: true,
                     onFilterSelected: (f) => setState(() => _filter = f),
-                    onTimeRangeChanged: (r) => setState(() => _timeRange = r),
                     onSearchChanged: (q) => setState(() => _searchQuery = q),
                   ),
                   child: _ActivityList(
                     healthStats: _healthStats,
-                    items: _items,
-                    liveAudit: widget.items != null,
+                    healthPresentation: _healthPresentation,
+                    items: AdminSession.instance.visibleActivity(_items),
+                    liveAudit: _hasActivitySnapshot,
+                    showStaleActivity: _showStaleActivity,
                     filter: _filter,
                     timeRange: _timeRange,
+                    onTimeRangeChanged: (range) =>
+                        setState(() => _timeRange = range),
                     searchQuery: _searchQuery,
                     onClearFilters: _clearFilters,
                   ),
@@ -278,14 +367,10 @@ class _AdminSystemActivityScreenState extends State<AdminSystemActivityScreen> {
             SizedBox(height: AdminScaffold.contentPadding(context).top),
             _FilterChrome(
               filter: _filter,
-              timeRange: _timeRange,
               searchController: _searchController,
               enabled: chromeEnabled,
               onFilterSelected: chromeEnabled
                   ? (f) => setState(() => _filter = f)
-                  : null,
-              onTimeRangeChanged: chromeEnabled
-                  ? (r) => setState(() => _timeRange = r)
                   : null,
               onSearchChanged: chromeEnabled
                   ? (q) => setState(() => _searchQuery = q)
@@ -329,7 +414,7 @@ class _AdminSystemActivityScreenState extends State<AdminSystemActivityScreen> {
                       'Check your connection and retry loading system '
                       'activity.',
                   primaryActionLabel: 'Retry connection',
-                  onPrimaryAction: _retry,
+                  onPrimaryAction: _canRetry ? _retry : null,
                   primaryActionColor: AppColors.error,
                   bordered: true,
                 ),
@@ -339,7 +424,7 @@ class _AdminSystemActivityScreenState extends State<AdminSystemActivityScreen> {
                   title: 'Something went wrong',
                   message: 'Unable to load audit activity right now.',
                   primaryActionLabel: 'Retry',
-                  onPrimaryAction: _retry,
+                  onPrimaryAction: _canRetry ? _retry : null,
                   primaryActionColor: AppColors.error,
                   bordered: true,
                 ),
@@ -358,6 +443,8 @@ class _AdminSystemActivityScreenState extends State<AdminSystemActivityScreen> {
           ],
         ),
       },
+        );
+      },
     );
   }
 }
@@ -366,23 +453,59 @@ class _AdminSystemActivityScreenState extends State<AdminSystemActivityScreen> {
 // Filter chrome — filter chips, time-range dropdown
 // ---------------------------------------------------------------------------
 
+class _NoopListenable implements Listenable {
+  const _NoopListenable();
+
+  @override
+  void addListener(VoidCallback listener) {}
+
+  @override
+  void removeListener(VoidCallback listener) {}
+}
+
+class _UnavailableActivity extends StatelessWidget {
+  const _UnavailableActivity({this.onRetry});
+
+  final Future<void> Function()? onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final retry = onRetry;
+    return SingleChildScrollView(
+      padding: EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AdminScaffold.contentPadding(context).top + AppSpacing.md,
+        AppSpacing.md,
+        AdminScaffold.contentPadding(context).bottom + AppSpacing.md,
+      ),
+      child: AppStateMessage(
+        icon: AppIcons.offline,
+        badgeColor: AppColors.error,
+        title: 'Activity data unavailable',
+        message:
+            'Audit activity is unavailable until an authorized live snapshot is supplied.',
+        primaryActionLabel: onRetry == null ? null : 'Retry',
+        onPrimaryAction: retry == null ? null : () => retry(),
+        primaryActionColor: AppColors.error,
+        bordered: true,
+      ),
+    );
+  }
+}
+
 class _FilterChrome extends StatelessWidget {
   const _FilterChrome({
     required this.filter,
-    required this.timeRange,
     required this.searchController,
     required this.enabled,
     this.onFilterSelected,
-    this.onTimeRangeChanged,
     this.onSearchChanged,
   });
 
   final ActivityFilter filter;
-  final ActivityTimeRange timeRange;
   final TextEditingController searchController;
   final bool enabled;
   final ValueChanged<ActivityFilter>? onFilterSelected;
-  final ValueChanged<ActivityTimeRange>? onTimeRangeChanged;
   final ValueChanged<String>? onSearchChanged;
 
   @override
@@ -461,12 +584,6 @@ class _FilterChrome extends StatelessWidget {
                 },
               ),
             ),
-            const SizedBox(height: AppSpacing.sm),
-            _TimeRangeDropdown(
-              value: timeRange,
-              enabled: enabled,
-              onChanged: onTimeRangeChanged,
-            ),
             const SizedBox(height: AppSpacing.md),
             Text('Recent Activity', style: textTheme.titleMedium),
           ],
@@ -480,53 +597,101 @@ class _FilterChrome extends StatelessWidget {
 // Health stats — API status, DB latency, uptime
 // ---------------------------------------------------------------------------
 
+enum _HealthPresentation { live, sample, unavailable }
+
 class _HealthStatsRow extends StatelessWidget {
-  const _HealthStatsRow({required this.stats});
+  const _HealthStatsRow({required this.stats, required this.presentation});
 
   final SystemHealthStats stats;
+  final _HealthPresentation presentation;
 
   @override
   Widget build(BuildContext context) {
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+    final isLive = presentation == _HealthPresentation.live;
+    return Semantics(
+      label: 'System health: ${isLive ? 'Live' : 'Sample'}',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: _HealthStatCard(
-              icon: AppIcons.activityPulse,
-              label: 'API Status',
-              value: stats.apiOnline ? 'Online' : 'Offline',
-              valueColor: stats.apiOnline
-                  ? AppColors.statusResolved
-                  : AppColors.error,
+          Text(
+            isLive ? 'Live system health' : 'Sample system health',
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: _HealthStatCard(
-              icon: AppIcons.database,
-              label: 'DB Latency',
-              value: stats.databaseOnline
-                  ? '${stats.dbLatencyMs}ms'
-                  : 'Offline',
-              valueColor: stats.databaseOnline
-                  ? AppColors.statusResolved
-                  : AppColors.error,
-            ),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: _HealthStatCard(
-              icon: AppIcons.resolutionGauge,
-              label: 'Uptime',
-              value: stats.uptimeLabel,
-              valueColor: AppColors.statusResolved,
+          const SizedBox(height: AppSpacing.xs),
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  child: _HealthStatCard(
+                    icon: AppIcons.activityPulse,
+                    label: 'API Status',
+                    value: stats.apiOnline ? 'Online' : 'Offline',
+                    valueColor: stats.apiOnline
+                        ? AppColors.statusResolved
+                        : AppColors.error,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: _HealthStatCard(
+                    icon: AppIcons.database,
+                    label: 'DB Latency',
+                    value: stats.databaseOnline
+                        ? '${stats.dbLatencyMs}ms'
+                        : 'Offline',
+                    valueColor: stats.databaseOnline
+                        ? AppColors.statusResolved
+                        : AppColors.error,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: _HealthStatCard(
+                    icon: AppIcons.resolutionGauge,
+                    label: 'Uptime',
+                    value: stats.uptimeLabel,
+                    valueColor: AppColors.statusResolved,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
       ),
     );
   }
+}
+
+class _HealthUnavailableNotice extends StatelessWidget {
+  const _HealthUnavailableNotice();
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    label: 'System health unavailable',
+    child: GlassCard(
+      child: Text(
+        'System health unavailable until an authorized live snapshot is supplied.',
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
+      ),
+    ),
+  );
+}
+
+class _StaleActivityNotice extends StatelessWidget {
+  const _StaleActivityNotice();
+
+  @override
+  Widget build(BuildContext context) => GlassCard(
+    child: Text(
+      'The latest activity could not be refreshed. Showing the last authorized snapshot.',
+      style: Theme.of(context).textTheme.bodySmall,
+    ),
+  );
 }
 
 class _HealthStatCard extends StatelessWidget {
@@ -606,6 +771,7 @@ class _FilterChip extends StatelessWidget {
           ),
           child: Text(
             label,
+            textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.labelLarge?.copyWith(
               color: selected
                   ? AppSemanticColors.of(context).onAction
@@ -656,28 +822,39 @@ class _TimeRangeDropdown extends StatelessWidget {
 class _ActivityList extends StatelessWidget {
   const _ActivityList({
     required this.healthStats,
+    required this.healthPresentation,
     required this.items,
     required this.filter,
     required this.timeRange,
+    required this.onTimeRangeChanged,
     required this.searchQuery,
     required this.onClearFilters,
     required this.liveAudit,
+    required this.showStaleActivity,
   });
 
   final SystemHealthStats? healthStats;
+  final _HealthPresentation healthPresentation;
   final List<ActivityItem> items;
   final ActivityFilter filter;
   final ActivityTimeRange timeRange;
+  final ValueChanged<ActivityTimeRange> onTimeRangeChanged;
   final String searchQuery;
   final VoidCallback onClearFilters;
   final bool liveAudit;
+  final bool showStaleActivity;
 
   @override
   Widget build(BuildContext context) {
     final bottomInset = AdminScaffold.contentPadding(context).bottom;
-    final auditLoggingOn =
-        liveAudit ||
-        AdminSystemSettingsDirectory.instance.settings.value.auditLogging;
+    final settingsDirectory = AdminSystemSettingsDirectory.instance;
+    // The directory's conservative local defaults are not server policy.
+    // A confirmed settings snapshot, however, must override even a confirmed
+    // historical activity snapshot so the feed is not presented as current
+    // recording after audit logging has been disabled.
+    final auditLoggingOn = settingsDirectory.hasLiveSnapshot
+        ? settingsDirectory.settings.value.auditLogging
+        : liveAudit;
     final filtered = items
         .where(
           (i) =>
@@ -699,8 +876,26 @@ class _ActivityList extends StatelessWidget {
         bottomInset + AppSpacing.xl,
       ),
       children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+          child: _TimeRangeDropdown(
+            value: timeRange,
+            enabled: true,
+            onChanged: onTimeRangeChanged,
+          ),
+        ),
+        if (showStaleActivity) ...[
+          const _StaleActivityNotice(),
+          const SizedBox(height: AppSpacing.md),
+        ],
         if (AdminSession.instance.isSuperAdmin && healthStats != null) ...[
-          _HealthStatsRow(stats: healthStats!),
+          _HealthStatsRow(
+            stats: healthStats!,
+            presentation: healthPresentation,
+          ),
+          const SizedBox(height: AppSpacing.md),
+        ] else if (AdminSession.instance.isSuperAdmin) ...[
+          const _HealthUnavailableNotice(),
           const SizedBox(height: AppSpacing.md),
         ],
         if (!auditLoggingOn)
