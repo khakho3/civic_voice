@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
+import 'package:flutter/services.dart';
 
 import '../core/theme/app_theme.dart';
 
@@ -109,17 +111,72 @@ class _CollapsibleListHeaderState extends State<CollapsibleListHeader>
 
   bool _railCollapsed = false;
   double _railAccumulated = 0;
+  final _railKey = GlobalKey();
+  bool _adjustingRail = false;
+  ScrollNotification? _lastRailScroll;
+
+  void _revealRailAtTop() {
+    final notification = _lastRailScroll;
+    final context = notification?.context;
+    if (!_railCollapsed ||
+        notification == null ||
+        context == null ||
+        !context.mounted) {
+      return;
+    }
+    final position = Scrollable.maybeOf(context)?.position;
+    if (position != null && position.pixels <= 4) {
+      _setRailCollapsed(false, notification);
+    }
+  }
+
+  void _setRailCollapsed(bool collapsed, ScrollNotification notification) {
+    if (_railCollapsed == collapsed || _adjustingRail) return;
+    final height = _railKey.currentContext?.size?.height ?? 0;
+    // Keep short lists expanded: reclaiming header height must not erase
+    // their scroll range and strand the person in the compact mode.
+    if (collapsed &&
+        (notification.metrics.maxScrollExtent <= height ||
+            notification.metrics.pixels < height)) {
+      return;
+    }
+    final position = notification.context == null
+        ? null
+        : Scrollable.maybeOf(notification.context!)?.position;
+    final offset = position?.pixels;
+    _adjustingRail = true;
+    setState(() => _railCollapsed = collapsed);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final nextHeight = _railKey.currentContext?.size?.height ?? height;
+      if (position != null && position.hasPixels && offset != null) {
+        // The header is outside the viewport. Compensate for its height
+        // change so the card being read stays at the same screen position.
+        final target = (collapsed ? offset + nextHeight - height : 0.0).clamp(
+          position.minScrollExtent,
+          position.maxScrollExtent,
+        );
+        position.jumpTo(target);
+      }
+      _adjustingRail = false;
+    });
+  }
 
   /// Collapsed-rail mode: expand only at the true top (or by pulling down
   /// there); collapse after a deliberate downward scroll; ignore upward
   /// scrolling in between.
   bool _onRailScroll(ScrollNotification notification) {
-    if (notification.metrics.axis != Axis.vertical) return false;
+    if (notification.depth != 0 ||
+        notification.metrics.axis != Axis.vertical ||
+        _adjustingRail) {
+      return false;
+    }
+    _lastRailScroll = notification;
     if (notification is ScrollUpdateNotification) {
       final delta = notification.scrollDelta ?? 0;
-      if (notification.metrics.pixels <= 4) {
+      if (notification.metrics.pixels <= 4 && delta < 0) {
         _railAccumulated = 0;
-        if (_railCollapsed) setState(() => _railCollapsed = false);
+        _setRailCollapsed(false, notification);
         return false;
       }
       if (delta <= 0) {
@@ -128,13 +185,13 @@ class _CollapsibleListHeaderState extends State<CollapsibleListHeader>
       }
       _railAccumulated += delta;
       if (!_railCollapsed && _railAccumulated > _directionThreshold) {
-        setState(() => _railCollapsed = true);
+        _setRailCollapsed(true, notification);
       }
     } else if (notification is OverscrollNotification &&
-        notification.dragDetails != null &&
         notification.overscroll < 0 &&
+        notification.metrics.pixels <= 4 &&
         _railCollapsed) {
-      setState(() => _railCollapsed = false);
+      _setRailCollapsed(false, notification);
     }
     return false;
   }
@@ -192,33 +249,47 @@ class _CollapsibleListHeaderState extends State<CollapsibleListHeader>
   Widget build(BuildContext context) {
     final rail = widget.collapsedHeader;
     if (rail != null) {
-      return NotificationListener<ScrollNotification>(
-        onNotification: _onScrollNotification,
-        child: Column(
-          children: [
-            AnimatedSize(
-              key: const ValueKey('collapsible_header'),
-              duration: AppMotion.duration(context, AppMotionDuration.standard),
-              curve: AppMotionCurve.standard,
-              alignment: Alignment.topCenter,
-              child: AnimatedSwitcher(
-                duration: AppMotion.duration(
-                  context,
-                  AppMotionDuration.standard,
+      return Listener(
+        onPointerSignal: (event) {
+          if (event is PointerScrollEvent && event.scrollDelta.dy < 0) {
+            _revealRailAtTop();
+          }
+        },
+        child: Focus(
+          onKeyEvent: (_, event) {
+            if (event is KeyDownEvent &&
+                (event.logicalKey == LogicalKeyboardKey.arrowUp ||
+                    event.logicalKey == LogicalKeyboardKey.pageUp ||
+                    event.logicalKey == LogicalKeyboardKey.home)) {
+              _revealRailAtTop();
+            }
+            return KeyEventResult.ignored;
+          },
+          child: NotificationListener<ScrollNotification>(
+            onNotification: _onScrollNotification,
+            child: Column(
+              children: [
+                // One mounted header at a time: a crossfade would leave duplicate
+                // focusable search/filter controls during the transition.
+                SizedBox(
+                  key: _railKey,
+                  child: KeyedSubtree(
+                    key: const ValueKey('collapsible_header'),
+                    child: _railCollapsed
+                        ? KeyedSubtree(
+                            key: const ValueKey('collapsed_rail'),
+                            child: rail,
+                          )
+                        : KeyedSubtree(
+                            key: const ValueKey('expanded_header'),
+                            child: widget.header,
+                          ),
+                  ),
                 ),
-                child: _railCollapsed
-                    ? KeyedSubtree(
-                        key: const ValueKey('collapsed_rail'),
-                        child: rail,
-                      )
-                    : KeyedSubtree(
-                        key: const ValueKey('expanded_header'),
-                        child: widget.header,
-                      ),
-              ),
+                Expanded(child: widget.child),
+              ],
             ),
-            Expanded(child: widget.child),
-          ],
+          ),
         ),
       );
     }

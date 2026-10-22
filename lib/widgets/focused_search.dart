@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../core/theme/app_theme.dart';
 import '../services/app_cache_service.dart';
@@ -28,6 +29,8 @@ class FocusedSearchResult {
 /// screen decides whether its active filter chips apply.
 typedef FocusedSearchResultsBuilder =
     List<FocusedSearchResult> Function(String query);
+
+List<FocusedSearchResult> emptySearchResults(String query) => const [];
 
 /// Opens the shared focused-search mode (F03) over the current screen and
 /// resolves to the query the person submitted, or null if they closed it.
@@ -108,8 +111,9 @@ class _FocusedSearchPanelState extends State<FocusedSearchPanel> {
 
   Future<void> _submit(String value) async {
     final term = value.trim();
-    if (term.isEmpty) return;
-    await AppCacheService.instance.recordSearch(widget.screenKey, term);
+    if (term.isNotEmpty) {
+      await AppCacheService.instance.recordSearch(widget.screenKey, term);
+    }
     if (mounted) Navigator.of(context).pop(term);
   }
 
@@ -150,78 +154,84 @@ class _FocusedSearchPanelState extends State<FocusedSearchPanel> {
     final colorScheme = theme.colorScheme;
     final query = _query.text.trim();
 
-    return SafeArea(
-      child: Align(
-        alignment: Alignment.topCenter,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(
-            maxWidth: AppDimensions.maxContentWidth,
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.sm),
-            child: Material(
-              color: colorScheme.surface,
-              borderRadius: AppComponentRadius.card,
-              clipBehavior: Clip.antiAlias,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.md,
-                      AppSpacing.sm,
-                      AppSpacing.xs,
-                      AppSpacing.sm,
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: _query,
-                            autofocus: true,
-                            textInputAction: TextInputAction.search,
-                            decoration: InputDecoration(
-                              hintText: widget.hintText,
-                              prefixIcon: const Icon(
-                                AppIcons.search,
-                                size: AppIconSize.md,
+    return CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.escape): () =>
+            Navigator.of(context).pop(),
+      },
+      child: SafeArea(
+        child: Align(
+          alignment: Alignment.topCenter,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+              maxWidth: AppDimensions.maxContentWidth,
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.sm),
+              child: Material(
+                color: colorScheme.surface,
+                borderRadius: AppComponentRadius.card,
+                clipBehavior: Clip.antiAlias,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.md,
+                        AppSpacing.sm,
+                        AppSpacing.xs,
+                        AppSpacing.sm,
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: _query,
+                              autofocus: true,
+                              textInputAction: TextInputAction.search,
+                              decoration: InputDecoration(
+                                hintText: widget.hintText,
+                                prefixIcon: const Icon(
+                                  AppIcons.search,
+                                  size: AppIconSize.md,
+                                ),
                               ),
+                              onChanged: (_) => setState(() {}),
+                              onSubmitted: _submit,
                             ),
-                            onChanged: (_) => setState(() {}),
-                            onSubmitted: _submit,
                           ),
-                        ),
-                        IconButton(
-                          tooltip: 'Close search',
-                          icon: const Icon(AppIcons.close),
-                          onPressed: () => Navigator.of(context).pop(),
-                        ),
-                      ],
+                          IconButton(
+                            tooltip: 'Close search',
+                            icon: const Icon(AppIcons.close),
+                            onPressed: () => Navigator.of(context).pop(),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  const Divider(height: 1),
-                  Flexible(
-                    child: query.isEmpty
-                        ? _HistoryList(
-                            history: _history,
-                            onPick: (entry) {
-                              _query.text = entry;
-                              _query.selection = TextSelection.collapsed(
-                                offset: entry.length,
-                              );
-                              setState(() {});
-                            },
-                            onRemove: _remove,
-                            onClear: _clearAll,
-                          )
-                        : _ResultList(
-                            query: query,
-                            results: widget.results(query),
-                            onActivate: _activate,
-                          ),
-                  ),
-                ],
+                    const Divider(height: 1),
+                    Flexible(
+                      child: query.isEmpty
+                          ? _HistoryList(
+                              history: _history,
+                              onPick: (entry) {
+                                _query.text = entry;
+                                _query.selection = TextSelection.collapsed(
+                                  offset: entry.length,
+                                );
+                                setState(() {});
+                              },
+                              onRemove: _remove,
+                              onClear: _clearAll,
+                            )
+                          : _ResultList(
+                              query: query,
+                              results: widget.results(query),
+                              onActivate: _activate,
+                            ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -385,6 +395,7 @@ class SearchTriggerField extends StatelessWidget {
     this.query = '',
     this.onClear,
     this.compact = false,
+    this.enabled = true,
   });
 
   final String hintText;
@@ -398,6 +409,7 @@ class SearchTriggerField extends StatelessWidget {
 
   /// Icon-only trigger for the collapsed filter rail.
   final bool compact;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
@@ -409,7 +421,7 @@ class SearchTriggerField extends StatelessWidget {
       return IconButton(
         tooltip: hasQuery ? 'Search: $query' : hintText,
         icon: const Icon(AppIcons.search, size: AppIconSize.md),
-        onPressed: onOpen,
+        onPressed: enabled ? onOpen : null,
       );
     }
 
@@ -417,12 +429,13 @@ class SearchTriggerField extends StatelessWidget {
     // stays reachable for screen readers.
     return Semantics(
       button: true,
+      enabled: enabled,
       child: Material(
         color: colorScheme.surfaceContainerLow,
         borderRadius: AppComponentRadius.inputField,
         child: InkWell(
           borderRadius: AppComponentRadius.inputField,
-          onTap: onOpen,
+          onTap: enabled ? onOpen : null,
           child: ConstrainedBox(
             constraints: const BoxConstraints(
               minHeight: AppDimensions.controlHeightStandard,
@@ -453,7 +466,7 @@ class SearchTriggerField extends StatelessWidget {
                     IconButton(
                       tooltip: 'Clear search',
                       icon: const Icon(AppIcons.close, size: AppIconSize.sm),
-                      onPressed: onClear,
+                      onPressed: enabled ? onClear : null,
                     )
                   else
                     const SizedBox(width: AppSpacing.md),
