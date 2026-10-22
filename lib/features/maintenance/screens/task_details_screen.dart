@@ -174,8 +174,11 @@ class _TaskDetailsContent extends StatelessWidget {
                 childAspectRatio: 4 / 3,
               ),
               itemCount: task.reportPhotoUrls.length,
-              itemBuilder: (_, index) =>
-                  _ReportPhotoTile(url: task.reportPhotoUrls[index]),
+              itemBuilder: (_, index) => _ReportPhotoTile(
+                url: task.reportPhotoUrls[index],
+                photos: task.reportPhotoUrls,
+                index: index,
+              ),
             ),
           const SizedBox(height: AppSpacing.lg),
           Row(
@@ -416,7 +419,13 @@ class _PipelineStep extends StatelessWidget {
 }
 
 class _ReportPhotoTile extends StatelessWidget {
-  const _ReportPhotoTile({required this.url});
+  const _ReportPhotoTile({
+    required this.url,
+    required this.photos,
+    required this.index,
+  });
+  final List<String> photos;
+  final int index;
 
   final String url;
 
@@ -431,7 +440,11 @@ class _ReportPhotoTile extends StatelessWidget {
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           key: ValueKey('maintenance-report-photo-$url'),
-          onTap: () => EvidenceImageViewer.open(context, url),
+          onTap: () => EvidenceImageViewer.openGallery(
+            context,
+            photos,
+            initialIndex: index,
+          ),
           child: Image.network(
             url,
             fit: BoxFit.cover,

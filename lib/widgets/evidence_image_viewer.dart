@@ -6,88 +6,196 @@ import 'package:share_plus/share_plus.dart';
 
 import '../core/theme/app_theme.dart';
 
-/// Full-screen evidence photo viewer — pinch-to-zoom, a glass circular
-/// close button top-left, and a real Share action top-right (the OS share
-/// sheet, via `share_plus`).
-///
-/// Supports both an on-device image path and a server-backed HTTP image URL.
-class EvidenceImageViewer extends StatelessWidget {
-  const EvidenceImageViewer({super.key, required this.imagePath});
-
+/// Shared evidence gallery: swipe at normal scale, pinch/pan to inspect,
+/// and share the currently selected image. Existing single-image calls work.
+class EvidenceImageViewer extends StatefulWidget {
+  const EvidenceImageViewer({
+    super.key,
+    required this.imagePath,
+    this.imagePaths,
+    this.initialIndex = 0,
+  });
   final String imagePath;
-
-  static Future<void> open(BuildContext context, String imagePath) {
+  final List<String>? imagePaths;
+  final int initialIndex;
+  static Future<void> open(BuildContext context, String imagePath) =>
+      openGallery(context, [imagePath]);
+  static Future<void> openGallery(
+    BuildContext context,
+    List<String> paths, {
+    int initialIndex = 0,
+  }) {
+    if (paths.isEmpty) return Future.value();
+    final images = List<String>.unmodifiable(paths);
+    final index = initialIndex.clamp(0, images.length - 1);
     return Navigator.of(context).push(
       PageRouteBuilder<void>(
         opaque: true,
         barrierColor: Colors.black,
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            EvidenceImageViewer(imagePath: imagePath),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) =>
+        pageBuilder: (_, _, _) => EvidenceImageViewer(
+          imagePath: images[index],
+          imagePaths: images,
+          initialIndex: index,
+        ),
+        transitionsBuilder: (_, animation, _, child) =>
             FadeTransition(opacity: animation, child: child),
       ),
     );
   }
 
-  Future<void> _share() {
-    return SharePlus.instance.share(
-      imagePath.startsWith('http')
-          ? ShareParams(text: imagePath)
-          : ShareParams(files: [XFile(imagePath)]),
+  @override
+  State<EvidenceImageViewer> createState() => _EvidenceImageViewerState();
+}
+
+class _EvidenceImageViewerState extends State<EvidenceImageViewer> {
+  late final List<String> _images = List.unmodifiable(
+    widget.imagePaths ?? [widget.imagePath],
+  );
+  late int _index = widget.initialIndex.clamp(0, _images.length - 1);
+  late final PageController _pages = PageController(initialPage: _index);
+  final Map<int, TransformationController> _transforms = {};
+  bool _zoomed = false;
+  TransformationController _transform(int index) =>
+      _transforms.putIfAbsent(index, TransformationController.new);
+  @override
+  void dispose() {
+    _pages.dispose();
+    for (final controller in _transforms.values) {
+      controller.dispose();
+    }
+    super.dispose();
+  }
+
+  Future<void> _share() async {
+    final path = _images[_index];
+    await SharePlus.instance.share(
+      path.startsWith('http')
+          ? ShareParams(text: path)
+          : ShareParams(files: [XFile(path)]),
     );
   }
 
+  void _page(int index) {
+    _transform(index).value = Matrix4.identity();
+    setState(() {
+      _index = index;
+      _zoomed = false;
+    });
+  }
+
+  void _move(int index) {
+    final duration = AppMotion.duration(context, AppMotionDuration.standard);
+    if (duration == Duration.zero) {
+      _pages.jumpToPage(index);
+    } else {
+      _pages.animateToPage(index, duration: duration, curve: Curves.easeOut);
+    }
+  }
+
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: InteractiveViewer(
-              minScale: 1,
-              maxScale: 4,
-              child: Center(
-                child: imagePath.startsWith('http')
-                    ? Image.network(
-                        imagePath,
-                        fit: BoxFit.contain,
-                        errorBuilder: (_, _, _) => const _ImageLoadFailure(),
-                      )
-                    : Image.file(
-                        File(imagePath),
-                        fit: BoxFit.contain,
-                        errorBuilder: (_, _, _) => const _ImageLoadFailure(),
-                      ),
-              ),
+  Widget build(BuildContext context) => Scaffold(
+    backgroundColor: Colors.black,
+    body: Stack(
+      children: [
+        Positioned.fill(
+          child: PageView.builder(
+            controller: _pages,
+            itemCount: _images.length,
+            physics: _zoomed ? const NeverScrollableScrollPhysics() : null,
+            onPageChanged: _page,
+            itemBuilder: (context, index) {
+              final path = _images[index];
+              final transform = _transform(index);
+              return InteractiveViewer(
+                key: ValueKey('evidence-gallery-page-$index'),
+                transformationController: transform,
+                minScale: 1,
+                maxScale: 4,
+                panEnabled: _zoomed,
+                onInteractionUpdate: (_) {
+                  final zoomed = transform.value.getMaxScaleOnAxis() > 1.01;
+                  if (zoomed != _zoomed && index == _index) {
+                    setState(() => _zoomed = zoomed);
+                  }
+                },
+                child: Center(
+                  child: path.startsWith('http')
+                      ? Image.network(
+                          path,
+                          fit: BoxFit.contain,
+                          errorBuilder: (_, _, _) => const _ImageLoadFailure(),
+                        )
+                      : Image.file(
+                          File(path),
+                          fit: BoxFit.contain,
+                          errorBuilder: (_, _, _) => const _ImageLoadFailure(),
+                        ),
+                ),
+              );
+            },
+          ),
+        ),
+        Positioned(
+          left: AppSpacing.md,
+          top: AppSpacing.md,
+          child: SafeArea(
+            child: _GlassCircleButton(
+              icon: AppIcons.close,
+              tooltip: 'Close',
+              onTap: () => Navigator.of(context).maybePop(),
             ),
           ),
+        ),
+        Positioned(
+          right: AppSpacing.md,
+          top: AppSpacing.md,
+          child: SafeArea(
+            child: _GlassCircleButton(
+              icon: AppIcons.share,
+              tooltip: 'Share',
+              onTap: _share,
+            ),
+          ),
+        ),
+        if (_images.length > 1)
           Positioned(
             left: AppSpacing.md,
-            top: AppSpacing.md,
-            child: SafeArea(
-              child: _GlassCircleButton(
-                icon: AppIcons.close,
-                tooltip: 'Close',
-                onTap: () => Navigator.of(context).maybePop(),
-              ),
-            ),
-          ),
-          Positioned(
             right: AppSpacing.md,
-            top: AppSpacing.md,
+            bottom: AppSpacing.md,
             child: SafeArea(
-              child: _GlassCircleButton(
-                icon: AppIcons.share,
-                tooltip: 'Share',
-                onTap: _share,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  IconButton(
+                    tooltip: 'Previous photo',
+                    color: Colors.white,
+                    disabledColor: Colors.white38,
+                    onPressed: _index > 0 ? () => _move(_index - 1) : null,
+                    icon: const Icon(Icons.chevron_left),
+                  ),
+                  Semantics(
+                    liveRegion: true,
+                    child: Text(
+                      '${_index + 1} / ${_images.length}',
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Next photo',
+                    color: Colors.white,
+                    disabledColor: Colors.white38,
+                    onPressed: _index < _images.length - 1
+                        ? () => _move(_index + 1)
+                        : null,
+                    icon: const Icon(Icons.chevron_right),
+                  ),
+                ],
               ),
             ),
           ),
-        ],
-      ),
-    );
-  }
+      ],
+    ),
+  );
 }
 
 class _ImageLoadFailure extends StatelessWidget {

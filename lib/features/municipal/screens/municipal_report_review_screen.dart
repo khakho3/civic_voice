@@ -1,5 +1,8 @@
 import '../../../core/widgets/ghana_refresh_indicator.dart';
 import 'package:flutter/material.dart';
+
+import '../../../widgets/evidence_image_viewer.dart';
+
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../../../core/theme/app_theme.dart';
@@ -703,14 +706,23 @@ class _EvidenceGallery extends StatelessWidget {
         mainAxisSpacing: AppSpacing.sm,
       ),
       itemCount: photoUrls.length,
-      itemBuilder: (context, index) =>
-          _EvidenceThumbnail(url: photoUrls[index]),
+      itemBuilder: (context, index) => _EvidenceThumbnail(
+        url: photoUrls[index],
+        photos: photoUrls,
+        index: index,
+      ),
     );
   }
 }
 
 class _EvidenceThumbnail extends StatelessWidget {
-  const _EvidenceThumbnail({required this.url});
+  const _EvidenceThumbnail({
+    required this.url,
+    required this.photos,
+    required this.index,
+  });
+  final List<String> photos;
+  final int index;
 
   final String url;
 
@@ -720,14 +732,10 @@ class _EvidenceThumbnail extends StatelessWidget {
     return AspectRatio(
       aspectRatio: 1,
       child: InkWell(
-        onTap: () => showDialog<void>(
-          context: context,
-          builder: (_) => Dialog(
-            insetPadding: const EdgeInsets.all(AppSpacing.md),
-            child: InteractiveViewer(
-              child: Image.network(url, fit: BoxFit.contain),
-            ),
-          ),
+        onTap: () => EvidenceImageViewer.openGallery(
+          context,
+          photos,
+          initialIndex: index,
         ),
         child: ClipRRect(
           borderRadius: AppComponentRadius.inputField,

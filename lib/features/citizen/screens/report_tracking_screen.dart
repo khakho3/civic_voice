@@ -685,8 +685,11 @@ class _TrackingDetails extends StatelessWidget {
                             borderRadius: AppRadius.allLg,
                             child: InkWell(
                               key: ValueKey('evidence-photo-$path'),
-                              onTap: () =>
-                                  EvidenceImageViewer.open(context, path),
+                              onTap: () => EvidenceImageViewer.openGallery(
+                                context,
+                                report.photoPaths,
+                                initialIndex: report.photoPaths.indexOf(path),
+                              ),
                               child: path.startsWith('http')
                                   ? Image.network(
                                       path,

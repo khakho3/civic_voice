@@ -495,7 +495,11 @@ class _ProgressBody extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(top: AppSpacing.sm),
             child: InkWell(
-              onTap: () => EvidenceImageViewer.open(context, photo),
+              onTap: () => EvidenceImageViewer.openGallery(
+                context,
+                data.evidencePhotoUrls,
+                initialIndex: data.evidencePhotoUrls.indexOf(photo),
+              ),
               child: Image.network(
                 photo,
                 height: 160,
