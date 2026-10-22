@@ -76,7 +76,10 @@ void main() {
     () async {
       const channel = MethodChannel('civic_voice/config');
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(channel, (_) async => 'test-key');
+          .setMockMethodCallHandler(
+            channel,
+            (_) async => {'apiKey': 'test-key'},
+          );
       addTearDown(
         () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
             .setMockMethodCallHandler(channel, null),
@@ -85,32 +88,27 @@ void main() {
         client: MockClient(
           (_) async => http.Response(
             jsonEncode({
-              'status': 'OK',
-              'result': {
-                'formatted_address': 'Test address',
-                'name': 'Test place',
-                'geometry': {
-                  'location': {'lat': 5.6, 'lng': -0.3},
+              'id': 'test-place',
+              'formattedAddress': 'Test address',
+              'location': {'latitude': 5.6, 'longitude': -0.3},
+              'addressComponents': [
+                {
+                  'longText': 'Nii Okaiman East',
+                  'types': ['locality'],
                 },
-                'address_components': [
-                  {
-                    'long_name': 'Nii Okaiman East',
-                    'types': ['locality'],
-                  },
-                  {
-                    'long_name': 'Ga West Municipal',
-                    'types': ['administrative_area_level_2'],
-                  },
-                  {
-                    'long_name': 'Greater Accra Region',
-                    'types': ['administrative_area_level_1'],
-                  },
-                  {
-                    'long_name': 'Ghana',
-                    'types': ['country'],
-                  },
-                ],
-              },
+                {
+                  'longText': 'Ga West Municipal',
+                  'types': ['administrative_area_level_2'],
+                },
+                {
+                  'longText': 'Greater Accra Region',
+                  'types': ['administrative_area_level_1'],
+                },
+                {
+                  'longText': 'Ghana',
+                  'types': ['country'],
+                },
+              ],
             }),
             200,
           ),

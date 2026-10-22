@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/services.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -14,162 +16,259 @@ class PlaceSuggestion {
     required this.description,
     this.mainText,
     this.secondaryText,
+    this.sessionToken,
   });
 
   final String placeId;
   final String description;
   final String? mainText;
   final String? secondaryText;
+  final String? sessionToken;
 }
 
 class PlacesService {
   PlacesService({
     http.Client? client,
-    this._apiKey = const String.fromEnvironment('GOOGLE_MAPS_API_KEY'),
-  }) : _client = client ?? http.Client();
+    this.apiKey = const String.fromEnvironment('GOOGLE_MAPS_API_KEY'),
+    Map<String, String> applicationHeaders = const {},
+  }) : _client = client ?? http.Client(),
+       _applicationHeaders = Map.of(applicationHeaders);
 
   static const MethodChannel _configChannel = MethodChannel(
     'civic_voice/config',
   );
 
   final http.Client _client;
-  String _apiKey;
+  String apiKey;
+  final Map<String, String> _applicationHeaders;
+  Future<void>? _initialization;
+  String? _session;
+  bool _disposed = false;
 
-  bool get isConfigured => _apiKey.trim().isNotEmpty;
+  bool get isConfigured => apiKey.trim().isNotEmpty;
 
-  Future<void> initialize() async {
-    if (isConfigured) return;
-
+  Future<void> initialize() => _initialization ??= _initialize();
+  Future<void> _initialize() async {
     try {
-      final apiKey = await _configChannel.invokeMethod<String>(
-        'googleMapsApiKey',
-      );
-      if (apiKey != null && apiKey.trim().isNotEmpty) {
-        _apiKey = apiKey;
+      final config = await _configChannel
+          .invokeMapMethod<String, dynamic>('googleMapsRequestConfig')
+          .timeout(const Duration(seconds: 3));
+      if (_disposed || config == null) return;
+      if (!isConfigured && config['apiKey'] is String) {
+        apiKey = config['apiKey'] as String;
+      }
+      if (config['androidPackage'] is String &&
+          config['androidCert'] is String) {
+        _applicationHeaders['X-Android-Package'] =
+            config['androidPackage'] as String;
+        _applicationHeaders['X-Android-Cert'] = config['androidCert'] as String;
+      }
+      if (config['iosBundleIdentifier'] is String) {
+        _applicationHeaders['X-Ios-Bundle-Identifier'] =
+            config['iosBundleIdentifier'] as String;
       }
     } on PlatformException {
       // Non-Android builds can still use --dart-define.
     } on MissingPluginException {
       // Tests and unsupported platforms do not expose the native config channel.
+    } on TimeoutException {
+      // Native configuration must not leave the picker waiting indefinitely.
     }
+  }
+
+  void resetSession() => _session = null;
+  String _newSession() {
+    final random = Random.secure();
+    return List.generate(
+      24,
+      (_) => random.nextInt(256).toRadixString(16).padLeft(2, '0'),
+    ).join();
+  }
+
+  Map<String, String> _headers(String mask) => {
+    'Content-Type': 'application/json',
+    'X-Goog-Api-Key': apiKey,
+    'X-Goog-FieldMask': mask,
+    ..._applicationHeaders,
+  };
+  Map<String, dynamic> _decode(http.Response response) {
+    // Provider diagnostics can contain configuration/URL details. Keep them out
+    // of the interface and never retry with removed application restrictions.
+    if (response.statusCode == 403) {
+      throw const PlacesException(
+        'Place search is temporarily unavailable. You can still choose the issue pin on the map.',
+      );
+    }
+    if (response.statusCode == 429) {
+      throw const PlacesException(
+        'Place search is busy. Wait a moment and try again.',
+      );
+    }
+    if (response.statusCode != 200) {
+      throw const PlacesException(
+        'Place lookup failed. Check your connection and try again.',
+      );
+    }
+    try {
+      final body = jsonDecode(response.body);
+      if (body is Map<String, dynamic> && body['error'] == null) return body;
+    } on FormatException {
+      // Use a bounded public error below.
+    }
+    throw const PlacesException(
+      'Place lookup returned an invalid response. Try again.',
+    );
   }
 
   Future<List<PlaceSuggestion>> autocomplete(String input) async {
     final query = input.trim();
+    if (query.length < 2) {
+      resetSession();
+      return const [];
+    }
     await initialize();
-    if (!isConfigured || query.length < 2) return const [];
-
-    final uri = Uri.https(
-      'maps.googleapis.com',
-      '/maps/api/place/autocomplete/json',
-      {
-        'input': query,
-        'key': _apiKey,
-        // No `types` restriction: `geocode` alone excludes establishments
-        // (schools, universities, businesses, landmarks) — a citizen
-        // reporting an issue "near GCTU" needs that named-place search to
-        // work, not just street addresses. `components: country:gh` biases
-        // results to Ghana, both for relevance and so a short local
-        // institution name like "GCTU" doesn't get crowded out by
-        // unrelated global matches.
-        'components': 'country:gh',
-      },
-    );
-
-    final response = await _client.get(uri).timeout(const Duration(seconds: 8));
-    final body = jsonDecode(response.body) as Map<String, dynamic>;
-    final status = body['status'] as String?;
-
-    if (response.statusCode != 200 ||
-        (status != 'OK' && status != 'ZERO_RESULTS')) {
-      throw PlacesException(
-        body['error_message'] as String? ?? 'Places autocomplete failed.',
+    if (_disposed || !isConfigured) {
+      throw const PlacesException(
+        'Place search is not configured. You can still select a map pin.',
       );
     }
 
-    final predictions = body['predictions'] as List<dynamic>? ?? const [];
+    final uri = Uri.https('places.googleapis.com', '/v1/places:autocomplete');
+    final session = _session ??= _newSession();
+    final response = await _client
+        .post(
+          uri,
+          headers: _headers(
+            'suggestions.placePrediction.placeId,suggestions.placePrediction.text,suggestions.placePrediction.structuredFormat',
+          ),
+          body: jsonEncode({
+            'input': query,
+            'includedRegionCodes': ['gh'],
+            'languageCode': 'en',
+            'sessionToken': session,
+          }),
+        )
+        .timeout(const Duration(seconds: 8));
+    final predictions = _decode(response)['suggestions'] ?? const [];
+    if (predictions is! List) {
+      throw const PlacesException('Place suggestions could not be verified.');
+    }
     return [
       for (final item in predictions)
-        PlaceSuggestion(
-          placeId: item['place_id'] as String? ?? '',
-          description: item['description'] as String? ?? '',
-          mainText:
-              (item['structured_formatting']
-                      as Map<String, dynamic>?)?['main_text']
-                  as String?,
-          secondaryText:
-              (item['structured_formatting']
-                      as Map<String, dynamic>?)?['secondary_text']
-                  as String?,
-        ),
-    ].where((suggestion) => suggestion.placeId.isNotEmpty).toList();
+        if (item is Map && item['placePrediction'] is Map)
+          _suggestion(item['placePrediction'] as Map, session),
+    ].whereType<PlaceSuggestion>().toList();
   }
 
-  Future<Location> fetchPlace(String placeId) async {
+  PlaceSuggestion? _suggestion(Map item, String session) {
+    final id = item['placeId'], text = item['text'];
+    final description = text is Map ? text['text'] : null;
+    if (id is! String ||
+        id.trim().isEmpty ||
+        description is! String ||
+        description.trim().isEmpty) {
+      return null;
+    }
+    String? part(String key) {
+      final format = item['structuredFormat'];
+      final value = format is Map ? format[key] : null;
+      return value is Map && value['text'] is String
+          ? value['text'] as String
+          : null;
+    }
+
+    return PlaceSuggestion(
+      placeId: id,
+      description: description,
+      mainText: part('mainText'),
+      secondaryText: part('secondaryText'),
+      sessionToken: session,
+    );
+  }
+
+  Future<Location> fetchPlace(String placeId, {String? sessionToken}) async {
     await initialize();
-    if (!isConfigured) {
+    if (_disposed || !isConfigured || placeId.trim().isEmpty) {
       throw const PlacesException('Google Places API key is not configured.');
     }
 
-    final uri =
-        Uri.https('maps.googleapis.com', '/maps/api/place/details/json', {
-          'place_id': placeId,
-          'key': _apiKey,
-          'fields': 'formatted_address,geometry,address_component,name',
-        });
-
-    final response = await _client.get(uri).timeout(const Duration(seconds: 8));
-    final body = jsonDecode(response.body) as Map<String, dynamic>;
-    final status = body['status'] as String?;
-
-    if (response.statusCode != 200 || status != 'OK') {
-      throw PlacesException(
-        body['error_message'] as String? ?? 'Place details failed.',
+    final session = sessionToken ?? _session;
+    // Selecting a place ends the active search session immediately. Typing a
+    // new query while details are in flight must use a fresh token.
+    if (_session == session) resetSession();
+    try {
+      final uri = Uri.https(
+        'places.googleapis.com',
+        '/v1/places/${Uri.encodeComponent(placeId)}',
+        {'languageCode': 'en', 'sessionToken': ?session},
       );
-    }
 
-    final result = body['result'] as Map<String, dynamic>;
-    final geometry = result['geometry'] as Map<String, dynamic>;
-    final point = geometry['location'] as Map<String, dynamic>;
-    final components =
-        result['address_components'] as List<dynamic>? ?? const [];
+      final response = await _client
+          .get(
+            uri,
+            headers: _headers('id,formattedAddress,location,addressComponents'),
+          )
+          .timeout(const Duration(seconds: 8));
+      final result = _decode(response);
+      final point = result['location'];
+      final latitude = point is Map ? point['latitude'] : null;
+      final longitude = point is Map ? point['longitude'] : null;
+      if (result['id'] != placeId ||
+          latitude is! num ||
+          longitude is! num ||
+          !latitude.isFinite ||
+          !longitude.isFinite ||
+          latitude.abs() > 90 ||
+          longitude.abs() > 180) {
+        throw const PlacesException(
+          'Place coordinates could not be verified. Select a map pin instead.',
+        );
+      }
+      final components =
+          result['addressComponents'] as List<dynamic>? ?? const [];
 
-    return Location(
-      formattedAddress:
-          result['formatted_address'] as String? ?? 'Selected location',
-      latitude: (point['lat'] as num).toDouble(),
-      longitude: (point['lng'] as num).toDouble(),
-      landmark: result['name'] as String?,
-      locality: _component(components, const [
-        'locality',
-        'sublocality',
-        'administrative_area_level_2',
-      ]),
-      administrativeArea: _component(components, const [
-        'administrative_area_level_1',
-      ]),
-      country: _component(components, const ['country']),
-      assembly: reportAssemblyFor(
-        Region.fromAdministrativeArea(
-          _component(components, const ['administrative_area_level_1']),
+      return Location(
+        formattedAddress:
+            result['formattedAddress'] as String? ?? 'Selected map location',
+        latitude: latitude.toDouble(),
+        longitude: longitude.toDouble(),
+        locality: _component(components, const [
+          'locality',
+          'sublocality',
+          'administrative_area_level_2',
+        ]),
+        administrativeArea: _component(components, const [
+          'administrative_area_level_1',
+        ]),
+        country: _component(components, const ['country']),
+        assembly: reportAssemblyFor(
+          Region.fromAdministrativeArea(
+            _component(components, const ['administrative_area_level_1']),
+          ),
+          [
+            _component(components, const ['administrative_area_level_2']),
+            _component(components, const ['administrative_area_level_3']),
+          ],
         ),
-        [
-          _component(components, const ['administrative_area_level_2']),
-        ],
-      ),
-    );
+      );
+    } finally {
+      if (_session == session) resetSession();
+    }
   }
 
   void dispose() {
+    _disposed = true;
+    resetSession();
     _client.close();
   }
 
   String _component(List<dynamic> components, List<String> acceptedTypes) {
     for (final component in components) {
-      final map = component as Map<String, dynamic>;
+      if (component is! Map<String, dynamic>) continue;
+      final map = component;
       final types = (map['types'] as List<dynamic>? ?? const []).cast<String>();
       if (acceptedTypes.any(types.contains)) {
-        return map['long_name'] as String? ?? '';
+        return map['longText'] as String? ?? '';
       }
     }
     return '';
