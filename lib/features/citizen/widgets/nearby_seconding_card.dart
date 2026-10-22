@@ -13,11 +13,15 @@ class NearbySecondingReport {
     required this.category,
     required this.distanceMeters,
     required this.seconderCount,
+    this.latitude,
+    this.longitude,
   });
 
   factory NearbySecondingReport.fromApi(Map<String, dynamic> json) {
     return NearbySecondingReport(
       id: json['id'] as String,
+      latitude: (json['latitude'] as num?)?.toDouble(),
+      longitude: (json['longitude'] as num?)?.toDouble(),
       reference: json['publicReference'] as String? ?? '',
       title: json['title'] as String? ?? 'Community issue',
       category: json['category'] as String? ?? 'General',
@@ -32,6 +36,8 @@ class NearbySecondingReport {
   final String category;
   final double distanceMeters;
   final int seconderCount;
+  final double? latitude;
+  final double? longitude;
 }
 
 class NearbySecondingCard extends StatelessWidget {

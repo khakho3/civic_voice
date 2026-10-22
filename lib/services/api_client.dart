@@ -417,9 +417,16 @@ class ApiClient {
     required String idToken,
     required double latitude,
     required double longitude,
+    required double accuracy,
+    required DateTime capturedAt,
   }) async {
     final query = Uri(
-      queryParameters: {'latitude': '$latitude', 'longitude': '$longitude'},
+      queryParameters: {
+        'latitude': '$latitude',
+        'longitude': '$longitude',
+        'accuracy': '$accuracy',
+        'capturedAt': _positionTimestamp(capturedAt),
+      },
     ).query;
     final result = await _get(
       '/api/reports/nearby-seconding?$query',
@@ -428,9 +435,37 @@ class ApiClient {
     return (result['reports'] as List).cast<Map<String, dynamic>>();
   }
 
-  Future<void> secondReport(String reportId, {required String idToken}) async {
-    await _post('/api/reports/$reportId/second', const {}, idToken: idToken);
+  Future<void> secondReport(
+    String reportId, {
+    required String idToken,
+    required double latitude,
+    required double longitude,
+    required double accuracy,
+    required DateTime capturedAt,
+  }) async {
+    final result = await _post(
+      '/api/reports/${Uri.encodeComponent(reportId)}/second',
+      {
+        'latitude': latitude,
+        'longitude': longitude,
+        'accuracy': accuracy,
+        'capturedAt': _positionTimestamp(capturedAt),
+      },
+      idToken: idToken,
+    );
+    if (result['secondedByMe'] != true) {
+      throw const ApiException(
+        statusCode: 502,
+        message: 'Could not verify this confirmation. Refresh Nearby Reports before trying again.',
+      );
+    }
   }
+
+  static String _positionTimestamp(DateTime value) =>
+      DateTime.fromMillisecondsSinceEpoch(
+        value.millisecondsSinceEpoch,
+        isUtc: true,
+      ).toIso8601String();
 
   Future<List<Map<String, dynamic>>> listMunicipalMaintenanceOptions({
     required String idToken,
