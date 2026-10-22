@@ -16,11 +16,11 @@ Native submission sends the selected issue latitude/longitude and omits geocoder
 
 Unknown, outside, ambiguous or near-boundary pins remain saved/unresolved for the Super Admin safeguard. A correctly scoped report becomes visible on a later matching Municipal inbox read when officers join; creation of an officer does not resolve missing geography or manufacture retrospective pushes. Multiple matching officers can read unclaimed reports, with one atomic claim. Existing historical reports were not rewritten. Native Super Admin routing queue/detail remains part of later Admin reconciliation; it is not claimed complete by these client map fixes.
 
-## External configuration still pending approval
+## Approved configuration and live provider verification
 
-Read-only Google Cloud inspection confirmed `android_maps_key_cv` in `gen-lang-client-0691154247` currently allows only Maps SDK for Android. Both existing Android package/SHA entries are present, including the isolated DEV package. The prepared UI selection adds only Places API (New), retaining those entries and Maps SDK for Android; **Save has not been clicked**. An action-time approval question is pending. Do not save or treat elapsed time as approval.
+On 22 October 2026, the owner explicitly approved saving the prepared change to `android_maps_key_cv` in `gen-lang-client-0691154247`. The saved allowlist contains exactly **Maps SDK for Android + Places API (New)**. Both existing Android package/SHA restrictions, including the isolated DEV package, remain unchanged. Reopening the key confirmed the persisted selection.
 
-A bounded public-place provider probe using local configuration returned HTTP 403 / API_KEY_SERVICE_BLOCKED for the correct DEV identity, and HTTP 403 / API_KEY_ANDROID_APP_BLOCKED for an invalid app ID. This confirms the remaining service allowlist blocker and rejection of the wrong identity, not successful native search. After approval/save/propagation, repeat both checks: valid identity must succeed and invalid identity remain rejected. No key value was printed, copied into a tracked file or exposed in a URL.
+Bounded live probes used the same field masks and session contract as the app. The correct DEV identity returned HTTP 200 and five Wusuta place suggestions. Selecting a suggestion returned HTTP 200 with matching place identity, an address and valid Ghana coordinates. Wrong-package and wrong-certificate probes each returned HTTP 403 / API_KEY_ANDROID_APP_BLOCKED. The former service-allowlist blocker is cleared. No key value, raw place ID or precise coordinate was printed or copied into a tracked file. Provider verification does not replace physical phone acceptance.
 
 ## Verification and delivery
 
@@ -28,4 +28,4 @@ Full native suite: **1,138 tests pass**, analyzer and whitespace checks clean. A
 
 The isolated DEV source snapshot preserves DEV Firebase and native identity; the final profile APK built successfully with local API4000 explicitly defined. Builds and private acceptance details stay outside Git. No new phone install; real Android capture/search/drag/confirmation and iOS compile/provider acceptance remain pending. The existing native_exif Kotlin Gradle migration warning is pre-existing and did not require a dependency change here.
 
-Next: finish the pending Android allowlist/provider check and owner phone acceptance, then evidence/proximity/completion reconciliation in the recorded order. Keep shared UI/validation/notification/Admin debt queued, including the Admin dashboard findings and password masking/padlock follow-up. Francis retains ordinary-success/checkmark and native Activity Detail. Optional Google activity logging remains OFF.
+Next: owner phone acceptance, then evidence/proximity/completion reconciliation in the recorded order. Keep shared UI/validation/notification/Admin debt queued, including the Admin dashboard findings and password masking/padlock follow-up. Francis retains ordinary-success/checkmark and native Activity Detail. Optional Google activity logging remains OFF.
