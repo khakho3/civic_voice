@@ -1,5 +1,9 @@
 # Latif PR integration review and repairs
 
+## Native submission and duplicate safeguards - 22 October 2026
+
+Implemented in 074f27e, 826f1fd and 4a7f4e6: account-scoped frozen report/evidence keys and validated receipts, safe uncertain-save retries/reopening, session fences, and selected-pin advisory suggestions before Photos with explicit fresh-GPS seconding or distinct-report continuation. Complete suite: 1,114 pass; analyzer/whitespace clean. See [NATIVE_REPORT_SUBMISSION_SAFEGUARDS.md](NATIVE_REPORT_SUBMISSION_SAFEGUARDS.md) for scope, limits, release prerequisite and remaining acceptance. No phone install, API/config change or promotion. Next implementation is Places New/automatic routing reconciliation, then the remaining recorded native backlog. Admin/dashboard and password masking/padlock findings remain queued; owner success/checkmark and Activity Detail remain separate.
+
 ## Shared native bottom sheets - 22 October 2026
 
 cf8e730 adds showCivicBottomSheet/CivicSheetSurface; 544816d adopts it for all nine existing sheet launches across seven files: Nearby Reports, Maintenance photo source, Municipal Active sort, Municipal send-back form, three Ministry Insights pickers, shared region picker, and shared profile editor. Existing sheet data/results/actions stay with their owners. Standard surface: rounded 24 px top corners, a static 10 px backdrop and a feathered 24 px rise, readable theme surface, one handle and native barrier/Back/drag handling. Motion uses shared tokens: 200 ms entry, 100 ms exit, zero for reduced motion. Inputs use an opaque surface; the profile editor uses explicit close instead of drag bypassing its save/discard guard. Duplicate GlassDialogBackdrop wrappers were removed from these sheet builders, while real dialog wrappers remain.
