@@ -1,5 +1,10 @@
 # Latif progress
 
+## Integration review checkpoint - 22 October 2026
+
+Submitted head 82d11cd produced 871 passing tests and two failures in the full suite; analysis reported one warning and 46 infos. Francis-owned repairs are isolated on codex/flutter-latif-review-fixes: dd1f4c5, 1af2765, ee4b736 and c5d87c2. The repaired candidate passes 878 tests, analysis and whitespace checks. A formal GitHub review with three inline comments is posted on PR #20. Read LATIF_REPAIR_REPORT.md for exact repairs, shared-owner session integration and remaining device/API acceptance. This is not a promotion, remote-head approval, push or merge. Contributor notes below remain historical; API and Flutter owed backlogs contain newer implemented server contracts.
+
+
 ## C01 — Citizen My Reports card interaction
 
 - Status: implemented and validated.
