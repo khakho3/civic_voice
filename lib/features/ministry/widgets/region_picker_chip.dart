@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../models/region.dart';
-import '../../../widgets/glass_dialog_backdrop.dart';
+import '../../../widgets/civic_bottom_sheet.dart';
 
 /// An explicit region-picker choice. A `null` [region] means the user chose
 /// "All Regions"; a `null` result from [pickRegion] means the sheet was
@@ -26,21 +26,33 @@ Future<RegionPickerSelection?> pickRegion(
   BuildContext context, {
   required Region? current,
 }) {
-  return showModalBottomSheet<RegionPickerSelection>(
+  return showCivicBottomSheet<RegionPickerSelection>(
     context: context,
     isScrollControlled: true,
-    builder: (context) => GlassDialogBackdrop(
-      child: SafeArea(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.sizeOf(context).height * 0.7,
-          ),
-          child: ListView(
-            shrinkWrap: true,
-            children: [
+    builder: (context) => SafeArea(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(context).height * 0.7,
+        ),
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            ListTile(
+              title: const Text('All Regions'),
+              trailing: current == null
+                  ? Icon(
+                      AppIcons.success,
+                      color: AppSemanticColors.of(context).actionText,
+                    )
+                  : null,
+              onTap: () => Navigator.of(
+                context,
+              ).pop(const RegionPickerSelection(null)),
+            ),
+            for (final region in Region.values)
               ListTile(
-                title: const Text('All Regions'),
-                trailing: current == null
+                title: Text(region.label),
+                trailing: region == current
                     ? Icon(
                         AppIcons.success,
                         color: AppSemanticColors.of(context).actionText,
@@ -48,23 +60,9 @@ Future<RegionPickerSelection?> pickRegion(
                     : null,
                 onTap: () => Navigator.of(
                   context,
-                ).pop(const RegionPickerSelection(null)),
+                ).pop(RegionPickerSelection(region)),
               ),
-              for (final region in Region.values)
-                ListTile(
-                  title: Text(region.label),
-                  trailing: region == current
-                      ? Icon(
-                          AppIcons.success,
-                          color: AppSemanticColors.of(context).actionText,
-                        )
-                      : null,
-                  onTap: () => Navigator.of(
-                    context,
-                  ).pop(RegionPickerSelection(region)),
-                ),
-            ],
-          ),
+          ],
         ),
       ),
     ),

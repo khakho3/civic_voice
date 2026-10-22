@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../widgets/civic_bottom_sheet.dart';
 import '../../../widgets/search_filter_list.dart';
 import '../../../widgets/focused_search.dart';
 
@@ -11,7 +12,6 @@ import '../models/incoming_report.dart';
 import '../services/municipal_report_directory.dart';
 import '../../../widgets/glass_card.dart';
 import '../../../widgets/text_filter_chips.dart';
-import '../../../widgets/glass_dialog_backdrop.dart';
 import '../widgets/municipal_scaffold.dart';
 import '../../../widgets/app_state_message.dart';
 import '../../../widgets/status_badge.dart';
@@ -185,26 +185,24 @@ class _MunicipalActiveReportsScreenState
   }
 
   Future<void> _showSortMenu() async {
-    final selected = await showModalBottomSheet<ActiveReportSort>(
+    final selected = await showCivicBottomSheet<ActiveReportSort>(
       context: context,
-      builder: (context) => GlassDialogBackdrop(
-        child: SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              for (final option in ActiveReportSort.values)
-                ListTile(
-                  title: Text(option.label),
-                  trailing: option == _sort
-                      ? Icon(
-                          AppIcons.success,
-                          color: AppSemanticColors.of(context).actionText,
-                        )
-                      : null,
-                  onTap: () => Navigator.of(context).pop(option),
-                ),
-            ],
-          ),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final option in ActiveReportSort.values)
+              ListTile(
+                title: Text(option.label),
+                trailing: option == _sort
+                    ? Icon(
+                        AppIcons.success,
+                        color: AppSemanticColors.of(context).actionText,
+                      )
+                    : null,
+                onTap: () => Navigator.of(context).pop(option),
+              ),
+          ],
         ),
       ),
     );

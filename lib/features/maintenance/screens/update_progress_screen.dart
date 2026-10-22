@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:civic_voice/core/theme/app_theme.dart';
 
+import '../../../widgets/civic_bottom_sheet.dart';
 import '../../../widgets/confirm_dialog.dart';
 import '../../../widgets/detail_header.dart';
 import '../../../widgets/glass_dialog_backdrop.dart';
@@ -82,7 +83,7 @@ class _UpdateProgressScreenState extends State<UpdateProgressScreen> {
         _evidencePhotos.length >= _requiredEvidencePhotos) {
       return;
     }
-    final source = await showModalBottomSheet<ImageSource>(
+    final source = await showCivicBottomSheet<ImageSource>(
       context: context,
       builder: (context) => SafeArea(
         child: Column(

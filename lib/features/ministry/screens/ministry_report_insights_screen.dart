@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../widgets/civic_bottom_sheet.dart';
 import '../../../widgets/app_state_message.dart';
 import '../../../widgets/collapsible_list_header.dart';
 import '../../../widgets/detail_header.dart';
 import '../../../widgets/glass_card.dart';
-import '../../../widgets/glass_dialog_backdrop.dart';
 import '../../../models/report_status.dart';
 import '../models/ministry_report_insights_data.dart';
 
@@ -118,26 +118,24 @@ class _MinistryReportInsightsScreenState
   }
 
   Future<void> _pickDateRange() async {
-    final selected = await showModalBottomSheet<InsightsDateRange>(
+    final selected = await showCivicBottomSheet<InsightsDateRange>(
       context: context,
-      builder: (context) => GlassDialogBackdrop(
-        child: SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              for (final option in InsightsDateRange.values)
-                ListTile(
-                  title: Text(option.label),
-                  trailing: option == _dateRange
-                      ? Icon(
-                          AppIcons.success,
-                          color: AppSemanticColors.of(context).actionText,
-                        )
-                      : null,
-                  onTap: () => Navigator.of(context).pop(option),
-                ),
-            ],
-          ),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final option in InsightsDateRange.values)
+              ListTile(
+                title: Text(option.label),
+                trailing: option == _dateRange
+                    ? Icon(
+                        AppIcons.success,
+                        color: AppSemanticColors.of(context).actionText,
+                      )
+                    : null,
+                onTap: () => Navigator.of(context).pop(option),
+              ),
+          ],
         ),
       ),
     );
@@ -145,17 +143,46 @@ class _MinistryReportInsightsScreenState
   }
 
   Future<void> _pickCategory() async {
-    final selected = await showModalBottomSheet<InsightsCategoryFilter>(
+    final selected = await showCivicBottomSheet<InsightsCategoryFilter>(
       context: context,
-      builder: (context) => GlassDialogBackdrop(
-        child: SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final option in InsightsCategoryFilter.values)
+              ListTile(
+                title: Text(option.label),
+                trailing: option == _category
+                    ? Icon(
+                        AppIcons.success,
+                        color: AppSemanticColors.of(context).actionText,
+                      )
+                    : null,
+                onTap: () => Navigator.of(context).pop(option),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (selected != null) setState(() => _category = selected);
+  }
+
+  Future<void> _pickStatus() async {
+    final selected = await showCivicBottomSheet<InsightsStatusFilter>(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => SafeArea(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.sizeOf(context).height * 0.7,
+          ),
+          child: ListView(
+            shrinkWrap: true,
             children: [
-              for (final option in InsightsCategoryFilter.values)
+              for (final option in InsightsStatusFilter.values)
                 ListTile(
                   title: Text(option.label),
-                  trailing: option == _category
+                  trailing: option == _status
                       ? Icon(
                           AppIcons.success,
                           color: AppSemanticColors.of(context).actionText,
@@ -164,39 +191,6 @@ class _MinistryReportInsightsScreenState
                   onTap: () => Navigator.of(context).pop(option),
                 ),
             ],
-          ),
-        ),
-      ),
-    );
-    if (selected != null) setState(() => _category = selected);
-  }
-
-  Future<void> _pickStatus() async {
-    final selected = await showModalBottomSheet<InsightsStatusFilter>(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) => GlassDialogBackdrop(
-        child: SafeArea(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxHeight: MediaQuery.sizeOf(context).height * 0.7,
-            ),
-            child: ListView(
-              shrinkWrap: true,
-              children: [
-                for (final option in InsightsStatusFilter.values)
-                  ListTile(
-                    title: Text(option.label),
-                    trailing: option == _status
-                        ? Icon(
-                            AppIcons.success,
-                            color: AppSemanticColors.of(context).actionText,
-                          )
-                        : null,
-                    onTap: () => Navigator.of(context).pop(option),
-                  ),
-              ],
-            ),
           ),
         ),
       ),

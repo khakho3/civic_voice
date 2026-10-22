@@ -15,6 +15,7 @@ import '../services/location_service.dart';
 import '../services/nearby_reports_service.dart';
 import '../services/profile_crud_service.dart';
 import '../services/report_crud_service.dart';
+import '../../../widgets/civic_bottom_sheet.dart';
 import '../../../widgets/glass_dialog_backdrop.dart';
 import '../../../widgets/stat_tile.dart';
 import '../../../widgets/status_badge.dart';
@@ -809,7 +810,7 @@ class _QuickActionGrid extends StatelessWidget {
     final service = NearbyReportsService(
       locationService: dashboard?.locationService ?? const LocationService(),
     );
-    showModalBottomSheet<void>(
+    showCivicBottomSheet<void>(
       context: context,
       showDragHandle: true,
       isScrollControlled: true,

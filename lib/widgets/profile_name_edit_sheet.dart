@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../core/theme/app_theme.dart';
 import '../services/app_haptics.dart';
+import 'civic_bottom_sheet.dart';
 import 'busy_indicator.dart';
 import 'confirm_dialog.dart';
 import 'motion_feedback.dart';
@@ -26,9 +27,11 @@ Future<bool> showProfileNameEditSheet(
   bool confirmDiscard = false,
   bool showValidationOnOpen = false,
 }) async {
-  final saved = await showModalBottomSheet<bool>(
+  final saved = await showCivicBottomSheet<bool>(
     context: context,
     isScrollControlled: true,
+    form: true,
+    enableDrag: false,
     useSafeArea: true,
     builder: (_) => ProfileNameEditSheet(
       initialName: initialName,

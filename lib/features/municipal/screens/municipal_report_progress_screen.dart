@@ -1,6 +1,7 @@
 import '../../../core/widgets/ghana_refresh_indicator.dart';
 import 'package:flutter/material.dart';
 import '../../../services/public_case_share.dart';
+import '../../../widgets/civic_bottom_sheet.dart';
 import '../../../widgets/confirm_dialog.dart';
 import '../../../widgets/busy_indicator.dart';
 import '../../../widgets/evidence_image_viewer.dart';
@@ -115,9 +116,10 @@ class _MunicipalReportProgressScreenState
       return;
     }
     _decisionOpen = true;
-    final reason = await showModalBottomSheet<String>(
+    final reason = await showCivicBottomSheet<String>(
       context: context,
       isScrollControlled: true,
+      form: true,
       builder: (context) => const _SendBackForm(),
     );
     _decisionOpen = false;
