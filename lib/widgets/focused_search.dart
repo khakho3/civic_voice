@@ -35,8 +35,8 @@ List<FocusedSearchResult> emptySearchResults(String query) => const [];
 /// Opens the shared focused-search mode (F03) over the current screen and
 /// resolves to the query the person submitted, or null if they closed it.
 ///
-/// * Always shows a visible Close; Back and tapping the fog also close it,
-///   and the dimmed screen underneath cannot be interacted with.
+/// * A dedicated full-screen surface hides the underlying screen. Close,
+///   Back and Escape dismiss it without moving the list underneath.
 /// * With an empty query it lists this screen's recent searches
 ///   ([screenKey] scopes them) with per-entry removal and a Clear that
 ///   confirms first. History is recorded on submit and on result
@@ -56,7 +56,7 @@ Future<String?> showFocusedSearch(
 }) {
   return showGeneralDialog<String>(
     context: context,
-    barrierDismissible: true,
+    barrierDismissible: false,
     barrierLabel: 'Close search',
     barrierColor: AppColors.scrimStrong.withValues(alpha: 0.48),
     transitionDuration: AppMotion.duration(context, AppMotionDuration.standard),
@@ -151,87 +151,90 @@ class _FocusedSearchPanelState extends State<FocusedSearchPanel> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final colors = theme.colorScheme;
     final query = _query.text.trim();
-
+    OutlineInputBorder border(Color color, [double width = 1]) =>
+        OutlineInputBorder(
+          borderRadius: BorderRadius.circular(999),
+          borderSide: BorderSide(color: color, width: width),
+        );
     return CallbackShortcuts(
       bindings: {
         const SingleActivator(LogicalKeyboardKey.escape): () =>
             Navigator.of(context).pop(),
       },
-      child: SafeArea(
-        child: Align(
-          alignment: Alignment.topCenter,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(
-              maxWidth: AppDimensions.maxContentWidth,
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(AppSpacing.sm),
-              child: Material(
-                color: colorScheme.surface,
-                borderRadius: AppComponentRadius.card,
-                clipBehavior: Clip.antiAlias,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(
-                        AppSpacing.md,
-                        AppSpacing.sm,
-                        AppSpacing.xs,
-                        AppSpacing.sm,
-                      ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              controller: _query,
-                              autofocus: true,
-                              textInputAction: TextInputAction.search,
-                              decoration: InputDecoration(
-                                hintText: widget.hintText,
-                                prefixIcon: const Icon(
-                                  AppIcons.search,
-                                  size: AppIconSize.md,
-                                ),
-                              ),
-                              onChanged: (_) => setState(() {}),
-                              onSubmitted: _submit,
-                            ),
+      child: Scaffold(
+        backgroundColor: colors.surface,
+        body: SafeArea(
+          child: Align(
+            alignment: Alignment.topCenter,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                maxWidth: AppDimensions.maxContentWidth,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    child: TextField(
+                      controller: _query,
+                      autofocus: true,
+                      textInputAction: TextInputAction.search,
+                      style: theme.textTheme.bodyMedium,
+                      decoration: InputDecoration(
+                        hintText: widget.hintText,
+                        isDense: true,
+                        filled: true,
+                        fillColor: colors.surface,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.md,
+                          vertical: AppSpacing.sm,
+                        ),
+                        border: border(colors.outline),
+                        enabledBorder: border(colors.outline),
+                        focusedBorder: border(
+                          AppSemanticColors.of(context).actionText,
+                          2,
+                        ),
+                        prefixIcon: const Icon(
+                          AppIcons.search,
+                          size: AppIconSize.md,
+                        ),
+                        suffixIcon: IconButton(
+                          tooltip: 'Close search',
+                          icon: const Icon(
+                            AppIcons.close,
+                            size: AppIconSize.md,
                           ),
-                          IconButton(
-                            tooltip: 'Close search',
-                            icon: const Icon(AppIcons.close),
-                            onPressed: () => Navigator.of(context).pop(),
-                          ),
-                        ],
+                          onPressed: () => Navigator.of(context).pop(),
+                        ),
                       ),
+                      onChanged: (_) => setState(() {}),
+                      onSubmitted: _submit,
                     ),
-                    const Divider(height: 1),
-                    Flexible(
-                      child: query.isEmpty
-                          ? _HistoryList(
-                              history: _history,
-                              onPick: (entry) {
-                                _query.text = entry;
-                                _query.selection = TextSelection.collapsed(
-                                  offset: entry.length,
-                                );
-                                setState(() {});
-                              },
-                              onRemove: _remove,
-                              onClear: _clearAll,
-                            )
-                          : _ResultList(
-                              query: query,
-                              results: widget.results(query),
-                              onActivate: _activate,
-                            ),
-                    ),
-                  ],
-                ),
+                  ),
+                  Expanded(
+                    child: query.isEmpty
+                        ? _HistoryList(
+                            history: _history,
+                            onPick: (entry) {
+                              _query.text = entry;
+                              _query.selection = TextSelection.collapsed(
+                                offset: entry.length,
+                              );
+                              setState(() {});
+                            },
+                            onRemove: _remove,
+                            onClear: _clearAll,
+                          )
+                        : _ResultList(
+                            query: query,
+                            results: widget.results(query),
+                            onActivate: _activate,
+                          ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -431,15 +434,13 @@ class SearchTriggerField extends StatelessWidget {
       button: true,
       enabled: enabled,
       child: Material(
-        color: colorScheme.surfaceContainerLow,
-        borderRadius: AppComponentRadius.inputField,
+        color: colorScheme.surface,
+        shape: StadiumBorder(side: BorderSide(color: colorScheme.outline)),
         child: InkWell(
-          borderRadius: AppComponentRadius.inputField,
+          borderRadius: BorderRadius.circular(999),
           onTap: enabled ? onOpen : null,
           child: ConstrainedBox(
-            constraints: const BoxConstraints(
-              minHeight: AppDimensions.controlHeightStandard,
-            ),
+            constraints: const BoxConstraints(minHeight: 48),
             child: Padding(
               padding: const EdgeInsets.only(left: AppSpacing.md),
               child: Row(
@@ -455,7 +456,7 @@ class SearchTriggerField extends StatelessWidget {
                       hasQuery ? query : hintText,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodyLarge?.copyWith(
+                      style: theme.textTheme.bodyMedium?.copyWith(
                         color: hasQuery
                             ? colorScheme.onSurface
                             : colorScheme.onSurfaceVariant,

@@ -60,6 +60,47 @@ void main() {
     await AppCacheService.instance.initialize(accountId: 'officer-a');
   });
 
+  for (final width in [320.0, 390.0, 412.0, 1440.0]) {
+    testWidgets(
+      'focused search owns the full screen and a pill field at $width',
+      (tester) async {
+        tester.view.physicalSize = Size(width, 900);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        await tester.pumpWidget(_host(onOpen: (_) {}));
+        final trigger = tester.widget<Material>(
+          find
+              .descendant(
+                of: find.byType(SearchTriggerField),
+                matching: find.byType(Material),
+              )
+              .first,
+        );
+        expect(trigger.shape, isA<StadiumBorder>());
+        expect(tester.getSize(find.byType(SearchTriggerField)).height, 48);
+        await tester.tap(find.text('Search reports'));
+        await tester.pumpAndSettle();
+        final panel = find.byType(FocusedSearchPanel);
+        final scaffold = find.descendant(
+          of: panel,
+          matching: find.byType(Scaffold),
+        );
+        expect(tester.getRect(scaffold), Rect.fromLTWH(0, 0, width, 900));
+        final field = tester.widget<TextField>(find.byType(TextField));
+        expect(
+          (field.decoration!.focusedBorder as OutlineInputBorder).borderRadius,
+          BorderRadius.circular(999),
+        );
+        expect(
+          tester.getSize(find.byType(TextField)).height,
+          lessThanOrEqualTo(52),
+        );
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
   test(
     'history records trimmed, case-insensitive, newest-first entries',
     () async {
