@@ -1,4 +1,3 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
@@ -13,6 +12,7 @@ import '../models/civic_report.dart';
 import '../models/dashboard_view_state.dart';
 import '../services/dashboard_state_service.dart';
 import '../services/location_service.dart';
+import '../services/nearby_reports_service.dart';
 import '../services/profile_crud_service.dart';
 import '../services/report_crud_service.dart';
 import '../../../widgets/glass_dialog_backdrop.dart';
@@ -20,6 +20,7 @@ import '../../../widgets/stat_tile.dart';
 import '../../../widgets/status_badge.dart';
 import '../widgets/civic_app_chrome.dart';
 import '../widgets/nearby_seconding_card.dart';
+import '../widgets/nearby_reports_sheet.dart';
 import 'citizen_tab_routes.dart';
 import 'report_tracking_screen.dart';
 
@@ -143,38 +144,36 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen>
     }
   }
 
-  Future<List<NearbySecondingReport>> _fetchNearbySeconding(
-    double latitude,
-    double longitude,
-  ) async {
-    final override = widget.nearbySecondingLoader;
-    if (override != null) return override(latitude, longitude);
-    final token = await FirebaseAuth.instance.currentUser?.getIdToken();
-    if (token == null) return const <NearbySecondingReport>[];
-    final raw = await ApiClient.instance.fetchNearbySeconding(
-      idToken: token,
-      latitude: latitude,
-      longitude: longitude,
-    );
-    return raw.map(NearbySecondingReport.fromApi).toList();
-  }
-
   Future<void> _loadNearbySeconding() async {
     if (_loadingNearbySeconding ||
         !AppCacheService.instance.nearbySecondingEnabled) {
       return;
     }
     _loadingNearbySeconding = true;
+    final account = AppCacheService.instance.activeAccountId;
     try {
-      final location = await widget.locationService.requestCurrentPosition();
-      final position = location.position;
-      if (location.status != LocationAccessStatus.ready || position == null) {
+      final override = widget.nearbySecondingLoader;
+      List<NearbySecondingReport> reports;
+      if (override != null) {
+        final location = await widget.locationService.requestCurrentPosition();
+        final position = location.position;
+        if (location.status != LocationAccessStatus.ready || position == null) {
+          return;
+        }
+        if (!mounted || account != AppCacheService.instance.activeAccountId) {
+          return;
+        }
+        reports = await override(position.latitude, position.longitude);
+      } else {
+        reports = await NearbyReportsService(
+          locationService: widget.locationService,
+        ).discover();
+      }
+      if (!mounted ||
+          account != AppCacheService.instance.activeAccountId ||
+          !AppCacheService.instance.nearbySecondingEnabled) {
         return;
       }
-      final reports = await _fetchNearbySeconding(
-        position.latitude,
-        position.longitude,
-      );
       final seen = AppCacheService.instance.secondingSeenIds;
       NearbySecondingReport? next;
       for (final report in reports) {
@@ -204,19 +203,17 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen>
     if (report == null || _secondingBusy) return;
     setState(() => _secondingBusy = true);
     var removeCard = false;
+    final account = AppCacheService.instance.activeAccountId;
     try {
       final override = widget.nearbySecondingConfirmer;
       if (override != null) {
         await override(report.id);
       } else {
-        final token = await FirebaseAuth.instance.currentUser?.getIdToken();
-        if (token == null) {
-          throw const ApiException(
-            statusCode: 401,
-            message: 'Sign in required',
-          );
-        }
-        await ApiClient.instance.secondReport(report.id, idToken: token);
+        await NearbyReportsService(locationService: widget.locationService)
+            .confirm(report);
+      }
+      if (!mounted || account != AppCacheService.instance.activeAccountId) {
+        return;
       }
       await AppCacheService.instance.markSecondingSeen(report.id);
       removeCard = true;
@@ -225,16 +222,32 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen>
         const SnackBar(content: Text('Thanks for confirming this report.')),
       );
     } on ApiException catch (error) {
+      if (!mounted || account != AppCacheService.instance.activeAccountId) {
+        return;
+      }
+      final uncertain =
+          error.statusCode == 0 ||
+          error.statusCode == 408 ||
+          error.statusCode >= 500;
+      if (uncertain) removeCard = true;
       if (error.statusCode == 409) {
         await AppCacheService.instance.markSecondingSeen(report.id);
         removeCard = true;
       }
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error.message)));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            uncertain
+                ? 'We could not verify this confirmation. Refresh Nearby Issues before trying again.'
+                : error.message,
+          ),
+        ),
+      );
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted || account != AppCacheService.instance.activeAccountId) {
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Could not confirm this report.')),
       );
@@ -791,109 +804,17 @@ class _QuickActionGrid extends StatelessWidget {
   }
 
   void _showNearbyIssues(BuildContext context) {
+    final dashboard = context
+        .findAncestorWidgetOfExactType<CitizenDashboardScreen>();
+    final service = NearbyReportsService(
+      locationService: dashboard?.locationService ?? const LocationService(),
+    );
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
-      builder: (context) {
-        return Semantics(
-          namesRoute: true,
-          label: 'Nearby Issues',
-          child: GlassDialogBackdrop(
-            child: SafeArea(
-              child: ValueListenableBuilder<List<CivicReport>>(
-                valueListenable: ReportCrudService.instance.reports,
-                builder: (context, reports, _) {
-                  return Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.md,
-                    AppSpacing.sm,
-                    AppSpacing.md,
-                    AppSpacing.lg,
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Semantics(
-                        header: true,
-                        child: Text(
-                          'Nearby Issues',
-                          style: Theme.of(context).textTheme.titleLarge
-                              ?.copyWith(fontWeight: AppFontWeight.bold),
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.xs),
-                      Text(
-                        'Recent report activity around your community.',
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-                      if (reports.isEmpty)
-                        CivicGlassCard(
-                          child: Row(
-                            children: [
-                              Icon(
-                                AppIcons.empty,
-                                color: AppSemanticColors.of(context).actionText,
-                              ),
-                              const SizedBox(width: AppSpacing.md),
-                              Expanded(
-                                child: Text(
-                                  'No nearby issues yet. Create the first report for your community.',
-                                  style: Theme.of(context).textTheme.bodyMedium,
-                                ),
-                              ),
-                            ],
-                          ),
-                        )
-                      else
-                        Flexible(
-                          child: ListView.separated(
-                            shrinkWrap: true,
-                            itemCount: reports.take(5).length,
-                            separatorBuilder: (_, _) =>
-                                const SizedBox(height: AppSpacing.sm),
-                            itemBuilder: (context, index) {
-                              final report = reports[index];
-                              return _ReportListTile(
-                                report: report,
-                                onTap: () {
-                                  Navigator.of(context).pop();
-                                  Navigator.of(context).push(
-                                    MaterialPageRoute<void>(
-                                      builder: (_) => ReportTrackingScreen(
-                                        reportId: report.id,
-                                      ),
-                                    ),
-                                  );
-                                },
-                              );
-                            },
-                          ),
-                        ),
-                      const SizedBox(height: AppSpacing.md),
-                      SizedBox(
-                        width: double.infinity,
-                        child: FilledButton.icon(
-                          onPressed: () {
-                            Navigator.of(context).pop();
-                            Navigator.of(
-                              context,
-                            ).push(citizenReportsTabRoute(context));
-                          },
-                          icon: const Icon(AppIcons.report),
-                          label: const Text('View All Reports'),
-                        ),
-                      ),
-                    ],
-                  ),
-                  );
-                },
-              ),
-            ),
-          ),
-        );
-      },
+      isScrollControlled: true,
+      builder: (_) =>
+          NearbyReportsSheet(load: service.discover, confirm: service.confirm),
     );
   }
 

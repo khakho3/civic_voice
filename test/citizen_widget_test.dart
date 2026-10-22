@@ -581,7 +581,7 @@ void main() {
     );
     expect(
       find.descendant(of: sheet, matching: find.text('Damaged pavement')),
-      findsOneWidget,
+      findsNothing,
     );
 
     final semantics = tester.ensureSemantics();

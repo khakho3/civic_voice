@@ -27,6 +27,7 @@ class AppCacheService {
 
   SharedPreferences? _preferences;
   String? _accountId;
+  String? get activeAccountId => _accountId;
   ReportDraft? _reportDraft;
   int _reportDraftClearGeneration = 0;
 
