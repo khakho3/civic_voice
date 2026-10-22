@@ -103,6 +103,7 @@ import 'models/assembly.dart';
 import 'models/ghana_assemblies_data.dart';
 import 'models/region.dart';
 import 'services/api_client.dart';
+import 'services/password_session_service.dart';
 import 'services/app_cache_service.dart';
 import 'services/idle_session_timer.dart';
 import 'services/mock_auth_service.dart';
@@ -445,6 +446,7 @@ Future<void> _refreshRoleData(AppRole role) async {
 }
 
 Future<void> _finishPostLoginNotifications() async {
+  if (Firebase.apps.isEmpty) return;
   await Future<void>.delayed(Duration.zero);
   await _configurePushNotifications();
   final context = _navigatorKey.currentContext;
@@ -535,9 +537,10 @@ abstract final class AppRoutes {
 }
 
 class CivicVoiceApp extends StatefulWidget {
-  const CivicVoiceApp({super.key, this.initialRoute});
+  const CivicVoiceApp({super.key, this.initialRoute, this.passwordSessions});
 
   final String? initialRoute;
+  final PasswordSessionService? passwordSessions;
 
   @override
   State<CivicVoiceApp> createState() => _CivicVoiceAppState();
@@ -783,8 +786,14 @@ class _CivicVoiceAppState extends State<CivicVoiceApp>
                     context,
                   ).pushNamedAndRemoveUntil(AppRoutes.welcome, (_) => false),
                 ),
-              AppRoutes.login: (context) => const _LoginRoute(),
-              AppRoutes.registration: (context) => const _RegistrationRoute(),
+              AppRoutes.login: (context) => _LoginRoute(
+                sessions:
+                    widget.passwordSessions ?? PasswordSessionService.instance,
+              ),
+              AppRoutes.registration: (context) => _RegistrationRoute(
+                sessions:
+                    widget.passwordSessions ?? PasswordSessionService.instance,
+              ),
               AppRoutes.forgotPassword: (context) =>
                   const _ForgotPasswordRoute(),
               AppRoutes.biometricLock: _biometricLock,
@@ -799,7 +808,10 @@ class _CivicVoiceAppState extends State<CivicVoiceApp>
                     ? () => Navigator.of(context).maybePop()
                     : null,
               ),
-              AppRoutes.forcePasswordReset: _forcedPasswordReset,
+              AppRoutes.forcePasswordReset: (context) => _forcedPasswordReset(
+                context,
+                widget.passwordSessions ?? PasswordSessionService.instance,
+              ),
               AppRoutes.citizenDashboard: (context) =>
                   const CitizenDashboardScreen(),
               AppRoutes.citizenAlerts: (_) => const CitizenAlertsScreen(),
@@ -1184,8 +1196,30 @@ Future<void> _selectSyncedRole(
 /// see the NOTE above the `routes` map. Kept as a private route widget
 /// (not inline in the route table) because it needs to hold its own
 /// [LoginViewState] across the async round trip.
+Future<AppRole> _activatePasswordSession(PasswordSession session) async {
+  final role = _appRoleForBackendRole(session.user.role);
+  if (role == null) {
+    throw const ApiException(statusCode: 403, message: 'Account unavailable.');
+  }
+  await AppCacheService.instance.activateAccount(session.uid);
+  await NotificationDirectory.instance.activateAccount(session.uid);
+  await _selectSyncedRole(MockAuthService(), role, session.user);
+  _primeRoleIdentity(role, session.user);
+  return role;
+}
+
+LoginViewState _passwordLoginState(Object error) =>
+    switch (passwordLoginFailure(error)) {
+      PasswordLoginFailure.credentials => LoginViewState.invalidCredentials,
+      PasswordLoginFailure.throttled => LoginViewState.rateLimited,
+      PasswordLoginFailure.offline => LoginViewState.offline,
+      PasswordLoginFailure.unavailable => LoginViewState.serviceUnavailable,
+      PasswordLoginFailure.account => LoginViewState.accountUnavailable,
+    };
+
 class _LoginRoute extends StatefulWidget {
-  const _LoginRoute();
+  const _LoginRoute({required this.sessions});
+  final PasswordSessionService sessions;
 
   @override
   State<_LoginRoute> createState() => _LoginRouteState();
@@ -1200,48 +1234,34 @@ class _LoginRouteState extends State<_LoginRoute> {
     String password,
     bool keepSignedIn,
   ) async {
+    if (_state == LoginViewState.loading) return;
     setState(() => _state = LoginViewState.loading);
     try {
-      final email = await ApiClient.instance.resolveLoginEmail(phone);
-      final credential = await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: email,
+      final session = await widget.sessions.signIn(
+        phone: phone,
         password: password,
       );
-      await AppCacheService.instance.activateAccount(credential.user?.uid);
-      await NotificationDirectory.instance.activateAccount(
-        credential.user?.uid,
-      );
-      final idToken = await credential.user?.getIdToken();
-      if (idToken == null) throw Exception('No ID token after sign-in');
-      final syncedUser = await ApiClient.instance.syncUser(idToken: idToken);
-      final appRole = _appRoleForBackendRole(syncedUser.role);
-      if (appRole == null) throw Exception('Unknown role: ${syncedUser.role}');
-      await _selectSyncedRole(MockAuthService(), appRole, syncedUser);
-      _primeRoleIdentity(appRole, syncedUser);
-      if (!context.mounted) return;
+      if (!mounted) {
+        await endSession();
+        return;
+      }
+      final appRole = await _activatePasswordSession(session);
+      if (!context.mounted) {
+        await endSession();
+        return;
+      }
       await AppCacheService.instance.setKeepSignedIn(keepSignedIn);
-      if (!context.mounted) return;
+      if (!context.mounted) {
+        await endSession();
+        return;
+      }
       _completeSignIn(context);
       unawaited(_refreshRoleData(appRole));
       unawaited(_finishPostLoginNotifications());
-    } on FirebaseAuthException {
+    } catch (error) {
       await endSession();
       if (!mounted) return;
-      setState(() => _state = LoginViewState.invalidCredentials);
-    } on ApiException catch (error) {
-      await endSession();
-      if (!mounted) return;
-      setState(() {
-        _state = switch (error.statusCode) {
-          0 || 408 => LoginViewState.offline,
-          401 || 404 => LoginViewState.invalidCredentials,
-          _ => LoginViewState.error,
-        };
-      });
-    } catch (_) {
-      await endSession();
-      if (!mounted) return;
-      setState(() => _state = LoginViewState.error);
+      setState(() => _state = _passwordLoginState(error));
     }
   }
 
@@ -1268,7 +1288,8 @@ class _LoginRouteState extends State<_LoginRoute> {
 /// phone number never gets an account made against it without proving
 /// ownership first.
 class _RegistrationRoute extends StatefulWidget {
-  const _RegistrationRoute();
+  const _RegistrationRoute({required this.sessions});
+  final PasswordSessionService sessions;
 
   @override
   State<_RegistrationRoute> createState() => _RegistrationRouteState();
@@ -1295,6 +1316,7 @@ class _RegistrationRouteState extends State<_RegistrationRoute> {
       Navigator.of(context).push(
         MaterialPageRoute<void>(
           builder: (_) => _RegistrationOtpRoute(
+            sessions: widget.sessions,
             fullName: fullName,
             phone: phone,
             password: password,
@@ -1337,12 +1359,14 @@ class _RegistrationRouteState extends State<_RegistrationRoute> {
 /// collected on the previous screen.
 class _RegistrationOtpRoute extends StatefulWidget {
   const _RegistrationOtpRoute({
+    required this.sessions,
     required this.fullName,
     required this.phone,
     required this.password,
     required this.expiresAt,
   });
 
+  final PasswordSessionService sessions;
   final String fullName;
   final String phone;
   final String password;
@@ -1353,6 +1377,7 @@ class _RegistrationOtpRoute extends StatefulWidget {
 }
 
 class _RegistrationOtpRouteState extends State<_RegistrationOtpRoute> {
+  bool _accountCreated = false;
   Future<bool> _handleVerify(BuildContext context, String code) async {
     try {
       // If they got here via "Continue as Guest" and are still on that
@@ -1364,30 +1389,48 @@ class _RegistrationOtpRouteState extends State<_RegistrationOtpRoute> {
       final guestIdToken = (currentUser != null && currentUser.isAnonymous)
           ? await currentUser.getIdToken()
           : null;
-      final email = await ApiClient.instance.registerCitizen(
+      await ApiClient.instance.registerCitizen(
         fullName: widget.fullName,
         phone: widget.phone,
         password: widget.password,
         otp: code,
         guestIdToken: guestIdToken,
       );
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: email,
+      _accountCreated = true;
+      final session = await widget.sessions.signIn(
+        phone: widget.phone,
         password: widget.password,
       );
-      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
-      if (idToken == null) throw Exception('No ID token after registration');
-      final syncedUser = await ApiClient.instance.syncUser(idToken: idToken);
-      ProfileCrudService.instance.loadSignedInUser(syncedUser);
-      await MockAuthService().selectRole(AppRole.citizen);
-      await _configurePushNotifications();
-      await ReportCrudService.instance.refresh();
-      if (!context.mounted) return true;
-      Navigator.of(
-        context,
-      ).pushNamedAndRemoveUntil(AppRoutes.citizenDashboard, (_) => false);
+      if (!mounted) {
+        await endSession();
+        return true;
+      }
+      final appRole = await _activatePasswordSession(session);
+      await AppCacheService.instance.setKeepSignedIn(false);
+      if (!context.mounted) {
+        await endSession();
+        return true;
+      }
+      _completeSignIn(context);
+      unawaited(_refreshRoleData(appRole));
+      unawaited(_finishPostLoginNotifications());
       return true;
-    } on ApiException catch (error) {
+    } catch (error) {
+      if (_accountCreated) {
+        await endSession();
+        if (context.mounted) {
+          Navigator.of(
+            context,
+          ).pushNamedAndRemoveUntil(AppRoutes.login, (_) => false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Your account was created. Sign in to continue.'),
+            ),
+          );
+        }
+        return true;
+      }
+      if (error is! ApiException) rethrow;
       if (error.statusCode == 409) {
         // The OTP itself was correct — this phone number already has an
         // account (e.g. it was provisioned as staff, or registered
@@ -1402,7 +1445,8 @@ class _RegistrationOtpRouteState extends State<_RegistrationOtpRoute> {
         }
         return true;
       }
-      // A real wrong/expired code — the screen's own inline error covers it.
+      // Only an actual rejected/expired OTP is an Incorrect Code result.
+      if (error.statusCode != 400 && error.statusCode != 401) rethrow;
       return false;
     }
   }
@@ -1541,28 +1585,68 @@ class _ForgotPasswordRouteState extends State<_ForgotPasswordRoute> {
   );
 }
 
-Widget _forcedPasswordReset(BuildContext context) {
+Widget _forcedPasswordReset(
+  BuildContext context,
+  PasswordSessionService sessions,
+) {
   return SetNewPasswordScreen(
     purpose: SetNewPasswordPurpose.firstLogin,
     onSaved: (newPassword) async {
-      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
-      if (idToken == null) return false;
+      final firebaseUser = FirebaseAuth.instance.currentUser;
+      final idToken = await firebaseUser?.getIdToken();
+      if (firebaseUser == null || idToken == null) return false;
+      bool passwordSaved = false;
       try {
-        await ApiClient.instance.changePassword(
+        final current = await ApiClient.instance.syncUser(idToken: idToken);
+        final phone = current.phone;
+        if (phone == null || phone.isEmpty) return false;
+        final renewed = await sessions.completeFirstLogin(
+          uid: firebaseUser.uid,
+          phone: phone,
           idToken: idToken,
           newPassword: newPassword,
         );
-      } on ApiException {
-        return false;
+        passwordSaved = true;
+        if (!context.mounted) {
+          await endSession();
+          return true;
+        }
+        // The same account and persistence preference are retained.
+        await _activatePasswordSession(renewed);
+      } on PasswordChangedSignInRequired {
+        await endSession();
+        if (context.mounted) {
+          Navigator.of(
+            context,
+          ).pushNamedAndRemoveUntil(AppRoutes.login, (_) => false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Your password was changed. Sign in with the new password.',
+              ),
+            ),
+          );
+        }
+        return true;
+      } catch (_) {
+        if (!passwordSaved) return false;
+        await endSession();
+        if (context.mounted) {
+          Navigator.of(
+            context,
+          ).pushNamedAndRemoveUntil(AppRoutes.login, (_) => false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Your password was changed. Sign in with the new password.',
+              ),
+            ),
+          );
+        }
+        return true;
       }
-      final auth = MockAuthService();
-      await auth.clearMustChangePasswordOnFirstLogin();
       if (!context.mounted) return true;
-      Navigator.of(context).pushNamedAndRemoveUntil(
-        _routeForRole(auth.getCurrentRole()) ??
-            (kDebugMode ? AppRoutes.testRoleSelector : AppRoutes.login),
-        (_) => false,
-      );
+      _completeSignIn(context);
       return true;
     },
   );
@@ -2100,8 +2184,10 @@ Widget _ministryDashboard(BuildContext context) {
       context,
       MinistryDashboardScreen(
         initialState: switch (directory.state.value) {
-          MinistryDataDirectoryState.loading => MinistryDashboardViewState.loading,
-          MinistryDataDirectoryState.loaded when directory.hasLiveSnapshot => MinistryDashboardViewState.loaded,
+          MinistryDataDirectoryState.loading =>
+            MinistryDashboardViewState.loading,
+          MinistryDataDirectoryState.loaded when directory.hasLiveSnapshot =>
+            MinistryDashboardViewState.loaded,
           _ => MinistryDashboardViewState.error,
         },
         data: directory.hasLiveSnapshot ? directory.dashboard : null,

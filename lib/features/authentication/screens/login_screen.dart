@@ -12,6 +12,9 @@ enum LoginViewState {
   error,
   loading,
   invalidCredentials,
+  rateLimited,
+  serviceUnavailable,
+  accountUnavailable,
   offline,
 }
 
@@ -49,10 +52,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   bool get _isLoading => widget.state == LoginViewState.loading;
 
-  bool get _isDisabled =>
-      widget.state == LoginViewState.disabled ||
-      widget.state == LoginViewState.offline ||
-      _isLoading;
+  bool get _isDisabled => widget.state == LoginViewState.disabled || _isLoading;
 
   @override
   void didUpdateWidget(LoginScreen oldWidget) {
@@ -229,6 +229,9 @@ class _LoginScreenState extends State<LoginScreen> {
         (widget.state == LoginViewState.sessionExpired ||
             widget.state == LoginViewState.error ||
             widget.state == LoginViewState.invalidCredentials ||
+            widget.state == LoginViewState.rateLimited ||
+            widget.state == LoginViewState.serviceUnavailable ||
+            widget.state == LoginViewState.accountUnavailable ||
             widget.state == LoginViewState.offline);
   }
 }
@@ -269,6 +272,27 @@ class _LoginStatusPanel extends StatelessWidget {
       case LoginViewState.invalidCredentials:
         title = 'Authentication Error';
         message = 'Invalid phone number or password.';
+        icon = AppIcons.error;
+        statusColor = semanticColors.error;
+
+      case LoginViewState.rateLimited:
+        title = 'Please Wait';
+        message =
+            'Too many sign-in attempts. Wait a few minutes and try again.';
+        icon = AppIcons.warning;
+        statusColor = semanticColors.warning;
+
+      case LoginViewState.serviceUnavailable:
+        title = 'Sign-in Unavailable';
+        message =
+            'We could not reach the sign-in service. Please try again shortly.';
+        icon = AppIcons.warning;
+        statusColor = semanticColors.warning;
+
+      case LoginViewState.accountUnavailable:
+        title = 'Account Unavailable';
+        message =
+            'This account could not be verified. Contact your administrator.';
         icon = AppIcons.error;
         statusColor = semanticColors.error;
 

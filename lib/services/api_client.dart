@@ -6,11 +6,8 @@ import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 
 /// Thin wrapper around civic_voice_api (c:\Projects\mobile\servers\civic_voice_api).
-/// Only covers the calls the real auth flow needs right now — registration,
-/// resolving a phone number to its synthetic login email (see the backend's
-/// src/utils/staffAuth.js), and syncing the signed-in Firebase user into
-/// Postgres. Every other module still reads local/mock data; widening this
-/// client is future work, not something to speculatively build out now.
+/// Auth uses server-verified password handoffs and signed session sync;
+/// module requests share this client's base URL and request boundaries.
 class ApiClient {
   ApiClient._();
 
@@ -232,12 +229,38 @@ class ApiClient {
     return result['email'] as String;
   }
 
-  /// Resolves a phone number (staff or citizen) to the synthetic email its
-  /// Firebase account was created with — the piece every real sign-in
-  /// needs before it can call signInWithEmailAndPassword.
-  Future<String> resolveLoginEmail(String phone) async {
-    final result = await _post('/api/auth/login-email', {'phone': phone});
-    return result['email'] as String;
+  /// The API verifies the password and returns a short-lived Firebase custom
+  /// handoff. Never fall back to direct Firebase password authentication.
+  Future<String> passwordLogin({
+    required String phone,
+    required String password,
+  }) async {
+    final response = await _bounded(
+      http.post(
+        Uri.parse('$baseUrl/api/auth/password-login'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'phone': phone, 'password': password}),
+      ),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      // Do not mistake an HTML proxy error or a missing endpoint for a bad
+      // password, and do not render arbitrary upstream error bodies.
+      throw ApiException(
+        statusCode: response.statusCode,
+        message: 'Could not complete sign-in.',
+      );
+    }
+    try {
+      final result = jsonDecode(response.body);
+      final token = result is Map ? result['customToken'] : null;
+      if (token is String && token.trim().isNotEmpty) return token;
+    } on FormatException {
+      /* Handled as an invalid service response below. */
+    }
+    throw const ApiException(
+      statusCode: 502,
+      message: 'Could not verify the sign-in response.',
+    );
   }
 
   /// Upserts the signed-in Firebase user into Postgres and returns that
@@ -250,6 +273,23 @@ class ApiClient {
       ...fullName == null ? const {} : {'fullName': fullName},
     }, idToken: idToken);
     return SyncedUser.fromJson(result['user'] as Map<String, dynamic>);
+  }
+
+  /// Best-effort evidence of a logout request, not proof of token revocation.
+  Future<void> reportSignOut({required String idToken}) async {
+    _decode(
+      await _bounded(
+        http.post(
+          Uri.parse('$baseUrl/api/auth/session-events'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $idToken',
+          },
+          body: jsonEncode({'type': 'SIGN_OUT'}),
+        ),
+        timeout: const Duration(milliseconds: 1500),
+      ),
+    );
   }
 
   /// Admin provisions a Municipal/Maintenance/Ministry/Admin account —
@@ -611,6 +651,8 @@ class SyncedUser {
     required this.maintenanceTeamName,
     required this.maintenanceTeamLeadUserId,
     required this.isGuest,
+    this.firebaseUid,
+    this.active = false,
   });
 
   final String id;
@@ -626,6 +668,8 @@ class SyncedUser {
   final String? maintenanceTeamName;
   final String? maintenanceTeamLeadUserId;
   final bool isGuest;
+  final String? firebaseUid;
+  final bool active;
 
   factory SyncedUser.fromJson(Map<String, dynamic> json) {
     return SyncedUser(
@@ -642,6 +686,8 @@ class SyncedUser {
       maintenanceTeamName: json['maintenanceTeamName'] as String?,
       maintenanceTeamLeadUserId: json['maintenanceTeamLeadUserId'] as String?,
       isGuest: json['isGuest'] as bool? ?? false,
+      firebaseUid: json['firebaseUid'] as String?,
+      active: json['active'] == true,
     );
   }
 }

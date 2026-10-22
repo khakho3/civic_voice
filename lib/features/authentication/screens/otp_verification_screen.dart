@@ -49,6 +49,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
   bool _resending = false;
   bool _resent = false;
   bool _invalidCode = false;
+  bool _verificationUnavailable = false;
   String? _resendError;
 
   bool get _expired => _timeToExpiry != null && _timeToExpiry!.inSeconds <= 0;
@@ -113,8 +114,19 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
     setState(() {
       _verifying = true;
       _invalidCode = false;
+      _verificationUnavailable = false;
     });
-    final verified = await widget.onVerify(_codeController.text.trim());
+    bool verified;
+    try {
+      verified = await widget.onVerify(_codeController.text.trim());
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _verifying = false;
+        _verificationUnavailable = true;
+      });
+      return;
+    }
     if (!mounted) return;
     setState(() {
       _verifying = false;
@@ -188,6 +200,13 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
               icon: AppIcons.warning,
               statusColor: semantic.warning,
             )
+          else if (_verificationUnavailable)
+            AuthStatusAlert(
+              title: 'Unable to Verify',
+              message: 'Verification is unavailable. Please try again shortly.',
+              icon: AppIcons.warning,
+              statusColor: semantic.warning,
+            )
           else if (_invalidCode)
             AuthStatusAlert(
               title: 'Incorrect Code',
@@ -209,7 +228,11 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
               icon: AppIcons.success,
               statusColor: semantic.success,
             ),
-          if (_expired || _invalidCode || _resendError != null || _resent)
+          if (_expired ||
+              _invalidCode ||
+              _verificationUnavailable ||
+              _resendError != null ||
+              _resent)
             const SizedBox(height: AppSpacing.md),
           SizedBox(
             width: double.infinity,
