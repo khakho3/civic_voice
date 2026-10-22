@@ -1,5 +1,9 @@
 # Latif PR integration review and repairs
 
+## Native maps and automatic routing reconciliation - 22 October 2026
+
+4356c99 adopts Places API (New) with restricted mobile request identity and search sessions; e36e9be protects the latest issue pin from stale GPS/search/geocoder/camera results; e954812 omits client locality hints so existing server polygons own routing. Native 1,138 tests and analyzer/whitespace pass; 18 existing API routing/geography tests pass. See [NATIVE_MAPS_AND_ROUTING.md](NATIVE_MAPS_AND_ROUTING.md). The Android key still blocks Places New: its two-API selection is prepared but unsaved, pending action-time approval. Phone and iOS acceptance remain pending; no install/deployment/promotion. Next is finishing that configuration/provider gate, then recorded evidence/proximity/completion reconciliation. Later native Super Admin routing UI/Admin dashboard work and password masking/padlock remain queued; owner success/checkmark and Activity Detail stay separate.
+
 ## Native submission and duplicate safeguards - 22 October 2026
 
 Implemented in 074f27e, 826f1fd and 4a7f4e6: account-scoped frozen report/evidence keys and validated receipts, safe uncertain-save retries/reopening, session fences, and selected-pin advisory suggestions before Photos with explicit fresh-GPS seconding or distinct-report continuation. Complete suite: 1,114 pass; analyzer/whitespace clean. See [NATIVE_REPORT_SUBMISSION_SAFEGUARDS.md](NATIVE_REPORT_SUBMISSION_SAFEGUARDS.md) for scope, limits, release prerequisite and remaining acceptance. No phone install, API/config change or promotion. Next implementation is Places New/automatic routing reconciliation, then the remaining recorded native backlog. Admin/dashboard and password masking/padlock findings remain queued; owner success/checkmark and Activity Detail remain separate.
