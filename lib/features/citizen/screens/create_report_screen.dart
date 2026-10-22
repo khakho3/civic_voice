@@ -22,12 +22,21 @@ import 'photo_upload_screen.dart';
 import 'review_report_screen.dart';
 import 'citizen_tab_routes.dart';
 import '../services/report_submission_store.dart';
+import '../services/report_duplicates_service.dart';
+import '../services/nearby_reports_service.dart';
+import '../widgets/report_duplicates_sheet.dart';
+import '../widgets/nearby_seconding_card.dart';
+import '../../../widgets/civic_bottom_sheet.dart';
+import '../../../widgets/busy_indicator.dart';
+import 'report_tracking_screen.dart';
 
 class CreateReportScreen extends StatefulWidget {
   const CreateReportScreen({
     super.key,
     this.initialState = CreateReportViewState.ready,
     this.returnToReports = false,
+    this.duplicates,
+    this.confirmDuplicate,
   });
 
   static const String routeName = '/citizen/create-report';
@@ -38,6 +47,8 @@ class CreateReportScreen extends StatefulWidget {
   /// It lets Submitted return to that existing stateful route instead of
   /// recreating it after a completed report.
   final bool returnToReports;
+  final ReportDuplicatesService? duplicates;
+  final Future<void> Function(NearbySecondingReport)? confirmDuplicate;
 
   @override
   State<CreateReportScreen> createState() => _CreateReportScreenState();
@@ -70,6 +81,8 @@ class _CreateReportScreenState extends State<CreateReportScreen>
   bool _checkingSubmission = true;
   String? _recoveryError;
   bool _continuing = false;
+  bool _checkingDuplicates = false;
+  int _draftRevision = 0;
 
   ReportCategory get _classifiedCategory => ReportCategoryClassifier.classify(
     title: _titleController.text,
@@ -378,37 +391,123 @@ class _CreateReportScreenState extends State<CreateReportScreen>
       return;
     }
 
-    _continuing = true;
+    setState(() {
+      _continuing = true;
+      _checkingDuplicates = true;
+    });
     try {
       final selected = _selectedLocation;
-      await _saveDraft();
+      final revision = _draftRevision;
+      final draft = ReportDraft(
+        title: _titleController.text.trim(),
+        description: _descriptionController.text.trim(),
+        category: _classifiedCategory.label,
+        location:
+            selected?.formattedAddress ?? _locationAddress ?? _locationLabel,
+        community:
+            selected?.locality ??
+            selected?.administrativeArea ??
+            _locationCommunity ??
+            '',
+        latitude: selected?.latitude ?? _capturedPosition!.latitude,
+        longitude: selected?.longitude ?? _capturedPosition!.longitude,
+        region: _locationRegion,
+        assembly: _locationAssembly,
+        photoPaths:
+            AppCacheService.instance.reportDraft?.photoPaths ?? const [],
+        photoIsFromCamera:
+            AppCacheService.instance.reportDraft?.photoIsFromCamera ?? const [],
+      );
+      await AppCacheService.instance.saveReportDraft(draft);
+      List<ReportDuplicateCandidate> candidates = [];
+      try {
+        candidates = await (widget.duplicates ?? ReportDuplicatesService())
+            .suggest(draft);
+      } catch (_) {
+        // Advisory lookup cannot block reporting or discard the saved draft.
+        if (mounted && _sameSession && revision == _draftRevision) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Similar reports could not be checked. You can continue with your report.',
+              ),
+            ),
+          );
+        }
+      }
+      if (mounted) setState(() => _checkingDuplicates = false);
       if (!mounted || !_sameSession) return;
+      if (revision != _draftRevision || _locationPickerOpening) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Report details changed. Continue again to check the updated issue.',
+            ),
+          ),
+        );
+        return;
+      }
+      if (candidates.isNotEmpty) {
+        final decision = await showCivicBottomSheet<DuplicateDecision>(
+          context: context,
+          isScrollControlled: true,
+          enableDrag: false,
+          builder: (_) => ReportDuplicatesSheet(
+            candidates: candidates,
+            confirm: widget.confirmDuplicate ?? NearbyReportsService().confirm,
+          ),
+        );
+        if (!mounted ||
+            !_sameSession ||
+            revision != _draftRevision ||
+            decision == null) {
+          return;
+        }
+        if (decision.choice == DuplicateChoice.ownReport) {
+          await Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) =>
+                  ReportTrackingScreen(reportId: decision.candidate!.report.id),
+            ),
+          );
+          return;
+        }
+        if (decision.choice == DuplicateChoice.seconded) {
+          await AppCacheService.instance.clearReportDraft(
+            expectedAccount: _owner,
+          );
+          if (!mounted || !_sameSession) return;
+          Navigator.of(context).pushAndRemoveUntil(
+            citizenReportsTabRoute(context),
+            (route) => route.isFirst,
+          );
+          return;
+        }
+      }
       await Navigator.of(context).push(
         MaterialPageRoute<void>(
           settings: const RouteSettings(name: PhotoUploadScreen.routeName),
           builder: (_) => PhotoUploadScreen(
-            reportTitle: _titleController.text.trim(),
-            reportDescription: _descriptionController.text.trim(),
-            reportCategory: _classifiedCategory.label,
-            reportLocationLabel:
-                selected?.formattedAddress ??
-                _locationAddress ??
-                _locationLabel,
-            reportCommunity:
-                selected?.locality ??
-                selected?.administrativeArea ??
-                _locationCommunity,
-            reportLatitude: selected?.latitude ?? _capturedPosition!.latitude,
-            reportLongitude:
-                selected?.longitude ?? _capturedPosition!.longitude,
-            reportRegion: _locationRegion,
-            reportAssembly: _locationAssembly,
+            reportTitle: draft.title,
+            reportDescription: draft.description,
+            reportCategory: draft.category,
+            reportLocationLabel: draft.location,
+            reportCommunity: draft.community,
+            reportLatitude: draft.latitude,
+            reportLongitude: draft.longitude,
+            reportRegion: draft.region,
+            reportAssembly: draft.assembly,
             returnToReports: widget.returnToReports,
           ),
         ),
       );
     } finally {
-      _continuing = false;
+      if (mounted) {
+        setState(() {
+          _continuing = false;
+          _checkingDuplicates = false;
+        });
+      }
     }
   }
 
@@ -425,6 +524,7 @@ class _CreateReportScreenState extends State<CreateReportScreen>
   }
 
   void _scheduleDraftSave() {
+    _draftRevision++;
     _draftSaveTimer?.cancel();
     _draftSaveTimer = Timer(const Duration(milliseconds: 350), () {
       unawaited(_saveDraft());
@@ -432,7 +532,11 @@ class _CreateReportScreenState extends State<CreateReportScreen>
   }
 
   Future<void> _saveDraft() {
-    if (!_sameSession || _checkingSubmission || _recoveryError != null) {
+    if (!_sameSession ||
+        _checkingSubmission ||
+        _recoveryError != null ||
+        _draftClearGeneration !=
+            AppCacheService.instance.reportDraftClearGeneration) {
       return Future.value();
     }
     final selected = _selectedLocation;
@@ -579,9 +683,15 @@ class _CreateReportScreenState extends State<CreateReportScreen>
                       child: SizedBox(
                         width: double.infinity,
                         child: FilledButton.icon(
-                          onPressed: _isDisabled ? null : _continueToPhotos,
+                          onPressed: _isDisabled || _continuing
+                              ? null
+                              : _continueToPhotos,
                           icon: const Icon(AppIcons.chevronRight),
-                          label: const Text('Continue to Photos'),
+                          label: BusyLabel(
+                            busy: _checkingDuplicates,
+                            busyLabel: 'Checking similar reports',
+                            child: const Text('Continue to Photos'),
+                          ),
                         ),
                       ),
                     ),

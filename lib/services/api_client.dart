@@ -565,6 +565,24 @@ class ApiClient {
     return validateReportReceipt(result, key);
   }
 
+  Future<List<Map<String, dynamic>>> reportDuplicateCandidates({
+    required String idToken,
+    required Map<String, dynamic> issue,
+  }) async {
+    final result = await _post(
+      '/api/reports/duplicate-candidates',
+      issue,
+      idToken: idToken,
+    );
+    final rows = result['reports'];
+    if (rows is! List ||
+        rows.length > 3 ||
+        rows.any((row) => row is! Map<String, dynamic>)) {
+      throw const FormatException('Similar reports could not be verified.');
+    }
+    return rows.cast<Map<String, dynamic>>();
+  }
+
   /// A successful HTTP response alone cannot acknowledge an uncertain save.
   static Map<String, dynamic> validateReportReceipt(
     Map<String, dynamic> result,
