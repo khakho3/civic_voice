@@ -55,6 +55,108 @@ void main() {
     await AppCacheService.instance.initialize(accountId: 'search-regression');
   });
 
+  testWidgets(
+    'rail height eases between sizes and keeps the content anchored',
+    (tester) async {
+      final scroll = ScrollController();
+      addTearDown(scroll.dispose);
+      await tester.pumpWidget(host(scroll));
+      final header = find.byKey(const ValueKey('collapsible_header'));
+      final expanded = tester.getSize(header).height;
+      scroll.jumpTo(400);
+      await tester.pump();
+      final anchor = tester.getTopLeft(find.text('Record 5')).dy;
+      expect(tester.getSize(header).height, expanded);
+      await tester.pump(const Duration(milliseconds: 60));
+      final intermediate = tester.getSize(header).height;
+      expect(intermediate, lessThan(expanded));
+      expect(tester.getTopLeft(find.text('Record 5')).dy, closeTo(anchor, 1));
+      await tester.pumpAndSettle();
+      expect(tester.getSize(header).height, lessThan(intermediate));
+      expect(tester.getTopLeft(find.text('Record 5')).dy, closeTo(anchor, 1));
+    },
+  );
+
+  for (final reduced in [false, true]) {
+    testWidgets('collapse preserves fling momentum reduced=$reduced', (
+      tester,
+    ) async {
+      final scroll = ScrollController();
+      addTearDown(scroll.dispose);
+      await tester.pumpWidget(host(scroll, reduced: reduced));
+      await tester.fling(
+        find.byType(ListView).last,
+        const Offset(0, -200),
+        1800,
+      );
+      await tester.pump(const Duration(milliseconds: 32));
+      final offset = scroll.offset;
+      expect(scroll.position.isScrollingNotifier.value, isTrue);
+      await tester.pump(const Duration(milliseconds: 32));
+      expect(scroll.offset, greaterThan(offset));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('collapsed_rail')), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets(
+      'collapse keeps one held gesture alive through reversal reduced=$reduced',
+      (tester) async {
+        tester.view.physicalSize = const Size(390, 900);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        final scroll = ScrollController();
+        addTearDown(scroll.dispose);
+        var ends = 0;
+        await tester.pumpWidget(
+          NotificationListener<ScrollEndNotification>(
+            onNotification: (notification) {
+              if (notification.depth == 0) ends++;
+              return false;
+            },
+            child: host(scroll, reduced: reduced),
+          ),
+        );
+        final gesture = await tester.startGesture(
+          tester.getCenter(find.byType(ListView).last),
+        );
+        for (var frame = 0; frame < 10; frame++) {
+          await gesture.moveBy(const Offset(0, -24));
+          await tester.pump(const Duration(milliseconds: 16));
+        }
+        expect(find.byKey(const ValueKey('collapsed_rail')), findsOneWidget);
+        expect(
+          ends,
+          0,
+          reason: 'Changing header layout must not end the held drag',
+        );
+        final before = scroll.offset;
+        await gesture.moveBy(const Offset(0, -80));
+        await tester.pump(const Duration(milliseconds: 16));
+        expect(scroll.offset, greaterThan(before + 20));
+        final down = scroll.offset;
+        await gesture.moveBy(const Offset(0, 80));
+        await tester.pump(const Duration(milliseconds: 16));
+        expect(scroll.offset, lessThan(down - 20));
+        expect(ends, 0);
+        // Reverse all the way to the top, then scroll away again without lifting.
+        await gesture.moveBy(const Offset(0, 400));
+        await tester.pump(const Duration(milliseconds: 16));
+        await tester.pump(const Duration(milliseconds: 250));
+        expect(find.byKey(const ValueKey('expanded_header')), findsOneWidget);
+        await gesture.moveBy(const Offset(0, -240));
+        await tester.pump(const Duration(milliseconds: 16));
+        await tester.pump(const Duration(milliseconds: 250));
+        expect(find.byKey(const ValueKey('collapsed_rail')), findsOneWidget);
+        expect(ends, 0);
+        await gesture.up();
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
   for (final width in [320.0, 390.0, 412.0, 1440.0]) {
     for (final dark in [false, true]) {
       testWidgets('rail, filters and focused dismissal at $width dark=$dark', (

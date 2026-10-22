@@ -113,6 +113,8 @@ class _CollapsibleListHeaderState extends State<CollapsibleListHeader>
   double _railAccumulated = 0;
   final _railKey = GlobalKey();
   bool _adjustingRail = false;
+  double? _railViewportHeight;
+  int _railTransition = 0;
   ScrollNotification? _lastRailScroll;
 
   void _revealRailAtTop() {
@@ -131,7 +133,7 @@ class _CollapsibleListHeaderState extends State<CollapsibleListHeader>
   }
 
   void _setRailCollapsed(bool collapsed, ScrollNotification notification) {
-    if (_railCollapsed == collapsed || _adjustingRail) return;
+    if (_railCollapsed == collapsed) return;
     final height = _railKey.currentContext?.size?.height ?? 0;
     // Keep short lists expanded: reclaiming header height must not erase
     // their scroll range and strand the person in the compact mode.
@@ -140,35 +142,54 @@ class _CollapsibleListHeaderState extends State<CollapsibleListHeader>
             notification.metrics.pixels < height)) {
       return;
     }
-    final position = notification.context == null
-        ? null
-        : Scrollable.maybeOf(notification.context!)?.position;
-    final offset = position?.pixels;
     _adjustingRail = true;
+    _railTransition++;
     setState(() => _railCollapsed = collapsed);
+    if (AppMotion.duration(context, AppMotionDuration.standard) ==
+        Duration.zero) {
+      _finishRailTransition();
+    }
+  }
+
+  void _finishRailTransition() {
+    final transition = _railTransition;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final nextHeight = _railKey.currentContext?.size?.height ?? height;
-      if (position != null && position.hasPixels && offset != null) {
-        // The header is outside the viewport. Compensate for its height
-        // change so the card being read stays at the same screen position.
-        final target = (collapsed ? offset + nextHeight - height : 0.0).clamp(
-          position.minScrollExtent,
-          position.maxScrollExtent,
-        );
-        position.jumpTo(target);
-      }
+      if (!mounted || transition != _railTransition) return;
       _adjustingRail = false;
     });
+  }
+
+  Widget _railList(BuildContext context, BoxConstraints constraints) {
+    final previousHeight = _railViewportHeight;
+    _railViewportHeight = constraints.maxHeight;
+    final scrollContext = _lastRailScroll?.context;
+    if (_adjustingRail &&
+        _railCollapsed &&
+        previousHeight != null &&
+        scrollContext != null &&
+        scrollContext.mounted) {
+      final position = Scrollable.maybeOf(scrollContext)?.position;
+      if (position != null &&
+          position.hasContentDimensions &&
+          !position.outOfRange) {
+        final target =
+            (position.pixels + previousHeight - constraints.maxHeight).clamp(
+              position.minScrollExtent,
+              position.maxScrollExtent,
+            );
+        // Correct during layout, before the viewport consumes its dimensions.
+        // Unlike jumpTo, this preserves the held drag and fling activity.
+        position.correctBy(target - position.pixels);
+      }
+    }
+    return widget.child;
   }
 
   /// Collapsed-rail mode: expand only at the true top (or by pulling down
   /// there); collapse after a deliberate downward scroll; ignore upward
   /// scrolling in between.
   bool _onRailScroll(ScrollNotification notification) {
-    if (notification.depth != 0 ||
-        notification.metrics.axis != Axis.vertical ||
-        _adjustingRail) {
+    if (notification.depth != 0 || notification.metrics.axis != Axis.vertical) {
       return false;
     }
     _lastRailScroll = notification;
@@ -249,6 +270,11 @@ class _CollapsibleListHeaderState extends State<CollapsibleListHeader>
   Widget build(BuildContext context) {
     final rail = widget.collapsedHeader;
     if (rail != null) {
+      final duration = AppMotion.duration(context, AppMotionDuration.standard);
+      final activeHeader = KeyedSubtree(
+        key: ValueKey(_railCollapsed ? 'collapsed_rail' : 'expanded_header'),
+        child: _railCollapsed ? rail : widget.header,
+      );
       return Listener(
         onPointerSignal: (event) {
           if (event is PointerScrollEvent && event.scrollDelta.dy < 0) {
@@ -269,24 +295,46 @@ class _CollapsibleListHeaderState extends State<CollapsibleListHeader>
             onNotification: _onScrollNotification,
             child: Column(
               children: [
-                // One mounted header at a time: a crossfade would leave duplicate
-                // focusable search/filter controls during the transition.
-                SizedBox(
+                ClipRect(
                   key: _railKey,
-                  child: KeyedSubtree(
-                    key: const ValueKey('collapsible_header'),
-                    child: _railCollapsed
-                        ? KeyedSubtree(
-                            key: const ValueKey('collapsed_rail'),
-                            child: rail,
-                          )
-                        : KeyedSubtree(
-                            key: const ValueKey('expanded_header'),
-                            child: widget.header,
+                  child: duration == Duration.zero
+                      ? KeyedSubtree(
+                          key: const ValueKey('collapsible_header'),
+                          child: activeHeader,
+                        )
+                      : AnimatedSize(
+                          key: const ValueKey('collapsible_header'),
+                          duration: duration,
+                          curve: AppMotionCurve.decelerate,
+                          alignment: Alignment.topCenter,
+                          onEnd: _finishRailTransition,
+                          child: AnimatedSwitcher(
+                            duration: duration,
+                            layoutBuilder: (current, previous) => Stack(
+                              alignment: Alignment.topCenter,
+                              clipBehavior: Clip.none,
+                              children: [
+                                for (final outgoing in previous)
+                                  Positioned(
+                                    top: 0,
+                                    left: 0,
+                                    right: 0,
+                                    child: IgnorePointer(
+                                      child: ExcludeFocus(
+                                        child: ExcludeSemantics(
+                                          child: outgoing,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ?current,
+                              ],
+                            ),
+                            child: activeHeader,
                           ),
-                  ),
+                        ),
                 ),
-                Expanded(child: widget.child),
+                Expanded(child: LayoutBuilder(builder: _railList)),
               ],
             ),
           ),

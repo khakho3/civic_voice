@@ -229,7 +229,19 @@ void main() {
               )
               .last;
           final list = find.byWidget(vertical.widget);
-          await tester.drag(list, const Offset(0, -520));
+          final gesture = await tester.startGesture(tester.getCenter(list));
+          for (var frame = 0; frame < 16; frame++) {
+            await gesture.moveBy(const Offset(0, -24));
+            await tester.pump(const Duration(milliseconds: 16));
+          }
+          // Keep the pointer down across the entire header transition.
+          await tester.pump(const Duration(milliseconds: 250));
+          final beforeReversal = vertical.position.pixels;
+          await gesture.moveBy(const Offset(0, 60));
+          await tester.pump(const Duration(milliseconds: 16));
+          expect(vertical.position.pixels, lessThan(beforeReversal - 40));
+          expect(vertical.position.isScrollingNotifier.value, isTrue);
+          await gesture.up();
           await tester.pumpAndSettle();
           expect(find.byKey(const ValueKey('collapsed_rail')), findsOneWidget);
           final offset = vertical.position.pixels;
