@@ -6,6 +6,7 @@ import 'package:url_launcher_platform_interface/url_launcher_platform_interface.
 
 import 'package:civic_voice/core/theme/app_theme.dart';
 import 'package:civic_voice/features/admin/services/admin_maintenance_team_directory.dart';
+import 'package:civic_voice/features/admin/models/admin_maintenance_team_data.dart';
 import 'package:civic_voice/features/maintenance/models/maintenance_profile.dart';
 import 'package:civic_voice/features/maintenance/models/maintenance_task.dart';
 import 'package:civic_voice/features/maintenance/screens/profile_screen.dart'
@@ -617,6 +618,9 @@ void main() {
     // (Yaw Asare) so this exercises the "not the lead" branch, then
     // restore it — other tests in this file rely on Yaw Asare being the
     // lead of the one mock team.
+    final previousTeams = MaintenanceTeamDirectory.instance.teams.value;
+    MaintenanceTeamDirectory.instance.teams.value = mockMaintenanceTeams();
+    addTearDown(() => MaintenanceTeamDirectory.instance.teams.value = previousTeams);
     final team = MaintenanceTeamDirectory.instance.teamById('TEAM-0001')!;
     MaintenanceTeamDirectory.instance.updateTeam(
       team.copyWith(leadUserId: 'MNT-000010'),

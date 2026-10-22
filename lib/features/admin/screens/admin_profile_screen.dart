@@ -173,6 +173,7 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
   Widget build(BuildContext context) {
     final isSuperAdmin = AdminSession.instance.isSuperAdmin;
     return AdminScaffold(
+      activeDrawerDestination: AdminDrawerDestination.adminProfile,
       selectedTab: null,
       headerTitle: 'Admin Profile',
       hideBottomNav: !isSuperAdmin,
