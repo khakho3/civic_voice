@@ -88,19 +88,30 @@ class MinistryDashboardScreen extends StatefulWidget {
 }
 
 class _MinistryDashboardScreenState extends State<MinistryDashboardScreen> {
-  late final MinistryDashboardViewState _state = widget.initialState;
+  late MinistryDashboardViewState _state = widget.initialState;
 
-  void _requestRefresh() {
-    // State ownership stays with the real data directory. Do not pretend a
-    // retry succeeded merely because a local timer elapsed.
-    widget.onRefresh?.call();
+  @override
+  void didUpdateWidget(covariant MinistryDashboardScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialState != widget.initialState) {
+      _state = widget.initialState;
+    }
+  }
+
+  Future<void> _requestRefresh() async {
+    // The directory owns success/error state. Keep failed retries retryable.
+    try {
+      await widget.onRefresh?.call();
+    } catch (_) {
+      // A failed refresh is already represented by directory provenance.
+    }
   }
 
   Widget _wrapWithRefresh(Widget child) {
     final onRefresh = widget.onRefresh;
     if (onRefresh == null) return child;
     return GhanaRefreshIndicator(
-      onRefresh: onRefresh,
+      onRefresh: _requestRefresh,
       // The header paints on top of this content (a later sibling in
       // MinistryScaffold's own Stack), so without this the pull indicator
       // would grow in from behind it.
@@ -122,11 +133,13 @@ class _MinistryDashboardScreenState extends State<MinistryDashboardScreen> {
         }
         if (tab == MinistryTab.reports) widget.onNavigateToReports?.call();
       },
-      body: switch (_state) {
+      body: switch (_state == MinistryDashboardViewState.loaded && widget.data == null
+          ? MinistryDashboardViewState.error
+          : _state) {
         MinistryDashboardViewState.loading => const _LoadingSkeleton(),
         MinistryDashboardViewState.loaded => _wrapWithRefresh(
-          widget.data == null || widget.data!.stats.totalReports == 0
-              ? _ZeroDashboardContent(onRefresh: widget.onRefresh)
+          widget.data!.stats.totalReports == 0
+              ? _ZeroDashboardContent(onRefresh: widget.onRefresh == null ? null : _requestRefresh)
               : _DashboardContent(
                   data: widget.data!,
                   onViewAllMunicipalities: widget.onNavigateToMunicipalities,
@@ -148,7 +161,11 @@ class _MinistryDashboardScreenState extends State<MinistryDashboardScreen> {
             primaryActionColor: AppColors.error,
           ),
         ),
-        MinistryDashboardViewState.error => Padding(
+        MinistryDashboardViewState.error => LayoutBuilder(
+          builder: (context, constraints) => SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+              child: Padding(
           padding: MinistryScaffold.contentPadding(context),
           child: AppStateMessage(
             icon: AppIcons.warning,
@@ -160,6 +177,9 @@ class _MinistryDashboardScreenState extends State<MinistryDashboardScreen> {
             primaryActionLabel: 'Try again',
             onPrimaryAction: widget.onRefresh == null ? null : _requestRefresh,
             primaryActionColor: AppColors.error,
+          ),
+              ),
+            ),
           ),
         ),
         MinistryDashboardViewState.unauthorized => Padding(

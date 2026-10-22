@@ -616,7 +616,8 @@ void main() {
     );
     await advanceRoute();
 
-    expect(find.text('National Dashboard'), findsOneWidget);
+    // No confirmed snapshot exists on this route yet.
+    expect(find.text('Unable to Load Dashboard'), findsOneWidget);
 
     await tester.tap(find.text('Analytics'));
     await advanceRoute();

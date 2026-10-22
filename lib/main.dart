@@ -2089,14 +2089,22 @@ Widget _adminProfile(BuildContext context) {
 }
 
 Widget _ministryDashboard(BuildContext context) {
-  return ValueListenableBuilder<List<IncomingReportItem>>(
-    valueListenable: MunicipalReportDirectory.instance.reports,
-    builder: (context, _, _) => _withSwitchRoleButton(
+  final directory = MinistryDataDirectory.instance;
+  return AnimatedBuilder(
+    animation: Listenable.merge([
+      MunicipalReportDirectory.instance.reports,
+      directory.state,
+      directory.revision,
+    ]),
+    builder: (context, _) => _withSwitchRoleButton(
       context,
       MinistryDashboardScreen(
-        data: Firebase.apps.isEmpty || FirebaseAuth.instance.currentUser == null
-            ? null
-            : MinistryDataDirectory.instance.dashboard,
+        initialState: switch (directory.state.value) {
+          MinistryDataDirectoryState.loading => MinistryDashboardViewState.loading,
+          MinistryDataDirectoryState.loaded when directory.hasLiveSnapshot => MinistryDashboardViewState.loaded,
+          _ => MinistryDashboardViewState.error,
+        },
+        data: directory.hasLiveSnapshot ? directory.dashboard : null,
         onRefresh:
             Firebase.apps.isEmpty || FirebaseAuth.instance.currentUser == null
             ? null
