@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../widgets/busy_indicator.dart';
 
 import '../../../widgets/search_filter_list.dart';
 import '../../../widgets/focused_search.dart';
@@ -540,15 +541,10 @@ class _AdminMaintenanceTeamFormScreenState
                       Expanded(
                         child: FilledButton(
                           onPressed: _saving ? null : _save,
-                          child: _saving
-                              ? const SizedBox(
-                                  width: AppIconSize.sm,
-                                  height: AppIconSize.sm,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : Text(_editing ? 'Save Changes' : 'Create Team'),
+                          child: BusyLabel(
+ busy: _saving, busyLabel: 'Saving team',
+ child: Text(_editing ? 'Save Changes' : 'Create Team'),
+),
                         ),
                       ),
                     ],

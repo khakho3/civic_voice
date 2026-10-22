@@ -1,6 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../../../widgets/busy_indicator.dart';
+
 import '../../../core/theme/app_theme.dart';
 import '../../../models/app_role.dart';
 import '../../../models/assembly.dart';
@@ -462,15 +464,11 @@ class _AdminCreateUserScreenState extends State<AdminCreateUserScreen> {
                   onPressed: (creationDisabled || _isSubmitting)
                       ? null
                       : _submit,
-                  child: _isSubmitting
-                      ? const SizedBox(
-                          width: AppIconSize.md,
-                          height: AppIconSize.md,
-                          child: CircularProgressIndicator(
-                            strokeWidth: AppSpacing.xs / 2,
-                          ),
-                        )
-                      : const Text('Create User'),
+                  child: BusyLabel(
+                    busy: _isSubmitting,
+                    busyLabel: 'Creating user',
+                    child: const Text('Create User'),
+                  ),
                 ),
               ),
             ],

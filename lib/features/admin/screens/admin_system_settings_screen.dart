@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../widgets/busy_indicator.dart';
+
 import 'package:firebase_core/firebase_core.dart';
 
 import '../../../core/theme/app_theme.dart';
@@ -458,13 +460,11 @@ class _SettingsForm extends StatelessWidget {
               Expanded(
                 child: FilledButton(
                   onPressed: isSaving ? null : onSave,
-                  child: isSaving
-                      ? const SizedBox(
-                          width: AppIconSize.sm,
-                          height: AppIconSize.sm,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text('Save Changes'),
+                  child: BusyLabel(
+                    busy: isSaving,
+                    busyLabel: 'Saving settings',
+                    child: const Text('Save Changes'),
+                  ),
                 ),
               ),
             ],

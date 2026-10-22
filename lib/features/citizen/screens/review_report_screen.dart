@@ -1,6 +1,9 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+
+import '../../../widgets/busy_indicator.dart';
+
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:image_picker/image_picker.dart';
@@ -586,20 +589,19 @@ class _SubmitCard extends StatelessWidget {
             style: theme.textTheme.bodyMedium,
           ),
           const SizedBox(height: AppSpacing.lg),
-          FilledButton.icon(
+          FilledButton(
             onPressed: submitting ? null : onSubmit,
-            icon: submitting
-                ? const SizedBox(
-                    width: AppIconSize.sm,
-                    height: AppIconSize.sm,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(AppIcons.statusSubmitted),
-            label: Semantics(
-              liveRegion: true,
-              excludeSemantics: true,
-              label: submitting ? 'Submitting report...' : 'Submit Report',
-              child: Text(submitting ? 'Submitting report...' : 'Submit Report'),
+            child: BusyLabel(
+              busy: submitting,
+              busyLabel: 'Submitting report',
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(AppIcons.statusSubmitted),
+                  SizedBox(width: AppSpacing.sm),
+                  Text('Submit Report'),
+                ],
+              ),
             ),
           ),
           const SizedBox(height: AppSpacing.sm),

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../widgets/busy_indicator.dart';
+
 import '../../../core/theme/app_theme.dart';
 import 'civic_glass_card.dart';
 
@@ -108,12 +110,11 @@ class NearbySecondingCard extends StatelessWidget {
               Expanded(
                 child: FilledButton(
                   onPressed: busy ? null : onConfirm,
-                  child: busy
-                      ? const SizedBox.square(
-                          dimension: AppIconSize.sm,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text("Confirm it's still there"),
+                  child: BusyLabel(
+                    busy: busy,
+                    busyLabel: 'Confirming report',
+                    child: const Text("Confirm it's still there"),
+                  ),
                 ),
               ),
             ],

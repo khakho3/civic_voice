@@ -12,10 +12,8 @@ import '../core/theme/app_theme.dart';
 /// Page loading keeps the existing native Ghana loaders; this is only for
 /// a control or row that is busy.
 ///
-/// * Ink comes from the host: by default the ambient [IconTheme] color,
-///   which Material buttons set to their current (enabled or disabled)
-///   foreground, so the orb matches gold-fill, outlined and text buttons
-///   in both themes without the caller choosing a color.
+/// * Inside buttons, ink and track contrast against the actual button fill,
+///   including its disabled state. Outside buttons, ink follows IconTheme.
 /// * With reduced motion it draws one static frame.
 /// * Its controller is created with this widget's ticker, so it stops
 ///   ticking while the route is hidden ([TickerMode]) and when disposed.
@@ -27,6 +25,7 @@ class BusyIndicator extends StatefulWidget {
     this.size = AppIconSize.md,
     this.color,
     this.semanticsLabel,
+    this.trackOpacity,
   });
 
   /// Diameter; defaults to the 20px inline size.
@@ -37,6 +36,7 @@ class BusyIndicator extends StatefulWidget {
 
   /// Announced once when the indicator appears, e.g. "Saving changes".
   final String? semanticsLabel;
+  final double? trackOpacity;
 
   /// One sweep of the bright point — a modest searching pace.
   static const Duration period = Duration(milliseconds: 1400);
@@ -70,8 +70,10 @@ class _BusyIndicatorState extends State<BusyIndicator>
 
   @override
   Widget build(BuildContext context) {
+    final buttonInk = _buttonBusyInk(context);
     final ink =
         widget.color ??
+        buttonInk ??
         IconTheme.of(context).color ??
         AppSemanticColors.of(context).actionText;
     final reduceMotion = AppMotion.reduceMotion(context);
@@ -82,6 +84,8 @@ class _BusyIndicatorState extends State<BusyIndicator>
         child: CustomPaint(
           painter: _OrbPainter(
             ink: ink,
+            trackOpacity:
+                widget.trackOpacity ?? (buttonInk == null ? 0.28 : 0.7),
             // Static frame: the point rests at the upper right.
             progress: reduceMotion ? null : _controller,
           ),
@@ -101,10 +105,14 @@ class _BusyIndicatorState extends State<BusyIndicator>
 }
 
 class _OrbPainter extends CustomPainter {
-  _OrbPainter({required this.ink, required this.progress})
-    : super(repaint: progress);
+  _OrbPainter({
+    required this.ink,
+    required this.progress,
+    required this.trackOpacity,
+  }) : super(repaint: progress);
 
   final Color ink;
+  final double trackOpacity;
   final Animation<double>? progress;
 
   @override
@@ -121,7 +129,7 @@ class _OrbPainter extends CustomPainter {
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = stroke
-        ..color = ink.withValues(alpha: ink.a * 0.28),
+        ..color = ink.withValues(alpha: ink.a * trackOpacity),
     );
 
     // A short tail fading behind the point gives the sweep its direction.
@@ -153,7 +161,39 @@ class _OrbPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_OrbPainter oldDelegate) =>
-      oldDelegate.ink != ink || oldDelegate.progress != progress;
+      oldDelegate.ink != ink ||
+      oldDelegate.progress != progress ||
+      oldDelegate.trackOpacity != trackOpacity;
+}
+
+/// Disabled buttons supply a deliberately muted IconTheme. Busy work still
+/// needs a visible progress signal, so choose ink against the actual button
+/// Material fill rather than inheriting that disabled foreground.
+Color? _buttonBusyInk(BuildContext context) {
+  var inButton = false;
+  context.visitAncestorElements((element) {
+    if (element.widget is ButtonStyleButton) {
+      inButton = true;
+      return false;
+    }
+    return true;
+  });
+  if (!inButton) return null;
+  final theme = Theme.of(context);
+  final fill =
+      context.findAncestorWidgetOfExactType<Material>()?.color ??
+      Colors.transparent;
+  final background = Color.alphaBlend(fill, theme.colorScheme.surface);
+  double contrast(Color ink) {
+    final a = ink.computeLuminance(), b = background.computeLuminance();
+    return (math.max(a, b) + 0.05) / (math.min(a, b) + 0.05);
+  }
+
+  final normal = theme.colorScheme.onSurface;
+  if (contrast(normal) >= 4.5) return normal;
+  return contrast(Colors.black) >= contrast(Colors.white)
+      ? Colors.black
+      : Colors.white;
 }
 
 /// Swaps a button's label for [BusyIndicator] while [busy], keeping the

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../widgets/busy_indicator.dart';
+
 import '../../../core/theme/app_theme.dart';
 import '../../../models/app_role.dart';
 import '../../../models/assembly.dart';
@@ -543,13 +545,11 @@ class _DetailsForm extends StatelessWidget {
             Expanded(
               child: FilledButton(
                 onPressed: saving ? null : onSave,
-                child: saving
-                    ? const SizedBox(
-                        width: AppIconSize.sm,
-                        height: AppIconSize.sm,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text('Save Changes'),
+                child: BusyLabel(
+                  busy: saving,
+                  busyLabel: 'Saving changes',
+                  child: const Text('Save Changes'),
+                ),
               ),
             ),
           ],

@@ -1,3 +1,4 @@
+import 'package:civic_voice/widgets/busy_indicator.dart';
 import 'dart:async';
 import 'dart:ui' show SemanticsAction, Tristate;
 
@@ -3622,7 +3623,7 @@ void main() {
       final save = tester.widget<FilledButton>(find.byType(FilledButton));
       expect(reset.onPressed, isNull);
       expect(save.onPressed, isNull);
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.byType(BusyIndicator), findsOneWidget);
     },
   );
 

@@ -125,23 +125,18 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               width: double.infinity,
               child: FilledButton(
                 onPressed: _isDisabled ? null : _submitForm,
-                child: _isLoading
-                    ? const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          BusyIndicator(semanticsLabel: 'Sending code'),
-                          SizedBox(width: AppSpacing.sm),
-                          Text('Sending...'),
-                        ],
-                      )
-                    : const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text('Send Code'),
-                          SizedBox(width: AppSpacing.sm),
-                          Icon(AppIcons.chevronRight, size: AppIconSize.md),
-                        ],
-                      ),
+                child: BusyLabel(
+                  busy: _isLoading,
+                  busyLabel: 'Sending code',
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('Send Code'),
+                      SizedBox(width: AppSpacing.sm),
+                      Icon(AppIcons.chevronRight, size: AppIconSize.md),
+                    ],
+                  ),
+                ),
               ),
             ),
             if (_showStatusPanel) ...[

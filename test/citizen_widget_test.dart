@@ -1,3 +1,4 @@
+import 'package:civic_voice/widgets/busy_indicator.dart';
 import 'dart:async';
 
 import 'package:civic_voice/core/theme/app_theme.dart';
@@ -181,8 +182,8 @@ void main() {
     await tester.pump();
 
     expect(requests, 1);
-    expect(find.text('Submitting report...'), findsOneWidget);
-    final pendingSubmit = _filledButtonWithLabel('Submitting report...');
+    expect(find.byType(BusyIndicator), findsOneWidget);
+    final pendingSubmit = find.ancestor(of: find.byType(BusyIndicator), matching: find.byType(FilledButton));
     expect(tester.widget<FilledButton>(pendingSubmit).onPressed, isNull);
 
     final semantics = tester.ensureSemantics();
@@ -191,8 +192,8 @@ void main() {
       // Assert the announcement itself without rejecting Flutter's valid
       // button/focus semantics metadata.
       expect(
-        tester.getSemantics(find.text('Submitting report...')).label,
-        'Submitting report...',
+        tester.getSemantics(find.bySemanticsLabel('Submitting report')).label,
+        'Submitting report',
       );
     } finally {
       semantics.dispose();
