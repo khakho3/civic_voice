@@ -383,4 +383,28 @@ void main() {
     expect(directory.hasLiveSnapshot, isTrue);
     expect(directory.state.value, AdminSystemSettingsDirectoryState.loaded);
   });
+  test('logout fences pending settings reads and confirmed saves from the old account', () async {
+    final response = Completer<Map<String, dynamic>>();
+    final directory = _directory(fetch: (_) => response.future, update: (_, _) async => _savedSettings);
+    final pending = directory.refresh();
+    await _settle();
+    directory.invalidateAndClear();
+    response.complete(_savedSettings);
+    await pending;
+    expect(directory.hasLiveSnapshot, isFalse);
+    expect(directory.state.value, AdminSystemSettingsDirectoryState.unavailable);
+    expect(directory.settings.value.auditLogging, isFalse);
+
+    final saved = Completer<Map<String, dynamic>>();
+    final saveDirectory = _directory(fetch: (_) async => _confirmedSettings, update: (_, _) => saved.future);
+    final pendingSave = saveDirectory.save(_draft());
+    await _settle();
+    saveDirectory.invalidateAndClear();
+    saved.complete(_savedSettings);
+    await pendingSave;
+    expect(saveDirectory.hasLiveSnapshot, isFalse);
+    expect(saveDirectory.settings.value.auditLogging, isFalse);
+    expect(saveDirectory.state.value, AdminSystemSettingsDirectoryState.unavailable);
+  });
+
 }

@@ -96,6 +96,19 @@ class AdminSystemActivityDirectory {
         : AdminSystemActivityDirectoryState.unavailable;
   }
 
+  /// Fence all authenticated work before removing the previous account's data.
+  void invalidateAndClear() {
+    ++_refreshRevision;
+    ++_healthRefreshRevision;
+    hasLiveSnapshot = false;
+    hasLiveHealthSnapshot = false;
+    loading.value = false;
+    error.value = null;
+    items.value = const <ActivityItem>[];
+    health.value = null;
+    state.value = AdminSystemActivityDirectoryState.unavailable;
+  }
+
   Future<void> refresh() async {
     final revision = ++_refreshRevision;
     // A new full refresh invalidates health from an older full or health-only

@@ -128,6 +128,27 @@ class AdminSystemSettingsDirectory {
       revision == _settingsRevision &&
       fullSnapshotGeneration == _fullSnapshotGeneration;
 
+  /// Invalidate reads and saves before resetting session-owned configuration.
+  void invalidateAndClear() {
+    final operation = ++_operationSequence;
+    _latestFullRefreshOperation = operation;
+    _latestSessionTimeoutOperation = operation;
+    _latestSaveOperation = operation;
+    ++_settingsRevision;
+    ++_fullSnapshotGeneration;
+    hasLiveSnapshot = false;
+    loading.value = false;
+    error.value = null;
+    settings.value = const SystemSettingsData(
+      maintenanceMode: false,
+      sessionTimeout: '30 minutes',
+      auditLogging: false,
+      publicStatusPage: false,
+      allowNewAccountCreation: false,
+    );
+    state.value = AdminSystemSettingsDirectoryState.unavailable;
+  }
+
   Future<void> refresh() async {
     final operation = ++_operationSequence;
     final revision = _settingsRevision;

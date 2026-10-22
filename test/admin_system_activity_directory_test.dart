@@ -371,4 +371,28 @@ void main() {
     expect(directory.items.value, isEmpty);
     expect(directory.state.value, AdminSystemActivityDirectoryState.unavailable);
   });
+  test('logout invalidates pending activity and health responses', () async {
+    final response = Completer<List<Map<String, dynamic>>>();
+    final directory = _directory(fetch: (_) => response.future);
+    final pending = directory.refresh();
+    await _settle();
+    directory.invalidateAndClear();
+    response.complete([_activity('old-account', 'Old account data')]);
+    await pending;
+    expect(directory.items.value, isEmpty);
+    expect(directory.hasLiveSnapshot, isFalse);
+    expect(directory.state.value, AdminSystemActivityDirectoryState.unavailable);
+    expect(directory.loading.value, isFalse);
+
+    final health = Completer<Map<String, dynamic>>();
+    final healthDirectory = _directory(fetch: (_) async => [], healthFetch: (_) => health.future, isSuperAdmin: true);
+    final pendingHealth = healthDirectory.refreshHealth();
+    await _settle();
+    healthDirectory.invalidateAndClear();
+    health.complete(_validHealth);
+    await pendingHealth;
+    expect(healthDirectory.health.value, isNull);
+    expect(healthDirectory.hasLiveHealthSnapshot, isFalse);
+  });
+
 }

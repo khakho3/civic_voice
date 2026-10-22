@@ -1,4 +1,3 @@
-import '../features/admin/models/admin_system_settings_data.dart';
 import '../features/admin/services/admin_maintenance_team_directory.dart';
 import '../features/admin/services/admin_system_activity_directory.dart';
 import '../features/admin/services/admin_system_settings_directory.dart';
@@ -26,32 +25,14 @@ abstract final class SessionDataService {
 
     MaintenanceTaskDirectory.instance.clearSession();
     MaintenanceSession.instance.clearSession();
-    MaintenanceTeamDirectory.instance.teams.value = const [];
+    MaintenanceTeamDirectory.instance.invalidateAndClear();
 
     MinistryDataDirectory.instance.clearSession();
     MinistrySession.instance.clearSession();
 
-    AdminUserDirectory.instance.users.value = const [];
-    AdminUserDirectory.instance.loading.value = false;
-    AdminUserDirectory.instance.error.value = null;
-    AdminUserDirectory.instance.hasLiveSnapshot = false;
-    AdminUserDirectory.instance.currentApiUserId = null;
-    AdminSystemActivityDirectory.instance.items.value = const [];
-    AdminSystemActivityDirectory.instance.health.value = null;
-    AdminSystemActivityDirectory.instance.loading.value = false;
-    AdminSystemActivityDirectory.instance.error.value = null;
-    AdminSystemActivityDirectory.instance.hasLiveSnapshot = false;
-    AdminSystemSettingsDirectory.instance.settings.value =
-        const SystemSettingsData(
-          maintenanceMode: false,
-          sessionTimeout: '30 minutes',
-          auditLogging: true,
-          publicStatusPage: false,
-          allowNewAccountCreation: false,
-        );
-    AdminSystemSettingsDirectory.instance.loading.value = false;
-    AdminSystemSettingsDirectory.instance.error.value = null;
-    AdminSystemSettingsDirectory.instance.hasLiveSnapshot = false;
+    AdminUserDirectory.instance.invalidateAndClear();
+    AdminSystemActivityDirectory.instance.invalidateAndClear();
+    AdminSystemSettingsDirectory.instance.invalidateAndClear();
 
     NotificationDirectory.instance.clearSession();
     AppCacheService.instance.clearSession();
