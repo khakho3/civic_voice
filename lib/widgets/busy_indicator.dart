@@ -1,11 +1,13 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart'
+    show LicenseRegistry, LicenseEntryWithLineBreaks;
 
 import '../core/theme/app_theme.dart';
 
-/// The shared busy-action indicator (F06): a small "searching" orb — a
-/// faint ring with one bright point sweeping around it — for buttons and
+/// The shared busy-action indicator (F06): the web searching particle globe
+/// adapted to native Canvas for buttons and
 /// other in-place work. It is the native equivalent of the web inline
 /// `LoadingOrb` (the `thinking-orbs` npm package has no Flutter port).
 ///
@@ -38,8 +40,8 @@ class BusyIndicator extends StatefulWidget {
   final String? semanticsLabel;
   final double? trackOpacity;
 
-  /// One sweep of the bright point — a modest searching pace.
-  static const Duration period = Duration(milliseconds: 1400);
+  /// Long-running clock for continuous particle projection.
+  static const Duration period = Duration(minutes: 20);
 
   @override
   State<BusyIndicator> createState() => _BusyIndicatorState();
@@ -51,6 +53,12 @@ class _BusyIndicatorState extends State<BusyIndicator>
     vsync: this,
     duration: BusyIndicator.period,
   );
+
+  @override
+  void initState() {
+    super.initState();
+    _registerOrbLicense();
+  }
 
   @override
   void didChangeDependencies() {
@@ -85,8 +93,8 @@ class _BusyIndicatorState extends State<BusyIndicator>
           painter: _OrbPainter(
             ink: ink,
             trackOpacity:
-                widget.trackOpacity ?? (buttonInk == null ? 0.28 : 0.7),
-            // Static frame: the point rests at the upper right.
+                widget.trackOpacity ?? 0.7,
+            // Reduced motion keeps a static particle globe.
             progress: reduceMotion ? null : _controller,
           ),
         ),
@@ -117,46 +125,53 @@ class _OrbPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    // Native adaptation of thinking-orbs' searching/globe projection and
+    // 20px preset. It uses the same rotating particle sphere, not a ring spinner.
+    final t =
+        (progress?.value ?? 0.0002) *
+        BusyIndicator.period.inSeconds *
+        1.2 *
+        2.665;
+    final yaw = t * .5, tilt = .4 + .06 * math.sin(t * .35);
+    final radius = size.shortestSide * .41;
     final center = size.center(Offset.zero);
-    final stroke = size.shortestSide / 10;
-    final radius = size.shortestSide / 2 - stroke;
-    final turn = progress?.value ?? 0.125;
-    final angle = turn * 2 * math.pi - math.pi / 2;
-
-    canvas.drawCircle(
-      center,
-      radius,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = stroke
-        ..color = ink.withValues(alpha: ink.a * trackOpacity),
-    );
-
-    // A short tail fading behind the point gives the sweep its direction.
-    const tail = math.pi * 0.6;
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      angle - tail,
-      tail,
-      false,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = stroke
-        ..strokeCap = StrokeCap.round
-        // Rotated rather than offset: SweepGradient clamps angles outside
-        // 0..2π, which would flatten the tail near 12 o'clock.
-        ..shader = SweepGradient(
-          endAngle: tail,
-          colors: [ink.withValues(alpha: 0), ink],
-          transform: GradientRotation(angle - tail),
-        ).createShader(Rect.fromCircle(center: center, radius: radius)),
-    );
-
-    canvas.drawCircle(
-      center + Offset(math.cos(angle), math.sin(angle)) * radius,
-      stroke * 1.4,
-      Paint()..color = ink,
-    );
+    final scale = math.pow(size.shortestSide / 300, .6).toDouble() * 1.75;
+    final dots =
+        <({Offset point, double depth, double radius, double alpha})>[];
+    for (var ring = 0; ring <= 6; ring++) {
+      final lat = -math.pi / 2 + ring / 6 * math.pi;
+      final cosLat = math.cos(lat), y = math.sin(lat);
+      final count = math.max(1, (cosLat.abs() * 14).round());
+      for (var item = 0; item < count; item++) {
+        final lon = item / count * 2 * math.pi;
+        final x = cosLat * math.cos(lon), z = cosLat * math.sin(lon);
+        final x1 = x * math.cos(yaw) + z * math.sin(yaw);
+        final z1 = -x * math.sin(yaw) + z * math.cos(yaw);
+        final y1 = y * math.cos(tilt) - z1 * math.sin(tilt);
+        final z2 = y * math.sin(tilt) + z1 * math.cos(tilt);
+        final depth = (z2 + 1) / 2;
+        final delta = math.atan2(
+          math.sin(lon + yaw - t * 5.702),
+          math.cos(lon + yaw - t * 5.702),
+        );
+        final boost = math.exp(-delta * delta / .18) * math.max(0, z2);
+        dots.add((
+          point: center + Offset(x1, -y1) * radius,
+          depth: depth,
+          radius: math.max(.3, (.6 + 1.7 * depth + boost) * scale),
+          alpha:
+              (trackOpacity + (1 - trackOpacity) * boost) * (.65 + .35 * depth),
+        ));
+      }
+    }
+    dots.sort((a, b) => a.depth.compareTo(b.depth));
+    for (final dot in dots) {
+      canvas.drawCircle(
+        dot.point,
+        dot.radius,
+        Paint()..color = ink.withValues(alpha: ink.a * dot.alpha),
+      );
+    }
   }
 
   @override
@@ -230,4 +245,40 @@ class BusyLabel extends StatelessWidget {
       ],
     );
   }
+}
+
+// MIT-licensed searching/globe adaptation; keep attribution in app licenses.
+bool _orbLicenseRegistered = false;
+void _registerOrbLicense() {
+  if (_orbLicenseRegistered) return;
+  _orbLicenseRegistered = true;
+  LicenseRegistry.addLicense(() async* {
+    yield const LicenseEntryWithLineBreaks(
+      ['thinking-orbs (native searching adaptation)'],
+      '''
+MIT License
+
+Copyright (c) 2026 Jakub Antalik
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+''',
+    );
+  });
 }
