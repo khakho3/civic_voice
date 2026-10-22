@@ -1,5 +1,13 @@
 # Latif PR integration review and repairs
 
+## Frosted search rail and matched web motion - 22 October 2026
+
+Native eb04638 follows the owner's accepted continuous animation. Compact search now paints above the real scrolling viewport, using the existing 20 px glass blur with a feathered 32 px tail. The backdrop has no solid panel or extra border. A shared layout delegate measures the animated header and corrects the list origin during layout, preserving the active drag/fling and visual anchor. Expanded short-list geometry and filter/search interaction remain intact. The outgoing header remains excluded from focus, taps and semantics. Native list/filter tests now select the vertical owner and filter header explicitly, instead of relying on paint-order-dependent first/last finders.
+
+Web dd9e179 uses the same 200 ms easeOut/decelerate curve for header height, opacity and compact-control movement, retaining its existing masked backdrop. No auth, API, Firebase, map or production config change. Native 1,070 tests pass; analyzer/whitespace clean. Web 360 tests, lint/build pass (209 PWA entries). A browser fixture of the actual shared chrome verified intermediate heights, 20 px fog and exact focused-search dismissal offsets at 320/390/412/1440 in light/dark themes. Native light/dark raster checks confirm real background blur, and 20 offline sample-menu checks pass. Physical fog/feel acceptance remains owner testing.
+
+Delivery: only the separate offline CV Search Test snapshot was rebuilt and installed; package and absent INTERNET permission verified. Normal DEV/prod installs remain untouched. Device acceptance details stay private/uncommitted in web .tmp/device-checks-pending.md. Preserve remaining integration backlog and owner-untracked branding assets.
+
 ## Continuous search scrolling repair - 22 October 2026
 
 Final verification: 1,070 Flutter tests pass; analyzer and whitespace checks clean. The offline preview menu has 20 passing real-screen checks. Updated CV Search Test APK was installed wirelessly and its activity started; physical feel remains owner acceptance.
