@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../../widgets/search_filter_list.dart';
+import '../../../widgets/focused_search.dart';
+
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/ghana_refresh_indicator.dart';
 import '../widgets/civic_glass_card.dart';
@@ -47,8 +50,13 @@ class _CitizenReportsScreenState extends State<CitizenReportsScreen> {
     super.dispose();
   }
 
-  List<CivicReport> _applyFilters(List<CivicReport> reports) {
-    final query = _searchController.text.trim().toLowerCase();
+  List<CivicReport> _applyFilters(
+    List<CivicReport> reports, {
+    String? queryOverride,
+  }) {
+    final query = (queryOverride ?? _searchController.text)
+        .trim()
+        .toLowerCase();
 
     return reports.where((report) {
       final matchesFilter = switch (_filter) {
@@ -125,40 +133,67 @@ class _CitizenReportsScreenState extends State<CitizenReportsScreen> {
                   final visibleReports = _applyFilters(reports);
                   final chromeInset = civicContentPadding(context);
 
-                  return ListView(
-                    // Stays draggable even when a short list fits the
-                    // viewport — otherwise pull-to-refresh silently
-                    // wouldn't trigger whenever there are few reports.
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: EdgeInsets.fromLTRB(
-                      horizontalPadding,
-                      chromeInset.top + AppSpacing.xl,
-                      horizontalPadding,
-                      chromeInset.bottom + AppSpacing.xl,
-                    ),
-                    children: [
-                      const _ReportsIntro(),
-                      const SizedBox(height: AppSpacing.lg),
-                      _ReportsStatsRow(reports: reports),
-                      const SizedBox(height: AppSpacing.lg),
-                      _ReportsSearchField(controller: _searchController),
-                      const SizedBox(height: AppSpacing.md),
-                      _ReportFilterBar(
-                        selected: _filter,
-                        onSelected: (filter) =>
-                            setState(() => _filter = filter),
-                      ),
-                      const SizedBox(height: AppSpacing.lg),
-                      if (reports.isEmpty)
-                        _ReportsEmptyState(onCreateReport: _openCreateReport)
-                      else if (visibleReports.isEmpty)
-                        const _NoFilteredReports()
-                      else
-                        for (final report in visibleReports) ...[
-                          _ReportHistoryCard(report: report),
-                          const SizedBox(height: AppSpacing.md),
+                  return Padding(
+                    padding: EdgeInsets.only(top: chromeInset.top),
+                    child: SearchFilterList(
+                      header: SearchFilterHeader(
+                        screenKey: 'citizen-reports',
+                        hintText: 'Search your reports',
+                        query: _searchController.text,
+                        onQueryChanged: (value) =>
+                            _searchController.text = value,
+                        results: (term) => [
+                          for (final item in _applyFilters(
+                            reports,
+                            queryOverride: term,
+                          ))
+                            FocusedSearchResult(
+                              title: item.title,
+                              subtitle: item.referenceNumber,
+                              onSelected: () => Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) =>
+                                      ReportTrackingScreen(reportId: item.id),
+                                ),
+                              ),
+                            ),
                         ],
-                    ],
+                        filters: _ReportFilterBar(
+                          selected: _filter,
+                          onSelected: (filter) =>
+                              setState(() => _filter = filter),
+                        ),
+                      ),
+                      child: ListView(
+                        // Stays draggable even when a short list fits the
+                        // viewport — otherwise pull-to-refresh silently
+                        // wouldn't trigger whenever there are few reports.
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: EdgeInsets.fromLTRB(
+                          horizontalPadding,
+                          AppSpacing.md,
+                          horizontalPadding,
+                          chromeInset.bottom + AppSpacing.xl,
+                        ),
+                        children: [
+                          const _ReportsIntro(),
+                          const SizedBox(height: AppSpacing.lg),
+                          _ReportsStatsRow(reports: reports),
+                          const SizedBox(height: AppSpacing.lg),
+                          if (reports.isEmpty)
+                            _ReportsEmptyState(
+                              onCreateReport: _openCreateReport,
+                            )
+                          else if (visibleReports.isEmpty)
+                            const _NoFilteredReports()
+                          else
+                            for (final report in visibleReports) ...[
+                              _ReportHistoryCard(report: report),
+                              const SizedBox(height: AppSpacing.md),
+                            ],
+                        ],
+                      ),
+                    ),
                   );
                 },
               ),
@@ -187,39 +222,6 @@ class _CitizenReportsScreenState extends State<CitizenReportsScreen> {
               ),
             ),
         ],
-      ),
-    );
-  }
-}
-
-class _ReportsSearchField extends StatelessWidget {
-  const _ReportsSearchField({required this.controller});
-
-  final TextEditingController controller;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final semantic = theme.extension<AppSemanticColors>()!;
-
-    return TextField(
-      controller: controller,
-      textInputAction: TextInputAction.search,
-      style: theme.textTheme.bodySmall,
-      // Glass — see MunicipalSearchField's doc comment.
-      decoration: InputDecoration(
-        filled: true,
-        fillColor: semantic.glassSurface,
-        isDense: true,
-        prefixIcon: const Icon(AppIcons.search, size: AppIconSize.md),
-        hintText: 'Search your reports',
-        suffixIcon: controller.text.isEmpty
-            ? null
-            : IconButton(
-                tooltip: 'Clear search',
-                onPressed: controller.clear,
-                icon: const Icon(AppIcons.close),
-              ),
       ),
     );
   }

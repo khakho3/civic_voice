@@ -1654,7 +1654,11 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    await tester.tap(find.text('Search users'));
+    await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), 'kojo');
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pumpAndSettle();
     await tester.pumpAndSettle();
 
     expect(find.text('Kojo Mensah'), findsOneWidget);

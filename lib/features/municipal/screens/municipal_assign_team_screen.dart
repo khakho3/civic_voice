@@ -1,6 +1,9 @@
 import '../../../core/widgets/ghana_refresh_indicator.dart';
 import 'package:flutter/material.dart';
 
+import '../../../widgets/search_filter_list.dart';
+import '../../../widgets/focused_search.dart';
+
 import '../../../core/theme/app_theme.dart';
 import '../../../models/report_status.dart';
 import '../../../models/team_availability.dart';
@@ -13,7 +16,6 @@ import '../../admin/models/admin_maintenance_team_data.dart';
 import '../../admin/services/admin_maintenance_team_directory.dart';
 import '../services/municipal_report_directory.dart';
 import '../widgets/municipal_detail_header.dart';
-import '../widgets/municipal_search_field.dart';
 import '../widgets/officer_contact_row.dart';
 import '../../../widgets/app_state_message.dart';
 import '../../../widgets/status_badge.dart';
@@ -449,44 +451,28 @@ class _AssignBody extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
     final colorScheme = Theme.of(context).colorScheme;
 
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.md,
-        AppSpacing.md,
-        AppSpacing.md,
-        AppSpacing.xl,
-      ),
-      children: [
-        _ReportSummaryCard(data: data),
-        const SizedBox(height: AppSpacing.md),
-        if (disabledCaption != null) ...[
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(AppSpacing.sm),
-            decoration: BoxDecoration(
-              color: colorScheme.surfaceContainer,
-              borderRadius: AppComponentRadius.inputField,
-            ),
-            child: Text(disabledCaption!, style: textTheme.bodySmall),
-          ),
-          const SizedBox(height: AppSpacing.md),
+    return SearchFilterList(
+      header: SearchFilterHeader(
+        query: searchController.text,
+        onQueryChanged: (value) => searchController.text = value,
+        hintText: 'Search teams...',
+        screenKey: 'municipal-assign-team',
+        results: (query) => [
+          for (final item
+              in MaintenanceTeamDirectory.instance.teams.value.where(
+                (team) =>
+                    filter != TeamFilter.available ||
+                    team.availability == TeamAvailability.available,
+              ))
+            if (item.name.toLowerCase().contains(query.toLowerCase()))
+              FocusedSearchResult(
+                title: item.name,
+                subtitle: item.teamId,
+                onSelected: enabled ? () => onSelect(item) : null,
+              ),
         ],
-        MunicipalSearchField(
-          controller: searchController,
-          hintText: 'Search teams...',
-          screenKey: 'municipal-assign-team',
-          results: (query) => [
-            for (final item in MaintenanceTeamDirectory.instance.teams.value)
-              if (item.name.toLowerCase().contains(query.toLowerCase()))
-                FocusedSearchResult(
-                  title: item.name,
-                  subtitle: item.teamId,
-                  onSelected: enabled ? () => onSelect(item) : null,
-                ),
-          ],
-          enabled: enabled,
-        ),
-        TextFilterChips<TeamFilter>(
+        enabled: enabled,
+        filters: TextFilterChips<TeamFilter>(
           options: [
             for (final option in TeamFilter.values)
               TextFilterOption(value: option, label: option.label),
@@ -497,32 +483,56 @@ class _AssignBody extends StatelessWidget {
           },
           padding: EdgeInsets.zero,
         ),
-
-        const SizedBox(height: AppSpacing.md),
-        if (teams.isEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: AppSpacing.xl),
-            child: Text(
-              'No teams match your search.',
-              style: textTheme.bodyMedium,
-              textAlign: TextAlign.center,
-            ),
-          )
-        else
-          for (final team in teams) ...[
-            _TeamCard(
-              team: team,
-              selected: selected?.name == team.name,
-              enabled: enabled && team.availability != TeamAvailability.offDuty,
-              onTap: () => onSelect(team),
-            ),
-            if (team != teams.last) const SizedBox(height: AppSpacing.sm),
-          ],
-        if (selected != null) ...[
+      ),
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.md,
+          AppSpacing.md,
+          AppSpacing.md,
+          AppSpacing.xl,
+        ),
+        children: [
+          _ReportSummaryCard(data: data),
           const SizedBox(height: AppSpacing.md),
-          _AssignmentSummaryCard(team: selected!),
+          if (disabledCaption != null) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(AppSpacing.sm),
+              decoration: BoxDecoration(
+                color: colorScheme.surfaceContainer,
+                borderRadius: AppComponentRadius.inputField,
+              ),
+              child: Text(disabledCaption!, style: textTheme.bodySmall),
+            ),
+            const SizedBox(height: AppSpacing.md),
+          ],
+          const SizedBox.shrink(),
+          if (teams.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.xl),
+              child: Text(
+                'No teams match your search.',
+                style: textTheme.bodyMedium,
+                textAlign: TextAlign.center,
+              ),
+            )
+          else
+            for (final team in teams) ...[
+              _TeamCard(
+                team: team,
+                selected: selected?.name == team.name,
+                enabled:
+                    enabled && team.availability != TeamAvailability.offDuty,
+                onTap: () => onSelect(team),
+              ),
+              if (team != teams.last) const SizedBox(height: AppSpacing.sm),
+            ],
+          if (selected != null) ...[
+            const SizedBox(height: AppSpacing.md),
+            _AssignmentSummaryCard(team: selected!),
+          ],
         ],
-      ],
+      ),
     );
   }
 }
@@ -655,9 +665,11 @@ class _TeamCard extends StatelessWidget {
                   color: colorScheme.onSurfaceVariant,
                 ),
                 const SizedBox(width: 4),
-                Text(
-                  '${team.leadName ?? 'No lead set'} · ${team.memberUserIds.length} members',
-                  style: textTheme.bodySmall,
+                Expanded(
+                  child: Text(
+                    '${team.leadName ?? 'No lead set'} · ${team.memberUserIds.length} members',
+                    style: textTheme.bodySmall,
+                  ),
                 ),
               ],
             ),

@@ -4,6 +4,7 @@ import 'package:civic_voice/core/theme/app_theme.dart';
 import '../../../core/widgets/ghana_refresh_indicator.dart';
 import '../../../widgets/glass_card.dart';
 import '../../../widgets/focused_search.dart';
+import '../../../widgets/search_filter_list.dart';
 import '../../../widgets/text_filter_chips.dart';
 import '../../../widgets/status_badge.dart';
 import '../models/maintenance_task.dart';
@@ -161,71 +162,68 @@ class _AssignedTasksContent extends StatelessWidget {
       opacity: disabled ? 0.5 : 1.0,
       child: IgnorePointer(
         ignoring: disabled,
-        child: ListView(
-          // Stays draggable even when a short/filtered task list fits the
-          // viewport — otherwise pull-to-refresh silently wouldn't trigger.
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: EdgeInsets.fromLTRB(
-            AppSpacing.md,
-            chromeInset.top + AppSpacing.md,
-            AppSpacing.md,
-            chromeInset.bottom + AppSpacing.xl,
-          ),
-          children: [
-            SearchTriggerField(
+        child: Padding(
+          padding: EdgeInsets.only(top: chromeInset.top),
+          child: SearchFilterList(
+            header: SearchFilterHeader(
+              screenKey: 'maintenance-tasks',
               hintText: 'Search assigned tasks...',
               query: query,
-              onClear: () => onQueryChanged(''),
-              onOpen: () async {
-                final value = await showFocusedSearch(
-                  context,
-                  screenKey: 'maintenance-tasks',
-                  hintText: 'Search assigned tasks...',
-                  initialQuery: query,
-                  results: (term) => [
-                    for (final task in tasks)
-                      if (task.matches(term))
-                        FocusedSearchResult(
-                          title: task.title,
-                          subtitle: task.id,
-                          onSelected: onOpenTaskDetails == null
-                              ? null
-                              : () => onOpenTaskDetails!(task.id),
-                        ),
-                  ],
-                );
-                if (context.mounted && value != null) onQueryChanged(value);
-              },
-            ),
-            const SizedBox(height: AppSpacing.md),
-            _QueueOverview(tasks: tasks),
-            const SizedBox(height: AppSpacing.md),
-            _FilterRail(
-              statusFilter: statusFilter,
-              onStatusChanged: onStatusChanged,
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            Row(
-              children: [
-                Text('Queue', style: textTheme.titleMedium),
-                const SizedBox(width: AppSpacing.sm),
-                _CountPill(count: filteredTasks.length),
+              onQueryChanged: onQueryChanged,
+              enabled: !disabled,
+              results: (term) => [
+                for (final task in tasks)
+                  if (task.matches(term) &&
+                      (statusFilter == null || task.status == statusFilter))
+                    FocusedSearchResult(
+                      title: task.title,
+                      subtitle: task.id,
+                      onSelected: onOpenTaskDetails == null
+                          ? null
+                          : () => onOpenTaskDetails!(task.id),
+                    ),
               ],
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            ...filteredTasks.map(
-              (task) => Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                child: _TaskCard(
-                  task: task,
-                  onOpenDetails: onOpenTaskDetails == null
-                      ? null
-                      : () => onOpenTaskDetails!(task.id),
-                ),
+              filters: _FilterRail(
+                statusFilter: statusFilter,
+                onStatusChanged: onStatusChanged,
               ),
             ),
-            if (filteredTasks.isEmpty) const _NoMatchesCard(),
-          ],
+            child: ListView(
+              // Stays draggable even when a short/filtered task list fits the
+              // viewport — otherwise pull-to-refresh silently wouldn't trigger.
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: EdgeInsets.fromLTRB(
+                AppSpacing.md,
+                AppSpacing.md,
+                AppSpacing.md,
+                chromeInset.bottom + AppSpacing.xl,
+              ),
+              children: [
+                _QueueOverview(tasks: tasks),
+                const SizedBox(height: AppSpacing.md),
+                Row(
+                  children: [
+                    Text('Queue', style: textTheme.titleMedium),
+                    const SizedBox(width: AppSpacing.sm),
+                    _CountPill(count: filteredTasks.length),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                ...filteredTasks.map(
+                  (task) => Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                    child: _TaskCard(
+                      task: task,
+                      onOpenDetails: onOpenTaskDetails == null
+                          ? null
+                          : () => onOpenTaskDetails!(task.id),
+                    ),
+                  ),
+                ),
+                if (filteredTasks.isEmpty) const _NoMatchesCard(),
+              ],
+            ),
+          ),
         ),
       ),
     );

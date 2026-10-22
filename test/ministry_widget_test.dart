@@ -1,3 +1,5 @@
+import 'package:civic_voice/services/app_cache_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:url_launcher_platform_interface/link.dart';
@@ -340,6 +342,10 @@ MunicipalPerformanceData ministryMunicipalPerformanceFixture() {
 }
 
 void main() {
+  setUp(() async {
+    SharedPreferences.setMockInitialValues({});
+    await AppCacheService.instance.initialize(accountId: 'ministry-test');
+  });
   for (final state in MinistryDashboardViewState.values) {
     testWidgets('Ministry Dashboard renders ${state.name} without error', (
       WidgetTester tester,
@@ -1888,7 +1894,11 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      await tester.tap(find.text('Search aggregated reports'));
+      await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextField), 'pothole');
+      await tester.testTextInput.receiveAction(TextInputAction.search);
+      await tester.pumpAndSettle();
       await tester.pumpAndSettle();
 
       expect(find.text('1 shown'), findsOneWidget);

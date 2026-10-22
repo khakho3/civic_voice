@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import '../../../widgets/search_filter_list.dart';
+import '../../../widgets/focused_search.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/ghana_refresh_indicator.dart';
 import '../../../widgets/app_dropdown_field.dart';
 import '../../../widgets/app_state_message.dart';
-import '../../../widgets/collapsible_list_header.dart';
 import '../../../widgets/glass_card.dart';
 import '../models/admin_system_activity_data.dart';
 import '../services/admin_session.dart';
@@ -70,7 +71,7 @@ String _formatActivityTimestamp(DateTime date) {
 /// assembly Admin viewing their own feed.
 ///
 /// [SystemHealthStats] renders as ordinary scrolling content, not part of
-/// [CollapsibleListHeader]'s sticky [CollapsibleListHeader.header] — only
+/// [SearchFilterList]'s sticky [SearchFilterList.header] — only
 /// the filter chips/time-range dropdown are transient chrome worth hiding
 /// on scroll; a health readout is content, same as the activity cards
 /// below it.
@@ -163,7 +164,10 @@ class _AdminSystemActivityScreenState extends State<AdminSystemActivityScreen> {
   late final bool _usesDirectorySnapshot =
       widget.activitySnapshotAvailable == null &&
       (widget.items == null ||
-          identical(widget.items, AdminSystemActivityDirectory.instance.items.value));
+          identical(
+            widget.items,
+            AdminSystemActivityDirectory.instance.items.value,
+          ));
 
   bool get _hasActivitySnapshot =>
       widget.activitySnapshotAvailable ??
@@ -181,7 +185,8 @@ class _AdminSystemActivityScreenState extends State<AdminSystemActivityScreen> {
 
   _HealthPresentation get _healthPresentation {
     if (_healthStats == null) return _HealthPresentation.unavailable;
-    final verified = widget.healthSnapshotVerified ??
+    final verified =
+        widget.healthSnapshotVerified ??
         (_usesDirectorySnapshot &&
             AdminSystemActivityDirectory.instance.hasLiveHealthSnapshot);
     return verified ? _HealthPresentation.live : _HealthPresentation.sample;
@@ -189,7 +194,8 @@ class _AdminSystemActivityScreenState extends State<AdminSystemActivityScreen> {
 
   bool get _canRetry =>
       widget.onRefresh != null &&
-      (!_usesDirectorySnapshot || AdminSystemActivityDirectory.instance.canRefresh);
+      (!_usesDirectorySnapshot ||
+          AdminSystemActivityDirectory.instance.canRefresh);
   bool get _showStaleActivity =>
       _usesDirectorySnapshot &&
       AdminSystemActivityDirectory.instance.state.value ==
@@ -330,24 +336,45 @@ class _AdminSystemActivityScreenState extends State<AdminSystemActivityScreen> {
                 !_hasActivitySnapshot
           ? _UnavailableActivity(onRetry: _canRetry ? _retry : null)
           : switch (_state) {
-        AdminSystemActivityViewState.loading => const _LoadingSkeleton(),
+                  AdminSystemActivityViewState.loading =>
+                    const _LoadingSkeleton(),
         AdminSystemActivityViewState.loaded => _wrapWithRefresh(
           Column(
             children: [
-              SizedBox(height: AdminScaffold.contentPadding(context).top),
+                        SizedBox(
+                          height: AdminScaffold.contentPadding(context).top,
+                        ),
               Expanded(
-                child: CollapsibleListHeader(
-                  header: _FilterChrome(
+                          child: SearchFilterList.builder(
+                            headerBuilder: (compact) => _FilterChrome(
+                              compact: compact,
                     filter: _filter,
                     searchController: _searchController,
                     enabled: true,
-                    onFilterSelected: (f) => setState(() => _filter = f),
-                    onSearchChanged: (q) => setState(() => _searchQuery = q),
+                              onFilterSelected: (f) =>
+                                  setState(() => _filter = f),
+                              onSearchChanged: (q) =>
+                                  setState(() => _searchQuery = q),
+                              results: (term) => [
+                                for (final item
+                                    in AdminSession.instance.visibleActivity(
+                                      _items,
+                                    ))
+                                  if (_filter.matches(item) &&
+                                      item.matchesTimeRange(_timeRange) &&
+                                      item.matchesQuery(term))
+                                    FocusedSearchResult(
+                                      title: item.title,
+                                      subtitle: item.description,
                   ),
+                              ],
+                            ),
                   child: _ActivityList(
                     healthStats: _healthStats,
                     healthPresentation: _healthPresentation,
-                    items: AdminSession.instance.visibleActivity(_items),
+                              items: AdminSession.instance.visibleActivity(
+                                _items,
+                              ),
                     liveAudit: _hasActivitySnapshot,
                     showStaleActivity: _showStaleActivity,
                     filter: _filter,
@@ -364,7 +391,9 @@ class _AdminSystemActivityScreenState extends State<AdminSystemActivityScreen> {
         ),
         _ => Column(
           children: [
-            SizedBox(height: AdminScaffold.contentPadding(context).top),
+                      SizedBox(
+                        height: AdminScaffold.contentPadding(context).top,
+                      ),
             _FilterChrome(
               filter: _filter,
               searchController: _searchController,
@@ -379,7 +408,8 @@ class _AdminSystemActivityScreenState extends State<AdminSystemActivityScreen> {
             Expanded(
               child: switch (_state) {
                 AdminSystemActivityViewState.loading ||
-                AdminSystemActivityViewState.loaded => const SizedBox.shrink(),
+                          AdminSystemActivityViewState.loaded =>
+                            const SizedBox.shrink(),
                 AdminSystemActivityViewState.empty => Padding(
                   padding: const EdgeInsets.all(AppSpacing.md),
                   child: AppStateMessage(
@@ -498,6 +528,8 @@ class _FilterChrome extends StatelessWidget {
     required this.filter,
     required this.searchController,
     required this.enabled,
+    this.compact = false,
+    this.results = emptySearchResults,
     this.onFilterSelected,
     this.onSearchChanged,
   });
@@ -508,94 +540,39 @@ class _FilterChrome extends StatelessWidget {
   final ValueChanged<ActivityFilter>? onFilterSelected;
   final ValueChanged<String>? onSearchChanged;
 
+  final bool compact;
+  final FocusedSearchResultsBuilder results;
   @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final semantic = Theme.of(context).extension<AppSemanticColors>()!;
-    return Opacity(
-      opacity: enabled ? 1 : 0.5,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.md,
-          AppSpacing.md,
-          AppSpacing.md,
-          AppSpacing.sm,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            TextField(
-              controller: searchController,
-              enabled: enabled,
-              onChanged: onSearchChanged,
-              textInputAction: TextInputAction.search,
-              // Glass — see MunicipalSearchField's doc comment: search
-              // containers are permitted glass per §19.10, but the global
-              // inputDecorationTheme also backs actual forms (prohibited),
-              // so this is an explicit per-instance fill, not a theme change.
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: semantic.glassSurface,
-                isDense: true,
+  Widget build(BuildContext context) => SearchFilterHeader(
+    screenKey: 'admin-activity',
                 hintText: 'Search activity',
-                prefixIcon: const Icon(AppIcons.search, size: AppIconSize.sm),
-                suffixIcon: ValueListenableBuilder<TextEditingValue>(
-                  valueListenable: searchController,
-                  builder: (context, value, _) {
-                    if (value.text.isEmpty) return const SizedBox.shrink();
-                    return IconButton(
-                      icon: const Icon(AppIcons.close, size: AppIconSize.sm),
-                      tooltip: 'Clear search',
-                      onPressed: enabled
-                          ? () {
-                              searchController.clear();
-                              onSearchChanged?.call('');
-                            }
-                          : null,
-                    );
+    query: searchController.text,
+    enabled: enabled,
+    compact: compact,
+    results: results,
+    onQueryChanged: (value) {
+      searchController.text = value;
+      onSearchChanged?.call(value);
                   },
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: AppComponentRadius.inputField,
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.md,
-                  vertical: AppSpacing.sm,
-                ),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            SizedBox(
+
+    filters: SizedBox(
               height: 40,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 itemCount: ActivityFilter.values.length,
-                separatorBuilder: (_, _) =>
-                    const SizedBox(width: AppSpacing.xs),
+        separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.xs),
                 itemBuilder: (context, index) {
                   final option = ActivityFilter.values[index];
                   return _FilterChip(
                     label: option.label,
                     selected: option == filter,
-                    onTap: enabled
-                        ? () => onFilterSelected?.call(option)
-                        : null,
+            onTap: enabled ? () => onFilterSelected?.call(option) : null,
                   );
                 },
               ),
             ),
-            const SizedBox(height: AppSpacing.md),
-            Text('Recent Activity', style: textTheme.titleMedium),
-          ],
-        ),
-      ),
     );
   }
-}
-
-// ---------------------------------------------------------------------------
-// Health stats — API status, DB latency, uptime
-// ---------------------------------------------------------------------------
 
 enum _HealthPresentation { live, sample, unavailable }
 
@@ -898,6 +875,8 @@ class _ActivityList extends StatelessWidget {
           const _HealthUnavailableNotice(),
           const SizedBox(height: AppSpacing.md),
         ],
+        Text('Recent Activity', style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: AppSpacing.sm),
         if (!auditLoggingOn)
           const _AuditLoggingOffNotice()
         else if (filtered.isEmpty)

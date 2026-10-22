@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
 
+import '../../../widgets/search_filter_list.dart';
+import '../../../widgets/focused_search.dart';
+
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/ghana_refresh_indicator.dart';
 import '../../../models/report_status.dart';
 import '../models/active_report.dart';
 import '../models/incoming_report.dart';
 import '../services/municipal_report_directory.dart';
-import '../../../widgets/collapsible_list_header.dart';
 import '../../../widgets/glass_card.dart';
 import '../../../widgets/text_filter_chips.dart';
 import '../../../widgets/glass_dialog_backdrop.dart';
 import '../widgets/municipal_scaffold.dart';
-import '../widgets/municipal_search_field.dart';
 import '../../../widgets/app_state_message.dart';
 import '../../../widgets/status_badge.dart';
 
@@ -132,14 +133,18 @@ class _MunicipalActiveReportsScreenState
   /// Real filtering/sorting/search — matching the interactive treatment
   /// already established on MUN-005's team list, rather than the static
   /// mockup's non-functional chips.
-  List<IncomingReportItem> get _visibleReports {
+  List<IncomingReportItem> get _visibleReports =>
+      _reportsForQuery(_searchController.text);
+
+  List<IncomingReportItem> _reportsForQuery(String term) {
     var reports = _data.toList();
-    final query = _searchController.text.trim().toLowerCase();
+    final query = term.trim().toLowerCase();
     if (query.isNotEmpty) {
       reports = reports
           .where(
             (r) =>
                 r.referenceId.toLowerCase().contains(query) ||
+                r.title.toLowerCase().contains(query) ||
                 r.locationLabel.toLowerCase().contains(query),
           )
           .toList();
@@ -259,6 +264,7 @@ class _MunicipalActiveReportsScreenState
                 onRefresh: _pullToRefresh,
                 child: _ActiveReportsBody(
                   reports: _visibleReports,
+                  searchReports: _reportsForQuery(''),
                   cached: false,
                   searchController: _searchController,
                   filter: _filter,
@@ -271,6 +277,7 @@ class _MunicipalActiveReportsScreenState
                 onRefresh: _pullToRefresh,
                 child: _ActiveReportsBody(
                   reports: _visibleReports,
+                  searchReports: _reportsForQuery(''),
                   cached: true,
                   searchController: _searchController,
                   filter: _filter,
@@ -363,6 +370,7 @@ class _OfflineBanner extends StatelessWidget {
 class _ActiveReportsBody extends StatelessWidget {
   const _ActiveReportsBody({
     required this.reports,
+    required this.searchReports,
     required this.cached,
     required this.searchController,
     required this.filter,
@@ -372,6 +380,7 @@ class _ActiveReportsBody extends StatelessWidget {
   });
 
   final List<IncomingReportItem> reports;
+  final List<IncomingReportItem> searchReports;
   final bool cached;
   final TextEditingController searchController;
   final ActiveReportFilter filter;
@@ -383,53 +392,35 @@ class _ActiveReportsBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
 
-    return CollapsibleListHeader(
-      header: Padding(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.md,
-          AppSpacing.md,
-          AppSpacing.md,
-          AppSpacing.sm,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            MunicipalSearchField(
-              controller: searchController,
-              hintText: 'Search report ID or street...',
-              screenKey: 'municipal-active',
-              results: (query) => [
-                for (final item
-                    in MunicipalReportDirectory.instance.reports.value.where(
-                      (r) =>
-                          !r.status.isClosed &&
-                          r.status != ReportStatus.submitted &&
-                          r.status != ReportStatus.underReview,
-                    ))
-                  if ('${item.referenceId} ${item.title} ${item.locationLabel}'
-                      .toLowerCase()
-                      .contains(query.toLowerCase()))
-                    FocusedSearchResult(
-                      title: item.title,
-                      subtitle: item.referenceId,
-                      onSelected: onReportTap == null
-                          ? null
-                          : () => onReportTap!(item),
-                    ),
-              ],
-            ),
-            TextFilterChips<ActiveReportFilter>(
-              options: [
-                for (final option in ActiveReportFilter.values)
-                  TextFilterOption(value: option, label: option.label),
-              ],
-              selected: filter,
-              onSelected: onFilterChanged,
-              padding: EdgeInsets.zero,
-            ),
-
-            const SizedBox(height: AppSpacing.sm),
+    return SearchFilterList(
+      header: SearchFilterHeader(
+        query: searchController.text,
+        onQueryChanged: (value) {
+          searchController.text = value;
+        },
+        hintText: 'Search report ID or street...',
+        screenKey: 'municipal-active',
+        results: (query) => [
+          for (final item in searchReports)
+            if ('${item.referenceId} ${item.title} ${item.locationLabel}'
+                .toLowerCase()
+                .contains(query.toLowerCase()))
+              FocusedSearchResult(
+                title: item.title,
+                subtitle: item.referenceId,
+                onSelected: onReportTap == null
+                    ? null
+                    : () => onReportTap!(item),
+              ),
+        ],
+        filters: TextFilterChips<ActiveReportFilter>(
+          options: [
+            for (final option in ActiveReportFilter.values)
+              TextFilterOption(value: option, label: option.label),
           ],
+          selected: filter,
+          onSelected: onFilterChanged,
+          padding: EdgeInsets.zero,
         ),
       ),
       child: ListView(
@@ -584,11 +575,13 @@ class _ActiveReportCard extends StatelessWidget {
                   ],
                 ),
               ),
-              TextButton.icon(
-                onPressed: onTap,
-                label: const Text('View Details'),
-                icon: const Icon(AppIcons.chevronRight),
-                iconAlignment: IconAlignment.end,
+              Flexible(
+                child: TextButton.icon(
+                  onPressed: onTap,
+                  label: const Text('View Details'),
+                  icon: const Icon(AppIcons.chevronRight),
+                  iconAlignment: IconAlignment.end,
+                ),
               ),
             ],
           ),

@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 
+import '../../../widgets/search_filter_list.dart';
+import '../../../widgets/focused_search.dart';
+
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/ghana_refresh_indicator.dart';
 import '../../../models/report_status.dart';
 import '../models/incoming_report.dart';
 import '../services/municipal_report_directory.dart';
-import '../../../widgets/collapsible_list_header.dart';
 import '../../../widgets/glass_card.dart';
 import '../../../widgets/text_filter_chips.dart';
 import '../widgets/municipal_scaffold.dart';
-import '../widgets/municipal_search_field.dart';
 import '../../../widgets/app_state_message.dart';
 import '../../../widgets/status_badge.dart';
 
@@ -296,51 +297,43 @@ class _InboxContent extends StatelessWidget {
       children: [
         SizedBox(height: topChromeInset),
         Expanded(
-          child: CollapsibleListHeader(
-            header: Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.md,
-                AppSpacing.md,
-                AppSpacing.md,
-                AppSpacing.sm,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  MunicipalSearchField(
-                    controller: searchController,
-                    hintText: 'Search incoming reports...',
-                    screenKey: 'municipal-inbox',
-                    results: (query) => [
-                      for (final item in rawReports)
-                        if ('${item.referenceId} ${item.title} ${item.locationLabel}'
-                            .toLowerCase()
-                            .contains(query.toLowerCase()))
-                          FocusedSearchResult(
-                            title: item.title,
-                            subtitle: item.referenceId,
-                            onSelected: onReportTap == null
-                                ? null
-                                : () => onReportTap!(item),
-                          ),
-                    ],
-                    enabled: !loading,
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  if (isNoResults)
-                    _ActiveFilterTags(
+          child: SearchFilterList(
+            header: SearchFilterHeader(
+              query: searchController?.text ?? '',
+              onQueryChanged: (value) {
+                searchController?.text = value;
+              },
+              hintText: 'Search incoming reports...',
+              screenKey: 'municipal-inbox',
+              results: (query) => [
+                for (final item in rawReports.where(
+                  (item) =>
+                      selectedCategory == null ||
+                      item.category == selectedCategory,
+                ))
+                  if ('${item.referenceId} ${item.title} ${item.locationLabel}'
+                      .toLowerCase()
+                      .contains(query.toLowerCase()))
+                    FocusedSearchResult(
+                      title: item.title,
+                      subtitle: item.referenceId,
+                      onSelected: onReportTap == null
+                          ? null
+                          : () => onReportTap!(item),
+                    ),
+              ],
+              enabled: !loading,
+              filters: isNoResults
+                  ? _ActiveFilterTags(
                       query: searchController?.text.trim() ?? '',
                       category: selectedCategory,
                       onCategoryCleared: () => onCategorySelected?.call(null),
                       onQueryCleared: () => searchController?.clear(),
                     )
-                  else
-                    _CategoryChips(
+                  : _CategoryChips(
                       selected: selectedCategory,
                       onSelected: loading ? null : onCategorySelected,
                     ),
-                ],
-              ),
             ),
             child: loading
                 ? const _ReportListSkeleton()

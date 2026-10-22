@@ -1,3 +1,4 @@
+import 'package:civic_voice/widgets/focused_search.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:civic_voice/services/app_cache_service.dart';
@@ -1554,7 +1555,7 @@ void main() {
   );
 
   testWidgets(
-    'Municipal Inbox search field collapses on scroll-down and reappears on scroll-up',
+    'Municipal Inbox keeps search reachable through short-list scrolling',
     (WidgetTester tester) async {
       // A realistic phone height (not the extra-tall size used elsewhere to
       // avoid clipping) so the list actually overflows and can be scrolled.
@@ -1567,10 +1568,7 @@ void main() {
         MaterialApp(theme: AppTheme.light, home: const MunicipalInboxScreen()),
       );
       await tester.pumpAndSettle();
-
-      // The header's own box shrinks to heightFactor 0 when collapsed; a
-      // descendant like TextField keeps its natural layout size regardless
-      // (Align doesn't constrain its child), so measure the keyed wrapper.
+      // Search always stays reachable; short lists retain the full header.
       final headerFinder = find.byKey(const ValueKey('collapsible_header'));
       final expandedHeight = tester.getSize(headerFinder).height;
       expect(expandedHeight, greaterThan(0));
@@ -1581,7 +1579,10 @@ void main() {
       await tester.drag(listFinder, const Offset(0, -400));
       await tester.pumpAndSettle();
 
-      expect(tester.getSize(headerFinder).height, lessThan(1));
+      // Short fixtures may deliberately remain expanded. Search must always
+      // remain reachable; overflowing fixtures use the compact rail.
+      expect(tester.getSize(headerFinder).height, greaterThan(0));
+      expect(find.byType(SearchTriggerField), findsOneWidget);
 
       await tester.drag(listFinder, const Offset(0, 400));
       await tester.pumpAndSettle();
@@ -1594,7 +1595,7 @@ void main() {
   );
 
   testWidgets(
-    'Municipal Active Reports search field collapses on scroll-down and reappears on scroll-up',
+    'Municipal Active Reports keeps search reachable through short-list scrolling',
     (WidgetTester tester) async {
       tester.view.physicalSize = const Size(428, 900);
       tester.view.devicePixelRatio = 1.0;
@@ -1616,7 +1617,10 @@ void main() {
       await tester.drag(listFinder, const Offset(0, -400));
       await tester.pumpAndSettle();
 
-      expect(tester.getSize(headerFinder).height, lessThan(1));
+      // Short fixtures may deliberately remain expanded. Search must always
+      // remain reachable; overflowing fixtures use the compact rail.
+      expect(tester.getSize(headerFinder).height, greaterThan(0));
+      expect(find.byType(SearchTriggerField), findsOneWidget);
 
       await tester.drag(listFinder, const Offset(0, 400));
       await tester.pumpAndSettle();
@@ -1628,49 +1632,49 @@ void main() {
     },
   );
 
-  testWidgets(
-    'Municipal Resolved Reports search field collapses on scroll-down and '
-    'reappears on scroll-up, while the stats row scrolls as ordinary '
-    'content',
-    (WidgetTester tester) async {
-      tester.view.physicalSize = const Size(428, 900);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
+  testWidgets('Municipal Resolved Reports keeps search reachable while '
+      'the stats row scrolls as ordinary '
+      'content', (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(428, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
 
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: AppTheme.light,
-          home: const MunicipalResolvedReportsScreen(),
-        ),
-      );
-      await tester.pumpAndSettle();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: const MunicipalResolvedReportsScreen(),
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      final headerFinder = find.byKey(const ValueKey('collapsible_header'));
-      final searchExpandedHeight = tester.getSize(headerFinder).height;
-      expect(searchExpandedHeight, greaterThan(0));
-      // The stats row is regular scrolling content now, not collapsible
-      // chrome — it's always in the tree regardless of header state.
-      // ("Resolved" also labels each card's own status badge, hence
-      // findsWidgets rather than findsOneWidget.)
-      expect(find.text('Resolved'), findsWidgets);
+    final headerFinder = find.byKey(const ValueKey('collapsible_header'));
+    final searchExpandedHeight = tester.getSize(headerFinder).height;
+    expect(searchExpandedHeight, greaterThan(0));
+    // The stats row is regular scrolling content now, not collapsible
+    // chrome — it's always in the tree regardless of header state.
+    // ("Resolved" also labels each card's own status badge, hence
+    // findsWidgets rather than findsOneWidget.)
+    expect(find.text('Resolved'), findsWidgets);
 
-      final listFinder = find.byType(ListView).last;
-      await tester.drag(listFinder, const Offset(0, -400));
-      await tester.pumpAndSettle();
+    final listFinder = find.byType(ListView).last;
+    await tester.drag(listFinder, const Offset(0, -400));
+    await tester.pumpAndSettle();
 
-      expect(tester.getSize(headerFinder).height, lessThan(1));
-      expect(find.text('Resolved'), findsWidgets);
+    // Short fixtures may deliberately remain expanded. Search must always
+    // remain reachable; overflowing fixtures use the compact rail.
+    expect(tester.getSize(headerFinder).height, greaterThan(0));
+    expect(find.byType(SearchTriggerField), findsOneWidget);
+    expect(find.text('Resolved'), findsWidgets);
 
-      await tester.drag(listFinder, const Offset(0, 400));
-      await tester.pumpAndSettle();
+    await tester.drag(listFinder, const Offset(0, 400));
+    await tester.pumpAndSettle();
 
-      expect(
-        tester.getSize(headerFinder).height,
-        greaterThan(searchExpandedHeight / 2),
-      );
-    },
-  );
+    expect(
+      tester.getSize(headerFinder).height,
+      greaterThan(searchExpandedHeight / 2),
+    );
+  });
 
   testWidgets('CollapsibleListHeader: header reveals immediately on any upward '
       'scroll, not just once the list is back at the top', (

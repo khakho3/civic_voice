@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+
+import '../../../widgets/search_filter_list.dart';
+import '../../../widgets/focused_search.dart';
+
 import 'package:firebase_core/firebase_core.dart';
 
 import '../../../core/theme/app_theme.dart';
@@ -6,11 +10,9 @@ import '../../../core/widgets/ghana_refresh_indicator.dart';
 import '../models/resolved_report.dart';
 import '../../../models/report_status.dart';
 import '../services/municipal_report_directory.dart';
-import '../../../widgets/collapsible_list_header.dart';
 import '../../../widgets/glass_card.dart';
 import '../../../widgets/text_filter_chips.dart';
 import '../widgets/municipal_scaffold.dart';
-import '../widgets/municipal_search_field.dart';
 import '../../../widgets/app_state_message.dart';
 
 /// MUN-008 — Resolved Reports.
@@ -94,9 +96,12 @@ class _MunicipalResolvedReportsScreenState
   /// Real filtering/search — matching the interactive treatment already
   /// established on MUN-005/MUN-006's lists, rather than the static
   /// mockup's non-functional chips.
-  List<ResolvedReportItem> get _visibleReports {
+  List<ResolvedReportItem> get _visibleReports =>
+      _reportsForQuery(_searchController.text);
+
+  List<ResolvedReportItem> _reportsForQuery(String term) {
     var reports = _data.toList();
-    final query = _searchController.text.trim().toLowerCase();
+    final query = term.trim().toLowerCase();
     if (query.isNotEmpty) {
       reports = reports
           .where(
@@ -203,6 +208,7 @@ class _MunicipalResolvedReportsScreenState
                 onRefresh: _pullToRefresh,
                 child: _ResolvedReportsBody(
                   reports: _visibleReports,
+                  searchReports: _reportsForQuery(''),
                   cached: false,
                   searchController: _searchController,
                   filter: _filter,
@@ -215,6 +221,7 @@ class _MunicipalResolvedReportsScreenState
                   onRefresh: _pullToRefresh,
                   child: _ResolvedReportsBody(
                     reports: _visibleReports,
+                    searchReports: _reportsForQuery(''),
                     cached: true,
                     searchController: _searchController,
                     filter: _filter,
@@ -291,6 +298,7 @@ class _OfflineBanner extends StatelessWidget {
 class _ResolvedReportsBody extends StatelessWidget {
   const _ResolvedReportsBody({
     required this.reports,
+    required this.searchReports,
     required this.cached,
     required this.searchController,
     required this.filter,
@@ -299,6 +307,7 @@ class _ResolvedReportsBody extends StatelessWidget {
   });
 
   final List<ResolvedReportItem> reports;
+  final List<ResolvedReportItem> searchReports;
   final bool cached;
   final TextEditingController searchController;
   final ResolvedReportFilter filter;
@@ -310,45 +319,35 @@ class _ResolvedReportsBody extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
     final stats = ResolvedReportStats.fromReports(reports);
 
-    return CollapsibleListHeader(
-      header: Padding(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.md,
-          AppSpacing.md,
-          AppSpacing.md,
-          AppSpacing.sm,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            MunicipalSearchField(
-              controller: searchController,
-              hintText: 'Search closed reports...',
-              screenKey: 'municipal-closed',
-              results: (query) => [
-                for (final item in reports)
-                  if ('${item.referenceId} ${item.title} ${item.locationLabel}'
-                      .toLowerCase()
-                      .contains(query.toLowerCase()))
-                    FocusedSearchResult(
-                      title: item.title,
-                      subtitle: item.referenceId,
-                      onSelected: onReportTap == null
-                          ? null
-                          : () => onReportTap!(item),
-                    ),
-              ],
-            ),
-            TextFilterChips<ResolvedReportFilter>(
-              options: [
-                for (final option in ResolvedReportFilter.values)
-                  TextFilterOption(value: option, label: option.label),
-              ],
-              selected: filter,
-              onSelected: onFilterChanged,
-              padding: EdgeInsets.zero,
-            ),
+    return SearchFilterList(
+      header: SearchFilterHeader(
+        query: searchController.text,
+        onQueryChanged: (value) {
+          searchController.text = value;
+        },
+        hintText: 'Search closed reports...',
+        screenKey: 'municipal-closed',
+        results: (query) => [
+          for (final item in searchReports)
+            if ('${item.referenceId} ${item.title} ${item.locationLabel}'
+                .toLowerCase()
+                .contains(query.toLowerCase()))
+              FocusedSearchResult(
+                title: item.title,
+                subtitle: item.referenceId,
+                onSelected: onReportTap == null
+                    ? null
+                    : () => onReportTap!(item),
+              ),
+        ],
+        filters: TextFilterChips<ResolvedReportFilter>(
+          options: [
+            for (final option in ResolvedReportFilter.values)
+              TextFilterOption(value: option, label: option.label),
           ],
+          selected: filter,
+          onSelected: onFilterChanged,
+          padding: EdgeInsets.zero,
         ),
       ),
       // Stats scroll with the list body, not the collapsible chrome — only

@@ -502,7 +502,11 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    await tester.tap(find.text('Search your reports'));
+    await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), 'streetlight');
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(ChoiceChip, 'In Progress'));
     await tester.pumpAndSettle();
 
@@ -513,7 +517,7 @@ void main() {
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
 
-    expect(find.widgetWithText(TextField, 'streetlight'), findsOneWidget);
+    expect(find.text('streetlight'), findsOneWidget);
     expect(
       tester.widget<ChoiceChip>(
         find.widgetWithText(ChoiceChip, 'In Progress'),

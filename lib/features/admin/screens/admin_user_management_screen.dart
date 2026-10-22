@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
+import '../../../widgets/search_filter_list.dart';
+import '../../../widgets/focused_search.dart';
+
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/ghana_refresh_indicator.dart';
 import '../../../widgets/app_state_message.dart';
-import '../../../widgets/collapsible_list_header.dart';
 import '../../../widgets/confirm_dialog.dart';
 import '../../../widgets/glass_card.dart';
 import '../../../widgets/glass_fab.dart';
@@ -21,7 +23,7 @@ import '../widgets/admin_scaffold.dart';
 /// filter+list screen, including the search+chip chrome staying visible and
 /// interactive across Default/Empty/No Results and disabled (not removed)
 /// for Offline/Error/Unauthorized. Loaded content is wrapped in
-/// [CollapsibleListHeader] so the chrome doesn't permanently eat vertical
+/// [SearchFilterList] so the chrome doesn't permanently eat vertical
 /// space above the list.
 ///
 /// Two export quirks, resolved by content rather than folder/file name:
@@ -339,14 +341,28 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
         padding: EdgeInsets.only(
           top: AdminScaffold.contentPadding(context).top,
         ),
-        child: CollapsibleListHeader(
-          header: _FilterChrome(
+        child: SearchFilterList.builder(
+          headerBuilder: (compact) => _FilterChrome(
+            compact: compact,
             subtitle: subtitle,
             controller: _searchController,
             filter: _filter,
             enabled: true,
             onQueryChanged: (q) => setState(() => _query = q),
             onFilterSelected: (f) => setState(() => _filter = f),
+            results: (term) => [
+              for (final item in AdminSession.instance.visibleUsers(
+                AdminUserDirectory.instance.users.value,
+              ))
+                if (_filter.matches(item) && item.matchesSearch(term))
+                  FocusedSearchResult(
+                    title: item.name,
+                    subtitle: item.userId,
+                    onSelected: widget.onOpenUserDetails == null
+                        ? null
+                        : () => widget.onOpenUserDetails!(item),
+                  ),
+            ],
           ),
           child: Column(
             children: [
@@ -499,6 +515,8 @@ class _FilterChrome extends StatelessWidget {
     required this.controller,
     required this.filter,
     required this.enabled,
+    this.compact = false,
+    this.results = emptySearchResults,
     this.onQueryChanged,
     this.onFilterSelected,
   });
@@ -510,84 +528,38 @@ class _FilterChrome extends StatelessWidget {
   final ValueChanged<String>? onQueryChanged;
   final ValueChanged<AdminUserFilter>? onFilterSelected;
 
+  final bool compact;
+  final FocusedSearchResultsBuilder results;
   @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final colorScheme = Theme.of(context).colorScheme;
-    final semantic = Theme.of(context).extension<AppSemanticColors>()!;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.md,
-        AppSpacing.md,
-        AppSpacing.md,
-        AppSpacing.sm,
+  Widget build(BuildContext context) => SearchFilterHeader(
+    screenKey: 'admin-users',
+    hintText: 'Search users',
+    query: controller.text,
+    enabled: enabled,
+    compact: compact,
+    results: results,
+    onQueryChanged: (value) {
+      controller.text = value;
+      onQueryChanged?.call(value);
+    },
+    intro: Text(subtitle, style: Theme.of(context).textTheme.bodyMedium),
+    filters: SizedBox(
+      height: 40,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: AdminUserFilter.values.length,
+        separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.xs),
+        itemBuilder: (context, index) {
+          final option = AdminUserFilter.values[index];
+          return _FilterChip(
+            label: option.label,
+            selected: option == filter,
+            onTap: enabled ? () => onFilterSelected?.call(option) : null,
+          );
+        },
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(subtitle, style: textTheme.bodyMedium),
-          const SizedBox(height: AppSpacing.md),
-          Material(
-            // Glass — §19.10 names search containers as a permitted glass
-            // surface; see MunicipalSearchField's doc comment for why this
-            // is a per-instance fill rather than a global theme change.
-            color: semantic.glassSurface,
-            borderRadius: AppComponentRadius.inputField,
-            child: TextField(
-              controller: controller,
-              enabled: enabled,
-              onChanged: onQueryChanged,
-              style: textTheme.bodyLarge,
-              decoration: InputDecoration(
-                hintText: 'Search users',
-                border: InputBorder.none,
-                prefixIcon: Icon(
-                  AppIcons.search,
-                  size: AppIconSize.md,
-                  color: colorScheme.onSurfaceVariant,
-                ),
-                suffixIcon: controller.text.isEmpty
-                    ? null
-                    : IconButton(
-                        icon: Icon(
-                          AppIcons.close,
-                          size: AppIconSize.md,
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                        onPressed: enabled
-                            ? () {
-                                controller.clear();
-                                onQueryChanged?.call('');
-                              }
-                            : null,
-                      ),
-                contentPadding: const EdgeInsets.symmetric(
-                  vertical: AppSpacing.sm,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          SizedBox(
-            height: 40,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: AdminUserFilter.values.length,
-              separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.xs),
-              itemBuilder: (context, index) {
-                final option = AdminUserFilter.values[index];
-                return _FilterChip(
-                  label: option.label,
-                  selected: option == filter,
-                  onTap: enabled ? () => onFilterSelected?.call(option) : null,
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+    ),
+  );
 }
 
 class _FilterChip extends StatelessWidget {

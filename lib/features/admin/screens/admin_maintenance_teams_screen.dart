@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../../widgets/search_filter_list.dart';
+import '../../../widgets/focused_search.dart';
+
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/ghana_refresh_indicator.dart';
 import '../../../models/assembly.dart';
@@ -678,54 +681,72 @@ class _TeamListView extends StatelessWidget {
     return Column(
       children: [
         SizedBox(height: AdminScaffold.contentPadding(context).top),
-        _TeamsChrome(
-          controller: searchController,
-          enabled: true,
-          query: query,
-          onQueryChanged: onQueryChanged,
-        ),
         Expanded(
-          child: ListView(
-            // Stays draggable even when a short/filtered list fits the
-            // viewport — otherwise pull-to-refresh silently wouldn't
-            // trigger.
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: EdgeInsets.fromLTRB(
-              AppSpacing.md,
-              0,
-              AppSpacing.md,
-              bottomInset + AppSpacing.xl,
-            ),
-            children: [
-              if (AdminSession.instance.isSuperAdmin) ...[
-                _MaintenanceTeamsJurisdictionPicker(
-                  region: region,
-                  assembly: assembly,
-                  onRegionChanged: onRegionChanged,
-                  onAssemblyChanged: onAssemblyChanged,
-                ),
-                const SizedBox(height: AppSpacing.md),
-              ],
-              if (staleDataMessage != null) ...[
-                _RefreshFailureHint(message: staleDataMessage!),
-                const SizedBox(height: AppSpacing.md),
-              ],
-              if (teams.isEmpty)
-                const _NoTeamsInScopeHint()
-              else if (filtered.isEmpty)
-                _InlineEmptyHint(onClear: onClearFilters)
-              else
-                for (final team in filtered)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                    child: _TeamCard(
-                      team: team,
-                      onTap: onOpenTeam == null
+          child: SearchFilterList.builder(
+            headerBuilder: (compact) => _TeamsChrome(
+              compact: compact,
+              controller: searchController,
+              enabled: true,
+              query: query,
+              onQueryChanged: onQueryChanged,
+              results: (term) => [
+                for (final team in teams)
+                  if (team.matchesSearch(term) &&
+                      (region == null || team.region == region) &&
+                      (assembly == null ||
+                          (team.assembly.name == assembly!.name &&
+                              team.assembly.region == assembly!.region)))
+                    FocusedSearchResult(
+                      title: team.name,
+                      subtitle: team.teamId,
+                      onSelected: onOpenTeam == null
                           ? null
                           : () => onOpenTeam!(team),
                     ),
+              ],
+            ),
+            child: ListView(
+              // Stays draggable even when a short/filtered list fits the
+              // viewport — otherwise pull-to-refresh silently wouldn't
+              // trigger.
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: EdgeInsets.fromLTRB(
+                AppSpacing.md,
+                0,
+                AppSpacing.md,
+                bottomInset + AppSpacing.xl,
+              ),
+              children: [
+                if (AdminSession.instance.isSuperAdmin) ...[
+                  _MaintenanceTeamsJurisdictionPicker(
+                    region: region,
+                    assembly: assembly,
+                    onRegionChanged: onRegionChanged,
+                    onAssemblyChanged: onAssemblyChanged,
                   ),
-            ],
+                  const SizedBox(height: AppSpacing.md),
+                ],
+                if (staleDataMessage != null) ...[
+                  _RefreshFailureHint(message: staleDataMessage!),
+                  const SizedBox(height: AppSpacing.md),
+                ],
+                if (teams.isEmpty)
+                  const _NoTeamsInScopeHint()
+                else if (filtered.isEmpty)
+                  _InlineEmptyHint(onClear: onClearFilters)
+                else
+                  for (final team in filtered)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                      child: _TeamCard(
+                        team: team,
+                        onTap: onOpenTeam == null
+                            ? null
+                            : () => onOpenTeam!(team),
+                      ),
+                    ),
+              ],
+            ),
           ),
         ),
       ],
@@ -739,58 +760,32 @@ class _TeamsChrome extends StatelessWidget {
     required this.enabled,
     required this.query,
     this.onQueryChanged,
+    this.compact = false,
+    this.results = emptySearchResults,
   });
-
   final TextEditingController controller;
   final bool enabled;
   final String query;
   final ValueChanged<String>? onQueryChanged;
-
+  final bool compact;
+  final FocusedSearchResultsBuilder results;
   @override
-  Widget build(BuildContext context) {
-    final semantic = Theme.of(context).extension<AppSemanticColors>()!;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.md,
-        AppSpacing.md,
-        AppSpacing.md,
-        AppSpacing.sm,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Create, edit, and assign maintenance crews by assembly.',
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-          const SizedBox(height: AppSpacing.md),
-          TextField(
-            controller: controller,
-            enabled: enabled,
-            onChanged: onQueryChanged,
-            // Glass — see MunicipalSearchField's doc comment.
-            decoration: InputDecoration(
-              hintText: 'Search teams',
-              prefixIcon: const Icon(AppIcons.search),
-              suffixIcon: query.isEmpty
-                  ? null
-                  : IconButton(
-                      icon: const Icon(AppIcons.close),
-                      onPressed: enabled
-                          ? () {
-                              controller.clear();
-                              onQueryChanged?.call('');
-                            }
-                          : null,
-                    ),
-              filled: true,
-              fillColor: semantic.glassSurface,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget build(BuildContext context) => SearchFilterHeader(
+    screenKey: 'admin-teams',
+    hintText: 'Search teams',
+    query: query,
+    enabled: enabled,
+    compact: compact,
+    results: results,
+    intro: Text(
+      'Create, edit, and assign maintenance crews by assembly.',
+      style: Theme.of(context).textTheme.bodyMedium,
+    ),
+    onQueryChanged: (value) {
+      controller.text = value;
+      onQueryChanged?.call(value);
+    },
+  );
 }
 
 /// This screen keeps the required Teams wording local so shared Create User

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 
+import '../../../widgets/search_filter_list.dart';
+import '../../../widgets/focused_search.dart';
+
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/ghana_refresh_indicator.dart';
 import '../../../models/region.dart';
 import '../../../widgets/app_state_message.dart';
-import '../../../widgets/collapsible_list_header.dart';
 import '../../../widgets/glass_card.dart';
 import '../models/ministry_reports_data.dart';
 import '../widgets/ministry_scaffold.dart';
@@ -186,8 +188,9 @@ class _MinistryReportsScreenState extends State<MinistryReportsScreen> {
             padding: EdgeInsets.only(
               top: MinistryScaffold.contentPadding(context).top,
             ),
-            child: CollapsibleListHeader(
-              header: _FilterChrome(
+            child: SearchFilterList.builder(
+              headerBuilder: (compact) => _FilterChrome(
+                compact: compact,
                 controller: _searchController,
                 filter: _filter,
                 region: _region,
@@ -195,6 +198,16 @@ class _MinistryReportsScreenState extends State<MinistryReportsScreen> {
                 onQueryChanged: (q) => setState(() => _query = q),
                 onFilterSelected: (f) => setState(() => _filter = f),
                 onRegionTap: _pickRegion,
+                results: (term) => [
+                  for (final item in data.reports)
+                    if (_filter.matches(item.status) &&
+                        (_region == null || item.region == _region) &&
+                        item.matchesSearch(term))
+                      FocusedSearchResult(
+                        title: item.title,
+                        subtitle: item.municipality,
+                      ),
+                ],
               ),
               child: _ReportsContent(
                 data: data!,
@@ -309,6 +322,8 @@ class _FilterChrome extends StatelessWidget {
     required this.filter,
     required this.region,
     required this.enabled,
+    this.compact = false,
+    this.results = emptySearchResults,
     this.onQueryChanged,
     this.onFilterSelected,
     this.onRegionTap,
@@ -322,89 +337,48 @@ class _FilterChrome extends StatelessWidget {
   final ValueChanged<ReportStatusFilter>? onFilterSelected;
   final VoidCallback? onRegionTap;
 
+  final bool compact;
+  final FocusedSearchResultsBuilder results;
   @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final semantic = Theme.of(context).extension<AppSemanticColors>()!;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.md,
-        AppSpacing.md,
-        AppSpacing.md,
-        AppSpacing.sm,
+  Widget build(BuildContext context) => SearchFilterHeader(
+    screenKey: 'ministry-reports',
+    hintText: 'Search aggregated reports',
+    query: controller.text,
+    enabled: enabled,
+    compact: compact,
+    results: results,
+    onQueryChanged: (value) {
+      controller.text = value;
+      onQueryChanged?.call(value);
+    },
+
+    filters: SizedBox(
+      height: 40,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        // Region picker last — status is the primary chip row here
+        // (matching the approved MIN-004 chip row), region is the
+        // additional narrowing dimension appended after it.
+        itemCount: ReportStatusFilter.values.length + 1,
+        separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.xs),
+        itemBuilder: (context, index) {
+          if (index == ReportStatusFilter.values.length) {
+            return RegionPickerChip(
+              label: region?.label ?? 'All Regions',
+              active: region != null,
+              onTap: onRegionTap,
+            );
+          }
+          final option = ReportStatusFilter.values[index];
+          return _StatusChip(
+            label: option.label,
+            selected: option == filter,
+            onTap: enabled ? () => onFilterSelected?.call(option) : null,
+          );
+        },
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Material(
-            // Glass — see MunicipalSearchField's doc comment.
-            color: semantic.glassSurface,
-            borderRadius: AppComponentRadius.inputField,
-            child: TextField(
-              controller: controller,
-              enabled: enabled,
-              onChanged: onQueryChanged,
-              style: Theme.of(context).textTheme.bodyLarge,
-              decoration: InputDecoration(
-                hintText: 'Search aggregated reports',
-                border: InputBorder.none,
-                prefixIcon: Icon(
-                  AppIcons.search,
-                  size: AppIconSize.md,
-                  color: colorScheme.onSurfaceVariant,
-                ),
-                suffixIcon: controller.text.isEmpty
-                    ? null
-                    : IconButton(
-                        icon: Icon(
-                          AppIcons.close,
-                          size: AppIconSize.md,
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                        onPressed: enabled
-                            ? () {
-                                controller.clear();
-                                onQueryChanged?.call('');
-                              }
-                            : null,
-                      ),
-                contentPadding: const EdgeInsets.symmetric(
-                  vertical: AppSpacing.sm,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          SizedBox(
-            height: 40,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              // Region picker last — status is the primary chip row here
-              // (matching the approved MIN-004 chip row), region is the
-              // additional narrowing dimension appended after it.
-              itemCount: ReportStatusFilter.values.length + 1,
-              separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.xs),
-              itemBuilder: (context, index) {
-                if (index == ReportStatusFilter.values.length) {
-                  return RegionPickerChip(
-                    label: region?.label ?? 'All Regions',
-                    active: region != null,
-                    onTap: onRegionTap,
-                  );
-                }
-                final option = ReportStatusFilter.values[index];
-                return _StatusChip(
-                  label: option.label,
-                  selected: option == filter,
-                  onTap: enabled ? () => onFilterSelected?.call(option) : null,
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+    ),
+  );
 }
 
 class _StatusChip extends StatelessWidget {
