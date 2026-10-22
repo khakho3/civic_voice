@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:ui' show SemanticsAction, SemanticsFlag;
+import 'dart:ui' show SemanticsAction, Tristate;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -1013,7 +1013,7 @@ void main() {
         final notifications = find.bySemanticsLabel('Notifications');
         expect(menu, findsOneWidget);
         expect(notifications, findsOneWidget);
-        expect(tester.getSemantics(menu).hasFlag(SemanticsFlag.isButton), isTrue);
+        expect(tester.getSemantics(menu).flagsCollection.isButton, isTrue);
         expect(
           tester.getSemantics(menu).getSemanticsData().hasAction(
             SemanticsAction.tap,
@@ -1045,7 +1045,7 @@ void main() {
         final notifications = find.bySemanticsLabel('Notifications');
         expect(notifications, findsOneWidget);
         expect(
-          tester.getSemantics(notifications).hasFlag(SemanticsFlag.isEnabled),
+          tester.getSemantics(notifications).flagsCollection.isEnabled == Tristate.isTrue,
           isFalse,
         );
         expect(
@@ -1129,7 +1129,7 @@ void main() {
         final profile = find.bySemanticsLabel('Admin profile');
         expect(profile, findsOneWidget);
         expect(
-          tester.getSemantics(profile).hasFlag(SemanticsFlag.isEnabled),
+          tester.getSemantics(profile).flagsCollection.isEnabled == Tristate.isTrue,
           isFalse,
         );
         expect(
@@ -1269,7 +1269,7 @@ void main() {
       expect(tester.widget<ListTile>(roleTile).selected, isTrue);
       expect(tester.widget<ListTile>(profileTile).selected, isFalse);
       expect(
-        tester.getSemantics(roleTile).hasFlag(SemanticsFlag.isSelected),
+        tester.getSemantics(roleTile).flagsCollection.isSelected == Tristate.isTrue,
         isTrue,
       );
       expect(
@@ -1306,7 +1306,7 @@ void main() {
     );
     expect(tester.widget<ListTile>(profileTile).selected, isTrue);
     expect(
-      tester.getSemantics(profileTile).hasFlag(SemanticsFlag.isSelected),
+      tester.getSemantics(profileTile).flagsCollection.isSelected == Tristate.isTrue,
       isTrue,
     );
   });

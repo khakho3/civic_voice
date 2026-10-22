@@ -123,7 +123,7 @@ void main() {
     directory.state.value = AdminUserDirectoryState.loaded;
     directory.firebaseAvailableForTesting = true;
     directory.tokenProviderForTesting = () async => 'token';
-    directory.updateUserForTesting = (_, __, ___) => update.future;
+    directory.updateUserForTesting = (_, _, _) => update.future;
 
     final save = directory.saveOnServer(
       fixture.copyWith(status: AdminUserStatus.inactive),
@@ -147,7 +147,7 @@ void main() {
     directory.state.value = AdminUserDirectoryState.loaded;
     directory.firebaseAvailableForTesting = true;
     directory.tokenProviderForTesting = () async => 'token';
-    directory.deleteUserForTesting = (_, __) => deletion.future;
+    directory.deleteUserForTesting = (_, _) => deletion.future;
 
     final delete = directory.deleteOnServer(fixture);
     await Future<void>.delayed(Duration.zero);
@@ -185,7 +185,7 @@ void main() {
     directory.firebaseAvailableForTesting = true;
     directory.tokenProviderForTesting = () async => 'token';
     directory.listUsersForTesting = (_) => refreshRows.future;
-    directory.deleteUserForTesting = (_, __) async {};
+    directory.deleteUserForTesting = (_, _) async {};
 
     final refresh = directory.refresh();
     await Future<void>.delayed(Duration.zero);
@@ -227,7 +227,7 @@ void main() {
     directory.state.value = AdminUserDirectoryState.loaded;
     directory.firebaseAvailableForTesting = true;
     directory.tokenProviderForTesting = () async => 'token';
-    directory.updateUserForTesting = (_, __, ___) async {
+    directory.updateUserForTesting = (_, _, _) async {
       throw StateError('server rejected update');
     };
 
@@ -251,7 +251,7 @@ void main() {
     directory.state.value = AdminUserDirectoryState.loaded;
     directory.firebaseAvailableForTesting = true;
     directory.tokenProviderForTesting = () async => 'token';
-    directory.updateUserForTesting = (_, __, ___) => responses.removeAt(0).future;
+    directory.updateUserForTesting = (_, _, _) => responses.removeAt(0).future;
 
     final older = directory.saveOnServer(
       fixture.copyWith(status: AdminUserStatus.inactive),
@@ -281,7 +281,7 @@ void main() {
     directory.state.value = AdminUserDirectoryState.loaded;
     directory.firebaseAvailableForTesting = true;
     directory.tokenProviderForTesting = () async => 'token';
-    directory.updateUserForTesting = (_, __, ___) => responses.removeAt(0).future;
+    directory.updateUserForTesting = (_, _, _) => responses.removeAt(0).future;
 
     final older = directory.saveOnServer(fixture);
     await Future<void>.delayed(Duration.zero);
@@ -311,7 +311,7 @@ void main() {
     directory.state.value = AdminUserDirectoryState.loaded;
     directory.firebaseAvailableForTesting = true;
     directory.tokenProviderForTesting = () async => 'token';
-    directory.updateUserForTesting = (_, __, ___) async {
+    directory.updateUserForTesting = (_, _, _) async {
       throw StateError('server rejected update');
     };
 
@@ -330,8 +330,8 @@ void main() {
     directory.state.value = AdminUserDirectoryState.loaded;
     directory.firebaseAvailableForTesting = true;
     directory.tokenProviderForTesting = () async => 'token';
-    directory.updateUserForTesting = (_, __, ___) => update.future;
-    directory.deleteUserForTesting = (_, __) => deletion.future;
+    directory.updateUserForTesting = (_, _, _) => update.future;
+    directory.deleteUserForTesting = (_, _) => deletion.future;
 
     final save = directory.saveOnServer(
       fixture.copyWith(status: AdminUserStatus.inactive),
@@ -358,7 +358,7 @@ void main() {
     directory.state.value = AdminUserDirectoryState.loaded;
     directory.firebaseAvailableForTesting = true;
     directory.tokenProviderForTesting = () async => 'token';
-    directory.updateUserForTesting = (_, __, ___) => responses.removeAt(0).future;
+    directory.updateUserForTesting = (_, _, _) => responses.removeAt(0).future;
 
     final save = directory.saveOnServer(fixture);
     await Future<void>.delayed(Duration.zero);
@@ -383,8 +383,8 @@ void main() {
     directory.state.value = AdminUserDirectoryState.loaded;
     directory.firebaseAvailableForTesting = true;
     directory.tokenProviderForTesting = () async => 'token';
-    directory.deleteUserForTesting = (_, __) => deletion.future;
-    directory.updateUserForTesting = (_, __, ___) => update.future;
+    directory.deleteUserForTesting = (_, _) => deletion.future;
+    directory.updateUserForTesting = (_, _, _) => update.future;
 
     final delete = directory.deleteOnServer(fixture);
     await Future<void>.delayed(Duration.zero);
@@ -411,7 +411,7 @@ void main() {
     directory.state.value = AdminUserDirectoryState.loaded;
     directory.firebaseAvailableForTesting = true;
     directory.tokenProviderForTesting = () async => 'token';
-    directory.updateUserForTesting = (_, __, ___) => responses.removeAt(0).future;
+    directory.updateUserForTesting = (_, _, _) => responses.removeAt(0).future;
 
     final saveA = directory.saveOnServer(
       userA.copyWith(status: AdminUserStatus.inactive),

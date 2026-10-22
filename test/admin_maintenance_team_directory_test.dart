@@ -32,11 +32,11 @@ MaintenanceTeamDirectory _directory({
       firebaseAvailable: () => true,
       tokenProvider: () async => 'test-token',
       listFetcher: listFetch,
-      createFetcher: createFetch ?? (_, __) async => _team('TEAM-new', 'New team'),
+      createFetcher: createFetch ?? (_, _) async => _team('TEAM-new', 'New team'),
       updateFetcher: updateFetch ??
           (teamId, _, fields) async =>
               _team(teamId, fields['name'] as String),
-      deleteFetcher: deleteFetch ?? (_, __) async {},
+      deleteFetcher: deleteFetch ?? (_, _) async {},
     );
 
 Future<void> _settle() async {
@@ -97,7 +97,7 @@ void main() {
     final createResponse = Completer<Map<String, dynamic>>();
     final directory = _directory(
       listFetch: (_) => refreshResponse.future,
-      createFetch: (_, __) => createResponse.future,
+      createFetch: (_, _) => createResponse.future,
     );
     directory.teams.value = [_teamFixture('TEAM-1', 'Original team')];
     directory.state.value = MaintenanceTeamDirectoryState.loaded;
@@ -127,7 +127,7 @@ void main() {
     final updateResponse = Completer<Map<String, dynamic>>();
     final directory = _directory(
       listFetch: (_) => refreshResponse.future,
-      updateFetch: (_, __, ___) => updateResponse.future,
+      updateFetch: (_, _, _) => updateResponse.future,
     );
     final original = _teamFixture('TEAM-1', 'Original team');
     directory.teams.value = [original];
@@ -153,7 +153,7 @@ void main() {
     final deleteResponse = Completer<void>();
     final directory = _directory(
       listFetch: (_) => refreshResponse.future,
-      deleteFetch: (_, __) => deleteResponse.future,
+      deleteFetch: (_, _) => deleteResponse.future,
     );
     final original = _teamFixture('TEAM-1', 'Original team');
     directory.teams.value = [original];
@@ -178,7 +178,7 @@ void main() {
     var requests = 0;
     final directory = _directory(
       listFetch: (_) async => const [],
-      updateFetch: (_, __, ___) =>
+      updateFetch: (_, _, _) =>
           requests++ == 0 ? firstResponse.future : secondResponse.future,
     );
     final original = _teamFixture('TEAM-1', 'Original team');
@@ -208,7 +208,7 @@ void main() {
     var requests = 0;
     final directory = _directory(
       listFetch: (_) async => const [],
-      updateFetch: (_, __, ___) {
+      updateFetch: (_, _, _) {
         switch (requests++) {
           case 0:
             return firstResponse.future;
@@ -256,7 +256,7 @@ void main() {
     final response = Completer<Map<String, dynamic>>();
     final directory = _directory(
       listFetch: (_) async => const [],
-      updateFetch: (_, __, ___) => response.future,
+      updateFetch: (_, _, _) => response.future,
     );
     final original = _teamFixture('TEAM-1', 'Original team');
     directory.teams.value = [original];
@@ -280,7 +280,7 @@ void main() {
     var requests = 0;
     final directory = _directory(
       listFetch: (_) async => const [],
-      updateFetch: (_, __, ___) =>
+      updateFetch: (_, _, _) =>
           requests++ == 0 ? firstResponse.future : secondResponse.future,
     );
     final first = _teamFixture('TEAM-1', 'First');
@@ -310,7 +310,7 @@ void main() {
     final deleteResponse = Completer<void>();
     final directory = _directory(
       listFetch: (_) async => const [],
-      deleteFetch: (_, __) => deleteResponse.future,
+      deleteFetch: (_, _) => deleteResponse.future,
     );
     final original = _teamFixture('TEAM-1', 'Original team');
     directory.teams.value = [original];
@@ -364,7 +364,7 @@ void main() {
     final updateResponse = Completer<Map<String, dynamic>>();
     final directory = _directory(
       listFetch: (_) async => const [],
-      updateFetch: (_, __, ___) => updateResponse.future,
+      updateFetch: (_, _, _) => updateResponse.future,
     );
     final original = _teamFixture('TEAM-1', 'Original team');
     directory.teams.value = [original];

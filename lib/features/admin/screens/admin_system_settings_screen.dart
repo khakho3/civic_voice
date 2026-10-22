@@ -567,7 +567,7 @@ class _SystemPreferenceRow extends StatelessWidget {
                 runSpacing: AppSpacing.xs,
                 children: [
                   Text(label, style: Theme.of(context).textTheme.bodyLarge),
-                  if (badge != null) badge!,
+                  ?badge,
                 ],
               ),
               if (description != null) ...[

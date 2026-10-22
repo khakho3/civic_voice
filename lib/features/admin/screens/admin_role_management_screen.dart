@@ -271,7 +271,7 @@ class _PermissionTable extends StatelessWidget {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final colorScheme = Theme.of(context).colorScheme;
-    final textScale = MediaQuery.textScalerOf(context).textScaleFactor;
+    final textScale = MediaQuery.textScalerOf(context).scale(1.0);
 
     Widget headerCell(String label, {int flex = 1}) => Expanded(
       flex: flex,

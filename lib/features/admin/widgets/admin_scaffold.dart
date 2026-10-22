@@ -356,10 +356,10 @@ class _Header extends StatelessWidget {
 /// so it visually reads as "your account", matching Ministry/Municipal/
 /// Maintenance's own header avatar.
 class _ProfileButton extends StatelessWidget {
-  const _ProfileButton({this.onTap, this.semanticLabel = 'Admin profile'});
+  const _ProfileButton({this.onTap});
 
   final VoidCallback? onTap;
-  final String semanticLabel;
+  static const semanticLabel = 'Admin profile';
 
   @override
   Widget build(BuildContext context) {
