@@ -1,5 +1,15 @@
 # Latif PR integration review and repairs
 
+## Shared Flutter search follow-up - 22 October 2026
+
+Implemented locally on codex/flutter-latif-review-fixes in C:/Projects/mobile/civic_voice_latif_review: 1a61e5b (shared behavior) and 37a26de (all ten consumers). Search is expanded at the top; sufficiently overflowing lists switch to a compact search button beside horizontally usable filters. Ordinary reverse scrolling does not flicker the full header open; returning to the top restores it. Short lists keep search accessible. Focused search preserves list position on Close/Back/Escape, stores submitted history, and permits empty submission to clear a query. Header-height compensation preserves the card being read, and upward wheel/keyboard intent at the top can reveal the full header. Existing filter-only collapse behavior is retained.
+
+Consumers: Citizen My Reports; Maintenance Assigned Tasks; Municipal Inbox, Active, Closed and Assign Team; Admin Users, Maintenance Teams and Activity; Ministry Reports. Search results preserve current role/filter scope independently of the previously applied query. Form member pickers and map place search are intentionally separate interactions. Jurisdiction/time selectors and summary cards remain scrolling content. Narrow Active/Assign Team card text now wraps without overflow.
+
+Validation: full Flutter suite 970 passed, zero failures; analyzer no issues; whitespace clean. Includes 80 actual-consumer checks across 320/390/412/1440px and light/dark themes, plus shared lifecycle/scroll/history/disabled/reduced-motion tests. Physical acceptance remains pending. The manual phone checklist is private and uncommitted in web .tmp/device-checks-pending.md. Do not mark device acceptance or rollout complete.
+
+The original C:/Projects/mobile/civic_voice checkout remains at its previous integration state with the owner's untracked notification-monochrome.svg preserved. No native Firebase/Maps configuration, package identity, dependency, API or production changes; no phone installation, push, merge or deployment. Build the verified isolated DEV candidate when resuming physical checks. PR #20 remains reviewed against its unchanged submitted head; local follow-ups are not remote approval.
+
 22 October 2026. PR: https://github.com/khakho3/civic_voice/pull/20
 Submitted head: 82d11cd461c7db5d54ae0b16b09688920d5c4e20
 Base: codex/flutter-web-alignment, 6ace645.
