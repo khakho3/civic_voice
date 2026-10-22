@@ -22,7 +22,7 @@ class ReportCrudService implements ReportsRepository {
     required String? Function() account,
     required Future<String> Function() token,
     required ReportSubmissionStore store,
-    required Future<Map<String, dynamic>> Function(ReportDraft) send,
+    Future<Map<String, dynamic>> Function(ReportDraft)? send,
   }) : _testAccount = account,
        _testToken = token,
        _testStore = store,
@@ -177,8 +177,8 @@ class ReportCrudService implements ReportsRepository {
                 'community': draft.community.trim(),
                 if (draft.latitude != null) 'latitude': '${draft.latitude}',
                 if (draft.longitude != null) 'longitude': '${draft.longitude}',
-                if (draft.region != null) 'region': draft.region!.name,
-                if (draft.assembly != null) 'assembly': draft.assembly!,
+                // Routing is derived server-side from this report's issue pin,
+                // never from account locality or geocoder display hints.
                 if (submissionLatitude != null)
                   'submissionLatitude': '$submissionLatitude',
                 if (submissionLongitude != null)
