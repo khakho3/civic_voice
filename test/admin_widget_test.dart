@@ -1756,9 +1756,12 @@ void main() {
       await tester.pumpAndSettle();
 
       final lastMenu = find.byIcon(AppIcons.more).last;
-      // The first scrollable is the horizontal filter-chip row. Scroll the
-      // vertical user list so the final card's menu clears the floating nav.
-      final userList = find.byType(Scrollable).last;
+      // Select the vertical owner explicitly; paint order places filters last.
+      // Scroll the final card's menu clear of the floating navigation.
+      final userList = find.byWidgetPredicate(
+        (widget) => widget is Scrollable &&
+          axisDirectionToAxis(widget.axisDirection) == Axis.vertical,
+      ).last;
       await tester.drag(
         userList,
         const Offset(0, -600),
@@ -3038,7 +3041,10 @@ void main() {
       final initialTop = tester.getTopLeft(timeRange).dy;
       // A modest scroll keeps the list's first child mounted while proving
       // that the time range travels with normal Activity content.
-      final contentScroll = find.byType(Scrollable).last;
+      final contentScroll = find.byWidgetPredicate(
+        (widget) => widget is Scrollable &&
+          axisDirectionToAxis(widget.axisDirection) == Axis.vertical,
+      ).last;
       await tester.drag(contentScroll, const Offset(0, -80));
       await tester.pumpAndSettle();
       expect(timeRange, findsOneWidget);

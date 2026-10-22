@@ -1,3 +1,4 @@
+import 'package:civic_voice/widgets/search_filter_list.dart';
 import 'package:civic_voice/widgets/focused_search.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -848,9 +849,13 @@ void main() {
       await tester.pumpAndSettle();
 
       // 'Available' also appears as the availability badge on Alpha/Bravo's
-      // team cards further down — the filter chip is the first match, since
-      // the filter row renders above the team list.
-      await tester.tap(find.text('Available').first);
+      // team cards too. Scope the tap to the search/filter header.
+      await tester.tap(
+        find.descendant(
+          of: find.byType(SearchFilterHeader),
+          matching: find.text('Available'),
+        ),
+      );
       await tester.pumpAndSettle();
 
       expect(find.text('Unit Alpha'), findsOneWidget);
@@ -1078,9 +1083,13 @@ void main() {
       await tester.pumpAndSettle();
 
       // 'In Progress' also appears as the status badge on matching report
-      // cards further down — the filter chip is the first match, since the
-      // filter row renders above the report list.
-      await tester.tap(find.text('In Progress').first);
+      // cards too. Scope the tap to the search/filter header.
+      await tester.tap(
+        find.descendant(
+          of: find.byType(SearchFilterHeader),
+          matching: find.text('In Progress'),
+        ),
+      );
       await tester.pumpAndSettle();
 
       expect(find.text('Severe Pothole on Main St.'), findsOneWidget);

@@ -39,6 +39,7 @@ Widget host(
           ),
         ),
         child: ListView.builder(
+          key: const ValueKey('records-list'),
           controller: scroll,
           physics: const AlwaysScrollableScrollPhysics(),
           itemCount: count,
@@ -74,6 +75,12 @@ void main() {
       await tester.pumpAndSettle();
       expect(tester.getSize(header).height, lessThan(intermediate));
       expect(tester.getTopLeft(find.text('Record 5')).dy, closeTo(anchor, 1));
+      // The viewport now extends behind the compact controls: frost must sample
+      // actual list pixels, rather than blur an empty Column sibling.
+      expect(
+        tester.getTopLeft(find.byKey(const ValueKey('records-list'))).dy,
+        tester.getTopLeft(header).dy,
+      );
     },
   );
 
@@ -85,7 +92,7 @@ void main() {
       addTearDown(scroll.dispose);
       await tester.pumpWidget(host(scroll, reduced: reduced));
       await tester.fling(
-        find.byType(ListView).last,
+        find.byKey(const ValueKey('records-list')),
         const Offset(0, -200),
         1800,
       );
@@ -119,7 +126,7 @@ void main() {
           ),
         );
         final gesture = await tester.startGesture(
-          tester.getCenter(find.byType(ListView).last),
+          tester.getCenter(find.byKey(const ValueKey('records-list'))),
         );
         for (var frame = 0; frame < 10; frame++) {
           await gesture.moveBy(const Offset(0, -24));
@@ -195,7 +202,10 @@ void main() {
         await tester.pumpAndSettle();
         expect(scroll.offset, offset);
         expect(find.byType(TextField), findsNothing);
-        await tester.drag(find.byType(ListView).last, const Offset(0, 100));
+        await tester.drag(
+          find.byKey(const ValueKey('records-list')),
+          const Offset(0, 100),
+        );
         await tester.pumpAndSettle();
         expect(find.byKey(const ValueKey('collapsed_rail')), findsOneWidget);
         expect(tester.takeException(), isNull);
@@ -229,7 +239,10 @@ void main() {
     expect(tester.getTopLeft(find.text('Record 5')).dy, closeTo(before, 1));
     scroll.jumpTo(0);
     await tester.pumpAndSettle();
-    await tester.drag(find.byType(ListView).last, const Offset(0, 70));
+    await tester.drag(
+      find.byKey(const ValueKey('records-list')),
+      const Offset(0, 70),
+    );
     await tester.pumpAndSettle();
     expect(find.text('Search records'), findsOneWidget);
     expect(tester.takeException(), isNull);

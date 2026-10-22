@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
@@ -58,10 +60,19 @@ class _CollapsibleListHeaderState extends State<CollapsibleListHeader>
   double _openFraction = 1;
   double _accumulated = 0;
   AnimationController? _animController;
+  late final AnimationController _railOverlay = AnimationController(
+    vsync: this,
+  );
+  late final CurvedAnimation _railOverlayCurve = CurvedAnimation(
+    parent: _railOverlay,
+    curve: AppMotionCurve.decelerate,
+  );
 
   @override
   void dispose() {
     _animController?.dispose();
+    _railOverlayCurve.dispose();
+    _railOverlay.dispose();
     super.dispose();
   }
 
@@ -113,7 +124,7 @@ class _CollapsibleListHeaderState extends State<CollapsibleListHeader>
   double _railAccumulated = 0;
   final _railKey = GlobalKey();
   bool _adjustingRail = false;
-  double? _railViewportHeight;
+  double? _railListTop;
   int _railTransition = 0;
   ScrollNotification? _lastRailScroll;
 
@@ -144,6 +155,15 @@ class _CollapsibleListHeaderState extends State<CollapsibleListHeader>
     }
     _adjustingRail = true;
     _railTransition++;
+    _railOverlay.duration = AppMotion.duration(
+      context,
+      AppMotionDuration.standard,
+    );
+    if (_railOverlay.duration == Duration.zero) {
+      _railOverlay.value = collapsed ? 1 : 0;
+    } else {
+      _railOverlay.animateTo(collapsed ? 1 : 0);
+    }
     setState(() => _railCollapsed = collapsed);
     if (AppMotion.duration(context, AppMotionDuration.standard) ==
         Duration.zero) {
@@ -159,30 +179,27 @@ class _CollapsibleListHeaderState extends State<CollapsibleListHeader>
     });
   }
 
-  Widget _railList(BuildContext context, BoxConstraints constraints) {
-    final previousHeight = _railViewportHeight;
-    _railViewportHeight = constraints.maxHeight;
+  void _correctRailOrigin(double top) {
+    final previousTop = _railListTop;
+    _railListTop = top;
     final scrollContext = _lastRailScroll?.context;
     if (_adjustingRail &&
         _railCollapsed &&
-        previousHeight != null &&
+        previousTop != null &&
         scrollContext != null &&
         scrollContext.mounted) {
       final position = Scrollable.maybeOf(scrollContext)?.position;
       if (position != null &&
           position.hasContentDimensions &&
           !position.outOfRange) {
-        final target =
-            (position.pixels + previousHeight - constraints.maxHeight).clamp(
-              position.minScrollExtent,
-              position.maxScrollExtent,
-            );
-        // Correct during layout, before the viewport consumes its dimensions.
-        // Unlike jumpTo, this preserves the held drag and fling activity.
+        final target = (position.pixels + top - previousTop).clamp(
+          position.minScrollExtent,
+          position.maxScrollExtent,
+        );
+        // Layout correction preserves the held drag and fling activity.
         position.correctBy(target - position.pixels);
       }
     }
-    return widget.child;
   }
 
   /// Collapsed-rail mode: expand only at the true top (or by pulling down
@@ -293,48 +310,64 @@ class _CollapsibleListHeaderState extends State<CollapsibleListHeader>
           },
           child: NotificationListener<ScrollNotification>(
             onNotification: _onScrollNotification,
-            child: Column(
+            child: CustomMultiChildLayout(
+              delegate: _SearchRailLayout(
+                _railOverlayCurve,
+                _correctRailOrigin,
+              ),
               children: [
-                ClipRect(
-                  key: _railKey,
-                  child: duration == Duration.zero
-                      ? KeyedSubtree(
-                          key: const ValueKey('collapsible_header'),
-                          child: activeHeader,
-                        )
-                      : AnimatedSize(
-                          key: const ValueKey('collapsible_header'),
-                          duration: duration,
-                          curve: AppMotionCurve.decelerate,
-                          alignment: Alignment.topCenter,
-                          onEnd: _finishRailTransition,
-                          child: AnimatedSwitcher(
+                LayoutId(id: _RailSlot.list, child: widget.child),
+                LayoutId(
+                  id: _RailSlot.fog,
+                  child: IgnorePointer(
+                    child: FadeTransition(
+                      opacity: _railOverlayCurve,
+                      child: const _SearchRailFog(),
+                    ),
+                  ),
+                ),
+                LayoutId(
+                  id: _RailSlot.header,
+                  child: ClipRect(
+                    key: _railKey,
+                    child: duration == Duration.zero
+                        ? KeyedSubtree(
+                            key: const ValueKey('collapsible_header'),
+                            child: activeHeader,
+                          )
+                        : AnimatedSize(
+                            key: const ValueKey('collapsible_header'),
                             duration: duration,
-                            layoutBuilder: (current, previous) => Stack(
-                              alignment: Alignment.topCenter,
-                              clipBehavior: Clip.none,
-                              children: [
-                                for (final outgoing in previous)
-                                  Positioned(
-                                    top: 0,
-                                    left: 0,
-                                    right: 0,
-                                    child: IgnorePointer(
-                                      child: ExcludeFocus(
-                                        child: ExcludeSemantics(
-                                          child: outgoing,
+                            curve: AppMotionCurve.decelerate,
+                            alignment: Alignment.topCenter,
+                            onEnd: _finishRailTransition,
+                            child: AnimatedSwitcher(
+                              duration: duration,
+                              layoutBuilder: (current, previous) => Stack(
+                                alignment: Alignment.topCenter,
+                                clipBehavior: Clip.none,
+                                children: [
+                                  for (final outgoing in previous)
+                                    Positioned(
+                                      top: 0,
+                                      left: 0,
+                                      right: 0,
+                                      child: IgnorePointer(
+                                        child: ExcludeFocus(
+                                          child: ExcludeSemantics(
+                                            child: outgoing,
+                                          ),
                                         ),
                                       ),
                                     ),
-                                  ),
-                                ?current,
-                              ],
+                                  ?current,
+                                ],
+                              ),
+                              child: activeHeader,
                             ),
-                            child: activeHeader,
                           ),
-                        ),
+                  ),
                 ),
-                Expanded(child: LayoutBuilder(builder: _railList)),
               ],
             ),
           ),
@@ -358,4 +391,75 @@ class _CollapsibleListHeaderState extends State<CollapsibleListHeader>
       ),
     );
   }
+}
+
+// Paint the list first, then the frost and controls. A translucent Column
+// sibling cannot blur a list that is laid out entirely below it.
+enum _RailSlot { list, fog, header }
+
+class _SearchRailLayout extends MultiChildLayoutDelegate {
+  _SearchRailLayout(this.overlay, this.correctOrigin)
+    : super(relayout: overlay);
+  final Animation<double> overlay;
+  final ValueChanged<double> correctOrigin;
+
+  @override
+  void performLayout(Size size) {
+    final header = layoutChild(
+      _RailSlot.header,
+      BoxConstraints.tightFor(width: size.width),
+    );
+    final top = header.height * (1 - overlay.value);
+    correctOrigin(top);
+    layoutChild(
+      _RailSlot.list,
+      BoxConstraints.tight(Size(size.width, size.height - top)),
+    );
+    positionChild(_RailSlot.list, Offset(0, top));
+    layoutChild(
+      _RailSlot.fog,
+      BoxConstraints.tight(Size(size.width, header.height + 32)),
+    );
+    positionChild(_RailSlot.fog, Offset.zero);
+    positionChild(_RailSlot.header, Offset.zero);
+  }
+
+  @override
+  bool shouldRelayout(_SearchRailLayout oldDelegate) => true;
+}
+
+class _SearchRailFog extends StatelessWidget {
+  const _SearchRailFog();
+  @override
+  Widget build(BuildContext context) => ClipRect(
+    child: BackdropFilter(
+      filter: ImageFilter.blur(
+        sigmaX: AppGlassBlur.medium,
+        sigmaY: AppGlassBlur.medium,
+      ),
+      child: CustomPaint(painter: _FogMaskPainter()),
+    ),
+  );
+}
+
+class _FogMaskPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    // Mask inside the backdrop layer. An enclosing ShaderMask introduces a
+    // separate offscreen surface, so the filter cannot sample the list below.
+    canvas.drawRect(
+      Offset.zero & size,
+      Paint()
+        ..blendMode = BlendMode.dstIn
+        ..shader = const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Colors.white, Colors.white, Colors.transparent],
+          stops: [0, 0.55, 1],
+        ).createShader(Offset.zero & size),
+    );
+  }
+
+  @override
+  bool shouldRepaint(_FogMaskPainter oldDelegate) => false;
 }
