@@ -57,18 +57,22 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
     return Scaffold(
       body: Stack(
         children: [
-          GoogleMap(
-            initialCameraPosition: _controller.initialCameraPosition,
-            onMapCreated: _controller.attachMap,
-            onCameraMove: _controller.onCameraMove,
-            onCameraIdle: _controller.onCameraIdle,
-            myLocationEnabled: true,
-            myLocationButtonEnabled: false,
-            zoomControlsEnabled: false,
-            compassEnabled: false,
-            mapToolbarEnabled: false,
-            buildingsEnabled: true,
-            trafficEnabled: false,
+          Listener(
+            onPointerMove: (_) => _controller.beginMapGesture(),
+            child: GoogleMap(
+              initialCameraPosition: _controller.initialCameraPosition,
+              onMapCreated: _controller.attachMap,
+              onCameraMove: _controller.onCameraMove,
+              onCameraMoveStarted: _controller.onCameraMoveStarted,
+              onCameraIdle: _controller.onCameraIdle,
+              myLocationEnabled: true,
+              myLocationButtonEnabled: false,
+              zoomControlsEnabled: false,
+              compassEnabled: false,
+              mapToolbarEnabled: false,
+              buildingsEnabled: true,
+              trafficEnabled: false,
+            ),
           ),
           const _CenterPin(),
           Positioned(
@@ -289,9 +293,7 @@ class _SelectedLocationCard extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             child: FilledButton.icon(
-              onPressed: location == null || picker.resolvingAddress
-                  ? null
-                  : onConfirm,
+              onPressed: picker.canConfirm ? onConfirm : null,
               icon: const Icon(AppIcons.chevronRight),
               label: const Text('Confirm Location'),
             ),
