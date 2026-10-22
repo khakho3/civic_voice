@@ -3,6 +3,7 @@ import 'package:civic_voice/core/theme/app_theme.dart';
 
 import '../../../core/widgets/ghana_refresh_indicator.dart';
 import '../../../widgets/glass_card.dart';
+import '../../../widgets/async_action_button.dart';
 import '../../../widgets/focused_search.dart';
 import '../../../widgets/search_filter_list.dart';
 import '../../../widgets/text_filter_chips.dart';
@@ -15,6 +16,7 @@ import '../widgets/maintenance_scaffold.dart';
 class AssignedTasksScreen extends StatefulWidget {
   const AssignedTasksScreen({
     super.key,
+    this.refreshTasks,
     this.onNavigateToDashboard,
     this.onNavigateToProfile,
     this.onNotificationsTap,
@@ -32,12 +34,16 @@ class AssignedTasksScreen extends StatefulWidget {
   final ValueChanged<String>? onOpenTaskDetails;
   final AppScreenState initialState;
 
+  /// Optional data source override for hosted previews and deterministic checks.
+  final Future<void> Function()? refreshTasks;
+
   @override
   State<AssignedTasksScreen> createState() => _AssignedTasksScreenState();
 }
 
 class _AssignedTasksScreenState extends State<AssignedTasksScreen> {
   late AppScreenState _state = widget.initialState;
+  bool _manualRefresh = false;
   String _query = '';
   MaintenanceTaskStatus? _statusFilter;
 
@@ -74,16 +80,26 @@ class _AssignedTasksScreenState extends State<AssignedTasksScreen> {
   }
 
   Future<void> _reload() async {
+    if (_manualRefresh) return;
+    setState(() {
+      _manualRefresh = true;
+      if (MaintenanceTaskDirectory.instance.error.value != null) {
+        _state = AppScreenState.error;
+      }
+    });
     try {
-      await MaintenanceTaskDirectory.instance.refresh();
+      await (widget.refreshTasks ??
+          MaintenanceTaskDirectory.instance.refresh)();
       if (mounted) setState(() => _state = AppScreenState.success);
     } catch (_) {
       if (mounted) setState(() => _state = AppScreenState.error);
+    } finally {
+      if (mounted) setState(() => _manualRefresh = false);
     }
   }
 
   Widget _buildBody(BuildContext context, List<MaintenanceTask> tasks) {
-    if (MaintenanceTaskDirectory.instance.loading.value) {
+    if (MaintenanceTaskDirectory.instance.loading.value && !_manualRefresh) {
       return const GhanaLoadingIndicator();
     }
     if (MaintenanceTaskDirectory.instance.error.value != null) {
@@ -539,7 +555,7 @@ class _TaskCard extends StatelessWidget {
 
 class _EmptyView extends StatelessWidget {
   const _EmptyView({required this.onRetry});
-  final VoidCallback onRetry;
+  final Future<void> Function() onRetry;
 
   @override
   Widget build(BuildContext context) {
@@ -569,7 +585,7 @@ class _EmptyView extends StatelessWidget {
               ),
             ),
             const SizedBox(height: AppSpacing.lg),
-            FilledButton(onPressed: onRetry, child: const Text('Retry')),
+            AsyncActionButton(onPressed: onRetry, label: 'Retry'),
           ],
         ),
       ),
@@ -579,7 +595,7 @@ class _EmptyView extends StatelessWidget {
 
 class _ErrorView extends StatelessWidget {
   const _ErrorView({required this.onRetry});
-  final VoidCallback onRetry;
+  final Future<void> Function() onRetry;
 
   @override
   Widget build(BuildContext context) {
@@ -605,13 +621,13 @@ class _ErrorView extends StatelessWidget {
               ),
             ),
             const SizedBox(height: AppSpacing.lg),
-            FilledButton(
+            AsyncActionButton(
               style: FilledButton.styleFrom(
                 backgroundColor: semantic.error,
                 foregroundColor: semantic.onError,
               ),
               onPressed: onRetry,
-              child: const Text('Retry'),
+              label: 'Retry',
             ),
           ],
         ),
@@ -622,7 +638,7 @@ class _ErrorView extends StatelessWidget {
 
 class _OfflineView extends StatelessWidget {
   const _OfflineView({required this.onRetry});
-  final VoidCallback onRetry;
+  final Future<void> Function() onRetry;
 
   @override
   Widget build(BuildContext context) {
@@ -649,10 +665,10 @@ class _OfflineView extends StatelessWidget {
               ),
             ),
             const SizedBox(height: AppSpacing.lg),
-            FilledButton(
+            AsyncActionButton(
               style: FilledButton.styleFrom(backgroundColor: semantic.warning),
               onPressed: onRetry,
-              child: const Text('Retry'),
+              label: 'Retry',
             ),
           ],
         ),
@@ -663,7 +679,7 @@ class _OfflineView extends StatelessWidget {
 
 class _PermissionView extends StatelessWidget {
   const _PermissionView({required this.onRetry});
-  final VoidCallback onRetry;
+  final Future<void> Function() onRetry;
 
   @override
   Widget build(BuildContext context) {
@@ -693,7 +709,7 @@ class _PermissionView extends StatelessWidget {
               ),
             ),
             const SizedBox(height: AppSpacing.lg),
-            FilledButton(onPressed: onRetry, child: const Text('Retry')),
+            AsyncActionButton(onPressed: onRetry, label: 'Retry'),
           ],
         ),
       ),

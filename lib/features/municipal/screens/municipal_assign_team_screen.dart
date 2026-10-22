@@ -186,7 +186,7 @@ class _MunicipalAssignTeamScreenState extends State<MunicipalAssignTeamScreen> {
   }
 
   Future<void> _retryLoad() async {
-    setState(() => _state = MunicipalAssignTeamViewState.loading);
+    // Keep the retry view in place; its action owns busy feedback.
     try {
       await MaintenanceTeamDirectory.instance.refreshForMunicipal();
       if (!mounted) return;

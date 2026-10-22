@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
+import 'dart:async';
+
 import '../core/theme/app_theme.dart';
 import 'glass_card.dart';
+import 'async_action_button.dart';
 
 /// Full-page state message — icon badge + title + message + up to two
 /// actions. Shared shape for Empty / Error / Offline / Permission (§19.18)
@@ -38,14 +41,14 @@ class AppStateMessage extends StatelessWidget {
   final String title;
   final String message;
   final String? primaryActionLabel;
-  final VoidCallback? onPrimaryAction;
+  final FutureOr<void> Function()? onPrimaryAction;
 
   /// Overrides the primary button's fill color — retry-style actions
   /// commonly use [AppColors.error] rather than the default primary blue;
   /// permission/access actions typically stay the default.
   final Color? primaryActionColor;
   final String? secondaryActionLabel;
-  final VoidCallback? onSecondaryAction;
+  final FutureOr<void> Function()? onSecondaryAction;
   final bool bordered;
 
   @override
@@ -79,7 +82,8 @@ class AppStateMessage extends StatelessWidget {
           const SizedBox(height: AppSpacing.lg),
           SizedBox(
             width: double.infinity,
-            child: FilledButton(
+            child: AsyncActionButton(
+              label: primaryActionLabel!,
               style: primaryActionColor == null
                   ? null
                   : FilledButton.styleFrom(
@@ -87,7 +91,6 @@ class AppStateMessage extends StatelessWidget {
                       foregroundColor: semantic.onFillFor(primaryActionColor!),
                     ),
               onPressed: onPrimaryAction,
-              child: Text(primaryActionLabel!),
             ),
           ),
         ],
@@ -95,9 +98,10 @@ class AppStateMessage extends StatelessWidget {
           const SizedBox(height: AppSpacing.sm),
           SizedBox(
             width: double.infinity,
-            child: OutlinedButton(
+            child: AsyncActionButton(
+              label: secondaryActionLabel!,
+              kind: AsyncActionKind.outlined,
               onPressed: onSecondaryAction,
-              child: Text(secondaryActionLabel!),
             ),
           ),
         ],

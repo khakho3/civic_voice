@@ -145,7 +145,7 @@ class _MunicipalInboxScreenState extends State<MunicipalInboxScreen> {
   }
 
   Future<void> _retry() async {
-    setState(() => _state = MunicipalInboxViewState.loading);
+    // Keep the retry view in place; its action owns busy feedback.
     try {
       await MunicipalReportDirectory.instance.refresh();
       if (mounted) {

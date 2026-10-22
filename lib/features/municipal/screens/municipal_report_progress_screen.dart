@@ -165,7 +165,7 @@ class _MunicipalReportProgressScreenState
 
   Future<void> _retrySync() async {
     if (_submitting) return;
-    setState(() => _state = MunicipalReportProgressViewState.loading);
+    // Keep the retry view in place; its action owns busy feedback.
     try {
       await MunicipalReportDirectory.instance.refresh();
       if (!mounted) return;

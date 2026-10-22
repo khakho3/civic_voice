@@ -212,7 +212,7 @@ class _MunicipalActiveReportsScreenState
   }
 
   Future<void> _retryLoad() async {
-    setState(() => _state = MunicipalActiveReportsViewState.loading);
+    // Keep the retry view in place; its action owns busy feedback.
     try {
       await MunicipalReportDirectory.instance.refresh();
       if (mounted) {
