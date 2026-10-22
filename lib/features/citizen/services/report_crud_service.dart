@@ -9,13 +9,36 @@ import '../models/report_draft.dart';
 import 'citizen_data_repository.dart';
 import '../../../services/api_client.dart';
 import '../../../models/region.dart';
+import 'report_submission_store.dart';
+import '../../../services/app_cache_service.dart';
 
 export '../models/report_draft.dart';
 
 class ReportCrudService implements ReportsRepository {
   ReportCrudService._();
 
+  @visibleForTesting
+  ReportCrudService.forTesting({
+    required String? Function() account,
+    required Future<String> Function() token,
+    required ReportSubmissionStore store,
+    required Future<Map<String, dynamic>> Function(ReportDraft) send,
+  }) : _testAccount = account,
+       _testToken = token,
+       _testStore = store,
+       _testSend = send;
+
+  String? Function()? _testAccount;
+  Future<String> Function()? _testToken;
+  ReportSubmissionStore? _testStore;
+  Future<Map<String, dynamic>> Function(ReportDraft)? _testSend;
+  String? _account() => _testAccount != null
+      ? _testAccount!()
+      : FirebaseAuth.instance.currentUser?.uid;
+
   static final ReportCrudService instance = ReportCrudService._();
+  int _sessionGeneration = 0;
+  final Map<String, Future<CivicReport>> _submissions = {};
 
   final StreamController<List<CivicReport>> _reportsController =
       StreamController<List<CivicReport>>.broadcast();
@@ -25,6 +48,7 @@ class ReportCrudService implements ReportsRepository {
       ValueNotifier<List<CivicReport>>(<CivicReport>[]);
 
   Future<String> _token() async {
+    if (_testToken != null) return _testToken!();
     final token = await FirebaseAuth.instance.currentUser?.getIdToken();
     if (token == null) {
       throw const ApiException(statusCode: 401, message: 'Sign in required');
@@ -38,6 +62,7 @@ class ReportCrudService implements ReportsRepository {
   }
 
   void clearSession() {
+    _sessionGeneration++;
     _publishReports(const <CivicReport>[]);
   }
 
@@ -85,43 +110,111 @@ class ReportCrudService implements ReportsRepository {
     double? submissionLatitude,
     double? submissionLongitude,
   }) async {
-    final photoExif = await _firstPhotoExif(draft.photoPaths);
-    final raw = await ApiClient.instance.createReport(
-      idToken: await _token(),
-      fields: {
-        'title': draft.title.trim().isEmpty
-            ? 'Untitled report'
-            : draft.title.trim(),
-        'description': draft.description.trim(),
-        'category': draft.category.trim().isEmpty
-            ? 'General'
-            : draft.category.trim(),
-        'location': draft.location.trim().isEmpty
-            ? 'Current GPS location'
-            : draft.location.trim(),
-        'community': draft.community.trim(),
-        if (draft.latitude != null) 'latitude': '${draft.latitude}',
-        if (draft.longitude != null) 'longitude': '${draft.longitude}',
-        if (draft.region != null) 'region': draft.region!.name,
-        if (draft.assembly != null) 'assembly': draft.assembly!,
-        if (submissionLatitude != null)
-          'submissionLatitude': '$submissionLatitude',
-        if (submissionLongitude != null)
-          'submissionLongitude': '$submissionLongitude',
-        'hasLiveCameraPhoto':
-            '${draft.photoIsFromCamera.any((isFromCamera) => isFromCamera)}',
-        if (photoExif != null) ...{
-          'photoExifLatitude': '${photoExif.latitude}',
-          'photoExifLongitude': '${photoExif.longitude}',
-          if (photoExif.capturedAt != null)
-            'photoExifCapturedAt': photoExif.capturedAt!.toIso8601String(),
-        },
-      },
-      photoPaths: draft.photoPaths,
+    final owner = _account();
+    if (owner == null) {
+      throw const ApiException(statusCode: 401, message: 'Sign in required');
+    }
+    final active = _submissions[owner];
+    if (active != null) return active;
+    final task = _createReport(
+      owner,
+      _sessionGeneration,
+      draft,
+      submissionLatitude: submissionLatitude,
+      submissionLongitude: submissionLongitude,
     );
-    final report = _fromApi(raw);
+    _submissions[owner] = task;
+    try {
+      return await task;
+    } finally {
+      _submissions.remove(owner);
+    }
+  }
 
-    _publishReports(<CivicReport>[report, ...reports.value]);
+  Future<CivicReport> _createReport(
+    String owner,
+    int generation,
+    ReportDraft requested, {
+    double? submissionLatitude,
+    double? submissionLongitude,
+  }) async {
+    void checkAccount() {
+      if (generation != _sessionGeneration || _account() != owner) {
+        throw const ApiException(
+          statusCode: 401,
+          message: 'Account changed. Sign in again to check your submission.',
+        );
+      }
+    }
+
+    final token = await _token();
+    checkAccount();
+    final store = _testStore ?? ReportSubmissionStore.instance;
+    final previous = await store.pending(owner);
+    final draft = await store.prepare(owner, requested);
+    await store.verifyEvidence(draft);
+    checkAccount();
+    final photoExif = await _firstPhotoExif(draft.photoPaths);
+    checkAccount();
+    late final Map<String, dynamic> raw;
+    try {
+      raw = _testSend != null
+          ? await _testSend!(draft)
+          : await ApiClient.instance.createReport(
+              idToken: token,
+              fields: {
+                'submissionKey': draft.submissionKey!,
+                'title': draft.title.trim().isEmpty
+                    ? 'Untitled report'
+                    : draft.title.trim(),
+                'description': draft.description.trim(),
+                'category': draft.category.trim().isEmpty
+                    ? 'General'
+                    : draft.category.trim(),
+                'location': draft.location.trim().isEmpty
+                    ? 'Current GPS location'
+                    : draft.location.trim(),
+                'community': draft.community.trim(),
+                if (draft.latitude != null) 'latitude': '${draft.latitude}',
+                if (draft.longitude != null) 'longitude': '${draft.longitude}',
+                if (draft.region != null) 'region': draft.region!.name,
+                if (draft.assembly != null) 'assembly': draft.assembly!,
+                if (submissionLatitude != null)
+                  'submissionLatitude': '$submissionLatitude',
+                if (submissionLongitude != null)
+                  'submissionLongitude': '$submissionLongitude',
+                'hasLiveCameraPhoto':
+                    '${draft.photoIsFromCamera.any((isFromCamera) => isFromCamera)}',
+                if (photoExif != null) ...{
+                  'photoExifLatitude': '${photoExif.latitude}',
+                  'photoExifLongitude': '${photoExif.longitude}',
+                  if (photoExif.capturedAt != null)
+                    'photoExifCapturedAt': photoExif.capturedAt!
+                        .toIso8601String(),
+                },
+              },
+              photoPaths: draft.photoPaths,
+            );
+    } on ApiException catch (error) {
+      // A first, definitive rejection did not save a report. Once a response
+      // was uncertain, even a later rejection cannot discard that old intent.
+      if (previous == null &&
+          const [400, 401, 403, 422, 429].contains(error.statusCode)) {
+        await store.acknowledge(owner, draft.submissionKey!);
+      }
+      rethrow;
+    }
+    checkAccount();
+    final report = _fromApi(raw);
+    // Clear the editable source first: a crash between these operations must
+    // leave a replayable receipt, never an old draft eligible for a new key.
+    await AppCacheService.instance.clearReportDraft(expectedAccount: owner);
+    await store.acknowledge(owner, draft.submissionKey!);
+    checkAccount();
+    _publishReports(<CivicReport>[
+      report,
+      ...reports.value.where((item) => item.id != report.id),
+    ]);
     return report;
   }
 

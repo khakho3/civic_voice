@@ -13,6 +13,7 @@ class ReportDraft {
     this.assembly,
     this.photoPaths = const <String>[],
     this.photoIsFromCamera = const <bool>[],
+    this.submissionKey,
   });
 
   final String title;
@@ -26,6 +27,7 @@ class ReportDraft {
   final String? assembly;
   final List<String> photoPaths;
   final List<bool> photoIsFromCamera;
+  final String? submissionKey;
 
   int get photoCount => photoPaths.length;
 
@@ -41,6 +43,7 @@ class ReportDraft {
     String? assembly,
     List<String>? photoPaths,
     List<bool>? photoIsFromCamera,
+    String? submissionKey,
   }) {
     return ReportDraft(
       title: title ?? this.title,
@@ -54,6 +57,7 @@ class ReportDraft {
       assembly: assembly ?? this.assembly,
       photoPaths: photoPaths ?? this.photoPaths,
       photoIsFromCamera: photoIsFromCamera ?? this.photoIsFromCamera,
+      submissionKey: submissionKey ?? this.submissionKey,
     );
   }
 
@@ -80,6 +84,7 @@ class ReportDraft {
               orElse: () => null,
             ),
       assembly: map['assembly'] as String?,
+      submissionKey: map['submissionKey'] as String?,
       photoPaths: photoPaths,
       photoIsFromCamera: [
         for (var index = 0; index < photoPaths.length; index++)
@@ -104,6 +109,7 @@ class ReportDraft {
       'photoPaths': photoPaths,
       'photoIsFromCamera': photoIsFromCamera,
       'photoCount': photoCount,
+      'submissionKey': submissionKey,
     };
   }
 }

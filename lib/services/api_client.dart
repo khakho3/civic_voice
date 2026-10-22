@@ -548,6 +548,13 @@ class ApiClient {
     required Map<String, String> fields,
     List<String> photoPaths = const [],
   }) async {
+    final key = fields['submissionKey'];
+    if (key == null || !RegExp(r'^[a-zA-Z0-9_-]{16,128}$').hasMatch(key)) {
+      throw const ApiException(
+        statusCode: 400,
+        message: 'Submission key required.',
+      );
+    }
     final result = await _multipart(
       'POST',
       '/api/reports',
@@ -555,7 +562,30 @@ class ApiClient {
       fields: fields,
       files: {'photos': photoPaths},
     );
-    return result['report'] as Map<String, dynamic>;
+    return validateReportReceipt(result, key);
+  }
+
+  /// A successful HTTP response alone cannot acknowledge an uncertain save.
+  static Map<String, dynamic> validateReportReceipt(
+    Map<String, dynamic> result,
+    String key,
+  ) {
+    final receipt = result['submission'];
+    final report = result['report'];
+    if (receipt is! Map ||
+        receipt['key'] != key ||
+        receipt['replayed'] is! bool ||
+        report is! Map<String, dynamic> ||
+        report['id'] is! String ||
+        (report['id'] as String).trim().isEmpty ||
+        report['publicReference'] is! String ||
+        (report['publicReference'] as String).trim().isEmpty) {
+      throw const ApiException(
+        statusCode: 502,
+        message: 'Submission not confirmed. Check the same submission again.',
+      );
+    }
+    return report;
   }
 
   Future<Map<String, dynamic>> updateReport(

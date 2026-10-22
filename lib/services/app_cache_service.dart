@@ -27,6 +27,8 @@ class AppCacheService {
 
   SharedPreferences? _preferences;
   String? _accountId;
+  int _sessionGeneration = 0;
+  int get sessionGeneration => _sessionGeneration;
   String? get activeAccountId => _accountId;
   ReportDraft? _reportDraft;
   int _reportDraftClearGeneration = 0;
@@ -107,9 +109,11 @@ class AppCacheService {
   }
 
   Future<void> activateAccount(String? accountId) async {
+    final generation = ++_sessionGeneration;
     _accountId = accountId;
     _reportDraft = null;
-    final encoded = _preferences?.getString(_scopedKey(_reportDraftKey));
+    final key = _scopedKey(_reportDraftKey);
+    final encoded = _preferences?.getString(key);
     if (encoded == null) return;
     try {
       final decoded = ReportDraft.fromMap(
@@ -128,22 +132,21 @@ class AppCacheService {
           );
         }
       }
+      if (generation != _sessionGeneration) return;
       _reportDraft = decoded.copyWith(
         photoPaths: existingPhotos,
         photoIsFromCamera: existingPhotoSources,
       );
       if (existingPhotos.length != decoded.photoPaths.length) {
-        await _preferences?.setString(
-          _scopedKey(_reportDraftKey),
-          jsonEncode(_reportDraft!.toMap()),
-        );
+        await _preferences?.setString(key, jsonEncode(_reportDraft!.toMap()));
       }
     } catch (_) {
-      await _preferences?.remove(_scopedKey(_reportDraftKey));
+      if (generation == _sessionGeneration) await _preferences?.remove(key);
     }
   }
 
   void clearSession() {
+    _sessionGeneration++;
     _accountId = null;
     _reportDraft = null;
   }
@@ -189,7 +192,15 @@ class AppCacheService {
   }
 
   Future<void> saveReportDraft(ReportDraft draft) async {
+    final owner = _accountId;
+    final generation = _reportDraftClearGeneration;
+    final session = _sessionGeneration;
     final preferences = _preferences ?? await SharedPreferences.getInstance();
+    if (owner != _accountId ||
+        generation != _reportDraftClearGeneration ||
+        session != _sessionGeneration) {
+      return;
+    }
     _preferences = preferences;
     _reportDraft = draft;
     await preferences.setString(
@@ -259,13 +270,15 @@ class AppCacheService {
     return saved;
   }
 
-  Future<void> clearReportDraft() async {
+  Future<void> clearReportDraft({String? expectedAccount}) async {
+    if (expectedAccount != null && expectedAccount != _accountId) return;
+    final key = _scopedKey(_reportDraftKey);
     final cachedPaths = _reportDraft?.photoPaths ?? const <String>[];
     _reportDraft = null;
     _reportDraftClearGeneration++;
     final preferences = _preferences ?? await SharedPreferences.getInstance();
     _preferences = preferences;
-    await preferences.remove(_scopedKey(_reportDraftKey));
+    await preferences.remove(key);
     for (final path in cachedPaths) {
       try {
         final file = File(path);
