@@ -34,6 +34,13 @@ Future<void> endSession() async {
     try {
       final user = FirebaseAuth.instance.currentUser;
       final idToken = await user?.getIdToken();
+      if (idToken != null) {
+        try {
+          await ApiClient.instance.reportSignOut(idToken: idToken);
+        } catch (_) {
+          // An unavailable audit service must never prevent local logout.
+        }
+      }
       final pushToken = await FirebaseMessaging.instance.getToken();
       if (idToken != null && pushToken != null) {
         await ApiClient.instance.unregisterPushToken(
