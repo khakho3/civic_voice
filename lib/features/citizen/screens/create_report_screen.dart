@@ -19,6 +19,9 @@ import '../services/report_category_classifier.dart';
 import '../widgets/civic_app_chrome.dart';
 import 'location_picker_screen.dart';
 import 'photo_upload_screen.dart';
+import 'review_report_screen.dart';
+import 'citizen_tab_routes.dart';
+import '../services/report_submission_store.dart';
 
 class CreateReportScreen extends StatefulWidget {
   const CreateReportScreen({
@@ -59,6 +62,14 @@ class _CreateReportScreenState extends State<CreateReportScreen>
   int _locationLookupId = 0;
   Timer? _draftSaveTimer;
   late final int _draftClearGeneration;
+  late final String? _owner;
+  late final int _session;
+  bool get _sameSession =>
+      _owner == AppCacheService.instance.activeAccountId &&
+      _session == AppCacheService.instance.sessionGeneration;
+  bool _checkingSubmission = true;
+  String? _recoveryError;
+  bool _continuing = false;
 
   ReportCategory get _classifiedCategory => ReportCategoryClassifier.classify(
     title: _titleController.text,
@@ -75,6 +86,8 @@ class _CreateReportScreenState extends State<CreateReportScreen>
   @override
   void initState() {
     super.initState();
+    _owner = AppCacheService.instance.activeAccountId;
+    _session = AppCacheService.instance.sessionGeneration;
     _state = widget.initialState;
     _draftClearGeneration = AppCacheService.instance.reportDraftClearGeneration;
     final cached = AppCacheService.instance.reportDraft;
@@ -102,6 +115,36 @@ class _CreateReportScreenState extends State<CreateReportScreen>
       _state = CreateReportViewState.draft;
     }
     WidgetsBinding.instance.addObserver(this);
+    _checkSubmission();
+  }
+
+  Future<void> _checkSubmission() async {
+    try {
+      final pending = _owner == null
+          ? null
+          : await ReportSubmissionStore.instance.pending(_owner);
+      if (!mounted || !_sameSession) return;
+      if (pending != null) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute<void>(
+            settings: const RouteSettings(name: ReviewReportScreen.routeName),
+            builder: (_) => ReviewReportScreen.recover(
+              pending,
+              returnToReports: widget.returnToReports,
+            ),
+          ),
+        );
+        return;
+      }
+      setState(() => _checkingSubmission = false);
+    } catch (_) {
+      if (mounted && _sameSession) {
+        setState(() {
+          _checkingSubmission = false;
+          _recoveryError = 'A previous submission needs recovery. Check My Reports before creating another report.';
+        });
+      }
+    }
   }
 
   @override
@@ -321,6 +364,7 @@ class _CreateReportScreenState extends State<CreateReportScreen>
   }
 
   Future<void> _continueToPhotos() async {
+    if (_continuing || _checkingSubmission || _recoveryError != null) return;
     if (!_hasRequiredFields) {
       setState(() => _state = CreateReportViewState.validationError);
       return;
@@ -334,30 +378,38 @@ class _CreateReportScreenState extends State<CreateReportScreen>
       return;
     }
 
-    final selected = _selectedLocation;
-    await _saveDraft();
-    if (!mounted) return;
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        settings: const RouteSettings(name: PhotoUploadScreen.routeName),
-        builder: (_) => PhotoUploadScreen(
-          reportTitle: _titleController.text.trim(),
-          reportDescription: _descriptionController.text.trim(),
-          reportCategory: _classifiedCategory.label,
-          reportLocationLabel:
-              selected?.formattedAddress ?? _locationAddress ?? _locationLabel,
-          reportCommunity:
-              selected?.locality ??
-              selected?.administrativeArea ??
-              _locationCommunity,
-          reportLatitude: selected?.latitude ?? _capturedPosition!.latitude,
-          reportLongitude: selected?.longitude ?? _capturedPosition!.longitude,
-          reportRegion: _locationRegion,
-          reportAssembly: _locationAssembly,
-          returnToReports: widget.returnToReports,
+    _continuing = true;
+    try {
+      final selected = _selectedLocation;
+      await _saveDraft();
+      if (!mounted || !_sameSession) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          settings: const RouteSettings(name: PhotoUploadScreen.routeName),
+          builder: (_) => PhotoUploadScreen(
+            reportTitle: _titleController.text.trim(),
+            reportDescription: _descriptionController.text.trim(),
+            reportCategory: _classifiedCategory.label,
+            reportLocationLabel:
+                selected?.formattedAddress ??
+                _locationAddress ??
+                _locationLabel,
+            reportCommunity:
+                selected?.locality ??
+                selected?.administrativeArea ??
+                _locationCommunity,
+            reportLatitude: selected?.latitude ?? _capturedPosition!.latitude,
+            reportLongitude:
+                selected?.longitude ?? _capturedPosition!.longitude,
+            reportRegion: _locationRegion,
+            reportAssembly: _locationAssembly,
+            returnToReports: widget.returnToReports,
+          ),
         ),
-      ),
-    );
+      );
+    } finally {
+      _continuing = false;
+    }
   }
 
   void _handleFormChanged() {
@@ -380,6 +432,9 @@ class _CreateReportScreenState extends State<CreateReportScreen>
   }
 
   Future<void> _saveDraft() {
+    if (!_sameSession || _checkingSubmission || _recoveryError != null) {
+      return Future.value();
+    }
     final selected = _selectedLocation;
     final current = AppCacheService.instance.reportDraft;
     return AppCacheService.instance.saveReportDraft(
@@ -399,6 +454,7 @@ class _CreateReportScreenState extends State<CreateReportScreen>
         region: _locationRegion,
         assembly: _locationAssembly,
         photoPaths: current?.photoPaths ?? const <String>[],
+        photoIsFromCamera: current?.photoIsFromCamera ?? const <bool>[],
       ),
     );
   }
@@ -413,6 +469,29 @@ class _CreateReportScreenState extends State<CreateReportScreen>
 
   @override
   Widget build(BuildContext context) {
+    if (_checkingSubmission || _recoveryError != null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Create Report')),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: _checkingSubmission
+                ? const Text('Checking previous submission…')
+                : Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(_recoveryError!),
+                      TextButton(
+                        onPressed: () => Navigator.of(context)
+                            .pushReplacement(citizenReportsTabRoute(context)),
+                        child: const Text('My Reports'),
+                      ),
+                    ],
+                  ),
+          ),
+        ),
+      );
+    }
     return Scaffold(
       // CivicTopBar/CivicBottomNav are Align-positioned in a Stack, not real
       // Scaffold slots — the default (true) resize shrank the whole Stack

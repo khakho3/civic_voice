@@ -18,6 +18,8 @@ import '../services/report_crud_service.dart';
 import '../services/location_service.dart';
 import '../widgets/civic_app_chrome.dart';
 import 'report_submitted_screen.dart';
+import 'citizen_tab_routes.dart';
+import '../services/report_submission_store.dart';
 
 typedef ReportSubmitter = Future<CivicReport> Function(
   ReportDraft draft, {
@@ -42,6 +44,7 @@ class ReviewReportScreen extends StatefulWidget {
     this.locationService = const LocationService(),
     this.returnToReports = false,
     this.submitReport,
+    this.recovering = false,
   });
 
   static const String routeName = '/citizen/review-report';
@@ -63,6 +66,26 @@ class ReviewReportScreen extends StatefulWidget {
   /// A screen-local seam for deterministic UI tests. Production continues to
   /// use [ReportCrudService.createReport].
   final ReportSubmitter? submitReport;
+  final bool recovering;
+
+  factory ReviewReportScreen.recover(
+    ReportDraft draft, {
+    bool returnToReports = false,
+  }) => ReviewReportScreen(
+    reportTitle: draft.title,
+    reportDescription: draft.description,
+    reportCategory: draft.category,
+    reportLocationLabel: draft.location,
+    reportCommunity: draft.community,
+    reportLatitude: draft.latitude,
+    reportLongitude: draft.longitude,
+    reportRegion: draft.region,
+    reportAssembly: draft.assembly,
+    photos: draft.photoPaths.map(XFile.new).toList(),
+    photoIsFromCamera: draft.photoIsFromCamera,
+    recovering: true,
+    returnToReports: returnToReports,
+  );
 
   @override
   State<ReviewReportScreen> createState() => _ReviewReportScreenState();
@@ -72,10 +95,19 @@ class _ReviewReportScreenState extends State<ReviewReportScreen> {
   Position? _submissionPosition;
   double? _pinDistanceMeters;
   bool _isSubmitting = false;
+  late bool _pending;
+  late final String? _owner;
+  late final int _session;
+  bool get _sameSession =>
+      _owner == AppCacheService.instance.activeAccountId &&
+      _session == AppCacheService.instance.sessionGeneration;
 
   @override
   void initState() {
     super.initState();
+    _pending = widget.recovering;
+    _owner = AppCacheService.instance.activeAccountId;
+    _session = AppCacheService.instance.sessionGeneration;
     _captureSubmissionPosition();
   }
 
@@ -99,7 +131,7 @@ class _ReviewReportScreenState extends State<ReviewReportScreen> {
   }
 
   Future<void> _submit() async {
-    if (_isSubmitting) return;
+    if (_isSubmitting || !_sameSession) return;
     setState(() => _isSubmitting = true);
 
     try {
@@ -121,14 +153,22 @@ class _ReviewReportScreenState extends State<ReviewReportScreen> {
                 : false,
         ],
       );
-      final report = await (widget.submitReport ??
-          ReportCrudService.instance.createReport)(
-        draft,
-        submissionLatitude: _submissionPosition?.latitude,
-        submissionLongitude: _submissionPosition?.longitude,
-      );
-      await AppCacheService.instance.clearReportDraft();
-      if (!mounted) return;
+      final report =
+          await (widget.submitReport ??
+              ReportCrudService.instance.createReport)(
+            draft,
+            submissionLatitude: _submissionPosition?.latitude,
+            submissionLongitude: _submissionPosition?.longitude,
+          );
+      if (!mounted || !_sameSession) return;
+      // Production clears its exact owner's draft before acknowledging the
+      // durable receipt. Keep the injected test transport's success boundary.
+      if (widget.submitReport != null) {
+        await AppCacheService.instance.clearReportDraft(
+          expectedAccount: _owner,
+        );
+      }
+      if (!mounted || !_sameSession) return;
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute<void>(
           settings: const RouteSettings(name: ReportSubmittedScreen.routeName),
@@ -146,16 +186,19 @@ class _ReviewReportScreenState extends State<ReviewReportScreen> {
         (route) => !_isAuthoringRoute(route),
       );
     } on ApiException catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error.message)));
-    } catch (_) {
-      if (!mounted) return;
+      await _checkPending();
+      if (!mounted || !_sameSession) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(error.message)));
+    } catch (error) {
+      await _checkPending();
+      if (!mounted || !_sameSession) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(
-            'Could not submit report. Check your connection and try again.',
+            error is FormatException
+                ? error.message
+                : 'Submission not confirmed. Check the same submission again.',
           ),
         ),
       );
@@ -166,6 +209,25 @@ class _ReviewReportScreenState extends State<ReviewReportScreen> {
     }
   }
 
+  Future<void> _checkPending() async {
+    if (widget.submitReport != null || _owner == null) return;
+    var pending = true;
+    try {
+      pending = await ReportSubmissionStore.instance.pending(_owner) != null;
+    } catch (_) {
+      // Invalid local recovery data must never silently become a new request.
+    }
+    if (mounted) setState(() => _pending = pending);
+  }
+
+  void _leaveRecovery() {
+    if (_isSubmitting) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      citizenReportsTabRoute(context),
+      (route) => route.isFirst,
+    );
+  }
+
   bool _isAuthoringRoute(Route<dynamic> route) {
     final name = route.settings.name;
     return name == '/citizen/create-report' ||
@@ -174,6 +236,8 @@ class _ReviewReportScreenState extends State<ReviewReportScreen> {
   }
 
   void _editPreviousStep() {
+    if (_isSubmitting) return;
+    if (_pending) return _leaveRecovery();
     Navigator.of(context).maybePop();
   }
 
@@ -188,62 +252,69 @@ class _ReviewReportScreenState extends State<ReviewReportScreen> {
           MediaQuery.viewInsetsOf(context).bottom,
     );
 
-    return Scaffold(
-      // See create_report_screen.dart's build() for why this is false and
-      // paired with the keyboardVisible-guarded nav below.
-      resizeToAvoidBottomInset: false,
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: ListView(
-              padding: EdgeInsets.fromLTRB(
-                horizontalPadding,
-                chromeInset.top + AppSpacing.xl,
-                horizontalPadding,
-                chromeInset.bottom + AppSpacing.xl,
-              ),
-              children: [
-                const _ReviewProgress(),
-                const SizedBox(height: AppSpacing.xl),
-                _ReportDetailsCard(
-                  title: widget.reportTitle,
-                  description: widget.reportDescription,
+    return PopScope(
+      canPop: !_isSubmitting && !_pending,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && _pending && !_isSubmitting) _leaveRecovery();
+      },
+      child: Scaffold(
+        // See create_report_screen.dart's build() for why this is false and
+        // paired with the keyboardVisible-guarded nav below.
+        resizeToAvoidBottomInset: false,
+        body: Stack(
+          children: [
+            Positioned.fill(
+              child: ListView(
+                padding: EdgeInsets.fromLTRB(
+                  horizontalPadding,
+                  chromeInset.top + AppSpacing.xl,
+                  horizontalPadding,
+                  chromeInset.bottom + AppSpacing.xl,
                 ),
-                const SizedBox(height: AppSpacing.lg),
-                _CategoryCard(category: widget.reportCategory),
-                const SizedBox(height: AppSpacing.lg),
-                _LocationCard(
-                  locationLabel: widget.reportLocationLabel,
-                  community: widget.reportCommunity,
-                  latitude: widget.reportLatitude,
-                  longitude: widget.reportLongitude,
-                ),
-                if ((_pinDistanceMeters ?? 0) > 300) ...[
-                  const SizedBox(height: AppSpacing.sm),
-                  _LocationDiscrepancyBanner(
-                    distanceMeters: _pinDistanceMeters!,
+                children: [
+                  const _ReviewProgress(),
+                  const SizedBox(height: AppSpacing.xl),
+                  _ReportDetailsCard(
+                    title: widget.reportTitle,
+                    description: widget.reportDescription,
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  _CategoryCard(category: widget.reportCategory),
+                  const SizedBox(height: AppSpacing.lg),
+                  _LocationCard(
+                    locationLabel: widget.reportLocationLabel,
+                    community: widget.reportCommunity,
+                    latitude: widget.reportLatitude,
+                    longitude: widget.reportLongitude,
+                  ),
+                  if ((_pinDistanceMeters ?? 0) > 300) ...[
+                    const SizedBox(height: AppSpacing.sm),
+                    _LocationDiscrepancyBanner(
+                      distanceMeters: _pinDistanceMeters!,
+                    ),
+                  ],
+                  const SizedBox(height: AppSpacing.lg),
+                  _PhotosCard(photos: widget.photos),
+                  const SizedBox(height: AppSpacing.lg),
+                  _SubmitCard(
+                    onSubmit: _submit,
+                    onBack: _editPreviousStep,
+                    submitting: _isSubmitting,
+                    pending: _pending,
                   ),
                 ],
-                const SizedBox(height: AppSpacing.lg),
-                _PhotosCard(photos: widget.photos),
-                const SizedBox(height: AppSpacing.lg),
-                _SubmitCard(
-                  onSubmit: _submit,
-                  onBack: _editPreviousStep,
-                  submitting: _isSubmitting,
-                ),
-              ],
+              ),
             ),
-          ),
-          Align(
-            alignment: Alignment.topCenter,
-            child: CivicTopBar(
-              title: 'Review Report',
-              showNotifications: false,
-              onBack: () => Navigator.of(context).maybePop(),
+            Align(
+              alignment: Alignment.topCenter,
+              child: CivicTopBar(
+                title: 'Review Report',
+                showNotifications: false,
+                onBack: _editPreviousStep,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -560,11 +631,13 @@ class _SubmitCard extends StatelessWidget {
     required this.onSubmit,
     required this.onBack,
     required this.submitting,
+    required this.pending,
   });
 
   final VoidCallback onSubmit;
   final VoidCallback onBack;
   final bool submitting;
+  final bool pending;
 
   @override
   Widget build(BuildContext context) {
@@ -577,7 +650,7 @@ class _SubmitCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            'Ready to submit',
+            pending ? 'Check your submission' : 'Ready to submit',
             style: theme.textTheme.titleMedium?.copyWith(
               color: AppSemanticColors.of(context).actionText,
               fontWeight: AppFontWeight.bold,
@@ -585,7 +658,9 @@ class _SubmitCard extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            'Your report will be sent to the civic team for review.',
+            pending
+                ? 'This report may already be saved. Check it again using the same details and photos. You can also check My Reports.'
+                : 'Your report will be sent to the civic team for review.',
             style: theme.textTheme.bodyMedium,
           ),
           const SizedBox(height: AppSpacing.lg),
@@ -594,12 +669,12 @@ class _SubmitCard extends StatelessWidget {
             child: BusyLabel(
               busy: submitting,
               busyLabel: 'Submitting report',
-              child: const Row(
+              child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(AppIcons.statusSubmitted),
-                  SizedBox(width: AppSpacing.sm),
-                  Text('Submit Report'),
+                  const Icon(AppIcons.statusSubmitted),
+                  const SizedBox(width: AppSpacing.sm),
+                  Text(pending ? 'Check submission again' : 'Submit Report'),
                 ],
               ),
             ),
@@ -607,7 +682,7 @@ class _SubmitCard extends StatelessWidget {
           const SizedBox(height: AppSpacing.sm),
           OutlinedButton(
             onPressed: submitting ? null : onBack,
-            child: const Text('Back to Photos'),
+            child: Text(pending ? 'My Reports' : 'Back to Photos'),
           ),
         ],
       ),
