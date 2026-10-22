@@ -1,5 +1,15 @@
 # Latif progress
 
+## Continuous search scrolling repair - 22 October 2026
+
+Final verification: 1,070 Flutter tests pass; analyzer and whitespace checks clean. The offline preview menu has 20 passing real-screen checks. Updated CV Search Test APK was installed wirelessly and its activity started; physical feel remains owner acceptance.
+
+Implementation f600292 on codex/flutter-latif-review-fixes replaces the compact-rail header's instantaneous swap and post-frame jumpTo. That jump cancelled an active drag. Header height now eases over 200 ms with a crossfade; outgoing controls cannot receive taps, focus or accessibility interaction. Layout-time scroll correction keeps content anchored while preserving the active drag/fling. One held gesture can collapse, reverse, reach the top and collapse again; reduced motion swaps immediately without cancelling the gesture. Existing short-list guards and focused-search restoration remain.
+
+The 80 real-consumer cases now hold the pointer through the transition and reverse without lifting, across all ten screens at 320/390/412/1440 px in both themes. Shared regressions cover intermediate animation geometry/content anchoring, held reversal through the top, fling momentum and reduced motion. Previous separate drag gestures missed the cancellation bug. Phone smoothness still requires owner acceptance; automated passing checks do not establish Telegram-equivalent feel.
+
+Delivery uses the existing isolated offline CV Search Test fixture app, package com.example.civic_voice.searchpreview, with no INTERNET permission and no Firebase/API startup. Its source snapshot remains outside Git. This is not a new normal DEV build or integration promotion. The original integration checkout and owner branding asset remain untouched; private device results stay uncommitted in web .tmp/device-checks-pending.md.
+
 ## Native device-feedback and Nearby checkpoint - 22 October 2026
 
 Current review candidate includes 6d05f0f (fresh accuracy/timestamp/300 m/account checks for Nearby), c3be080 (API-backed Nearby sheet, not own cached reports), e142d3e (full-screen focused search and 48 px pill triggers), 0d260ec (native adaptation of web thinking-orbs searching/globe with license attribution), and 839e2cb (shared indexed swipe/zoom/share evidence galleries for Citizen, Maintenance and Municipal Review/Progress). All ten search consumers keep the shared lifecycle and scroll restoration. Web now shows one compact Current Status row/bar; absent recorded work remains truthful in Report details instead of crowding the status card. The compact fraction is lifecycle stage, not an invented work percentage.
