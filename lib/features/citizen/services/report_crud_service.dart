@@ -57,7 +57,11 @@ class ReportCrudService implements ReportsRepository {
   }
 
   Future<void> refresh() async {
-    final raw = await ApiClient.instance.listReports(idToken: await _token());
+    final identity = _account(), generation = _sessionGeneration;
+    final token = await _token();
+    if (identity != _account() || generation != _sessionGeneration) return;
+    final raw = await ApiClient.instance.listReports(idToken: token);
+    if (identity != _account() || generation != _sessionGeneration) return;
     _publishReports(raw.map(_fromApi).toList());
   }
 
