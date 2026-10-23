@@ -1,5 +1,16 @@
 # Native map search and pin routing - 22 October 2026
 
+## Map theme and pin feedback - 23 October 2026
+
+Web `69636c8` applies one dark tile palette to LocationPicker and all shared MapPreview consumers. Changing the resolved app theme updates the existing map without recentering; light mode clears custom styling and unmount disconnects the observer. `ebe43bd` explicitly preserves busy-button opacity, primary fill and WebKit text colour while retaining disabled duplicate-click protection.
+
+Native `eeee12a` / `039b84d` apply the same map palette to all nine GoogleMap instances and put capture/address orb feedback beneath the search control. Dragging dismisses the keyboard, clears stale suggestions and invalidates previous work; confirmation stays unavailable until the selected pin is resolved. The selected coordinates remain authoritative.
+
+Verification: 1,180 native tests, clean analyzer; 365 web tests, lint/build and whitespace checks pass. Browser checked actual busy-button CSS in both themes inside a disabled fieldset; this fixture does not establish real provider/GPS acceptance. Phone map/drag/theme acceptance remains pending. The temporary hotspot origin caused a Maps restriction mismatch; Wi-Fi is back at the already permitted development origin. No Cloud key restrictions were saved or relaxed. Local API readiness is healthy; normal DEV source configuration and app identity remain separate from production. Private installation details remain in the ignored device checklist.
+
+Continue saved-location and local draft-photo preview inventory, then validation, notifications and Admin reconciliation. Maintenance acceptance awaits the owner's planned account. Francis retains shared ordinary-success/checkmark and native Activity Detail. No production deployment, merge or integration promotion.
+
+
 ## Native Places token correction - 23 October 2026
 
 Owner phone testing exposed HTTP 400 from an oversized autocomplete session token: the app encoded 24 random bytes as 48 hex characters, exceeding Google's 36-character maximum. Native commit `331909e` preserves the same secure randomness as 32 URL-safe base64 characters. The serialized-request regression failed before the fix and passes after it; 35 related Places/picker/routing/submission tests and changed-file analysis pass. A live check through the actual corrected Dart PlacesService now passes autocomplete and details. The earlier standalone provider probe used UUIDs and missed this app-specific defect; its configuration/restriction results were valid but did not establish phone search acceptance. No further Cloud/key change is needed. Physical retest remains pending.
