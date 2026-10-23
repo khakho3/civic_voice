@@ -1,3 +1,6 @@
+import 'package:firebase_core/firebase_core.dart';
+import '../../../models/app_role.dart';
+import '../../../widgets/notification_inbox_panel.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
@@ -32,9 +35,11 @@ class _MinistryNotificationsScreenState
   @override
   void initState() {
     super.initState();
-    NotificationDirectory.instance.markAllRead(
+    if (Firebase.apps.isEmpty) {
+      NotificationDirectory.instance.markAllRead(
       NotificationDirectory.instance.forMinistry().map((n) => n.id),
     );
+    }
   }
 
   @override
@@ -52,6 +57,9 @@ class _MinistryNotificationsScreenState
               builder: (context, _) {
                 final notifications = NotificationDirectory.instance
                     .forMinistry();
+                if (Firebase.apps.isNotEmpty) {
+                  return NotificationInboxPanel(role: AppRole.ministrySupervisor, padding: EdgeInsets.fromLTRB(AppSpacing.md, DetailHeader.topInset(context) + AppSpacing.md, AppSpacing.md, AppSpacing.xl));
+                }
                 return NotificationListView(
                   notifications: notifications,
                   emptyTitle: 'No notifications yet',

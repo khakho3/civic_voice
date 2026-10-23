@@ -1,3 +1,6 @@
+import 'package:firebase_core/firebase_core.dart';
+import '../models/app_role.dart';
+import 'notification_inbox_directory.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -15,18 +18,36 @@ import '../features/maintenance/services/maintenance_session.dart';
 import '../models/notification_item.dart';
 import '../models/report_status.dart';
 
-/// The one shared, real "have I seen this" ledger every module's
-/// notifications read through. Content is never duplicated into a second
-/// list — each `for*()` method below computes notifications fresh from
-/// whichever real directory the event actually happened in
-/// (`MunicipalReportDirectory`, `MaintenanceTaskDirectory`, Citizen's
-/// `ReportCrudService`), so a notification can never disagree with the
-/// record it's about. Only read/unread state is genuinely new and
-/// session-persisted here, mirroring the `AdminUserDirectory`/
-/// `MaintenanceTeamDirectory`/`MunicipalReportDirectory` `ValueNotifier`
-/// pattern used everywhere else in this app.
+/// Compatibility adapter for existing badge consumers. Live accounts use the
+/// server inbox; local derived messages exist only in Firebase-free previews.
 class NotificationDirectory {
-  NotificationDirectory._();
+  NotificationDirectory._() {
+    NotificationInboxDirectory.instance.addListener(() {
+      if (Firebase.apps.isNotEmpty) readIds.value = {...readIds.value};
+    });
+  }
+
+  List<NotificationItem> _liveItems(AppRole role) {
+    final inbox = NotificationInboxDirectory.instance;
+    if (inbox.owner()?.role != role || inbox.status != InboxStatus.ready) {
+      return [];
+    }
+    return [
+      for (final row in inbox.page!.rows)
+        NotificationItem(
+          id: row.id,
+          type: NotificationType.inboxUpdate,
+          title: row.title,
+          message: row.body,
+          category: 'Update',
+          timeLabel: row.createdAt.toLocal().toString(),
+          icon: AppIcons.notifications,
+          color: AppColors.primary,
+          read: row.read,
+          referenceId: row.reportId,
+        ),
+    ];
+  }
 
   static final NotificationDirectory instance = NotificationDirectory._();
 
@@ -60,6 +81,7 @@ class NotificationDirectory {
   }
 
   Future<void> activateAccount(String? accountId) async {
+    NotificationInboxDirectory.instance.clearSession();
     _accountId = accountId;
     final preferences = _preferences ?? await SharedPreferences.getInstance();
     _preferences = preferences;
@@ -74,6 +96,7 @@ class NotificationDirectory {
   }
 
   void clearSession() {
+    NotificationInboxDirectory.instance.clearSession();
     _accountId = null;
     readIds.value = <String>{};
     dismissedIds.value = <String>{};
@@ -82,12 +105,14 @@ class NotificationDirectory {
   bool isRead(String id) => readIds.value.contains(id);
 
   void markRead(String id) {
+    if (Firebase.apps.isNotEmpty) return;
     if (readIds.value.contains(id)) return;
     readIds.value = {...readIds.value, id};
     _persist(_readIdsKey, readIds.value);
   }
 
   void markAllRead(Iterable<String> ids) {
+    if (Firebase.apps.isNotEmpty) return;
     final updated = {...readIds.value, ...ids};
     if (updated.length == readIds.value.length) return;
     readIds.value = updated;
@@ -100,6 +125,7 @@ class NotificationDirectory {
   /// all". Pass the caller's own already-filtered id list (e.g.
   /// `forCitizen().map((n) => n.id)`), never every id that's ever existed.
   void clearAll(Iterable<String> ids) {
+    if (Firebase.apps.isNotEmpty) return;
     final updated = {...dismissedIds.value, ...ids};
     if (updated.length == dismissedIds.value.length) return;
     dismissedIds.value = updated;
@@ -124,8 +150,9 @@ class NotificationDirectory {
 
   /// The one signal every bell/tab dot badge reads — just handed a
   /// different, already-filtered `items` list per surface.
-  bool hasUnread(List<NotificationItem> items) =>
-      items.any((item) => !item.read);
+  bool hasUnread(List<NotificationItem> items) => Firebase.apps.isNotEmpty
+      ? NotificationInboxDirectory.instance.unreadCount > 0
+      : items.any((item) => !item.read);
 
   NotificationItem _build({
     required String id,
@@ -154,6 +181,7 @@ class NotificationDirectory {
 
   /// A citizen's own reports, mapped 1:1 by current status.
   List<NotificationItem> forCitizen() {
+    if (Firebase.apps.isNotEmpty) return _liveItems(AppRole.citizen);
     final reports = ReportCrudService.instance.reports.value;
     final items = [
       for (final report in reports)
@@ -219,6 +247,7 @@ class NotificationDirectory {
   /// Reports newly submitted to Municipal's Inbox, awaiting triage — the
   /// same source `MunicipalReportDirectory` powers Inbox/Active/Dashboard.
   List<NotificationItem> forMunicipal() {
+    if (Firebase.apps.isNotEmpty) return _liveItems(AppRole.municipalOfficer);
     final officerId = MunicipalSession.instance.profile.value.employeeId;
     final reports = MunicipalReportDirectory.instance.reports.value.where(
       (r) => r.status == ReportStatus.submitted,
@@ -296,6 +325,9 @@ class NotificationDirectory {
   /// Live account events visible within the signed-in Admin's already scoped
   /// user directory. This is deliberately separate from the full audit log.
   List<NotificationItem> forAdmin() {
+    if (Firebase.apps.isNotEmpty) {
+      return _liveItems(AppRole.systemAdministrator);
+    }
     final users = AdminUserDirectory.instance.users.value;
     final items = [
       for (final user in users)
@@ -329,6 +361,7 @@ class NotificationDirectory {
 
   /// Current task events for the signed-in technician's exact team.
   List<NotificationItem> forMaintenance() {
+    if (Firebase.apps.isNotEmpty) return _liveItems(AppRole.maintenanceTeam);
     final tasks = MaintenanceTaskDirectory.instance.tasks.value;
     final items = [
       for (final task in tasks)
@@ -414,6 +447,7 @@ class NotificationDirectory {
   /// oversight remit, so unlike Municipal this is deliberately not
   /// assembly-scoped.
   List<NotificationItem> forMinistry() {
+    if (Firebase.apps.isNotEmpty) return _liveItems(AppRole.ministrySupervisor);
     final reports = MunicipalReportDirectory.instance.reports.value.where(
       (r) => r.status == ReportStatus.resolved,
     );

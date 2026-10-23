@@ -1,3 +1,5 @@
+import '../../../services/notification_inbox_directory.dart';
+import '../../../widgets/unread_dot_badge.dart';
 import 'package:flutter/material.dart';
 
 import '../../../services/app_haptics.dart';
@@ -296,11 +298,20 @@ class _Header extends StatelessWidget {
                                 overflow: TextOverflow.ellipsis,
                               ),
                       ),
-                      _IconButton(
-                        icon: AppIcons.notifications,
-                        onPressed: onNotificationsTap,
-                        semanticLabel: 'Notifications',
-                        semantic: semantic,
+                      AnimatedBuilder(
+                        animation: NotificationInboxDirectory.instance,
+                        builder: (context, child) => UnreadDotBadge(
+                          show:
+                              NotificationInboxDirectory.instance.unreadCount >
+                              0,
+                          child: child!,
+                        ),
+                        child: _IconButton(
+                          icon: AppIcons.notifications,
+                          onPressed: onNotificationsTap,
+                          semanticLabel: 'Notifications',
+                          semantic: semantic,
+                        ),
                       ),
                     ],
                   )
@@ -523,7 +534,8 @@ class _AdminDrawer extends StatelessWidget {
             _DrawerItem(
               icon: AppIcons.profile,
               label: 'Admin Profile',
-              selected: activeDestination == AdminDrawerDestination.adminProfile,
+              selected:
+                  activeDestination == AdminDrawerDestination.adminProfile,
               onTap: onOpenProfile == null
                   ? null
                   : () {

@@ -1,3 +1,6 @@
+import 'package:firebase_core/firebase_core.dart';
+import '../../../models/app_role.dart';
+import '../../../widgets/notification_inbox_panel.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
@@ -30,9 +33,11 @@ class _MunicipalNotificationsScreenState
   @override
   void initState() {
     super.initState();
-    NotificationDirectory.instance.markAllRead(
+    if (Firebase.apps.isEmpty) {
+      NotificationDirectory.instance.markAllRead(
       NotificationDirectory.instance.forMunicipal().map((n) => n.id),
     );
+    }
   }
 
   @override
@@ -50,6 +55,9 @@ class _MunicipalNotificationsScreenState
               builder: (context, _) {
                 final notifications = NotificationDirectory.instance
                     .forMunicipal();
+                if (Firebase.apps.isNotEmpty) {
+                  return NotificationInboxPanel(role: AppRole.municipalOfficer, padding: EdgeInsets.fromLTRB(AppSpacing.md, DetailHeader.topInset(context) + AppSpacing.md, AppSpacing.md, AppSpacing.xl));
+                }
                 return NotificationListView(
                   notifications: notifications,
                   emptyTitle: 'No notifications yet',

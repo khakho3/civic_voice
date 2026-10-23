@@ -1,22 +1,20 @@
+import 'package:firebase_core/firebase_core.dart';
+import '../../../models/app_role.dart';
+import '../../../widgets/notification_inbox_panel.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../widgets/app_state_message.dart';
 import '../../../widgets/detail_header.dart';
 
-/// An intentionally unavailable Admin inbox until F07 supplies a durable,
-/// server-authorized notification source and safe deep-link contract.
-///
-/// Do not derive account events from [AdminUserDirectory] here. A user list is
-/// neither an audit/event stream nor a verified notification scope, and using
-/// it could disclose another assembly's users through a notification route.
+/// Server-authorized Admin updates. Account lists never become notifications.
 class AdminNotificationsScreen extends StatelessWidget {
   const AdminNotificationsScreen({super.key, this.onBack, this.onOpenUser});
 
   final VoidCallback? onBack;
 
-  /// Retained for route-call compatibility while Admin notification deep links
-  /// are unavailable. This screen deliberately never invokes it.
+  /// Retained for route-call compatibility. Live updates open verified Activity,
+  /// rather than navigating to an arbitrary user from notification text.
   final ValueChanged<String>? onOpenUser;
 
   @override
@@ -25,20 +23,27 @@ class AdminNotificationsScreen extends StatelessWidget {
       body: Stack(
         children: [
           Positioned.fill(
-            child: const AppStateMessage(
-              icon: AppIcons.notificationsOff,
-              title: 'Admin notifications unavailable',
-              message:
-                  'Notifications will appear here when the secure Admin '
-                  'notification service is available.',
-            ),
+            child: Firebase.apps.isNotEmpty
+                ? NotificationInboxPanel(
+                    role: AppRole.systemAdministrator,
+                    padding: EdgeInsets.fromLTRB(
+                      AppSpacing.md,
+                      DetailHeader.topInset(context) + AppSpacing.md,
+                      AppSpacing.md,
+                      AppSpacing.xl,
+                    ),
+                  )
+                : const AppStateMessage(
+                    icon: AppIcons.notificationsOff,
+                    title: 'Admin notifications unavailable',
+                    message:
+                        'Notifications will appear here when the secure Admin '
+                        'notification service is available.',
+                  ),
           ),
           Align(
             alignment: Alignment.topCenter,
-            child: DetailHeader(
-              title: 'Admin Notifications',
-              onBack: onBack,
-            ),
+            child: DetailHeader(title: 'Admin Notifications', onBack: onBack),
           ),
         ],
       ),

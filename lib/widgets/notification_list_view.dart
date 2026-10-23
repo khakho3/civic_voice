@@ -397,3 +397,81 @@ class _EmptyState extends StatelessWidget {
     );
   }
 }
+
+/// OS permission affects external delivery only; the inbox remains available.
+class NotificationDeviceSettings extends StatefulWidget {
+  const NotificationDeviceSettings({super.key});
+  @override
+  State<NotificationDeviceSettings> createState() =>
+      _NotificationDeviceSettingsState();
+}
+
+class _NotificationDeviceSettingsState extends State<NotificationDeviceSettings>
+    with WidgetsBindingObserver {
+  final _service = const NotificationPermissionService();
+  PermissionStatus? _status;
+  bool _pending = false;
+  int _request = 0;
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _refresh();
+  }
+
+  @override
+  void dispose() {
+    ++_request;
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _refresh();
+  }
+
+  Future<void> _refresh() async {
+    final request = ++_request;
+    try {
+      final status = await _service.currentStatus();
+      if (mounted && request == _request) setState(() => _status = status);
+    } catch (_) {}
+  }
+
+  Future<void> _enable() async {
+    if (_pending) return;
+    _pending = true;
+    try {
+      if (_status?.isPermanentlyDenied == true) {
+        await _service.openSettings();
+      } else {
+        await _service.requestOnce();
+      }
+      await _refresh();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Notification settings could not be opened. Please try again.',
+            ),
+          ),
+        );
+      }
+    } finally {
+      _pending = false;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => _status == null || _status!.isGranted
+      ? const SizedBox.shrink()
+      : Padding(
+          padding: const EdgeInsets.only(bottom: AppSpacing.md),
+          child: _PermissionBanner(
+            settingsRequired: _status!.isPermanentlyDenied,
+            onPressed: _enable,
+          ),
+        );
+}

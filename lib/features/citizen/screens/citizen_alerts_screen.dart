@@ -1,3 +1,6 @@
+import 'package:firebase_core/firebase_core.dart';
+import '../../../models/app_role.dart';
+import '../../../widgets/notification_inbox_panel.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
@@ -60,6 +63,17 @@ class CitizenAlertsScreen extends StatelessWidget {
                     .forCitizen();
                 final chromeInset = civicContentPadding(context);
 
+                if (Firebase.apps.isNotEmpty) {
+                  return NotificationInboxPanel(
+                    role: AppRole.citizen,
+                    padding: EdgeInsets.fromLTRB(
+                      AppSpacing.md,
+                      chromeInset.top + AppSpacing.lg,
+                      AppSpacing.md,
+                      chromeInset.bottom + AppSpacing.lg,
+                    ),
+                  );
+                }
                 return NotificationListView(
                   notifications: notifications,
                   emptyTitle: 'No notifications yet',

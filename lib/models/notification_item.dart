@@ -5,6 +5,7 @@ import 'package:flutter/widgets.dart';
 /// [municipalNewIncomingReport]) without needing a second parallel
 /// "seen" tracking mechanism per surface.
 enum NotificationType {
+  inboxUpdate,
   citizenReportSubmitted,
   citizenReportUnderReview,
   citizenReportAssigned,
