@@ -1,3 +1,4 @@
+import '../../../widgets/evidence_image_viewer.dart';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -594,7 +595,13 @@ class _UpdateProgressForm extends StatelessWidget {
                             index < evidencePhotos.length
                         ? () => onRemoveEvidence(index)
                         : null,
-                    onTap: index == evidencePhotoCount
+                    onTap: index < evidencePhotos.length
+                        ? () => EvidenceImageViewer.openGallery(
+                            context,
+                            evidencePhotos.map((photo) => photo.path).toList(),
+                            initialIndex: index,
+                          )
+                        : index == evidencePhotoCount
                         ? onAttachEvidence
                         : null,
                   ),
@@ -768,12 +775,16 @@ class _EvidencePhotoSlot extends StatelessWidget {
     final accent = attached ? semantic.success : colorScheme.onSurfaceVariant;
 
     return InkWell(
-      onTap: disabled ? null : onTap,
+      onTap: attached
+          ? onTap
+          : disabled
+          ? null
+          : onTap,
       borderRadius: AppComponentRadius.card,
       child: Container(
         clipBehavior: Clip.antiAlias,
-        width: 96,
-        height: 88,
+        width: 104,
+        height: 104,
         decoration: BoxDecoration(
           color: attached
               ? semantic.success.withValues(alpha: 0.08)
@@ -791,6 +802,7 @@ class _EvidencePhotoSlot extends StatelessWidget {
                 children: [
                   Image.file(
                     File(photo!.path),
+                    semanticLabel: 'Preview completion photo ${index + 1}',
                     fit: BoxFit.cover,
                     errorBuilder: (context, error, stackTrace) =>
                         _EvidenceSlotLabel(

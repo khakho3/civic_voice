@@ -1,4 +1,5 @@
 import '../../../widgets/report_location_map_screen.dart';
+import '../../../widgets/evidence_image_viewer.dart';
 import 'package:civic_voice/core/theme/app_map_style.dart';
 import 'dart:io';
 
@@ -571,24 +572,33 @@ class _PhotosCard extends StatelessWidget {
                   spacing: AppSpacing.sm,
                   runSpacing: AppSpacing.sm,
                   children: [
-                    for (final photo in photos)
+                    for (var index = 0; index < photos.length; index++)
                       SizedBox(
                         width: itemWidth,
                         child: AspectRatio(
                           aspectRatio: 1,
                           child: ClipRRect(
                             borderRadius: AppRadius.allLg,
-                            child: Image.file(
-                              File(photo.path),
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) =>
-                                  ColoredBox(
-                                    color:
-                                        theme.colorScheme.surfaceContainerLow,
-                                    child: const Center(
-                                      child: Icon(AppIcons.imageUnavailable),
+                            child: InkWell(
+                              key: ValueKey('review-draft-photo-$index'),
+                              onTap: () => EvidenceImageViewer.openGallery(
+                                context,
+                                photos.map((photo) => photo.path).toList(),
+                                initialIndex: index,
+                              ),
+                              child: Image.file(
+                                File(photos[index].path),
+                                semanticLabel: 'Preview attached photo',
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) =>
+                                    ColoredBox(
+                                      color:
+                                          theme.colorScheme.surfaceContainerLow,
+                                      child: const Center(
+                                        child: Icon(AppIcons.imageUnavailable),
+                                      ),
                                     ),
-                                  ),
+                              ),
                             ),
                           ),
                         ),

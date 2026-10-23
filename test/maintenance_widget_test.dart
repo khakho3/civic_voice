@@ -463,6 +463,20 @@ void main() {
 
     await _attachThreeEvidencePhotos(tester);
 
+    final secondPhoto = find
+        .descendant(of: find.byType(InkWell), matching: find.byType(Image))
+        .at(1);
+    await tester.ensureVisible(secondPhoto);
+    await tester.tap(secondPhoto);
+    await tester.pumpAndSettle();
+    expect(find.text('2 / 3'), findsOneWidget);
+    await tester.drag(find.byType(PageView), const Offset(-500, 0));
+    await tester.pumpAndSettle();
+    expect(find.text('3 / 3'), findsOneWidget);
+    await tester.tap(find.byTooltip('Close'));
+    await tester.pumpAndSettle();
+    expect(find.text('3 of 3 photos attached'), findsOneWidget);
+
     await tester.enterText(
       find.byType(EditableText).first,
       'Replaced the damaged wiring and verified the light is working.',

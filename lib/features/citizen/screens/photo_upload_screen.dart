@@ -1,3 +1,4 @@
+import '../../../widgets/evidence_image_viewer.dart';
 import 'dart:io';
 
 import 'dart:async';
@@ -563,6 +564,11 @@ class _UploadedPhotosSection extends StatelessWidget {
                           '${photoIsFromCamera[index] ? 'camera' : 'gallery'}',
                         ),
                         photo: photos[index],
+                        onPreview: () => EvidenceImageViewer.openGallery(
+                          context,
+                          photos.map((photo) => photo.path).toList(),
+                          initialIndex: index,
+                        ),
                         onRemove: () => onRemovePhoto(photos[index]),
                       ),
                     ),
@@ -591,10 +597,16 @@ class _UploadedPhotosSection extends StatelessWidget {
 }
 
 class _PhotoPreview extends StatelessWidget {
-  const _PhotoPreview({super.key, required this.photo, required this.onRemove});
+  const _PhotoPreview({
+    super.key,
+    required this.photo,
+    required this.onRemove,
+    required this.onPreview,
+  });
 
   final XFile photo;
   final VoidCallback onRemove;
+  final VoidCallback onPreview;
 
   @override
   Widget build(BuildContext context) {
@@ -607,14 +619,18 @@ class _PhotoPreview extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            Image.file(
-              File(photo.path),
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) => DecoratedBox(
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest,
+            InkWell(
+              onTap: onPreview,
+              child: Image.file(
+                File(photo.path),
+                semanticLabel: 'Preview attached photo',
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surfaceContainerHighest,
+                  ),
+                  child: const Center(child: Icon(AppIcons.imageUnavailable)),
                 ),
-                child: const Center(child: Icon(AppIcons.imageUnavailable)),
               ),
             ),
             Positioned(
