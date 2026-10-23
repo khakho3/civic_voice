@@ -118,10 +118,7 @@ class _NotificationListViewState extends State<NotificationListView>
   Widget build(BuildContext context) {
     final notifications = widget.notifications;
     final padding = widget.padding ?? const EdgeInsets.all(AppSpacing.md);
-    // A permission problem is its own exclusive state — same rule as every
-    // other Permission-state screen in the app (e.g. Municipal Report
-    // Review's "Access Restricted"), never stacked with Empty/loaded
-    // content underneath it.
+    // Device push permission does not govern access to the in-app inbox.
     final permissionBlocked =
         _permissionStatus != null && !_permissionStatus!.isGranted;
     final list = ListView(
@@ -134,8 +131,8 @@ class _NotificationListViewState extends State<NotificationListView>
           _PermissionBanner(
             settingsRequired: _permissionStatus!.isPermanentlyDenied,
             onPressed: _enableNotifications,
-          )
-        else ...[
+          ),
+        ...[
           if (widget.onClearAll != null && notifications.isNotEmpty) ...[
             Align(
               alignment: Alignment.centerRight,
@@ -212,8 +209,9 @@ class _PermissionBanner extends StatelessWidget {
     return AppStateMessage(
       icon: AppIcons.notificationsOff,
       badgeColor: AppColors.warning,
-      title: 'Notifications Are Off',
-      message: 'Turn them on to get updates when CivicVoice is closed.',
+      title: 'Device Notifications Are Off',
+      message:
+          'Updates still appear here. Turn on device notifications to get them when CivicVoice is closed.',
       primaryActionLabel: settingsRequired ? 'Settings' : 'Enable',
       onPrimaryAction: onPressed,
       bordered: true,
