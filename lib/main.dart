@@ -1,3 +1,7 @@
+import 'services/notification_push_registration.dart';
+import 'models/notification_inbox.dart';
+import 'services/notification_inbox_directory.dart';
+import 'services/notification_navigation.dart';
 import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
@@ -146,42 +150,30 @@ final _navigatorKey = GlobalKey<NavigatorState>();
 Future<void> _configurePushNotifications() async {
   final user = FirebaseAuth.instance.currentUser;
   if (user == null) return;
+  unawaited(NotificationInboxDirectory.instance.refresh(reset: true));
   try {
     final messaging = FirebaseMessaging.instance;
     if (!_pushListenersConfigured) {
       _pushListenersConfigured = true;
       FirebaseMessaging.onMessage.listen((message) async {
-        try {
-          await _refreshForPush(message);
-        } catch (_) {}
-        _showInAppBannerFor(message);
+        final owner = currentInboxOwner()?.key;
+        if (owner == null) return;
+        await NotificationInboxDirectory.instance.refresh(reset: true);
+        if (currentInboxOwner()?.key != owner) return;
+        final verified = _verifiedPushRow(message);
+        // Never display private text supplied by an old account's push payload.
+        if (verified != null) _showInAppBannerFor(verified, owner);
       });
       FirebaseMessaging.onMessageOpenedApp.listen(_handleOpenedPush);
       messaging.onTokenRefresh.listen((token) async {
-        try {
-          final refreshedIdToken = await FirebaseAuth.instance.currentUser
-              ?.getIdToken();
-          if (refreshedIdToken != null) {
-            await ApiClient.instance.registerPushToken(
-              idToken: refreshedIdToken,
-              token: token,
-              platform: _pushPlatform,
-            );
-          }
-        } catch (_) {
-          // A later app open or token refresh retries registration.
-        }
+        await _pushRegistration.bind(token);
       });
       _pendingOpenedPush = await messaging.getInitialMessage();
     }
+    final owner = currentInboxOwner()?.key;
     final token = await messaging.getToken();
-    final idToken = await user.getIdToken();
-    if (token != null && idToken != null) {
-      await ApiClient.instance.registerPushToken(
-        idToken: idToken,
-        token: token,
-        platform: _pushPlatform,
-      );
+    if (token != null && owner != null && currentInboxOwner()?.key == owner) {
+      await _pushRegistration.bind(token);
     }
   } catch (_) {
     // Notifications never block sign-in or application startup.
@@ -190,25 +182,26 @@ Future<void> _configurePushNotifications() async {
 
 String get _pushPlatform => defaultTargetPlatform.name.toLowerCase();
 
-Future<void> _refreshForPush(RemoteMessage message) async {
-  switch (message.data['type']) {
-    case 'report-status':
-      await ReportCrudService.instance.refresh();
-    case 'municipal-report':
-    case 'municipal-report-status':
-    case 'municipal-approval-pending':
-    case 'ministry-resolution':
-      await MunicipalReportDirectory.instance.refresh();
-    case 'maintenance-task':
-    case 'maintenance-task-status':
-    case 'maintenance-completion-submitted':
-    case 'maintenance-task-returned':
-      await MaintenanceTaskDirectory.instance.refresh();
-    case 'admin-coverage-gap':
-    case 'admin-team-readiness':
-    case 'admin-access-change':
-      await AdminSystemActivityDirectory.instance.refresh();
+final _pushRegistration = NotificationPushRegistration(
+  owner: () => currentInboxOwner()?.key,
+  credential: () async => FirebaseAuth.instance.currentUser?.getIdToken(),
+  register: (auth, token) => ApiClient.instance.registerPushToken(
+    idToken: auth,
+    token: token,
+    platform: _pushPlatform,
+  ),
+  unregister: (auth, token) =>
+      ApiClient.instance.unregisterPushToken(idToken: auth, token: token),
+);
+
+InboxNotification? _verifiedPushRow(RemoteMessage message) {
+  final rows = NotificationInboxDirectory.instance.page?.rows;
+  final id = message.data['notificationId'];
+  if (rows == null || !inboxId(id)) return null;
+  for (final row in rows) {
+    if (row.id == id) return row;
   }
+  return null;
 }
 
 void _handleOpenedPush(RemoteMessage message) {
@@ -222,58 +215,32 @@ void _handleOpenedPush(RemoteMessage message) {
 }
 
 Future<void> _openWorkflowPush(RemoteMessage message, AppRole role) async {
-  final identity = Firebase.apps.isEmpty
-      ? null
-      : FirebaseAuth.instance.currentUser?.uid;
-  await _refreshForPushSafely(message);
-  if (MockAuthService().getCurrentRole() != role ||
-      (Firebase.apps.isNotEmpty &&
-          FirebaseAuth.instance.currentUser?.uid != identity)) {
-    return;
-  }
-  final navigator = _navigatorKey.currentState;
-  if (navigator == null) return;
-  final id = message.data['reportId'];
-  if (message.data['type'] == 'municipal-approval-pending' &&
-      role == AppRole.municipalOfficer) {
-    final matches = MunicipalReportDirectory.instance.reports.value.where(
-      (r) => r.apiId == id || r.referenceId == id,
-    );
-    if (matches.isNotEmpty) {
-      final report = matches.first;
-      navigator.pushNamed(
-        _reportRoute(AppRoutes.municipalReportProgress, report.referenceId),
-        arguments: report,
+  final owner = currentInboxOwner()?.key;
+  if (owner == null) return;
+  final inbox = NotificationInboxDirectory.instance;
+  await inbox.refresh(reset: true);
+  if (currentInboxOwner()?.key != owner) return;
+  final verified = _verifiedPushRow(message);
+  if (verified != null) {
+    try {
+      if (!await inbox.act([verified.id], 'read')) {
+        throw StateError('Unconfirmed update');
+      }
+      if (currentInboxOwner()?.key != owner) return;
+      final target = await resolveInboxNotification(verified, role);
+      if (currentInboxOwner()?.key != owner) return;
+      _navigatorKey.currentState?.pushNamed(
+        target.route,
+        arguments: target.arguments,
       );
       return;
+    } catch (_) {
+      // Unavailable records and older-page pushes open the current owner's inbox.
     }
   }
-  if ([
-        'maintenance-task-returned',
-        'maintenance-completion-submitted',
-      ].contains(message.data['type']) &&
-      role == AppRole.maintenanceTeam) {
-    final matches = MaintenanceTaskDirectory.instance.tasks.value.where(
-      (t) => t.apiId == id || t.id == id,
-    );
-    if (matches.isNotEmpty) {
-      navigator.pushNamed(
-        Uri(
-          path: AppRoutes.maintenanceTaskDetails,
-          queryParameters: {'taskId': matches.first.id},
-        ).toString(),
-      );
-      return;
-    }
-  }
+  if (currentInboxOwner()?.key != owner) return;
   final route = _notificationsRouteForRole(role);
-  if (route != null) navigator.pushNamed(route);
-}
-
-Future<void> _refreshForPushSafely(RemoteMessage message) async {
-  try {
-    await _refreshForPush(message);
-  } catch (_) {}
+  if (route != null) _navigatorKey.currentState?.pushNamed(route);
 }
 
 void _deliverPendingPushTap() {
@@ -283,25 +250,18 @@ void _deliverPendingPushTap() {
   _handleOpenedPush(message);
 }
 
-/// The in-app counterpart to a push notification arriving while the app is
-/// already open — `FirebaseMessaging.onMessage` only fires in that case (a
-/// backgrounded/closed app shows the OS's own notification instead), and
-/// without this the refreshed data above was the only visible effect: the
-/// screen would quietly update with nothing telling the user why.
-void _showInAppBannerFor(RemoteMessage message) {
+/// Foreground content comes only from the current owner's verified server page.
+void _showInAppBannerFor(InboxNotification item, String owner) {
   final overlay = _navigatorKey.currentState?.overlay;
-  if (overlay == null) return;
-  final title = message.notification?.title;
-  final body = message.notification?.body ?? '';
-  if (title == null) return;
-  final type = message.data['type'];
+  if (overlay == null || currentInboxOwner()?.key != owner) return;
   InAppNotificationBanner.show(
     overlay,
-    title: title,
-    message: body,
-    icon: _iconForPushType(type),
-    color: _colorForPushType(type),
+    title: item.title,
+    message: item.body,
+    icon: AppIcons.notifications,
+    color: AppColors.primary,
     onTap: () {
+      if (currentInboxOwner()?.key != owner) return;
       final route = _notificationsRouteForRole(
         MockAuthService().getCurrentRole(),
       );
@@ -309,25 +269,6 @@ void _showInAppBannerFor(RemoteMessage message) {
     },
   );
 }
-
-IconData _iconForPushType(String? type) => switch (type) {
-  'report-status' => AppIcons.statusInProgress,
-  'municipal-report' => AppIcons.inbox,
-  'municipal-report-status' => AppIcons.statusInProgress,
-  'ministry-resolution' => AppIcons.statusResolved,
-  'maintenance-task' || 'maintenance-task-status' => AppIcons.statusAssigned,
-  'maintenance-team-membership' => AppIcons.profile,
-  'admin-coverage-gap' || 'admin-team-readiness' => AppIcons.warning,
-  'admin-access-change' => AppIcons.shield,
-  _ => AppIcons.notifications,
-};
-
-Color _colorForPushType(String? type) => switch (type) {
-  'ministry-resolution' => ReportStatus.resolved.color,
-  'municipal-report' => AppColors.primary,
-  'admin-coverage-gap' || 'admin-team-readiness' => AppColors.warning,
-  _ => AppColors.primary,
-};
 
 String? _notificationsRouteForRole(AppRole? role) => switch (role) {
   AppRole.citizen => AppRoutes.citizenAlerts,
@@ -658,6 +599,9 @@ class _CivicVoiceAppState extends State<CivicVoiceApp>
     if (state != AppLifecycleState.resumed) {
       _backgroundedAt ??= DateTime.now();
       return;
+    }
+    if (currentInboxOwner() != null) {
+      unawaited(NotificationInboxDirectory.instance.refresh());
     }
     final backgroundedAt = _backgroundedAt;
     _backgroundedAt = null;
