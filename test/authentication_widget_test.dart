@@ -1225,18 +1225,30 @@ void main() {
       ),
     );
 
+    await tester.ensureVisible(
+      find.widgetWithText(FilledButton, 'Save New Password'),
+    );
+    await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(FilledButton, 'Save New Password'));
-    await tester.pump();
+    await tester.pumpAndSettle();
     expect(find.text('Please enter a new password.'), findsOneWidget);
 
     final fields = find.byType(TextFormField);
     await tester.enterText(fields.at(0), 'password123');
     await tester.enterText(fields.at(1), 'password456');
+    await tester.ensureVisible(
+      find.widgetWithText(FilledButton, 'Save New Password'),
+    );
+    await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(FilledButton, 'Save New Password'));
-    await tester.pump();
+    await tester.pumpAndSettle();
     expect(find.text('Passwords do not match.'), findsOneWidget);
 
     await tester.enterText(fields.at(1), 'password123');
+    await tester.ensureVisible(
+      find.widgetWithText(FilledButton, 'Save New Password'),
+    );
+    await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(FilledButton, 'Save New Password'));
     await tester.pump(const Duration(seconds: 1));
     expect(saved, isTrue);

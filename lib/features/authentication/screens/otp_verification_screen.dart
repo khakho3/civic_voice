@@ -1,3 +1,4 @@
+import '../../../widgets/validation_attention.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -132,6 +133,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
       _verifying = false;
       _invalidCode = !verified;
     });
+    if (!verified) ValidationAttention.firstError(context);
   }
 
   @override
@@ -169,11 +171,17 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
               LengthLimitingTextInputFormatter(4),
             ],
             onSubmitted: (_) => _verify(),
-            decoration: authInputDecoration(
-              context,
-              hintText: '0000',
-              prefixIcon: AppIcons.sms,
-            ).copyWith(counterText: ''),
+            decoration:
+                authInputDecoration(
+                  context,
+                  hintText: '0000',
+                  prefixIcon: AppIcons.sms,
+                ).copyWith(
+                  counterText: '',
+                  errorText: _invalidCode
+                      ? 'Check your verification code.'
+                      : null,
+                ),
           ),
           const SizedBox(height: AppSpacing.xs),
           if (_timeToExpiry case final timeToExpiry?)

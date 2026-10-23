@@ -1,3 +1,4 @@
+import 'package:civic_voice/widgets/validation_attention.dart';
 import 'package:flutter/material.dart';
 
 import 'package:civic_voice/core/theme/app_theme.dart';
@@ -42,7 +43,7 @@ class _SetNewPasswordFormState extends State<SetNewPasswordForm> {
 
   Future<void> _submit() async {
     if (widget.disabled || _saving) return;
-    final valid = _formKey.currentState?.validate() ?? false;
+    final valid = ValidationAttention.validate(_formKey);
     if (!valid) return;
 
     setState(() {

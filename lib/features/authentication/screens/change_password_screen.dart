@@ -1,3 +1,4 @@
+import 'package:civic_voice/widgets/validation_attention.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -37,7 +38,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   }
 
   Future<void> _sendCode() async {
-    if (_sending || !(_formKey.currentState?.validate() ?? false)) return;
+    if (_sending || !(ValidationAttention.validate(_formKey))) return;
     setState(() {
       _sending = true;
       _phoneError = null;

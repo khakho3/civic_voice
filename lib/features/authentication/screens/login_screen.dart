@@ -1,3 +1,4 @@
+import 'package:civic_voice/widgets/validation_attention.dart';
 import 'package:flutter/material.dart';
 
 import 'package:civic_voice/core/theme/app_theme.dart';
@@ -70,7 +71,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _submitForm() {
-    final isValid = _formKey.currentState?.validate() ?? false;
+    final isValid = ValidationAttention.validate(_formKey);
 
     if (!_suppressStaleStatusPanel) {
       setState(() => _suppressStaleStatusPanel = true);

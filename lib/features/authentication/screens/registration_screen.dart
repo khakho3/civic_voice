@@ -1,3 +1,4 @@
+import 'package:civic_voice/widgets/validation_attention.dart';
 import 'package:flutter/material.dart';
 
 import 'package:civic_voice/core/theme/app_theme.dart';
@@ -148,7 +149,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       return;
     }
 
-    final formIsValid = _formKey.currentState?.validate() ?? false;
+    final formIsValid = ValidationAttention.validate(_formKey);
 
     if (!_acceptedPolicy) {
       setState(() {});
