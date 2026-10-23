@@ -1,3 +1,4 @@
+import '../../../widgets/validation_attention.dart';
 import '../../../widgets/evidence_image_viewer.dart';
 import 'dart:io';
 
@@ -59,6 +60,8 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
   static const int _minPhotos = 2;
 
   final ImagePicker _picker = ImagePicker();
+  final _photoAttention = GlobalKey();
+  bool _attemptedContinue = false;
   late PhotoUploadViewState _state;
   late final List<XFile> _photos;
   late final List<bool> _photoIsFromCamera;
@@ -224,6 +227,12 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
   }
 
   void _openReview() {
+    if (_isBlocked) return;
+    if (!_hasMinimumPhotos) {
+      setState(() => _attemptedContinue = true);
+      ValidationAttention.reveal(context, _photoAttention);
+      return;
+    }
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         settings: const RouteSettings(name: ReviewReportScreen.routeName),
@@ -274,45 +283,58 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
                     chromeInset.bottom + AppSpacing.lg,
                   ),
                   children: [
-                    const _StepProgress(),
-                    const SizedBox(height: AppSpacing.xl),
-                    Text(
-                      'Add Photos',
-                      style: Theme.of(context).textTheme.headlineSmall,
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      'Attach clear photos so the municipal team can understand the issue before assigning it.',
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
-                    _PhotoUploadBanner(
-                      state: _state,
-                      onRetryCamera: _takePhoto,
-                      onRetryGallery: _pickFromGallery,
-                    ),
-                    _UploadActions(
-                      disabled: _isBlocked,
-                      uploading: _state == PhotoUploadViewState.uploading,
-                      maxReached: _photos.length >= _maxPhotos,
-                      onCamera: _takePhoto,
-                      onGallery: _pickFromGallery,
-                    ),
-                    const SizedBox(height: AppSpacing.xl),
-                    _UploadedPhotosSection(
-                      photos: _photos,
-                      photoIsFromCamera: _photoIsFromCamera,
-                      maxPhotos: _maxPhotos,
-                      onRemovePhoto: _removePhoto,
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
-                    const _PhotoTipsCard(),
-                    const SizedBox(height: AppSpacing.lg),
-                    _PhotoActionsCard(
-                      enabled: !_isBlocked && _hasMinimumPhotos,
-                      photoCount: _photos.length,
-                      minPhotos: _minPhotos,
-                      onContinue: _openReview,
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const _StepProgress(),
+                        const SizedBox(height: AppSpacing.xl),
+                        Text(
+                          'Add Photos',
+                          style: Theme.of(context).textTheme.headlineSmall,
+                        ),
+                        const SizedBox(height: AppSpacing.xs),
+                        Text(
+                          'Attach clear photos so the municipal team can understand the issue before assigning it.',
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                        const SizedBox(height: AppSpacing.lg),
+                        _PhotoUploadBanner(
+                          state: _state,
+                          onRetryCamera: _takePhoto,
+                          onRetryGallery: _pickFromGallery,
+                        ),
+                        if (_attemptedContinue && !_hasMinimumPhotos)
+                          Semantics(
+                            liveRegion: true,
+                            child: Text(
+                              'Attach at least 2 photos to continue.',
+                            ),
+                          ),
+                        _UploadActions(
+                          key: _photoAttention,
+                          disabled: _isBlocked,
+                          uploading: _state == PhotoUploadViewState.uploading,
+                          maxReached: _photos.length >= _maxPhotos,
+                          onCamera: _takePhoto,
+                          onGallery: _pickFromGallery,
+                        ),
+                        const SizedBox(height: AppSpacing.xl),
+                        _UploadedPhotosSection(
+                          photos: _photos,
+                          photoIsFromCamera: _photoIsFromCamera,
+                          maxPhotos: _maxPhotos,
+                          onRemovePhoto: _removePhoto,
+                        ),
+                        const SizedBox(height: AppSpacing.lg),
+                        const _PhotoTipsCard(),
+                        const SizedBox(height: AppSpacing.lg),
+                        _PhotoActionsCard(
+                          enabled: !_isBlocked,
+                          photoCount: _photos.length,
+                          minPhotos: _minPhotos,
+                          onContinue: _openReview,
+                        ),
+                      ],
                     ),
                   ],
                 );
@@ -464,6 +486,7 @@ class _PhotoUploadBanner extends StatelessWidget {
 
 class _UploadActions extends StatelessWidget {
   const _UploadActions({
+    super.key,
     required this.disabled,
     required this.uploading,
     required this.maxReached,

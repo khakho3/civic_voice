@@ -1,3 +1,4 @@
+import '../../../widgets/validation_attention.dart';
 import 'package:civic_voice/core/theme/app_map_style.dart';
 import 'dart:async';
 
@@ -79,6 +80,7 @@ class _CreateReportScreenState extends State<CreateReportScreen>
   bool get _sameSession =>
       _owner == AppCacheService.instance.activeAccountId &&
       _session == AppCacheService.instance.sessionGeneration;
+  final _locationAttention = GlobalKey();
   bool _checkingSubmission = true;
   String? _recoveryError;
   bool _continuing = false;
@@ -382,6 +384,7 @@ class _CreateReportScreenState extends State<CreateReportScreen>
     if (_continuing || _checkingSubmission || _recoveryError != null) return;
     if (!_hasRequiredFields) {
       setState(() => _state = CreateReportViewState.validationError);
+      ValidationAttention.firstError(context);
       return;
     }
     if (_selectedLocation == null && _capturedPosition == null) {
@@ -390,6 +393,7 @@ class _CreateReportScreenState extends State<CreateReportScreen>
         _locationError = 'Choose a current GPS location before continuing.';
         _locationLabel = 'Tap to choose current GPS location.';
       });
+      ValidationAttention.reveal(context, _locationAttention);
       return;
     }
 
@@ -631,72 +635,79 @@ class _CreateReportScreenState extends State<CreateReportScreen>
                     chromeInset.bottom + AppSpacing.lg,
                   ),
                   children: [
-                    _CreateReportBanner(state: _state),
-                    _ReportTextField(
-                      label: 'Issue Title',
-                      requiredField: true,
-                      controller: _titleController,
-                      hint: 'e.g. Broken streetlight on Main Road',
-                      hasError: _state == CreateReportViewState.validationError,
-                      onChanged: (_) => _handleFormChanged(),
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
-                    _ReportTextField(
-                      label: 'Description',
-                      controller: _descriptionController,
-                      hint:
-                          'Describe the issue in as much detail as possible...',
-                      minHeight: 128,
-                      minLines: 4,
-                      onChanged: (_) => _handleFormChanged(),
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
-                    _CategoryPreview(category: _classifiedCategory),
-                    const SizedBox(height: AppSpacing.lg),
-                    _LocationCard(
-                      state: _state,
-                      locationLabel: _locationLabel,
-                      loading: _locationLoading,
-                      onCaptureLocation: _openLocationPicker,
-                      onOpenLocationSettings: _openLocationSettings,
-                      onOpenAppSettings: _openAppSettings,
-                      onShowLocationError: _showLocationError,
-                      position: _capturedPosition,
-                      selectedLocation: _selectedLocation,
-                      error: _locationError,
-                      address: _locationAddress,
-                      community: _locationCommunity,
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
-                    if (_isReady)
-                      const _InlineFeedback(
-                        icon: AppIcons.success,
-                        color: AppColors.success,
-                        message: 'Details are ready. Next, add photos.',
-                      ),
-                    if (_state == CreateReportViewState.validationError)
-                      const _InlineFeedback(
-                        icon: AppIcons.error,
-                        color: AppColors.error,
-                        message: 'Check required fields and try again.',
-                      ),
-                    const SizedBox(height: AppSpacing.lg),
-                    CivicGlassCard(
-                      borderRadius: AppRadius.allXl,
-                      child: SizedBox(
-                        width: double.infinity,
-                        child: FilledButton.icon(
-                          onPressed: _isDisabled || _continuing
-                              ? null
-                              : _continueToPhotos,
-                          icon: const Icon(AppIcons.chevronRight),
-                          label: BusyLabel(
-                            busy: _checkingDuplicates,
-                            busyLabel: 'Checking similar reports',
-                            child: const Text('Continue to Photos'),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _CreateReportBanner(state: _state),
+                        _ReportTextField(
+                          label: 'Issue Title',
+                          requiredField: true,
+                          controller: _titleController,
+                          hint: 'e.g. Broken streetlight on Main Road',
+                          hasError:
+                              _state == CreateReportViewState.validationError,
+                          onChanged: (_) => _handleFormChanged(),
+                        ),
+                        const SizedBox(height: AppSpacing.lg),
+                        _ReportTextField(
+                          label: 'Description',
+                          controller: _descriptionController,
+                          hint:
+                              'Describe the issue in as much detail as possible...',
+                          minHeight: 128,
+                          minLines: 4,
+                          onChanged: (_) => _handleFormChanged(),
+                        ),
+                        const SizedBox(height: AppSpacing.lg),
+                        _CategoryPreview(category: _classifiedCategory),
+                        const SizedBox(height: AppSpacing.lg),
+                        _LocationCard(
+                          key: _locationAttention,
+                          state: _state,
+                          locationLabel: _locationLabel,
+                          loading: _locationLoading,
+                          onCaptureLocation: _openLocationPicker,
+                          onOpenLocationSettings: _openLocationSettings,
+                          onOpenAppSettings: _openAppSettings,
+                          onShowLocationError: _showLocationError,
+                          position: _capturedPosition,
+                          selectedLocation: _selectedLocation,
+                          error: _locationError,
+                          address: _locationAddress,
+                          community: _locationCommunity,
+                        ),
+                        const SizedBox(height: AppSpacing.lg),
+                        if (_isReady)
+                          const _InlineFeedback(
+                            icon: AppIcons.success,
+                            color: AppColors.success,
+                            message: 'Details are ready. Next, add photos.',
+                          ),
+                        if (_state == CreateReportViewState.validationError)
+                          const _InlineFeedback(
+                            icon: AppIcons.error,
+                            color: AppColors.error,
+                            message: 'Check required fields and try again.',
+                          ),
+                        const SizedBox(height: AppSpacing.lg),
+                        CivicGlassCard(
+                          borderRadius: AppRadius.allXl,
+                          child: SizedBox(
+                            width: double.infinity,
+                            child: FilledButton.icon(
+                              onPressed: _isDisabled || _continuing
+                                  ? null
+                                  : _continueToPhotos,
+                              icon: const Icon(AppIcons.chevronRight),
+                              label: BusyLabel(
+                                busy: _checkingDuplicates,
+                                busyLabel: 'Checking similar reports',
+                                child: const Text('Continue to Photos'),
+                              ),
+                            ),
                           ),
                         ),
-                      ),
+                      ],
                     ),
                   ],
                 );
@@ -829,6 +840,10 @@ class _ReportTextField extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.sm),
         TextField(
+          scrollPadding: EdgeInsets.only(
+            top: civicContentPadding(context).top + AppSpacing.lg,
+            bottom: AppSpacing.lg,
+          ),
           controller: controller,
           minLines: minLines,
           maxLines: minLines == 1 ? 1 : 5,
@@ -924,6 +939,7 @@ class _CategoryPreview extends StatelessWidget {
 
 class _LocationCard extends StatelessWidget {
   const _LocationCard({
+    super.key,
     required this.state,
     required this.locationLabel,
     required this.loading,
