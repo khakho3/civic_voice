@@ -403,6 +403,7 @@ class _CurrentLocationButton extends StatelessWidget {
       icon: AppIcons.myLocation,
       tooltip: 'Use Current Location',
       onPressed: onPressed,
+      emphasize: true,
     );
   }
 }
@@ -412,24 +413,37 @@ class _RoundIconButton extends StatelessWidget {
     required this.icon,
     required this.tooltip,
     required this.onPressed,
+    this.emphasize = false,
   });
 
   final IconData icon;
   final String tooltip;
   final VoidCallback onPressed;
+  final bool emphasize;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final semantic = AppSemanticColors.of(context);
 
     return Tooltip(
       message: tooltip,
       child: Material(
-        color: theme.colorScheme.surface.withValues(alpha: 0.96),
+        color: emphasize
+            ? semantic.actionFill
+            : theme.colorScheme.surface.withValues(alpha: 0.96),
         elevation: AppElevation.level3,
         shadowColor: theme.colorScheme.shadow.withValues(alpha: 0.16),
-        shape: const CircleBorder(),
-        child: IconButton(onPressed: onPressed, icon: Icon(icon)),
+        shape: CircleBorder(
+          side: emphasize
+              ? BorderSide(color: semantic.onAction, width: 2)
+              : BorderSide.none,
+        ),
+        child: IconButton(
+          onPressed: onPressed,
+          color: emphasize ? semantic.onAction : null,
+          icon: Icon(icon),
+        ),
       ),
     );
   }

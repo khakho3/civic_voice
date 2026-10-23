@@ -1,5 +1,9 @@
 # Latif PR integration review and repairs
 
+## Current-location button visibility - 23 October 2026
+
+Web and native map pickers now use their shared gold action fill with a dark location glyph and 2 px dark outline in both themes, retaining the 48 px action target and existing capture callback. Web validation: 8 existing LocationPicker tests pass and actual stylesheet controls visually checked over synthetic light/dark map backgrounds (not live provider/GPS acceptance). Native: 21 existing picker chrome/ownership tests pass; changed-file analyzer clean. Scope is the current-location control; remaining shared UI inventory and Maintenance device acceptance stay queued.
+
 ## Shared native media and map-picker UI - 23 October 2026
 
 `4d652bb` connects Municipal resolution/rejection thumbnails and approved-outcome photos to the existing indexed swipe/zoom/share gallery. The selected image opens first and the gallery retains all permitted photos; rejection evidence is no longer stamped VERIFIED. Evidence headings wrap on narrow screens rather than overflowing. No image permission expansion or parallel viewer was added. `83a904c` gives map search an explicit 48 px control with 24 px corners, a clear action that invalidates the old query, and the existing shared orb during search. Capture/address loading uses the same orb with the controller's current message, wrapping at large text sizes; core location ownership/provider/routing logic is unchanged.
