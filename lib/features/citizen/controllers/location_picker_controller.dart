@@ -99,13 +99,18 @@ class LocationPickerController extends ChangeNotifier {
   }
 
   void onCameraMove(CameraPosition position) {
-    if (!_disposed && _valid(position.target)) _cameraTarget = position.target;
+    // Animation frames (including native coordinate rounding) are presentation,
+    // not a new issue pin. Only an explicit map gesture changes the target.
+    if (!_disposed && _manualMove && _valid(position.target)) {
+      _cameraTarget = position.target;
+    }
   }
 
   Future<void> onCameraIdle() async {
     if (_disposed) return;
     if (_programmaticMove) {
       _programmaticMove = false;
+      _notify();
       return;
     }
     if (!_manualMove) return;
@@ -332,6 +337,7 @@ class LocationPickerController extends ChangeNotifier {
   Future<void> _animateTo(LatLng target) async {
     final map = _mapController;
     if (_disposed || map == null) return;
+    final serial = _operation;
     _programmaticMove = true;
     try {
       await map.animateCamera(
@@ -340,7 +346,10 @@ class LocationPickerController extends ChangeNotifier {
         ),
       );
     } catch (_) {
-      if (!_disposed) _programmaticMove = false;
+      if (_owns(serial)) {
+        _programmaticMove = false;
+        _notify();
+      }
     }
   }
 

@@ -77,7 +77,74 @@ const suggestion = PlaceSuggestion(
   description: 'Test place',
 );
 
+class _Map extends Fake implements GoogleMapController {
+  @override
+  Future<void> animateCamera(CameraUpdate update, {Duration? duration}) async {}
+  @override
+  void dispose() {}
+}
+
 void main() {
+  testWidgets(
+    'pinpoint remains confirmable across animation frames and rounded camera idle',
+    (tester) async {
+      final controller = LocationPickerController(
+        initialLocation: place(7, -1),
+        locationService: _Location(
+          position: () async => gps(5.612345678, -0.212345678),
+        ),
+        placesService: _Places(),
+      );
+      addTearDown(controller.dispose);
+      controller.attachMap(_Map());
+      await controller.initialize();
+      await controller.useCurrentLocation();
+      controller.onCameraMoveStarted();
+      controller.onCameraMove(
+        const CameraPosition(target: LatLng(6, -0.5), zoom: 17),
+      );
+      expect(controller.canConfirm, isTrue);
+      controller.onCameraMove(
+        const CameraPosition(target: LatLng(5.612346, -0.212346), zoom: 17),
+      );
+      var notifications = 0;
+      controller.addListener(() => notifications++);
+      await controller.onCameraIdle();
+      expect(notifications, 1);
+      final selected = await controller.confirmSelection();
+      expect(selected!.latitude, 5.612345678);
+      expect(selected.longitude, -0.212345678);
+      expect(controller.cameraTarget, selected.target);
+      expect(controller.canConfirm, isTrue);
+      // Moving the map afterwards still owns the next pin.
+      controller.beginMapGesture();
+      controller.onCameraMove(
+        const CameraPosition(target: LatLng(8, -2), zoom: 17),
+      );
+      expect(controller.canConfirm, isFalse);
+      await controller.onCameraIdle();
+      expect(
+        (await controller.confirmSelection())!.target,
+        const LatLng(8, -2),
+      );
+    },
+  );
+  testWidgets(
+    'a pinpoint animation with no camera callbacks does not block confirmation',
+    (tester) async {
+      final controller = LocationPickerController(
+        locationService: _Location(position: () async => gps(5.6, -0.2)),
+        placesService: _Places(),
+      );
+      addTearDown(controller.dispose);
+      controller.attachMap(_Map());
+      await controller.initialize();
+      expect(controller.canConfirm, isTrue);
+      await controller.useCurrentLocation();
+      expect(controller.canConfirm, isTrue);
+    },
+  );
+
   testWidgets(
     'drag clears search and shows lookup feedback until the pin settles',
     (tester) async {
