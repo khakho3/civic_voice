@@ -140,6 +140,23 @@ class ApiClient {
     return _decode(response);
   }
 
+  Future<Map<String, dynamic>> notificationInbox({
+    required String idToken,
+    String? cursor,
+  }) => _get(
+    '/api/notifications?limit=25${cursor == null ? '' : '&cursor=${Uri.encodeQueryComponent(cursor)}'}',
+    idToken: idToken,
+  );
+
+  Future<Map<String, dynamic>> notificationAction({
+    required String idToken,
+    required List<String> ids,
+    required String action,
+  }) => _post('/api/notifications/actions', {
+    'ids': ids,
+    'action': action,
+  }, idToken: idToken);
+
   Future<void> deleteReport(String id, {required String idToken}) async {
     _decode(
       await _bounded(

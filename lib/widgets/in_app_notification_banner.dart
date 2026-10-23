@@ -17,6 +17,11 @@ class InAppNotificationBanner {
 
   static OverlayEntry? _current;
 
+  static void dismiss() {
+    _current?.remove();
+    _current = null;
+  }
+
   static void show(
     OverlayState overlay, {
     required String title,
@@ -27,12 +32,12 @@ class InAppNotificationBanner {
   }) {
     // Only one at a time — a second push arriving mid-banner replaces
     // rather than stacking, so they can't pile up over each other.
-    _current?.remove();
+    InAppNotificationBanner.dismiss();
 
     late final OverlayEntry entry;
     void dismiss() {
-      entry.remove();
-      if (identical(_current, entry)) _current = null;
+      if (!identical(_current, entry)) return;
+      InAppNotificationBanner.dismiss();
     }
 
     entry = OverlayEntry(
