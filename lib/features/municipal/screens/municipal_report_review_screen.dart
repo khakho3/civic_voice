@@ -1,3 +1,4 @@
+import 'package:civic_voice/core/theme/app_map_style.dart';
 import '../../../core/widgets/ghana_refresh_indicator.dart';
 import 'package:flutter/material.dart';
 
@@ -785,6 +786,7 @@ class _ReportLocationMap extends StatelessWidget {
           fit: StackFit.expand,
           children: [
             GoogleMap(
+              style: AppMapStyle.of(context),
               initialCameraPosition: CameraPosition(target: target, zoom: 16),
               markers: {
                 Marker(

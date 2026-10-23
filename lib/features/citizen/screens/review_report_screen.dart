@@ -1,3 +1,4 @@
+import 'package:civic_voice/core/theme/app_map_style.dart';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -21,11 +22,12 @@ import 'report_submitted_screen.dart';
 import 'citizen_tab_routes.dart';
 import '../services/report_submission_store.dart';
 
-typedef ReportSubmitter = Future<CivicReport> Function(
-  ReportDraft draft, {
-  double? submissionLatitude,
-  double? submissionLongitude,
-});
+typedef ReportSubmitter =
+    Future<CivicReport> Function(
+      ReportDraft draft, {
+      double? submissionLatitude,
+      double? submissionLongitude,
+    });
 
 class ReviewReportScreen extends StatefulWidget {
   const ReviewReportScreen({
@@ -188,8 +190,9 @@ class _ReviewReportScreenState extends State<ReviewReportScreen> {
     } on ApiException catch (error) {
       await _checkPending();
       if (!mounted || !_sameSession) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(error.message)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
     } catch (error) {
       await _checkPending();
       if (!mounted || !_sameSession) return;
@@ -487,6 +490,7 @@ class _LocationCard extends StatelessWidget {
                     ),
                   )
                 : GoogleMap(
+                    style: AppMapStyle.of(context),
                     initialCameraPosition: CameraPosition(
                       target: target,
                       zoom: 16,

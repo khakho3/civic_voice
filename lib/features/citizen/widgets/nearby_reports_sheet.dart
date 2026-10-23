@@ -1,3 +1,4 @@
+import 'package:civic_voice/core/theme/app_map_style.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
@@ -183,6 +184,7 @@ class _NearbyReportsSheetState extends State<NearbyReportsSheet> {
                   SizedBox(
                     height: 200,
                     child: GoogleMap(
+                      style: AppMapStyle.of(context),
                       liteModeEnabled: true,
                       initialCameraPosition: CameraPosition(
                         target: LatLng(selected.latitude!, selected.longitude!),

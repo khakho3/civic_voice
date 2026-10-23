@@ -1,3 +1,4 @@
+import 'package:civic_voice/core/theme/app_map_style.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
@@ -118,6 +119,7 @@ class _ReportDuplicatesSheetState extends State<ReportDuplicatesSheet> {
                       SizedBox(
                         height: 180,
                         child: GoogleMap(
+                          style: AppMapStyle.of(context),
                           liteModeEnabled: true,
                           zoomControlsEnabled: false,
                           initialCameraPosition: CameraPosition(

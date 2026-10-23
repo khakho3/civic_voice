@@ -1,3 +1,4 @@
+import 'package:civic_voice/core/theme/app_map_style.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -569,6 +570,7 @@ class _ProblemLocationMapState extends State<_ProblemLocationMap> {
             child: Stack(
               children: [
                 GoogleMap(
+                  style: AppMapStyle.of(context),
                   initialCameraPosition: CameraPosition(
                     target: target,
                     zoom: 16,
@@ -684,6 +686,7 @@ class _ReportLocationMapScreen extends StatelessWidget {
       body: Stack(
         children: [
           GoogleMap(
+            style: AppMapStyle.of(context),
             initialCameraPosition: CameraPosition(target: target, zoom: 17),
             markers: {
               Marker(

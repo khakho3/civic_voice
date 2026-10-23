@@ -1,3 +1,4 @@
+import 'package:civic_voice/core/theme/app_map_style.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -154,7 +155,8 @@ class _CreateReportScreenState extends State<CreateReportScreen>
       if (mounted && _sameSession) {
         setState(() {
           _checkingSubmission = false;
-          _recoveryError = 'A previous submission needs recovery. Check My Reports before creating another report.';
+          _recoveryError =
+              'A previous submission needs recovery. Check My Reports before creating another report.';
         });
       }
     }
@@ -586,8 +588,9 @@ class _CreateReportScreenState extends State<CreateReportScreen>
                     children: [
                       Text(_recoveryError!),
                       TextButton(
-                        onPressed: () => Navigator.of(context)
-                            .pushReplacement(citizenReportsTabRoute(context)),
+                        onPressed: () => Navigator.of(
+                          context,
+                        ).pushReplacement(citizenReportsTabRoute(context)),
                         child: const Text('My Reports'),
                       ),
                     ],
@@ -1120,6 +1123,7 @@ class _LocationMapPreview extends StatelessWidget {
       fit: StackFit.expand,
       children: [
         GoogleMap(
+          style: AppMapStyle.of(context),
           key: ValueKey(
             '${target.latitude.toStringAsFixed(6)},'
             '${target.longitude.toStringAsFixed(6)}',

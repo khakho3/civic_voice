@@ -1,3 +1,4 @@
+import 'package:civic_voice/core/theme/app_map_style.dart';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -440,7 +441,7 @@ class _TimelineStep extends StatelessWidget {
         'The assigned team is actively working on this report.',
       ReportStatus.pendingApproval =>
         'The team finished the work and submitted it. A municipal officer is '
-        'confirming it before the report closes.',
+            'confirming it before the report closes.',
       ReportStatus.resolved =>
         'The repair is complete and the report is closed.',
       ReportStatus.rejected =>
@@ -758,6 +759,7 @@ class _TrackingLocation extends StatelessWidget {
               height: 160,
               child: hasCoordinates
                   ? GoogleMap(
+                      style: AppMapStyle.of(context),
                       initialCameraPosition: CameraPosition(
                         target: LatLng(report.latitude!, report.longitude!),
                         zoom: 15,
