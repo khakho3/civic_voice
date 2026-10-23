@@ -3,6 +3,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../widgets/civic_glass_card.dart';
+import '../widgets/location_picker_chrome.dart';
 import '../controllers/location_picker_controller.dart';
 import '../models/location.dart';
 import '../services/location_service.dart';
@@ -99,7 +100,12 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
               top: MediaQuery.paddingOf(context).top + 88,
               left: 0,
               right: 0,
-              child: const Center(child: _LoadingPill()),
+              child: Center(
+                child: LocationPickerBusyStatus(
+                  message:
+                      _controller.statusMessage ?? 'Loading, please wait...',
+                ),
+              ),
             ),
           Positioned(
             left: AppSpacing.md,
@@ -177,24 +183,15 @@ class _SearchPanel extends StatelessWidget {
         elevation: AppElevation.level3,
         shadowColor: theme.colorScheme.shadow.withValues(alpha: 0.16),
         borderRadius: AppRadius.allXl,
+        clipBehavior: Clip.antiAlias,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(
+            LocationPickerSearchField(
               controller: controller,
               onChanged: picker.search,
-              textInputAction: TextInputAction.search,
-              decoration: const InputDecoration(
-                hintText: 'Search for a location',
-                prefixIcon: Icon(AppIcons.search),
-                border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(
-                  horizontal: AppSpacing.md,
-                  vertical: AppSpacing.md,
-                ),
-              ),
+              searching: picker.searching,
             ),
-            if (picker.searching) const LinearProgressIndicator(minHeight: 2),
             if (picker.suggestions.isNotEmpty)
               ConstrainedBox(
                 constraints: const BoxConstraints(maxHeight: 260),
@@ -433,38 +430,6 @@ class _RoundIconButton extends StatelessWidget {
         shadowColor: theme.colorScheme.shadow.withValues(alpha: 0.16),
         shape: const CircleBorder(),
         child: IconButton(onPressed: onPressed, icon: Icon(icon)),
-      ),
-    );
-  }
-}
-
-class _LoadingPill extends StatelessWidget {
-  const _LoadingPill();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Material(
-      color: theme.colorScheme.surface.withValues(alpha: 0.96),
-      elevation: AppElevation.level2,
-      borderRadius: AppRadius.allXl,
-      child: const Padding(
-        padding: EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.sm,
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SizedBox.square(
-              dimension: 16,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
-            SizedBox(width: AppSpacing.sm),
-            Text('Finding address...'),
-          ],
-        ),
       ),
     );
   }
