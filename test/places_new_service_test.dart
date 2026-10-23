@@ -73,7 +73,11 @@ void main() {
             final body = jsonDecode(request.body) as Map;
             expect(body['includedRegionCodes'], ['gh']);
             expect(body.containsKey('includedPrimaryTypes'), isFalse);
-            sessions.add(body['sessionToken'] as String);
+            final token = body['sessionToken'] as String;
+            // Google rejects tokens longer than 36 URL-safe ASCII characters.
+            expect(token.length, inInclusiveRange(1, 36));
+            expect(token, matches(RegExp(r'^[A-Za-z0-9_-]+$')));
+            sessions.add(token);
             return http.Response(
               jsonEncode({
                 'suggestions': [

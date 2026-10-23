@@ -79,10 +79,9 @@ class PlacesService {
   void resetSession() => _session = null;
   String _newSession() {
     final random = Random.secure();
-    return List.generate(
-      24,
-      (_) => random.nextInt(256).toRadixString(16).padLeft(2, '0'),
-    ).join();
+    // 24 random bytes encode to 32 URL-safe ASCII characters. Places New
+    // rejects session tokens longer than 36 characters (hex would be 48).
+    return base64UrlEncode(List.generate(24, (_) => random.nextInt(256)));
   }
 
   Map<String, String> _headers(String mask) => {
