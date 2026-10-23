@@ -650,6 +650,43 @@ class ApiClient {
     return (result['users'] as List).cast<Map<String, dynamic>>();
   }
 
+  Future<Map<String, dynamic>> adminOverview({required String idToken}) =>
+      _get('/api/admin/overview', idToken: idToken);
+
+  Future<Map<String, dynamic>> adminAlerts({
+    required String idToken,
+    String state = 'ACTIVE',
+    String query = '',
+    String? cursor,
+  }) {
+    final params = Uri(
+      queryParameters: {
+        'limit': '25',
+        'state': state,
+        if (query.isNotEmpty) 'q': query,
+        'cursor': ?cursor,
+      },
+    ).query;
+    return _get('/api/admin/alerts?$params', idToken: idToken);
+  }
+
+  Future<Map<String, dynamic>> adminAlert(
+    String id, {
+    required String idToken,
+  }) => _get('/api/admin/alerts/${Uri.encodeComponent(id)}', idToken: idToken);
+
+  Future<Map<String, dynamic>> reviewAdminAlert(
+    String id, {
+    required String idToken,
+    required String action,
+    required int revision,
+    required String note,
+  }) => _patch('/api/admin/alerts/${Uri.encodeComponent(id)}', {
+    'action': action,
+    'expectedRevision': revision,
+    'note': note,
+  }, idToken: idToken);
+
   Future<List<Map<String, dynamic>>> listAdminActivity({
     required String idToken,
     String? search,
