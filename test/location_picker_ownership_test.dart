@@ -79,6 +79,35 @@ const suggestion = PlaceSuggestion(
 
 void main() {
   testWidgets(
+    'drag clears search and shows lookup feedback until the pin settles',
+    (tester) async {
+      final lookup = Completer<Location>();
+      final controller = LocationPickerController(
+        initialLocation: place(6, -1),
+        locationService: _Location(reverse: (_) => lookup.future),
+        placesService: _Places(),
+      );
+      addTearDown(controller.dispose);
+      await controller.initialize();
+      controller.search('Old query');
+      controller.beginMapGesture();
+      controller.onCameraMove(
+        const CameraPosition(target: LatLng(7, -2), zoom: 16),
+      );
+      expect(controller.resolvingAddress, isTrue);
+      expect(controller.statusMessage, 'Finding address...');
+      expect(controller.canConfirm, isFalse);
+      expect(controller.suggestions, isEmpty);
+      final idle = controller.onCameraIdle();
+      lookup.complete(place(7, -2));
+      await idle;
+      await tester.pump(const Duration(milliseconds: 301));
+      expect(controller.resolvingAddress, isFalse);
+      expect(controller.canConfirm, isTrue);
+      expect(controller.selectedLocation!.target, const LatLng(7, -2));
+    },
+  );
+  testWidgets(
     'typing another search cancels the previous place-detail selection',
     (tester) async {
       final details = Completer<Location>();

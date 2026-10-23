@@ -82,9 +82,13 @@ class LocationPickerController extends ChangeNotifier {
     _detailsPending = false;
     _programmaticMove = false;
     initializing = false;
-    resolvingAddress = false;
+    resolvingAddress = true;
     selectedLocation = null;
-    statusMessage = 'Move the pin to the issue location.';
+    ++_searchSerial;
+    _searchDebounce?.cancel();
+    searching = false;
+    suggestions = const [];
+    statusMessage = 'Finding address...';
     _notify();
   }
 

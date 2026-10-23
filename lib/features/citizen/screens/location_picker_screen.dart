@@ -1,3 +1,4 @@
+import 'package:civic_voice/core/theme/app_map_style.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
@@ -59,8 +60,12 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
       body: Stack(
         children: [
           Listener(
-            onPointerMove: (_) => _controller.beginMapGesture(),
+            onPointerMove: (_) {
+              FocusScope.of(context).unfocus();
+              _controller.beginMapGesture();
+            },
             child: GoogleMap(
+              style: AppMapStyle.of(context),
               initialCameraPosition: _controller.initialCameraPosition,
               onMapCreated: _controller.attachMap,
               onCameraMove: _controller.onCameraMove,
@@ -95,18 +100,6 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
               onPressed: _controller.useCurrentLocation,
             ),
           ),
-          if (_controller.resolvingAddress || _controller.initializing)
-            Positioned(
-              top: MediaQuery.paddingOf(context).top + 88,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: LocationPickerBusyStatus(
-                  message:
-                      _controller.statusMessage ?? 'Loading, please wait...',
-                ),
-              ),
-            ),
           Positioned(
             left: AppSpacing.md,
             right: AppSpacing.md,
@@ -192,6 +185,10 @@ class _SearchPanel extends StatelessWidget {
               onChanged: picker.search,
               searching: picker.searching,
             ),
+            if (picker.resolvingAddress || picker.initializing)
+              LocationPickerBusyStatus(
+                message: picker.statusMessage ?? 'Loading, please wait...',
+              ),
             if (picker.suggestions.isNotEmpty)
               ConstrainedBox(
                 constraints: const BoxConstraints(maxHeight: 260),
