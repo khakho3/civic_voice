@@ -1,3 +1,4 @@
+import '../../../widgets/report_location_map_screen.dart';
 import 'package:civic_voice/core/theme/app_map_style.dart';
 import 'dart:io';
 
@@ -518,6 +519,11 @@ class _LocationCard extends StatelessWidget {
             text: cleanLocation.isEmpty
                 ? 'Current GPS location selected'
                 : cleanLocation,
+          ),
+          ReportLocationPreviewAction(
+            latitude: latitude,
+            longitude: longitude,
+            label: cleanLocation,
           ),
           if (cleanCommunity.isNotEmpty) ...[
             const SizedBox(height: AppSpacing.sm),

@@ -1,3 +1,4 @@
+import '../../../widgets/report_location_map_screen.dart';
 import '../../../core/widgets/ghana_refresh_indicator.dart';
 import 'package:flutter/material.dart';
 import '../../../services/public_case_share.dart';
@@ -566,6 +567,12 @@ class _SummaryCard extends StatelessWidget {
               ),
             ],
           ),
+          if (ReportLocationMapScreen.valid(data.latitude, data.longitude))
+            ReportLocationPreviewAction(
+              latitude: data.latitude,
+              longitude: data.longitude,
+              label: data.title,
+            ),
           const SizedBox(height: AppSpacing.sm),
           OfficerContactRow(
             officerName: data.officerName,

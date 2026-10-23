@@ -1,3 +1,4 @@
+import '../../../widgets/report_location_map_screen.dart';
 import 'package:civic_voice/core/theme/app_map_style.dart';
 import '../../../core/widgets/ghana_refresh_indicator.dart';
 import 'package:flutter/material.dart';
@@ -803,6 +804,19 @@ class _ReportLocationMap extends StatelessWidget {
               tiltGesturesEnabled: false,
               zoomControlsEnabled: false,
               zoomGesturesEnabled: false,
+            ),
+            Positioned(
+              right: AppSpacing.sm,
+              top: AppSpacing.xs,
+              child: Material(
+                color: Theme.of(context).colorScheme.surface,
+                borderRadius: AppComponentRadius.card,
+                child: ReportLocationPreviewAction(
+                  latitude: latitude,
+                  longitude: longitude,
+                  label: locationLabel,
+                ),
+              ),
             ),
             Positioned(
               left: 0,

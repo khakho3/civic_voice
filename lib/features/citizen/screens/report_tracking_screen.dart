@@ -1,3 +1,4 @@
+import '../../../widgets/report_location_map_screen.dart';
 import 'package:civic_voice/core/theme/app_map_style.dart';
 import 'dart:io';
 
@@ -786,6 +787,11 @@ class _TrackingLocation extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.md),
           _InfoLine(icon: AppIcons.location, label: report.location),
+          ReportLocationPreviewAction(
+            latitude: report.latitude,
+            longitude: report.longitude,
+            label: report.location,
+          ),
         ],
       ),
     );

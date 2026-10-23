@@ -52,6 +52,8 @@ class CaseSummary {
 /// Full data payload for MUN-007 Report Progress.
 class ReportProgressData {
   const ReportProgressData({
+    this.latitude,
+    this.longitude,
     required this.referenceId,
     required this.title,
     required this.districtLabel,
@@ -71,6 +73,8 @@ class ReportProgressData {
     this.evidencePhotoUrls = const [],
   });
 
+  final double? latitude;
+  final double? longitude;
   final String referenceId;
   final String title;
   final String districtLabel;
@@ -191,6 +195,8 @@ class ReportProgressData {
     final team = report.teamName ?? 'Maintenance team not assigned';
     return ReportProgressData(
       referenceId: report.referenceId,
+      latitude: report.latitude,
+      longitude: report.longitude,
       title: report.title,
       districtLabel: report.assembly ?? report.locationLabel,
       officerName: report.reviewerName ?? 'Reviewing officer unavailable',

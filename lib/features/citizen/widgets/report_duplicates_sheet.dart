@@ -1,3 +1,4 @@
+import '../../../widgets/report_location_map_screen.dart';
 import 'package:civic_voice/core/theme/app_map_style.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -139,6 +140,12 @@ class _ReportDuplicatesSheetState extends State<ReportDuplicatesSheet> {
                             ),
                           },
                         ),
+                      ),
+                    if (_map == item.report.id)
+                      ReportLocationPreviewAction(
+                        latitude: item.report.latitude,
+                        longitude: item.report.longitude,
+                        label: item.report.title,
                       ),
                     if (item.ownedByMe)
                       TextButton(

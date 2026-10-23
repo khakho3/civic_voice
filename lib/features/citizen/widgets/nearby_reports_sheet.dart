@@ -1,3 +1,4 @@
+import '../../../widgets/report_location_map_screen.dart';
 import 'package:civic_voice/core/theme/app_map_style.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -209,6 +210,11 @@ class _NearbyReportsSheetState extends State<NearbyReportsSheet> {
                     ),
                   ),
                 const SizedBox(height: AppSpacing.md),
+                ReportLocationPreviewAction(
+                  latitude: selected.latitude,
+                  longitude: selected.longitude,
+                  label: selected.title,
+                ),
                 const Text(
                   'Confirm only if you can see that this issue is still there. We will check your current phone location.',
                 ),

@@ -7,6 +7,8 @@ class ResolvedReportItem {
   const ResolvedReportItem({
     required this.referenceId,
     required this.title,
+    this.latitude,
+    this.longitude,
     required this.locationLabel,
     required this.resolvedDate,
     required this.resolvedTimeLabel,
@@ -19,6 +21,8 @@ class ResolvedReportItem {
     this.status = ReportStatus.resolved,
   });
 
+  final double? latitude;
+  final double? longitude;
   final String referenceId;
   final String title;
   final String locationLabel;
@@ -54,6 +58,8 @@ class ResolvedReportItem {
     final duration = resolvedAt.difference(createdAt).inDays;
     return ResolvedReportItem(
       referenceId: report.referenceId,
+      latitude: report.latitude,
+      longitude: report.longitude,
       title: report.title,
       locationLabel: report.locationLabel,
       resolvedDate: resolvedAt,
