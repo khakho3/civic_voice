@@ -41,6 +41,11 @@ class NearbyReportsService {
         message: result.message ?? 'Allow phone location and try again.',
       );
     }
+    _validatePosition(p);
+    return p;
+  }
+
+  void _validatePosition(Position p) {
     final age = _now().toUtc().difference(p.timestamp.toUtc()).inMilliseconds;
     if (!p.latitude.isFinite ||
         p.latitude.abs() > 90 ||
@@ -56,7 +61,6 @@ class NearbyReportsService {
         message: 'Get a fresh, accurate phone location and try again.',
       );
     }
-    return p;
   }
 
   void _checkAccount(String? account) {
@@ -78,6 +82,7 @@ class NearbyReportsService {
     if (token == null) {
       throw const ApiException(statusCode: 401, message: 'Sign in required');
     }
+    _validatePosition(position);
     final raw = await _discover(token, position);
     _checkAccount(account);
     return raw.map(NearbySecondingReport.fromApi).toList();
@@ -112,6 +117,7 @@ class NearbyReportsService {
     if (token == null) {
       throw const ApiException(statusCode: 401, message: 'Sign in required');
     }
+    _validatePosition(position);
     await _confirm(token, report.id, position);
     _checkAccount(account);
   }

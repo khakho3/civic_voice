@@ -194,6 +194,36 @@ void main() {
     await expectLater(service.discover(), throwsA(isA<ApiException>()));
     expect(sent, false);
   });
+  for (final confirming in [false, true]) {
+    test(
+      'GPS expiry during token refresh blocks ${confirming ? "confirmation" : "discovery"}',
+      () async {
+        var clock = now;
+        var writes = 0;
+        final service = NearbyReportsService(
+          locationService: located(fix()),
+          now: () => clock,
+          account: () => 'one',
+          token: () async {
+            clock = clock.add(const Duration(seconds: 61));
+            return 'token';
+          },
+          discover: (_, _) async {
+            writes++;
+            return [];
+          },
+          confirm: (_, _, _) async {
+            writes++;
+          },
+        );
+        await expectLater(
+          confirming ? service.confirm(report) : service.discover(),
+          throwsA(isA<ApiException>()),
+        );
+        expect(writes, 0);
+      },
+    );
+  }
   test(
     'transport sends exact fresh position metadata and requires confirmed response',
     () async {
