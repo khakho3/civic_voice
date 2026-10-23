@@ -129,7 +129,7 @@ void main() {
           notes: 'Repair completed safely.',
           evidencePhotoPaths: ['one.jpg'],
         ),
-        throwsStateError,
+        throwsFormatException,
       );
       expect(
         directory.tasks.value.single.status,

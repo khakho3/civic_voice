@@ -63,6 +63,7 @@ class _UpdateProgressScreenState extends State<UpdateProgressScreen> {
   bool _saved = false;
   bool _submitting = false;
   bool _accessUnavailable = false;
+  bool _requiresRefresh = false;
   MaintenanceTask get _task =>
       MaintenanceTaskDirectory.instance.taskById(widget.task.id) ?? widget.task;
 
@@ -189,7 +190,7 @@ class _UpdateProgressScreenState extends State<UpdateProgressScreen> {
   }
 
   Future<void> _handleSave() async {
-    if (_submitting || !_task.needsEvidence) return;
+    if (_submitting || _requiresRefresh || !_task.needsEvidence) return;
     final notes = _notesController.text.trim();
     if (_selectedStatus == MaintenanceTaskStatus.completed &&
         notes.length < _minNotesLength) {
@@ -206,7 +207,7 @@ class _UpdateProgressScreenState extends State<UpdateProgressScreen> {
     }
     if (_selectedStatus == MaintenanceTaskStatus.failed &&
         notes.length < _minNotesLength) {
-      const message = 'Failure note must explain why the task failed.';
+      const message = 'Describe the field issue in at least 10 characters.';
       setState(() {
         _validationError = message;
         _evidenceError = null;
@@ -249,9 +250,12 @@ class _UpdateProgressScreenState extends State<UpdateProgressScreen> {
     } catch (error) {
       if (!mounted) return;
       setState(() {
+        _requiresRefresh = error is! FormatException;
         _accessUnavailable =
             error is ApiException && [401, 403, 404].contains(error.statusCode);
-        _validationError = _accessUnavailable
+        _validationError = error is FormatException
+            ? error.message
+            : _accessUnavailable
             ? 'This task is no longer available to your account. Return to Tasks.'
             : 'The update could not be confirmed. Refresh the task before retrying.';
         _saved = false;
@@ -259,8 +263,7 @@ class _UpdateProgressScreenState extends State<UpdateProgressScreen> {
       });
       return;
     }
-    if (_selectedStatus == MaintenanceTaskStatus.completed ||
-        _selectedStatus == MaintenanceTaskStatus.failed) {
+    if (_selectedStatus == MaintenanceTaskStatus.completed) {
       widget.onTaskCompleted?.call(widget.task.id);
     }
   }
@@ -274,6 +277,7 @@ class _UpdateProgressScreenState extends State<UpdateProgressScreen> {
       setState(() {
         _accessUnavailable =
             MaintenanceTaskDirectory.instance.taskById(widget.task.id) == null;
+        _requiresRefresh = false;
         _validationError = _accessUnavailable
             ? 'This task is no longer available to your account. Return to Tasks.'
             : null;
@@ -323,7 +327,8 @@ class _UpdateProgressScreenState extends State<UpdateProgressScreen> {
         task.status == MaintenanceTaskStatus.completed ||
         task.status == MaintenanceTaskStatus.failed ||
         task.status == MaintenanceTaskStatus.pendingApproval ||
-        _accessUnavailable;
+        _accessUnavailable ||
+        _requiresRefresh;
 
     return Scaffold(
       body: Stack(
@@ -340,7 +345,7 @@ class _UpdateProgressScreenState extends State<UpdateProgressScreen> {
               submitting: _submitting,
               notesFocus: _notesFocus,
               onRemoveEvidence: (index) {
-                if (_submitting) return;
+                if (_submitting || readOnly) return;
                 setState(() {
                   _evidencePhotos.removeAt(index);
                   _saved = false;
@@ -460,6 +465,11 @@ class _UpdateProgressForm extends StatelessWidget {
         bottomInset + AppSpacing.xl,
       ),
       children: [
+        if (task.fieldIssueNotes != null) ...[
+          Text('Previous field issue', style: textTheme.titleSmall),
+          Text(task.fieldIssueNotes!),
+          const SizedBox(height: AppSpacing.md),
+        ],
         if (task.status == MaintenanceTaskStatus.pendingApproval) ...[
           const Text(
             'Submitted for approval. A municipal officer is confirming this work. This task is read-only until they respond.',
@@ -508,7 +518,7 @@ class _UpdateProgressForm extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.sm),
         _StatusOption(
-          label: 'Failed',
+          label: 'Field issue',
           icon: AppIcons.statusRejected,
           color: semantic.error,
           selected: selectedStatus == MaintenanceTaskStatus.failed,
@@ -519,7 +529,7 @@ class _UpdateProgressForm extends StatelessWidget {
         const SizedBox(height: AppSpacing.lg),
         Text(
           selectedStatus == MaintenanceTaskStatus.failed
-              ? 'Failure Note (required)'
+              ? 'Field Issue Note (required)'
               : selectedStatus == MaintenanceTaskStatus.completed
               ? 'Completion Notes (required)'
               : 'Work Notes',
@@ -531,10 +541,11 @@ class _UpdateProgressForm extends StatelessWidget {
           focusNode: notesFocus,
           onChanged: onNotesChanged,
           maxLines: 4,
+          maxLength: 2000,
           enabled: !disabled && !submitting,
           decoration: InputDecoration(
             hintText: selectedStatus == MaintenanceTaskStatus.failed
-                ? 'Explain why the task failed and what is needed next...'
+                ? 'Describe the obstacle and what is needed next...'
                 : selectedStatus == MaintenanceTaskStatus.completed
                 ? 'Describe the work completed and the final outcome...'
                 : 'Describe current progress, encountered issues, or required parts...',
@@ -577,7 +588,10 @@ class _UpdateProgressForm extends StatelessWidget {
                         disabled ||
                         index > evidencePhotoCount ||
                         evidencePhotoCount >= requiredEvidencePhotos,
-                    onRemove: !submitting && index < evidencePhotos.length
+                    onRemove:
+                        !disabled &&
+                            !submitting &&
+                            index < evidencePhotos.length
                         ? () => onRemoveEvidence(index)
                         : null,
                     onTap: index == evidencePhotoCount
@@ -613,6 +627,13 @@ class _UpdateProgressForm extends StatelessWidget {
             ),
           ),
         ),
+        if (validationError != null) ...[
+          const SizedBox(height: AppSpacing.sm),
+          TextButton(
+            onPressed: submitting ? null : onRefresh,
+            child: const Text('Refresh task'),
+          ),
+        ],
         const SizedBox(height: AppSpacing.sm),
         SizedBox(
           width: double.infinity,

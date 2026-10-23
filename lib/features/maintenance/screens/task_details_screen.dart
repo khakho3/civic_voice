@@ -99,6 +99,11 @@ class _TaskDetailsContent extends StatelessWidget {
             ReturnedWorkNotice(reason: task.sendBackReason!),
             const SizedBox(height: AppSpacing.md),
           ],
+          if (task.fieldIssueNotes != null) ...[
+            Text('Previous field issue', style: textTheme.titleSmall),
+            Text(task.fieldIssueNotes!),
+            const SizedBox(height: AppSpacing.md),
+          ],
           Text(task.title, style: textTheme.headlineSmall),
           const SizedBox(height: AppSpacing.sm),
           Row(
@@ -234,6 +239,8 @@ class _TaskDetailsContent extends StatelessWidget {
                     child: Text(
                       task.status == MaintenanceTaskStatus.completed
                           ? 'This task is completed and read-only.'
+                          : task.status == MaintenanceTaskStatus.pendingApproval
+                          ? 'This task is awaiting municipal confirmation and is read-only.'
                           : 'This task was marked failed and is read-only.',
                       style: textTheme.bodySmall?.copyWith(
                         color: colorScheme.onSurfaceVariant,

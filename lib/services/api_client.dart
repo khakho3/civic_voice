@@ -163,15 +163,19 @@ class ApiClient {
       ..fields.addAll(fields);
     for (final entry in files.entries) {
       for (final filePath in entry.value) {
-        if (await File(filePath).exists()) {
-          request.files.add(
-            await http.MultipartFile.fromPath(
-              entry.key,
-              filePath,
-              contentType: _imageMediaType(filePath),
-            ),
+        if (!await File(filePath).exists()) {
+          throw const ApiException(
+            statusCode: 400,
+            message: 'An attached photo is missing. Add it again.',
           );
         }
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            entry.key,
+            filePath,
+            contentType: _imageMediaType(filePath),
+          ),
+        );
       }
     }
     final streamed = await _bounded(request.send(), timeout: _uploadTimeout);

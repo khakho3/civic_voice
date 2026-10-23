@@ -79,6 +79,7 @@ class MaintenanceTask {
     this.reportPhotoUrls = const [],
     this.resolutionPhotoUrls = const [],
     this.completionNotes,
+    this.fieldIssueNotes,
     this.completedAtLabel,
     this.completedWeekday,
     this.assignedAt,
@@ -131,6 +132,9 @@ class MaintenanceTask {
   /// Progress, read back verbatim on Task Completed.
   final String? completionNotes;
 
+  /// A recorded obstacle keeps the server task open and editable.
+  final String? fieldIssueNotes;
+
   /// Set alongside [completionNotes] — a display-ready timestamp label
   /// (mock data has no real clock to derive this from).
   final String? completedAtLabel;
@@ -172,6 +176,7 @@ class MaintenanceTask {
   MaintenanceTask copyWith({
     MaintenanceTaskStatus? status,
     String? completionNotes,
+    String? fieldIssueNotes,
     String? completedAtLabel,
     int? completedWeekday,
     List<String>? resolutionPhotoUrls,
@@ -197,6 +202,7 @@ class MaintenanceTask {
       reportPhotoUrls: reportPhotoUrls,
       resolutionPhotoUrls: resolutionPhotoUrls ?? this.resolutionPhotoUrls,
       completionNotes: completionNotes ?? this.completionNotes,
+      fieldIssueNotes: fieldIssueNotes ?? this.fieldIssueNotes,
       completedAtLabel: completedAtLabel ?? this.completedAtLabel,
       completedWeekday: completedWeekday ?? this.completedWeekday,
       assignedAt: assignedAt,
@@ -242,17 +248,13 @@ class MaintenanceTask {
       locationLabel: json['location'] as String? ?? 'Location unavailable',
       latitude: (json['latitude'] as num?)?.toDouble() ?? 0,
       longitude: (json['longitude'] as num?)?.toDouble() ?? 0,
-      status: failed?.isNotEmpty == true
-          ? MaintenanceTaskStatus.failed
-          : switch (status) {
-              'RESOLVED' => MaintenanceTaskStatus.completed,
-              'IN_PROGRESS' => MaintenanceTaskStatus.inProgress,
-              'PENDING_APPROVAL' => MaintenanceTaskStatus.pendingApproval,
-              'ASSIGNED' => MaintenanceTaskStatus.assigned,
-              _ => throw const FormatException(
-                'Unsupported maintenance status',
-              ),
-            },
+      status: switch (status) {
+        'RESOLVED' => MaintenanceTaskStatus.completed,
+        'IN_PROGRESS' => MaintenanceTaskStatus.inProgress,
+        'PENDING_APPROVAL' => MaintenanceTaskStatus.pendingApproval,
+        'ASSIGNED' => MaintenanceTaskStatus.assigned,
+        _ => throw const FormatException('Unsupported maintenance status'),
+      },
       eta: switch (status) {
         'ASSIGNED' => 'Awaiting dispatch',
         'PENDING_APPROVAL' => 'Awaiting municipal confirmation',
@@ -266,9 +268,8 @@ class MaintenanceTask {
       reportPhotoCount: photos.length,
       reportPhotoUrls: photos,
       resolutionPhotoUrls: resolutionPhotos,
-      completionNotes: failed?.isNotEmpty == true
-          ? failed
-          : json['resolutionNotes'] as String?,
+      completionNotes: json['resolutionNotes'] as String?,
+      fieldIssueNotes: failed?.isNotEmpty == true ? failed : null,
       completedAtLabel: status == 'PENDING_APPROVAL'
           ? _dateLabelOrMissing(
               DateTime.tryParse(json['completionSubmittedAt'] as String? ?? ''),

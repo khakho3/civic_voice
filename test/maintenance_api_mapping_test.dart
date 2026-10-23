@@ -50,8 +50,10 @@ void main() {
       'maintenanceFailureNotes': 'Replacement part unavailable.',
     });
 
-    expect(task.status, MaintenanceTaskStatus.failed);
-    expect(task.completionNotes, 'Replacement part unavailable.');
+    expect(task.status, MaintenanceTaskStatus.inProgress);
+    expect(task.needsEvidence, isTrue);
+    expect(task.fieldIssueNotes, 'Replacement part unavailable.');
+    expect(task.completionNotes, isNull);
   });
 
   test('normalizes an omitted problem description without losing photos', () {

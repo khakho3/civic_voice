@@ -7,6 +7,7 @@ import '../../admin/models/admin_maintenance_team_data.dart';
 import '../../admin/services/admin_maintenance_team_directory.dart';
 import '../models/maintenance_task.dart';
 import 'maintenance_session.dart';
+import 'maintenance_update_service.dart';
 
 /// In-memory source of truth for the current technician's assigned tasks —
 /// mirrors [MaintenanceTeamDirectory]'s shape (a `ValueNotifier` singleton)
@@ -34,6 +35,7 @@ class MaintenanceTaskDirectory {
   final ValueNotifier<bool> loading = ValueNotifier(false);
   final ValueNotifier<String?> error = ValueNotifier(null);
   bool hasLiveSnapshot = false;
+  final _updates = MaintenanceUpdateService();
   int _sessionRevision = 0;
   int _refreshRevision = 0;
   void clearSession() {
@@ -103,13 +105,19 @@ class MaintenanceTaskDirectory {
       throw StateError('Choose Completed to submit evidence');
     }
     final submitting = status == MaintenanceTaskStatus.completed;
-    if (submitting &&
-        ((notes?.trim().length ?? 0) < 10 || evidencePhotoPaths.length < 3)) {
-      throw StateError('Completion requires notes and three evidence photos');
-    }
+    await MaintenanceUpdateService.validate(
+      status: status,
+      notes: notes ?? '',
+      photos: evidencePhotoPaths,
+      checkFiles: Firebase.apps.isNotEmpty,
+    );
+    if (revision != _sessionRevision) throw StateError('Your session changed');
     if (Firebase.apps.isEmpty) {
       final updated = task.copyWith(
-        status: submitting ? MaintenanceTaskStatus.pendingApproval : status,
+        status: submitting
+            ? MaintenanceTaskStatus.pendingApproval
+            : MaintenanceTaskStatus.inProgress,
+        fieldIssueNotes: status == MaintenanceTaskStatus.failed ? notes : null,
         resolutionPhotoUrls: submitting ? evidencePhotoPaths : null,
         completionSubmittedAt: submitting ? DateTime.now() : null,
         clearSendBack: submitting,
@@ -121,48 +129,32 @@ class MaintenanceTaskDirectory {
       updateTask(updated);
       return updated;
     }
+    final identity = FirebaseAuth.instance.currentUser?.uid;
     final token = await FirebaseAuth.instance.currentUser?.getIdToken();
     if (token == null) throw StateError('A signed-in technician is required');
-    if (submitting && task.status == MaintenanceTaskStatus.assigned) {
-      final started = await ApiClient.instance.updateReport(
-        task.apiId ?? task.id,
-        idToken: token,
-        fields: const {'status': 'IN_PROGRESS'},
-      );
-      if (revision != _sessionRevision) {
-        throw StateError('Your session changed');
+    void checkOwnership() {
+      if (revision != _sessionRevision ||
+          identity != FirebaseAuth.instance.currentUser?.uid ||
+          !canSubmitEvidence(taskById(task.id) ?? task)) {
+        throw StateError('Your session or task access changed. Refresh Tasks.');
       }
-      ++_refreshRevision;
-      updateTask(MaintenanceTask.fromApi(started));
     }
-    final fields = <String, String>{
-      if (status == MaintenanceTaskStatus.assigned ||
-          status == MaintenanceTaskStatus.inProgress)
-        'status': 'IN_PROGRESS',
-      if (status == MaintenanceTaskStatus.completed) ...{
-        'status': 'PENDING_APPROVAL',
-        'progressPercent': '100',
-        'resolutionNotes': notes ?? '',
-        'maintenanceFailureNotes': '',
-      },
-      if (status == MaintenanceTaskStatus.failed) ...{
-        'status': 'IN_PROGRESS',
-        'progressPercent': '0',
-        'maintenanceFailureNotes': notes ?? '',
-      },
-      if (notes?.trim().isNotEmpty == true &&
-          status != MaintenanceTaskStatus.failed)
-        'resolutionNotes': notes!.trim(),
-    };
-    final response = await ApiClient.instance.updateReport(
-      task.apiId ?? task.id,
-      idToken: token,
-      fields: fields,
-      resolutionPhotoPaths: evidencePhotoPaths,
+
+    final updated = await _updates.save(
+      task,
+      status: status,
+      notes: notes ?? '',
+      photos: evidencePhotoPaths,
+      checkOwnership: checkOwnership,
+      update: (id, fields, photos) => ApiClient.instance.updateReport(
+        id,
+        idToken: token,
+        fields: fields,
+        resolutionPhotoPaths: photos,
+      ),
     );
-    if (revision != _sessionRevision) throw StateError('Your session changed');
+    checkOwnership();
     ++_refreshRevision;
-    final updated = MaintenanceTask.fromApi(response);
     updateTask(updated);
     return updated;
   }

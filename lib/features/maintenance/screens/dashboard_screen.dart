@@ -721,7 +721,11 @@ class _MaintenanceDashboardData {
           .where((task) => task.status == MaintenanceTaskStatus.completed)
           .length,
       failedCount: tasks
-          .where((task) => task.status == MaintenanceTaskStatus.failed)
+          .where(
+            (task) =>
+                task.status == MaintenanceTaskStatus.failed ||
+                task.fieldIssueNotes != null,
+          )
           .length,
       weeklyCompletionCounts: List<int>.unmodifiable(weeklyCounts),
       scheduledTasks: scheduledTasks,

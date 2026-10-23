@@ -199,6 +199,45 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets(
+    'saving a field issue keeps the task editable and in the active workflow',
+    (tester) async {
+      tester.view.physicalSize = const Size(428, 1800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.pumpWidget(
+        const app.CivicVoiceApp(
+          initialRoute: app.AppRoutes.maintenanceUpdateProgress,
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Field issue'));
+      await tester.enterText(
+        find.byType(EditableText).first,
+        'Replacement parts are needed.',
+      );
+      await tester.ensureVisible(find.text('Save Update'));
+      await tester.tap(find.text('Save Update'));
+      await tester.pumpAndSettle();
+      final task = MaintenanceTaskDirectory.instance.taskById('MNT-1001')!;
+      expect(task.status, MaintenanceTaskStatus.inProgress);
+      expect(task.needsEvidence, isTrue);
+      expect(task.fieldIssueNotes, 'Replacement parts are needed.');
+      expect(find.text('Task Marked Failed'), findsNothing);
+      expect(find.text('Progress saved'), findsOneWidget);
+      expect(find.text('Previous field issue'), findsOneWidget);
+      expect(
+        tester
+            .widget<FilledButton>(
+              find.widgetWithText(FilledButton, 'Save Update'),
+            )
+            .onPressed,
+        isNotNull,
+      );
+    },
+  );
+
   testWidgets('Maintenance progress status rules require evidence and notes', (
     WidgetTester tester,
   ) async {
@@ -244,14 +283,14 @@ void main() {
     );
 
     await tester.enterText(find.byType(EditableText).first, '');
-    await tester.tap(find.text('Failed'));
+    await tester.tap(find.text('Field issue'));
     await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('Save Update'));
     await tester.tap(find.text('Save Update'));
     await tester.pumpAndSettle();
 
     expect(
-      find.text('Failure note must explain why the task failed.'),
+      find.text('Describe the field issue in at least 10 characters.'),
       findsWidgets,
     );
   });
@@ -620,7 +659,9 @@ void main() {
     // lead of the one mock team.
     final previousTeams = MaintenanceTeamDirectory.instance.teams.value;
     MaintenanceTeamDirectory.instance.teams.value = mockMaintenanceTeams();
-    addTearDown(() => MaintenanceTeamDirectory.instance.teams.value = previousTeams);
+    addTearDown(
+      () => MaintenanceTeamDirectory.instance.teams.value = previousTeams,
+    );
     final team = MaintenanceTeamDirectory.instance.teamById('TEAM-0001')!;
     MaintenanceTeamDirectory.instance.updateTeam(
       team.copyWith(leadUserId: 'MNT-000010'),
