@@ -1,3 +1,4 @@
+import '../../../widgets/validation_attention.dart';
 import '../../../widgets/evidence_image_viewer.dart';
 import 'dart:io';
 
@@ -51,6 +52,7 @@ class UpdateProgressScreen extends StatefulWidget {
 class _UpdateProgressScreenState extends State<UpdateProgressScreen> {
   final ImagePicker _imagePicker = ImagePicker();
   final FocusNode _notesFocus = FocusNode();
+  final _evidenceAttention = GlobalKey();
   bool _pickingPhoto = false;
   late MaintenanceTaskStatus _selectedStatus =
       widget.task.status == MaintenanceTaskStatus.assigned
@@ -203,7 +205,7 @@ class _UpdateProgressScreenState extends State<UpdateProgressScreen> {
         _saved = false;
       });
       _showValidationSnackBar(message);
-      _notesFocus.requestFocus();
+      ValidationAttention.firstError(context);
       return;
     }
     if (_selectedStatus == MaintenanceTaskStatus.failed &&
@@ -215,7 +217,7 @@ class _UpdateProgressScreenState extends State<UpdateProgressScreen> {
         _saved = false;
       });
       _showValidationSnackBar(message);
-      _notesFocus.requestFocus();
+      ValidationAttention.firstError(context);
       return;
     }
 
@@ -229,6 +231,7 @@ class _UpdateProgressScreenState extends State<UpdateProgressScreen> {
         _saved = false;
       });
       _showValidationSnackBar(message);
+      ValidationAttention.reveal(context, _evidenceAttention);
       return;
     }
 
@@ -336,6 +339,7 @@ class _UpdateProgressScreenState extends State<UpdateProgressScreen> {
         children: [
           Positioned.fill(
             child: _UpdateProgressForm(
+              evidenceAttention: _evidenceAttention,
               task: task,
               disabled: readOnly,
               selectedStatus: _selectedStatus,
@@ -408,6 +412,7 @@ class _UpdateProgressScreenState extends State<UpdateProgressScreen> {
 
 class _UpdateProgressForm extends StatelessWidget {
   const _UpdateProgressForm({
+    required this.evidenceAttention,
     required this.task,
     required this.disabled,
     required this.selectedStatus,
@@ -429,6 +434,7 @@ class _UpdateProgressForm extends StatelessWidget {
     required this.onDiscard,
   });
 
+  final GlobalKey evidenceAttention;
   final MaintenanceTask task;
   final bool disabled;
 
@@ -466,188 +472,200 @@ class _UpdateProgressForm extends StatelessWidget {
         bottomInset + AppSpacing.xl,
       ),
       children: [
-        if (task.fieldIssueNotes != null) ...[
-          Text('Previous field issue', style: textTheme.titleSmall),
-          Text(task.fieldIssueNotes!),
-          const SizedBox(height: AppSpacing.md),
-        ],
-        if (task.status == MaintenanceTaskStatus.pendingApproval) ...[
-          const Text(
-            'Submitted for approval. A municipal officer is confirming this work. This task is read-only until they respond.',
-          ),
-          const SizedBox(height: AppSpacing.md),
-        ],
-        if (task.sendBackReason?.trim().isNotEmpty == true) ...[
-          ReturnedWorkNotice(reason: task.sendBackReason!),
-          const SizedBox(height: AppSpacing.md),
-        ],
-        if (saved) ...[
-          _SavedBanner(semantic: semantic),
-          const SizedBox(height: AppSpacing.md),
-        ],
-        Chip(label: Text('Task ID: #${task.id}')),
-        const SizedBox(height: AppSpacing.sm),
-        Text(task.title, style: textTheme.titleMedium),
-        const SizedBox(height: AppSpacing.xs),
-        Text(
-          task.description,
-          style: textTheme.bodyMedium?.copyWith(
-            color: colorScheme.onSurfaceVariant,
-          ),
-        ),
-        const SizedBox(height: AppSpacing.lg),
-        Text('Current Status', style: textTheme.titleSmall),
-        const SizedBox(height: AppSpacing.sm),
-        _StatusOption(
-          label: 'In Progress',
-          icon: AppIcons.activityPulse,
-          color: AppColors.statusInProgress,
-          selected: selectedStatus == MaintenanceTaskStatus.inProgress,
-          onTap: onStatusChanged == null
-              ? null
-              : () => onStatusChanged!(MaintenanceTaskStatus.inProgress),
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        _StatusOption(
-          label: 'Completed',
-          icon: AppIcons.statusResolved,
-          color: semantic.success,
-          selected: selectedStatus == MaintenanceTaskStatus.completed,
-          onTap: onStatusChanged == null
-              ? null
-              : () => onStatusChanged!(MaintenanceTaskStatus.completed),
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        _StatusOption(
-          label: 'Field issue',
-          icon: AppIcons.statusRejected,
-          color: semantic.error,
-          selected: selectedStatus == MaintenanceTaskStatus.failed,
-          onTap: onStatusChanged == null
-              ? null
-              : () => onStatusChanged!(MaintenanceTaskStatus.failed),
-        ),
-        const SizedBox(height: AppSpacing.lg),
-        Text(
-          selectedStatus == MaintenanceTaskStatus.failed
-              ? 'Field Issue Note (required)'
-              : selectedStatus == MaintenanceTaskStatus.completed
-              ? 'Completion Notes (required)'
-              : 'Work Notes',
-          style: textTheme.titleSmall,
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        TextField(
-          controller: notesController,
-          focusNode: notesFocus,
-          onChanged: onNotesChanged,
-          maxLines: 4,
-          maxLength: 2000,
-          enabled: !disabled && !submitting,
-          decoration: InputDecoration(
-            hintText: selectedStatus == MaintenanceTaskStatus.failed
-                ? 'Describe the obstacle and what is needed next...'
-                : selectedStatus == MaintenanceTaskStatus.completed
-                ? 'Describe the work completed and the final outcome...'
-                : 'Describe current progress, encountered issues, or required parts...',
-            errorText: validationError,
-          ),
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        if (validationError == null &&
-            (selectedStatus == MaintenanceTaskStatus.failed ||
-                selectedStatus == MaintenanceTaskStatus.completed))
-          Text(
-            'Minimum $minNotesLength characters',
-            style: textTheme.bodySmall?.copyWith(
-              color: colorScheme.onSurfaceVariant,
-            ),
-          ),
-        if (selectedStatus == MaintenanceTaskStatus.completed) ...[
-          const SizedBox(height: AppSpacing.lg),
-          Text('Completion Photo Evidence', style: textTheme.titleSmall),
-          const SizedBox(height: AppSpacing.xs),
-          ...[
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (task.fieldIssueNotes != null) ...[
+              Text('Previous field issue', style: textTheme.titleSmall),
+              Text(task.fieldIssueNotes!),
+              const SizedBox(height: AppSpacing.md),
+            ],
+            if (task.status == MaintenanceTaskStatus.pendingApproval) ...[
+              const Text(
+                'Submitted for approval. A municipal officer is confirming this work. This task is read-only until they respond.',
+              ),
+              const SizedBox(height: AppSpacing.md),
+            ],
+            if (task.sendBackReason?.trim().isNotEmpty == true) ...[
+              ReturnedWorkNotice(reason: task.sendBackReason!),
+              const SizedBox(height: AppSpacing.md),
+            ],
+            if (saved) ...[
+              _SavedBanner(semantic: semantic),
+              const SizedBox(height: AppSpacing.md),
+            ],
+            Chip(label: Text('Task ID: #${task.id}')),
+            const SizedBox(height: AppSpacing.sm),
+            Text(task.title, style: textTheme.titleMedium),
+            const SizedBox(height: AppSpacing.xs),
             Text(
-              '$evidencePhotoCount of $requiredEvidencePhotos photos attached',
-              style: textTheme.bodySmall?.copyWith(
+              task.description,
+              style: textTheme.bodyMedium?.copyWith(
                 color: colorScheme.onSurfaceVariant,
               ),
             ),
+            const SizedBox(height: AppSpacing.lg),
+            Text('Current Status', style: textTheme.titleSmall),
             const SizedBox(height: AppSpacing.sm),
-            Wrap(
-              spacing: AppSpacing.sm,
-              runSpacing: AppSpacing.sm,
-              children: [
-                for (var index = 0; index < requiredEvidencePhotos; index++)
-                  _EvidencePhotoSlot(
-                    index: index,
-                    photo: index < evidencePhotos.length
-                        ? evidencePhotos[index]
-                        : null,
-                    disabled:
-                        disabled ||
-                        index > evidencePhotoCount ||
-                        evidencePhotoCount >= requiredEvidencePhotos,
-                    onRemove:
-                        !disabled &&
-                            !submitting &&
-                            index < evidencePhotos.length
-                        ? () => onRemoveEvidence(index)
-                        : null,
-                    onTap: index < evidencePhotos.length
-                        ? () => EvidenceImageViewer.openGallery(
-                            context,
-                            evidencePhotos.map((photo) => photo.path).toList(),
-                            initialIndex: index,
-                          )
-                        : index == evidencePhotoCount
-                        ? onAttachEvidence
-                        : null,
-                  ),
-              ],
+            _StatusOption(
+              label: 'In Progress',
+              icon: AppIcons.activityPulse,
+              color: AppColors.statusInProgress,
+              selected: selectedStatus == MaintenanceTaskStatus.inProgress,
+              onTap: onStatusChanged == null
+                  ? null
+                  : () => onStatusChanged!(MaintenanceTaskStatus.inProgress),
             ),
-          ],
-          if (evidenceError != null) ...[
-            const SizedBox(height: AppSpacing.xs),
+            const SizedBox(height: AppSpacing.sm),
+            _StatusOption(
+              label: 'Completed',
+              icon: AppIcons.statusResolved,
+              color: semantic.success,
+              selected: selectedStatus == MaintenanceTaskStatus.completed,
+              onTap: onStatusChanged == null
+                  ? null
+                  : () => onStatusChanged!(MaintenanceTaskStatus.completed),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            _StatusOption(
+              label: 'Field issue',
+              icon: AppIcons.statusRejected,
+              color: semantic.error,
+              selected: selectedStatus == MaintenanceTaskStatus.failed,
+              onTap: onStatusChanged == null
+                  ? null
+                  : () => onStatusChanged!(MaintenanceTaskStatus.failed),
+            ),
+            const SizedBox(height: AppSpacing.lg),
             Text(
-              evidenceError!,
-              style: textTheme.bodySmall?.copyWith(color: semantic.errorText),
+              selectedStatus == MaintenanceTaskStatus.failed
+                  ? 'Field Issue Note (required)'
+                  : selectedStatus == MaintenanceTaskStatus.completed
+                  ? 'Completion Notes (required)'
+                  : 'Work Notes',
+              style: textTheme.titleSmall,
             ),
-          ],
-        ],
-        const SizedBox(height: AppSpacing.xl),
-        SizedBox(
-          width: double.infinity,
-          child: FilledButton(
-            onPressed: submitting ? null : onSave,
-            child: BusyLabel(
-              busy: submitting,
-              busyLabel: selectedStatus == MaintenanceTaskStatus.completed
-                  ? 'Submitting for approval'
-                  : 'Saving update',
-              child: Text(
-                selectedStatus == MaintenanceTaskStatus.completed
-                    ? 'Submit for Approval'
-                    : 'Save Update',
+            const SizedBox(height: AppSpacing.sm),
+            TextField(
+              controller: notesController,
+              focusNode: notesFocus,
+              onChanged: onNotesChanged,
+              maxLines: 4,
+              maxLength: 2000,
+              enabled: !disabled && !submitting,
+              decoration: InputDecoration(
+                hintText: selectedStatus == MaintenanceTaskStatus.failed
+                    ? 'Describe the obstacle and what is needed next...'
+                    : selectedStatus == MaintenanceTaskStatus.completed
+                    ? 'Describe the work completed and the final outcome...'
+                    : 'Describe current progress, encountered issues, or required parts...',
+                errorText: validationError,
               ),
             ),
-          ),
-        ),
-        if (validationError != null) ...[
-          const SizedBox(height: AppSpacing.sm),
-          TextButton(
-            onPressed: submitting ? null : onRefresh,
-            child: const Text('Refresh task'),
-          ),
-        ],
-        const SizedBox(height: AppSpacing.sm),
-        SizedBox(
-          width: double.infinity,
-          child: TextButton(
-            onPressed: onDiscard,
-            child: const Text('Discard Draft'),
-          ),
+            const SizedBox(height: AppSpacing.xs),
+            if (validationError == null &&
+                (selectedStatus == MaintenanceTaskStatus.failed ||
+                    selectedStatus == MaintenanceTaskStatus.completed))
+              Text(
+                'Minimum $minNotesLength characters',
+                style: textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+            if (selectedStatus == MaintenanceTaskStatus.completed) ...[
+              const SizedBox(height: AppSpacing.lg),
+              Text('Completion Photo Evidence', style: textTheme.titleSmall),
+              const SizedBox(height: AppSpacing.xs),
+              ...[
+                Text(
+                  '$evidencePhotoCount of $requiredEvidencePhotos photos attached',
+                  style: textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Wrap(
+                  spacing: AppSpacing.sm,
+                  runSpacing: AppSpacing.sm,
+                  children: [
+                    for (var index = 0; index < requiredEvidencePhotos; index++)
+                      _EvidencePhotoSlot(
+                        key: index == evidencePhotoCount
+                            ? evidenceAttention
+                            : null,
+                        index: index,
+                        photo: index < evidencePhotos.length
+                            ? evidencePhotos[index]
+                            : null,
+                        disabled:
+                            disabled ||
+                            index > evidencePhotoCount ||
+                            evidencePhotoCount >= requiredEvidencePhotos,
+                        onRemove:
+                            !disabled &&
+                                !submitting &&
+                                index < evidencePhotos.length
+                            ? () => onRemoveEvidence(index)
+                            : null,
+                        onTap: index < evidencePhotos.length
+                            ? () => EvidenceImageViewer.openGallery(
+                                context,
+                                evidencePhotos
+                                    .map((photo) => photo.path)
+                                    .toList(),
+                                initialIndex: index,
+                              )
+                            : index == evidencePhotoCount
+                            ? onAttachEvidence
+                            : null,
+                      ),
+                  ],
+                ),
+              ],
+              if (evidenceError != null) ...[
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  evidenceError!,
+                  style: textTheme.bodySmall?.copyWith(
+                    color: semantic.errorText,
+                  ),
+                ),
+              ],
+            ],
+            const SizedBox(height: AppSpacing.xl),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: submitting ? null : onSave,
+                child: BusyLabel(
+                  busy: submitting,
+                  busyLabel: selectedStatus == MaintenanceTaskStatus.completed
+                      ? 'Submitting for approval'
+                      : 'Saving update',
+                  child: Text(
+                    selectedStatus == MaintenanceTaskStatus.completed
+                        ? 'Submit for Approval'
+                        : 'Save Update',
+                  ),
+                ),
+              ),
+            ),
+            if (validationError != null) ...[
+              const SizedBox(height: AppSpacing.sm),
+              TextButton(
+                onPressed: submitting ? null : onRefresh,
+                child: const Text('Refresh task'),
+              ),
+            ],
+            const SizedBox(height: AppSpacing.sm),
+            SizedBox(
+              width: double.infinity,
+              child: TextButton(
+                onPressed: onDiscard,
+                child: const Text('Discard Draft'),
+              ),
+            ),
+          ],
         ),
       ],
     );
@@ -754,6 +772,7 @@ class _StatusOption extends StatelessWidget {
 
 class _EvidencePhotoSlot extends StatelessWidget {
   const _EvidencePhotoSlot({
+    super.key,
     required this.index,
     required this.photo,
     required this.disabled,
