@@ -1,3 +1,4 @@
+import '../../../widgets/validation_attention.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
@@ -18,15 +19,16 @@ import '../services/admin_user_directory.dart';
 import '../widgets/admin_scaffold.dart';
 import '../widgets/region_assembly_picker.dart';
 
-typedef AdminCreateUserRequest = Future<Map<String, dynamic>> Function({
-  required String idToken,
-  required String fullName,
-  required String phone,
-  required String role,
-  String? adminTier,
-  String? region,
-  String? assembly,
-});
+typedef AdminCreateUserRequest =
+    Future<Map<String, dynamic>> Function({
+      required String idToken,
+      required String fullName,
+      required String phone,
+      required String role,
+      String? adminTier,
+      String? region,
+      String? assembly,
+    });
 
 /// civic_voice_api's UserRole string for each provisionable [AppRole] —
 /// the inverse of main.dart's _appRoleForBackendRole. System
@@ -150,11 +152,16 @@ class _AdminCreateUserScreenState extends State<AdminCreateUserScreen> {
     if (name.isEmpty) errors['name'] = 'Full name is required';
     if (phone.isEmpty) errors['phone'] = 'Phone number is required';
     if (needsAssembly && _assembly == null) {
-      errors['assembly'] = 'Select the assembly this account is scoped to';
+      errors[_region == null ? 'region' : 'assembly'] = _region == null
+          ? 'Select a region first'
+          : 'Select the assembly this account is scoped to';
     }
 
     setState(() => _fieldErrors = errors);
-    if (errors.isNotEmpty) return;
+    if (errors.isNotEmpty) {
+      ValidationAttention.firstError(context);
+      return;
+    }
 
     final confirmed = await showConfirmDialog(
       context,
@@ -172,8 +179,9 @@ class _AdminCreateUserScreenState extends State<AdminCreateUserScreen> {
     String? creationWarning;
     late AdminUserItem created;
     try {
-      final idToken = await (widget.idTokenProvider?.call() ??
-          FirebaseAuth.instance.currentUser?.getIdToken());
+      final idToken =
+          await (widget.idTokenProvider?.call() ??
+              FirebaseAuth.instance.currentUser?.getIdToken());
       if (!directory.isSessionGenerationCurrent(sessionGeneration)) {
         if (mounted) setState(() => _isSubmitting = false);
         return;
@@ -333,143 +341,157 @@ class _AdminCreateUserScreenState extends State<AdminCreateUserScreen> {
           chromeInset.bottom + AppSpacing.xl,
         ),
         children: [
-          // Same inline back affordance as every other Admin drill-down
-          // screen (e.g. Maintenance Team Details) — AdminScaffold's own
-          // header has no back-button slot, so each screen under it that
-          // isn't a bare tab root supplies its own.
-          Row(
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              IconButton(
-                onPressed: widget.onNavigateToUsers,
-                icon: const Icon(AppIcons.back),
-                tooltip: 'Back to user management',
-              ),
-            ],
-          ),
-          if (creationDisabled) ...[
-            const _AccountCreationFrozenBanner(),
-            const SizedBox(height: AppSpacing.lg),
-          ],
-          Opacity(
-            opacity: creationDisabled ? 0.5 : 1,
-            child: IgnorePointer(
-              ignoring: creationDisabled,
-              child: Column(
+              // Same inline back affordance as every other Admin drill-down
+              // screen (e.g. Maintenance Team Details) — AdminScaffold's own
+              // header has no back-button slot, so each screen under it that
+              // isn't a bare tab root supplies its own.
+              Row(
                 children: [
-                  if (jurisdictionLocked)
-                    _Section(
-                      title: 'Your Jurisdiction',
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'You can only provision accounts within your '
-                            'own assembly.',
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
-                          const SizedBox(height: AppSpacing.sm),
-                          _ReadOnlyField(
-                            label: 'Assembly',
-                            value: session.assembly?.fullName ?? 'Not assigned',
-                          ),
-                        ],
-                      ),
-                    ),
-                  if (jurisdictionLocked) const SizedBox(height: AppSpacing.lg),
-                  _Section(
-                    title: 'Account Details',
-                    child: Column(
-                      children: [
-                        _TextField(
-                          label: 'Full Name',
-                          controller: _nameController,
-                          autofillHints: const [AutofillHints.name],
-                          textInputAction: TextInputAction.next,
-                          errorText: _fieldErrors['name'],
-                          onChanged: (_) => setState(() => _fieldErrors = {}),
-                        ),
-                        const SizedBox(height: AppSpacing.sm),
-                        _TextField(
-                          label: 'Phone Number',
-                          controller: _phoneController,
-                          keyboardType: TextInputType.phone,
-                          autofillHints: const [AutofillHints.telephoneNumber],
-                          textInputAction: TextInputAction.done,
-                          errorText: _fieldErrors['phone'],
-                          onChanged: (_) => setState(() => _fieldErrors = {}),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                  _Section(
-                    title: 'Access',
-                    child: Column(
-                      children: [
-                        _LabeledDropdown<AppRole>(
-                          label: 'Role',
-                          value: _role,
-                          items: session.creatableRoles,
-                          itemLabel: (r) => r.label,
-                          onChanged: (role) => setState(() {
-                            _role = role;
-                            _fieldErrors = {};
-                          }),
-                        ),
-                        if (isAdmin) ...[
-                          const SizedBox(height: AppSpacing.sm),
-                          _LabeledDropdown<AdminTier>(
-                            label: 'Admin Tier',
-                            value: _tier,
-                            items: AdminTier.values,
-                            itemLabel: (t) => t.label,
-                            onChanged: (tier) => setState(() => _tier = tier),
-                          ),
-                        ],
-                        if (needsAssembly && !jurisdictionLocked) ...[
-                          const SizedBox(height: AppSpacing.sm),
-                          RegionAssemblyPicker(
-                            region: _region,
-                            assembly: _assembly,
-                            assemblyErrorText: _fieldErrors['assembly'],
-                            onRegionChanged: (region) => setState(() {
-                              _region = region;
-                              _fieldErrors = {};
-                            }),
-                            onAssemblyChanged: (assembly) => setState(() {
-                              _assembly = assembly;
-                              _fieldErrors = {};
-                            }),
-                          ),
-                        ],
-                      ],
-                    ),
+                  IconButton(
+                    onPressed: widget.onNavigateToUsers,
+                    icon: const Icon(AppIcons.back),
+                    tooltip: 'Back to user management',
                   ),
                 ],
               ),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: _isSubmitting ? null : _handleCancel,
-                  child: const Text('Cancel'),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: FilledButton(
-                  onPressed: (creationDisabled || _isSubmitting)
-                      ? null
-                      : _submit,
-                  child: BusyLabel(
-                    busy: _isSubmitting,
-                    busyLabel: 'Creating user',
-                    child: const Text('Create User'),
+              if (creationDisabled) ...[
+                const _AccountCreationFrozenBanner(),
+                const SizedBox(height: AppSpacing.lg),
+              ],
+              Opacity(
+                opacity: creationDisabled ? 0.5 : 1,
+                child: IgnorePointer(
+                  ignoring: creationDisabled,
+                  child: Column(
+                    children: [
+                      if (jurisdictionLocked)
+                        _Section(
+                          title: 'Your Jurisdiction',
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'You can only provision accounts within your '
+                                'own assembly.',
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                              const SizedBox(height: AppSpacing.sm),
+                              _ReadOnlyField(
+                                label: 'Assembly',
+                                value:
+                                    session.assembly?.fullName ??
+                                    'Not assigned',
+                              ),
+                            ],
+                          ),
+                        ),
+                      if (jurisdictionLocked)
+                        const SizedBox(height: AppSpacing.lg),
+                      _Section(
+                        title: 'Account Details',
+                        child: Column(
+                          children: [
+                            _TextField(
+                              label: 'Full Name',
+                              controller: _nameController,
+                              autofillHints: const [AutofillHints.name],
+                              textInputAction: TextInputAction.next,
+                              errorText: _fieldErrors['name'],
+                              onChanged: (_) =>
+                                  setState(() => _fieldErrors = {}),
+                            ),
+                            const SizedBox(height: AppSpacing.sm),
+                            _TextField(
+                              label: 'Phone Number',
+                              controller: _phoneController,
+                              keyboardType: TextInputType.phone,
+                              autofillHints: const [
+                                AutofillHints.telephoneNumber,
+                              ],
+                              textInputAction: TextInputAction.done,
+                              errorText: _fieldErrors['phone'],
+                              onChanged: (_) =>
+                                  setState(() => _fieldErrors = {}),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
+                      _Section(
+                        title: 'Access',
+                        child: Column(
+                          children: [
+                            _LabeledDropdown<AppRole>(
+                              label: 'Role',
+                              value: _role,
+                              items: session.creatableRoles,
+                              itemLabel: (r) => r.label,
+                              onChanged: (role) => setState(() {
+                                _role = role;
+                                _fieldErrors = {};
+                              }),
+                            ),
+                            if (isAdmin) ...[
+                              const SizedBox(height: AppSpacing.sm),
+                              _LabeledDropdown<AdminTier>(
+                                label: 'Admin Tier',
+                                value: _tier,
+                                items: AdminTier.values,
+                                itemLabel: (t) => t.label,
+                                onChanged: (tier) =>
+                                    setState(() => _tier = tier),
+                              ),
+                            ],
+                            if (needsAssembly && !jurisdictionLocked) ...[
+                              const SizedBox(height: AppSpacing.sm),
+                              RegionAssemblyPicker(
+                                region: _region,
+                                assembly: _assembly,
+                                regionErrorText: _fieldErrors['region'],
+                                assemblyErrorText: _fieldErrors['assembly'],
+                                onRegionChanged: (region) => setState(() {
+                                  _region = region;
+                                  _fieldErrors = {};
+                                }),
+                                onAssemblyChanged: (assembly) => setState(() {
+                                  _assembly = assembly;
+                                  _fieldErrors = {};
+                                }),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: _isSubmitting ? null : _handleCancel,
+                      child: const Text('Cancel'),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: (creationDisabled || _isSubmitting)
+                          ? null
+                          : _submit,
+                      child: BusyLabel(
+                        busy: _isSubmitting,
+                        busyLabel: 'Creating user',
+                        child: const Text('Create User'),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -531,10 +553,7 @@ class _AccountCreationFrozenBanner extends StatelessWidget {
 }
 
 class _Section extends StatelessWidget {
-  const _Section({
-    required this.title,
-    required this.child,
-  });
+  const _Section({required this.title, required this.child});
 
   final String title;
   final Widget child;
@@ -588,14 +607,16 @@ class _TextField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ExcludeSemantics(
-          child: Text(label, style: textTheme.bodySmall),
-        ),
+        ExcludeSemantics(child: Text(label, style: textTheme.bodySmall)),
         const SizedBox(height: AppSpacing.xs),
         Semantics(
           label: label,
           textField: true,
           child: TextField(
+            scrollPadding: EdgeInsets.only(
+              top: AdminScaffold.contentPadding(context).top + AppSpacing.md,
+              bottom: AppSpacing.md,
+            ),
             controller: controller,
             keyboardType: keyboardType,
             textInputAction: textInputAction,

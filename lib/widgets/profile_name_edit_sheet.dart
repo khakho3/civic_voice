@@ -1,3 +1,4 @@
+import 'validation_attention.dart';
 import 'package:flutter/material.dart';
 
 import '../core/theme/app_theme.dart';
@@ -96,7 +97,7 @@ class _ProfileNameEditSheetState extends State<ProfileNameEditSheet> {
       });
       // First (and only) invalid field takes focus so the keyboard opens
       // on the thing to fix.
-      _nameFocus.requestFocus();
+      ValidationAttention.firstError(context);
       return;
     }
 

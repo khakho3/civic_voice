@@ -1,3 +1,4 @@
+import '../../../widgets/validation_attention.dart';
 import 'package:flutter/material.dart';
 import '../../../widgets/busy_indicator.dart';
 
@@ -162,8 +163,8 @@ class _AdminMaintenanceTeamsScreenState
                           MaintenanceTeamDirectoryState.unavailable &&
                       teams.isEmpty) {
                     return _DirectoryUnavailableMessage(
-                      onRetry: MaintenanceTeamDirectory.instance
-                              .canRefreshForAdmin
+                      onRetry:
+                          MaintenanceTeamDirectory.instance.canRefreshForAdmin
                           ? _retry
                           : null,
                     );
@@ -181,7 +182,7 @@ class _AdminMaintenanceTeamsScreenState
                     staleDataMessage:
                         directoryState == MaintenanceTeamDirectoryState.failed
                         ? 'The latest team data could not be refreshed. '
-                            'Showing previously loaded records.'
+                              'Showing previously loaded records.'
                         : null,
                     onQueryChanged: (value) => setState(() => _query = value),
                     onRegionChanged: (region) => setState(() {
@@ -283,6 +284,7 @@ class _AdminMaintenanceTeamFormScreenState
   late String? _leadUserId = widget.team?.leadUserId;
   String _memberQuery = '';
   String? _nameError;
+  String? _regionError;
   String? _assemblyError;
   bool _saving = false;
   bool _discardDialogOpen = false;
@@ -358,12 +360,20 @@ class _AdminMaintenanceTeamFormScreenState
     final name = _nameController.text.trim();
     final errors = <String, String>{};
     if (name.isEmpty) errors['name'] = 'Team name is required';
-    if (_assembly == null) errors['assembly'] = 'Select an assembly';
+    if (_assembly == null) {
+      errors[_region == null ? 'region' : 'assembly'] = _region == null
+          ? 'Select a region first'
+          : 'Select an assembly';
+    }
     setState(() {
       _nameError = errors['name'];
       _assemblyError = errors['assembly'];
+      _regionError = errors['region'];
     });
-    if (errors.isNotEmpty || _assembly == null) return;
+    if (errors.isNotEmpty || _assembly == null) {
+      ValidationAttention.firstError(context);
+      return;
+    }
 
     final confirmed = await showConfirmDialog(
       context,
@@ -429,131 +439,145 @@ class _AdminMaintenanceTeamFormScreenState
         onBack: _cancel,
         hideBottomNav: true,
         body: ValueListenableBuilder<List<MaintenanceTeam>>(
-        valueListenable: MaintenanceTeamDirectory.instance.teams,
-        builder: (context, teams, _) {
-          final assignedElsewhere = <String>{
-            for (final team in teams)
-              if (team.teamId != widget.team?.teamId) ...team.memberUserIds,
-          };
-          return ValueListenableBuilder<List<AdminUserItem>>(
-            valueListenable: AdminUserDirectory.instance.users,
-            builder: (context, users, _) {
-              final eligible = _assembly == null
-                  ? const <AdminUserItem>[]
-                  : session
-                        .eligibleMaintenanceMembers(users, _assembly!)
-                        .where(
-                          (user) => !assignedElsewhere.contains(user.userId),
-                        )
-                        .where((user) => user.matchesSearch(_memberQuery))
-                        .toList();
-              return ListView(
-                padding: EdgeInsets.fromLTRB(
-                  AppSpacing.md,
-                  AdminScaffold.contentPadding(context).top + AppSpacing.md,
-                  AppSpacing.md,
-                  MediaQuery.paddingOf(context).bottom + AppSpacing.xl,
-                ),
-                children: [
-                  _Section(
-                    icon: AppIcons.maintenanceTeam,
-                    title: 'Team Details',
-                    child: Column(
-                      children: [
-                        _TextField(
-                          label: 'Team Name',
-                          controller: _nameController,
-                          errorText: _nameError,
-                          onChanged: (_) => setState(() => _nameError = null),
-                        ),
-                        const SizedBox(height: AppSpacing.sm),
-                        if (locked)
-                          _ReadOnlyField(
-                            label: 'Assembly',
-                            value: session.assembly?.fullName ?? 'Not assigned',
+          valueListenable: MaintenanceTeamDirectory.instance.teams,
+          builder: (context, teams, _) {
+            final assignedElsewhere = <String>{
+              for (final team in teams)
+                if (team.teamId != widget.team?.teamId) ...team.memberUserIds,
+            };
+            return ValueListenableBuilder<List<AdminUserItem>>(
+              valueListenable: AdminUserDirectory.instance.users,
+              builder: (context, users, _) {
+                final eligible = _assembly == null
+                    ? const <AdminUserItem>[]
+                    : session
+                          .eligibleMaintenanceMembers(users, _assembly!)
+                          .where(
+                            (user) => !assignedElsewhere.contains(user.userId),
                           )
-                        else
-                          _MaintenanceTeamsJurisdictionPicker(
-                            region: _region,
-                            assembly: _assembly,
-                            assemblyErrorText: _assemblyError,
-                            onRegionChanged: (region) => setState(() {
-                              _region = region;
-                              _assembly = null;
-                              _selectedMemberIds = {};
-                              _leadUserId = null;
-                              _assemblyError = null;
-                            }),
-                            onAssemblyChanged: (assembly) => setState(() {
-                              _assembly = assembly;
-                              _selectedMemberIds = {};
-                              _leadUserId = null;
-                              _assemblyError = null;
-                            }),
+                          .where((user) => user.matchesSearch(_memberQuery))
+                          .toList();
+                return ListView(
+                  padding: EdgeInsets.fromLTRB(
+                    AppSpacing.md,
+                    AdminScaffold.contentPadding(context).top + AppSpacing.md,
+                    AppSpacing.md,
+                    MediaQuery.paddingOf(context).bottom + AppSpacing.xl,
+                  ),
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _Section(
+                          icon: AppIcons.maintenanceTeam,
+                          title: 'Team Details',
+                          child: Column(
+                            children: [
+                              _TextField(
+                                label: 'Team Name',
+                                controller: _nameController,
+                                errorText: _nameError,
+                                onChanged: (_) =>
+                                    setState(() => _nameError = null),
+                              ),
+                              const SizedBox(height: AppSpacing.sm),
+                              if (locked)
+                                _ReadOnlyField(
+                                  label: 'Assembly',
+                                  value:
+                                      session.assembly?.fullName ??
+                                      'Not assigned',
+                                )
+                              else
+                                _MaintenanceTeamsJurisdictionPicker(
+                                  region: _region,
+                                  assembly: _assembly,
+                                  regionErrorText: _regionError,
+                                  assemblyErrorText: _assemblyError,
+                                  onRegionChanged: (region) => setState(() {
+                                    _region = region;
+                                    _assembly = null;
+                                    _selectedMemberIds = {};
+                                    _leadUserId = null;
+                                    _assemblyError = null;
+                                    _regionError = null;
+                                  }),
+                                  onAssemblyChanged: (assembly) => setState(() {
+                                    _assembly = assembly;
+                                    _selectedMemberIds = {};
+                                    _leadUserId = null;
+                                    _assemblyError = null;
+                                    _regionError = null;
+                                  }),
+                                ),
+                            ],
                           ),
+                        ),
+                        const SizedBox(height: AppSpacing.lg),
+                        _Section(
+                          icon: AppIcons.team,
+                          title: 'Members',
+                          child: _MemberPicker(
+                            controller: _memberSearchController,
+                            users: eligible,
+                            selectedIds: _selectedMemberIds,
+                            leadUserId: _leadUserId,
+                            queryEnabled: _assembly != null,
+                            onQueryChanged: (value) =>
+                                setState(() => _memberQuery = value),
+                            onToggle: (user) => setState(() {
+                              if (_selectedMemberIds.contains(user.userId)) {
+                                _selectedMemberIds.remove(user.userId);
+                                if (_leadUserId == user.userId) {
+                                  // First remaining member (Set is insertion-
+                                  // ordered) inherits the lead — a team a lead
+                                  // just left shouldn't silently have none.
+                                  _leadUserId = _selectedMemberIds.isEmpty
+                                      ? null
+                                      : _selectedMemberIds.first;
+                                }
+                              } else {
+                                _selectedMemberIds.add(user.userId);
+                                // First person ticked becomes lead by default;
+                                // reassign explicitly via the crown button.
+                                _leadUserId ??= user.userId;
+                              }
+                            }),
+                            onSetLead: (user) =>
+                                setState(() => _leadUserId = user.userId),
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.lg),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: _saving ? null : _cancel,
+                                child: const Text('Cancel'),
+                              ),
+                            ),
+                            const SizedBox(width: AppSpacing.sm),
+                            Expanded(
+                              child: FilledButton(
+                                onPressed: _saving ? null : _save,
+                                child: BusyLabel(
+                                  busy: _saving,
+                                  busyLabel: 'Saving team',
+                                  child: Text(
+                                    _editing ? 'Save Changes' : 'Create Team',
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ],
                     ),
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                  _Section(
-                    icon: AppIcons.team,
-                    title: 'Members',
-                    child: _MemberPicker(
-                      controller: _memberSearchController,
-                      users: eligible,
-                      selectedIds: _selectedMemberIds,
-                      leadUserId: _leadUserId,
-                      queryEnabled: _assembly != null,
-                      onQueryChanged: (value) =>
-                          setState(() => _memberQuery = value),
-                      onToggle: (user) => setState(() {
-                        if (_selectedMemberIds.contains(user.userId)) {
-                          _selectedMemberIds.remove(user.userId);
-                          if (_leadUserId == user.userId) {
-                            // First remaining member (Set is insertion-
-                            // ordered) inherits the lead — a team a lead
-                            // just left shouldn't silently have none.
-                            _leadUserId = _selectedMemberIds.isEmpty
-                                ? null
-                                : _selectedMemberIds.first;
-                          }
-                        } else {
-                          _selectedMemberIds.add(user.userId);
-                          // First person ticked becomes lead by default;
-                          // reassign explicitly via the crown button.
-                          _leadUserId ??= user.userId;
-                        }
-                      }),
-                      onSetLead: (user) =>
-                          setState(() => _leadUserId = user.userId),
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: _saving ? null : _cancel,
-                          child: const Text('Cancel'),
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.sm),
-                      Expanded(
-                        child: FilledButton(
-                          onPressed: _saving ? null : _save,
-                          child: BusyLabel(
- busy: _saving, busyLabel: 'Saving team',
- child: Text(_editing ? 'Save Changes' : 'Create Team'),
-),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              );
-            },
-          );
-        },
+                  ],
+                );
+              },
+            );
+          },
         ),
       ),
     );
@@ -793,7 +817,8 @@ class _MaintenanceTeamsJurisdictionPicker extends StatelessWidget {
     required this.onRegionChanged,
     required this.onAssemblyChanged,
     this.assemblyErrorText,
-  }) : regionErrorText = null;
+    this.regionErrorText,
+  });
 
   final Region? region;
   final Assembly? assembly;
@@ -936,96 +961,96 @@ class _TeamDetailsBody extends StatelessWidget {
       ]),
       builder: (context, _) {
         return AdminScaffold(
-      selectedTab: AdminTab.maintenance,
-      activeDrawerDestination: AdminDrawerDestination.maintenanceTeams,
-      headerTitle: 'Team Details',
-      onTabSelected: (tab) {
-        if (tab == AdminTab.dashboard) onNavigateToDashboard?.call();
-        if (tab == AdminTab.users) onNavigateToUsers?.call();
-        if (tab == AdminTab.activity) onNavigateToActivity?.call();
-        if (tab == AdminTab.maintenance) onBackToTeams?.call();
-        if (tab == AdminTab.settings) onNavigateToSettings?.call();
-      },
-      onOpenRoleManagement: onNavigateToRoles,
-      onOpenMaintenanceTeams: onBackToTeams,
-      onOpenProfile: onOpenProfile,
-      onNotificationsTap: onNotificationsTap,
-      onBack: onBackToTeams,
-      body: ListView(
-        padding: EdgeInsets.fromLTRB(
-          AppSpacing.md,
-          AdminScaffold.contentPadding(context).top + AppSpacing.md,
-          AppSpacing.md,
-          AdminScaffold.contentPadding(context).bottom + AppSpacing.xl,
-        ),
-        children: [
-          Align(
-            alignment: Alignment.centerRight,
-            child: KebabMenuButton<String>(
-              tooltip: 'Team actions',
-              onSelected: (action) async {
-                if (action == 'edit') onEditTeam?.call(team);
-                if (action == 'delete') {
-                  final confirmed = await showConfirmDialog(
-                    context,
-                    title: 'Delete team?',
-                    message:
-                        '${team.name} will be removed from maintenance team management.',
-                    confirmLabel: 'Delete',
-                    destructive: true,
-                  );
-                  if (!confirmed || !context.mounted) return;
-                  try {
-                    await MaintenanceTeamDirectory.instance
-                        .deleteTeamOnServer(team);
-                  } catch (error) {
-                    if (!context.mounted) return;
-                    ScaffoldMessenger.of(
-                      context,
-                    ).showSnackBar(SnackBar(content: Text(error.toString())));
-                    return;
-                  }
-                  onBackToTeams?.call();
-                }
-              },
-              itemBuilder: (context) => const [
-                PopupMenuItem(value: 'edit', child: Text('Edit Team')),
-                PopupMenuItem(value: 'delete', child: Text('Delete Team')),
-              ],
+          selectedTab: AdminTab.maintenance,
+          activeDrawerDestination: AdminDrawerDestination.maintenanceTeams,
+          headerTitle: 'Team Details',
+          onTabSelected: (tab) {
+            if (tab == AdminTab.dashboard) onNavigateToDashboard?.call();
+            if (tab == AdminTab.users) onNavigateToUsers?.call();
+            if (tab == AdminTab.activity) onNavigateToActivity?.call();
+            if (tab == AdminTab.maintenance) onBackToTeams?.call();
+            if (tab == AdminTab.settings) onNavigateToSettings?.call();
+          },
+          onOpenRoleManagement: onNavigateToRoles,
+          onOpenMaintenanceTeams: onBackToTeams,
+          onOpenProfile: onOpenProfile,
+          onNotificationsTap: onNotificationsTap,
+          onBack: onBackToTeams,
+          body: ListView(
+            padding: EdgeInsets.fromLTRB(
+              AppSpacing.md,
+              AdminScaffold.contentPadding(context).top + AppSpacing.md,
+              AppSpacing.md,
+              AdminScaffold.contentPadding(context).bottom + AppSpacing.xl,
             ),
-          ),
-          _Section(
-            icon: AppIcons.maintenanceTeam,
-            title: team.name,
-            child: Column(
-              children: [
-                _ReadOnlyField(label: 'Team ID', value: team.teamId),
-                const SizedBox(height: AppSpacing.sm),
-                _ReadOnlyField(
-                  label: 'Assembly',
-                  value: team.assembly.fullName,
+            children: [
+              Align(
+                alignment: Alignment.centerRight,
+                child: KebabMenuButton<String>(
+                  tooltip: 'Team actions',
+                  onSelected: (action) async {
+                    if (action == 'edit') onEditTeam?.call(team);
+                    if (action == 'delete') {
+                      final confirmed = await showConfirmDialog(
+                        context,
+                        title: 'Delete team?',
+                        message:
+                            '${team.name} will be removed from maintenance team management.',
+                        confirmLabel: 'Delete',
+                        destructive: true,
+                      );
+                      if (!confirmed || !context.mounted) return;
+                      try {
+                        await MaintenanceTeamDirectory.instance
+                            .deleteTeamOnServer(team);
+                      } catch (error) {
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(error.toString())),
+                        );
+                        return;
+                      }
+                      onBackToTeams?.call();
+                    }
+                  },
+                  itemBuilder: (context) => const [
+                    PopupMenuItem(value: 'edit', child: Text('Edit Team')),
+                    PopupMenuItem(value: 'delete', child: Text('Delete Team')),
+                  ],
                 ),
-                const SizedBox(height: AppSpacing.sm),
-                _ReadOnlyField(label: 'Region', value: team.region.label),
-              ],
-            ),
+              ),
+              _Section(
+                icon: AppIcons.maintenanceTeam,
+                title: team.name,
+                child: Column(
+                  children: [
+                    _ReadOnlyField(label: 'Team ID', value: team.teamId),
+                    const SizedBox(height: AppSpacing.sm),
+                    _ReadOnlyField(
+                      label: 'Assembly',
+                      value: team.assembly.fullName,
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    _ReadOnlyField(label: 'Region', value: team.region.label),
+                  ],
+                ),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              _Section(
+                icon: AppIcons.team,
+                title: 'Members',
+                child: _TeamMemberDetails(
+                  team: team,
+                  users: userDirectory.users.value,
+                  state: userDirectory.state.value,
+                  loading: userDirectory.loading.value,
+                  hasLiveSnapshot: userDirectory.hasLiveSnapshot,
+                  onOpenUserDetails: onOpenUserDetails,
+                  onRemoveMember: (member) => _removeMember(context, member),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: AppSpacing.lg),
-          _Section(
-            icon: AppIcons.team,
-            title: 'Members',
-            child: _TeamMemberDetails(
-              team: team,
-              users: userDirectory.users.value,
-              state: userDirectory.state.value,
-              loading: userDirectory.loading.value,
-              hasLiveSnapshot: userDirectory.hasLiveSnapshot,
-              onOpenUserDetails: onOpenUserDetails,
-              onRemoveMember: (member) => _removeMember(context, member),
-            ),
-          ),
-        ],
-      ),
         );
       },
     );
@@ -1104,9 +1129,9 @@ class _TeamMemberDetails extends StatelessWidget {
           ? 'Loading member details for this team.'
           : state == AdminUserDirectoryState.failed
           ? 'Member details could not be loaded. This team has assigned '
-              'members, but their details are unavailable.'
+                'members, but their details are unavailable.'
           : 'Member details are unavailable. This team has assigned members, '
-              'but their details cannot be shown yet.';
+                'but their details cannot be shown yet.';
       return Semantics(liveRegion: true, child: Text(message));
     }
 
@@ -1420,7 +1445,7 @@ class _DirectoryUnavailableMessage extends StatelessWidget {
         title: 'Team data unavailable',
         message: onRetry == null
             ? 'Maintenance team records are unavailable until an authorized '
-                'server connection is available.'
+                  'server connection is available.'
             : 'Maintenance team records have not been loaded yet.',
         primaryActionLabel: onRetry == null ? null : 'Refresh',
         onPrimaryAction: onRetry,
@@ -1637,6 +1662,10 @@ class _TextField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return TextField(
+      scrollPadding: EdgeInsets.only(
+        top: AdminScaffold.contentPadding(context).top + AppSpacing.md,
+        bottom: AppSpacing.md,
+      ),
       controller: controller,
       onChanged: onChanged,
       decoration: InputDecoration(labelText: label, errorText: errorText),

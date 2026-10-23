@@ -52,15 +52,13 @@ void _preserveAdminSystemSettingsDirectory() {
   final loading = directory.loading.value;
   final error = directory.error.value;
   final hasLiveSnapshot = directory.hasLiveSnapshot;
-  addTearDown(
-    () {
-      directory.settings.value = original;
-      directory.state.value = state;
-      directory.loading.value = loading;
-      directory.error.value = error;
-      directory.hasLiveSnapshot = hasLiveSnapshot;
-    },
-  );
+  addTearDown(() {
+    directory.settings.value = original;
+    directory.state.value = state;
+    directory.loading.value = loading;
+    directory.error.value = error;
+    directory.hasLiveSnapshot = hasLiveSnapshot;
+  });
 }
 
 void _setConfirmedSystemSettingsFixture() {
@@ -902,15 +900,16 @@ void main() {
     },
   );
 
-  testWidgets('Admin Dashboard does not invent retry success without a callback', (
-    WidgetTester tester,
-  ) async {
-    await pumpAdminDashboard(tester, AdminDashboardViewState.error);
+  testWidgets(
+    'Admin Dashboard does not invent retry success without a callback',
+    (WidgetTester tester) async {
+      await pumpAdminDashboard(tester, AdminDashboardViewState.error);
 
-    final retry = tester.widget<FilledButton>(find.byType(FilledButton));
-    expect(retry.onPressed, isNull);
-    expect(find.text('Unable to Load Dashboard'), findsOneWidget);
-  });
+      final retry = tester.widget<FilledButton>(find.byType(FilledButton));
+      expect(retry.onPressed, isNull);
+      expect(find.text('Unable to Load Dashboard'), findsOneWidget);
+    },
+  );
 
   testWidgets(
     'Admin Dashboard greets an assembly Admin by their provisioned name '
@@ -1016,15 +1015,17 @@ void main() {
         expect(notifications, findsOneWidget);
         expect(tester.getSemantics(menu).flagsCollection.isButton, isTrue);
         expect(
-          tester.getSemantics(menu).getSemanticsData().hasAction(
-            SemanticsAction.tap,
-          ),
+          tester
+              .getSemantics(menu)
+              .getSemanticsData()
+              .hasAction(SemanticsAction.tap),
           isTrue,
         );
         expect(
-          tester.getSemantics(notifications).getSemanticsData().hasAction(
-            SemanticsAction.tap,
-          ),
+          tester
+              .getSemantics(notifications)
+              .getSemanticsData()
+              .hasAction(SemanticsAction.tap),
           isTrue,
         );
 
@@ -1046,97 +1047,15 @@ void main() {
         final notifications = find.bySemanticsLabel('Notifications');
         expect(notifications, findsOneWidget);
         expect(
-          tester.getSemantics(notifications).flagsCollection.isEnabled == Tristate.isTrue,
+          tester.getSemantics(notifications).flagsCollection.isEnabled ==
+              Tristate.isTrue,
           isFalse,
         );
         expect(
-          tester.getSemantics(notifications).getSemanticsData().hasAction(
-            SemanticsAction.tap,
-          ),
-          isFalse,
-        );
-      } finally {
-        disabledSemantics.dispose();
-      }
-    },
-  );
-
-  testWidgets(
-    'Admin header preserves Back and disabled-control semantics',
-    (WidgetTester tester) async {
-      SharedPreferences.setMockInitialValues({});
-      await MockAuthService().initialize();
-      await MockAuthService().selectRole(
-        AppRole.systemAdministrator,
-        adminTier: AdminTier.admin,
-        region: Region.ashanti,
-        assembly: assemblyNamed(Region.ashanti, 'Kumasi'),
-      );
-      addTearDown(() => MockAuthService().clearUser());
-
-      var profileTapped = false;
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: AppTheme.light,
-          home: AdminDashboardScreen(
-            onOpenProfile: () => profileTapped = true,
-          ),
-        ),
-      );
-      await tester.pump();
-
-      final semantics = tester.ensureSemantics();
-      try {
-        final profile = find.bySemanticsLabel('Admin profile');
-        expect(profile, findsOneWidget);
-        expect(
-          tester.getSemantics(profile).getSemanticsData().hasAction(
-            SemanticsAction.tap,
-          ),
-          isTrue,
-        );
-        await tester.tap(profile);
-        expect(profileTapped, isTrue);
-      } finally {
-        semantics.dispose();
-      }
-
-      var backTapped = false;
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: AppTheme.light,
-          home: AdminProfileScreen(onBack: () => backTapped = true),
-        ),
-      );
-      await tester.pump();
-
-      final backSemantics = tester.ensureSemantics();
-      try {
-        final back = find.bySemanticsLabel('Go back');
-        expect(back, findsOneWidget);
-        await tester.tap(back);
-        expect(backTapped, isTrue);
-      } finally {
-        backSemantics.dispose();
-      }
-
-      await tester.pumpWidget(
-        MaterialApp(theme: AppTheme.light, home: const AdminDashboardScreen()),
-      );
-      await tester.pump();
-
-      final disabledSemantics = tester.ensureSemantics();
-      try {
-        final profile = find.bySemanticsLabel('Admin profile');
-        expect(profile, findsOneWidget);
-        expect(
-          tester.getSemantics(profile).flagsCollection.isEnabled == Tristate.isTrue,
-          isFalse,
-        );
-        expect(
-          tester.getSemantics(profile).getSemanticsData().hasAction(
-            SemanticsAction.tap,
-          ),
+          tester
+              .getSemantics(notifications)
+              .getSemanticsData()
+              .hasAction(SemanticsAction.tap),
           isFalse,
         );
       } finally {
@@ -1144,6 +1063,90 @@ void main() {
       }
     },
   );
+
+  testWidgets('Admin header preserves Back and disabled-control semantics', (
+    WidgetTester tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    await MockAuthService().initialize();
+    await MockAuthService().selectRole(
+      AppRole.systemAdministrator,
+      adminTier: AdminTier.admin,
+      region: Region.ashanti,
+      assembly: assemblyNamed(Region.ashanti, 'Kumasi'),
+    );
+    addTearDown(() => MockAuthService().clearUser());
+
+    var profileTapped = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: AdminDashboardScreen(onOpenProfile: () => profileTapped = true),
+      ),
+    );
+    await tester.pump();
+
+    final semantics = tester.ensureSemantics();
+    try {
+      final profile = find.bySemanticsLabel('Admin profile');
+      expect(profile, findsOneWidget);
+      expect(
+        tester
+            .getSemantics(profile)
+            .getSemanticsData()
+            .hasAction(SemanticsAction.tap),
+        isTrue,
+      );
+      await tester.tap(profile);
+      expect(profileTapped, isTrue);
+    } finally {
+      semantics.dispose();
+    }
+
+    var backTapped = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: AdminProfileScreen(onBack: () => backTapped = true),
+      ),
+    );
+    await tester.pump();
+
+    final backSemantics = tester.ensureSemantics();
+    try {
+      final back = find.bySemanticsLabel('Go back');
+      expect(back, findsOneWidget);
+      await tester.tap(back);
+      expect(backTapped, isTrue);
+    } finally {
+      backSemantics.dispose();
+    }
+
+    await tester.pumpWidget(
+      MaterialApp(theme: AppTheme.light, home: const AdminDashboardScreen()),
+    );
+    await tester.pump();
+
+    final disabledSemantics = tester.ensureSemantics();
+    try {
+      final profile = find.bySemanticsLabel('Admin profile');
+      expect(profile, findsOneWidget);
+      expect(
+        tester.getSemantics(profile).flagsCollection.isEnabled ==
+            Tristate.isTrue,
+        isFalse,
+      );
+      expect(
+        tester
+            .getSemantics(profile)
+            .getSemanticsData()
+            .hasAction(SemanticsAction.tap),
+        isFalse,
+      );
+    } finally {
+      disabledSemantics.dispose();
+    }
+  });
 
   testWidgets(
     'Admin drawer does not repeat the four bottom-nav tab destinations',
@@ -1270,7 +1273,8 @@ void main() {
       expect(tester.widget<ListTile>(roleTile).selected, isTrue);
       expect(tester.widget<ListTile>(profileTile).selected, isFalse);
       expect(
-        tester.getSemantics(roleTile).flagsCollection.isSelected == Tristate.isTrue,
+        tester.getSemantics(roleTile).flagsCollection.isSelected ==
+            Tristate.isTrue,
         isTrue,
       );
       expect(
@@ -1307,7 +1311,8 @@ void main() {
     );
     expect(tester.widget<ListTile>(profileTile).selected, isTrue);
     expect(
-      tester.getSemantics(profileTile).flagsCollection.isSelected == Tristate.isTrue,
+      tester.getSemantics(profileTile).flagsCollection.isSelected ==
+          Tristate.isTrue,
       isTrue,
     );
   });
@@ -1523,7 +1528,10 @@ void main() {
     directory.hasLiveSnapshot = false;
 
     await tester.pumpWidget(
-      MaterialApp(theme: AppTheme.light, home: const AdminUserManagementScreen()),
+      MaterialApp(
+        theme: AppTheme.light,
+        home: const AdminUserManagementScreen(),
+      ),
     );
     await tester.pump();
 
@@ -1549,7 +1557,10 @@ void main() {
     directory.hasLiveSnapshot = true;
 
     await tester.pumpWidget(
-      MaterialApp(theme: AppTheme.light, home: const AdminUserManagementScreen()),
+      MaterialApp(
+        theme: AppTheme.light,
+        home: const AdminUserManagementScreen(),
+      ),
     );
     await tester.pump();
 
@@ -1557,33 +1568,37 @@ void main() {
     expect(find.text('User data unavailable'), findsNothing);
   });
 
-  testWidgets('Admin User Management retains stale confirmed users after failure', (
-    WidgetTester tester,
-  ) async {
-    final directory = AdminUserDirectory.instance;
-    final originalUsers = directory.users.value;
-    final originalState = directory.state.value;
-    final originalSnapshot = directory.hasLiveSnapshot;
-    addTearDown(() {
-      directory.users.value = originalUsers;
-      directory.state.value = originalState;
-      directory.hasLiveSnapshot = originalSnapshot;
-    });
-    directory.users.value = [mockAdminUsers().first];
-    directory.state.value = AdminUserDirectoryState.failed;
-    directory.hasLiveSnapshot = true;
+  testWidgets(
+    'Admin User Management retains stale confirmed users after failure',
+    (WidgetTester tester) async {
+      final directory = AdminUserDirectory.instance;
+      final originalUsers = directory.users.value;
+      final originalState = directory.state.value;
+      final originalSnapshot = directory.hasLiveSnapshot;
+      addTearDown(() {
+        directory.users.value = originalUsers;
+        directory.state.value = originalState;
+        directory.hasLiveSnapshot = originalSnapshot;
+      });
+      directory.users.value = [mockAdminUsers().first];
+      directory.state.value = AdminUserDirectoryState.failed;
+      directory.hasLiveSnapshot = true;
 
-    await tester.pumpWidget(
-      MaterialApp(theme: AppTheme.light, home: const AdminUserManagementScreen()),
-    );
-    await tester.pump();
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: const AdminUserManagementScreen(),
+        ),
+      );
+      await tester.pump();
 
-    expect(find.text('Ama Boateng'), findsOneWidget);
-    expect(
-      find.text('Showing previously confirmed user data. Refresh failed.'),
-      findsOneWidget,
-    );
-  });
+      expect(find.text('Ama Boateng'), findsOneWidget);
+      expect(
+        find.text('Showing previously confirmed user data. Refresh failed.'),
+        findsOneWidget,
+      );
+    },
+  );
 
   testWidgets('Admin User Management shows a first-load failure as an error', (
     WidgetTester tester,
@@ -1602,7 +1617,10 @@ void main() {
     directory.hasLiveSnapshot = false;
 
     await tester.pumpWidget(
-      MaterialApp(theme: AppTheme.light, home: const AdminUserManagementScreen()),
+      MaterialApp(
+        theme: AppTheme.light,
+        home: const AdminUserManagementScreen(),
+      ),
     );
     await tester.pump();
 
@@ -1627,13 +1645,18 @@ void main() {
     directory.hasLiveSnapshot = true;
 
     await tester.pumpWidget(
-      MaterialApp(theme: AppTheme.light, home: const AdminUserManagementScreen()),
+      MaterialApp(
+        theme: AppTheme.light,
+        home: const AdminUserManagementScreen(),
+      ),
     );
     await tester.pump();
 
     expect(find.text('No Users'), findsOneWidget);
     expect(
-      find.text('The last confirmed user list was empty. The latest refresh failed.'),
+      find.text(
+        'The last confirmed user list was empty. The latest refresh failed.',
+      ),
       findsOneWidget,
     );
   });
@@ -1758,14 +1781,14 @@ void main() {
       final lastMenu = find.byIcon(AppIcons.more).last;
       // Select the vertical owner explicitly; paint order places filters last.
       // Scroll the final card's menu clear of the floating navigation.
-      final userList = find.byWidgetPredicate(
-        (widget) => widget is Scrollable &&
-          axisDirectionToAxis(widget.axisDirection) == Axis.vertical,
-      ).last;
-      await tester.drag(
-        userList,
-        const Offset(0, -600),
-      );
+      final userList = find
+          .byWidgetPredicate(
+            (widget) =>
+                widget is Scrollable &&
+                axisDirectionToAxis(widget.axisDirection) == Axis.vertical,
+          )
+          .last;
+      await tester.drag(userList, const Offset(0, -600));
       await tester.pumpAndSettle();
       await tester.ensureVisible(lastMenu);
       expect(tester.getRect(lastMenu).bottom, lessThan(720));
@@ -2016,8 +2039,12 @@ void main() {
       await tester.pump();
 
       expect(find.text('System Access Control'), findsOneWidget);
-      expect(find.text('Reference tier — server enforcement is verified separately.'),
-          findsNWidgets(2));
+      expect(
+        find.text(
+          'Reference tier — server enforcement is verified separately.',
+        ),
+        findsNWidgets(2),
+      );
       expect(find.text('Reference permission comparison'), findsOneWidget);
       expect(
         find.text(
@@ -2086,7 +2113,10 @@ void main() {
   testWidgets('Admin Role Management does not substitute unfiltered Activity '
       'for unavailable audit history', (WidgetTester tester) async {
     await tester.pumpWidget(
-      MaterialApp(theme: AppTheme.light, home: const AdminRoleManagementScreen()),
+      MaterialApp(
+        theme: AppTheme.light,
+        home: const AdminRoleManagementScreen(),
+      ),
     );
     await tester.pump();
 
@@ -2757,7 +2787,10 @@ void main() {
     'Admin System Activity distinguishes unavailable data from a confirmed empty feed',
     (WidgetTester tester) async {
       await tester.pumpWidget(
-        MaterialApp(theme: AppTheme.light, home: const AdminSystemActivityScreen()),
+        MaterialApp(
+          theme: AppTheme.light,
+          home: const AdminSystemActivityScreen(),
+        ),
       );
       await tester.pump();
       expect(find.text('Activity data unavailable'), findsOneWidget);
@@ -3041,10 +3074,13 @@ void main() {
       final initialTop = tester.getTopLeft(timeRange).dy;
       // A modest scroll keeps the list's first child mounted while proving
       // that the time range travels with normal Activity content.
-      final contentScroll = find.byWidgetPredicate(
-        (widget) => widget is Scrollable &&
-          axisDirectionToAxis(widget.axisDirection) == Axis.vertical,
-      ).last;
+      final contentScroll = find
+          .byWidgetPredicate(
+            (widget) =>
+                widget is Scrollable &&
+                axisDirectionToAxis(widget.axisDirection) == Axis.vertical,
+          )
+          .last;
       await tester.drag(contentScroll, const Offset(0, -80));
       await tester.pumpAndSettle();
       expect(timeRange, findsOneWidget);
@@ -3152,8 +3188,8 @@ void main() {
         theme: AppTheme.light,
         home: const AdminSystemActivityScreen(
           initialState: AdminSystemActivityViewState.empty,
-            items: [],
-            activitySnapshotAvailable: true,
+          items: [],
+          activitySnapshotAvailable: true,
         ),
       ),
     );
@@ -3175,7 +3211,7 @@ void main() {
         theme: AppTheme.light,
         home: const AdminSystemActivityScreen(
           initialState: AdminSystemActivityViewState.offline,
-            activitySnapshotAvailable: false,
+          activitySnapshotAvailable: false,
         ),
       ),
     );
@@ -3197,7 +3233,7 @@ void main() {
         theme: AppTheme.light,
         home: const AdminSystemActivityScreen(
           initialState: AdminSystemActivityViewState.error,
-            activitySnapshotAvailable: false,
+          activitySnapshotAvailable: false,
         ),
       ),
     );
@@ -3913,11 +3949,16 @@ void main() {
       expect(find.text('Phone Number'), findsOneWidget);
       expect(find.byType(AppDropdownField<AppRole>), findsOneWidget);
 
-      final fields = tester.widgetList<TextField>(find.byType(TextField)).toList();
+      final fields = tester
+          .widgetList<TextField>(find.byType(TextField))
+          .toList();
       expect(fields, hasLength(2));
       expect(fields.first.autofillHints, contains(AutofillHints.name));
       expect(fields.first.textInputAction, TextInputAction.next);
-      expect(fields.last.autofillHints, contains(AutofillHints.telephoneNumber));
+      expect(
+        fields.last.autofillHints,
+        contains(AutofillHints.telephoneNumber),
+      );
       expect(fields.last.textInputAction, TextInputAction.done);
       for (final field in fields) {
         expect(field.decoration?.filled, isFalse);
@@ -3943,14 +3984,18 @@ void main() {
       await tester.pump();
 
       final createButton = find.widgetWithText(FilledButton, 'Create User');
-      await tester.drag(
-        find.byType(Scrollable).first,
-        const Offset(0, -360),
-      );
+      await tester.drag(find.byType(Scrollable).first, const Offset(0, -360));
       await tester.pumpAndSettle();
       await tester.ensureVisible(createButton);
       await tester.tap(createButton);
-      await tester.pump();
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<EditableText>(find.byType(EditableText).first)
+            .focusNode
+            .hasFocus,
+        isTrue,
+      );
 
       expect(find.text('Full name is required'), findsOneWidget);
       expect(find.text('Phone number is required'), findsOneWidget);
@@ -3958,65 +4003,61 @@ void main() {
     },
   );
 
-  testWidgets(
-    'Admin Create User keeps its create and discard confirmations',
-    (WidgetTester tester) async {
-      SharedPreferences.setMockInitialValues({});
-      await MockAuthService().initialize();
-      await MockAuthService().selectRole(
-        AppRole.systemAdministrator,
-        adminTier: AdminTier.superAdmin,
-      );
-      addTearDown(() => MockAuthService().clearUser());
-      _setConfirmedSystemSettingsFixture();
-      var returnedToUsers = false;
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: AppTheme.light,
-          home: AdminCreateUserScreen(
-            onNavigateToUsers: () => returnedToUsers = true,
-          ),
+  testWidgets('Admin Create User keeps its create and discard confirmations', (
+    WidgetTester tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    await MockAuthService().initialize();
+    await MockAuthService().selectRole(
+      AppRole.systemAdministrator,
+      adminTier: AdminTier.superAdmin,
+    );
+    addTearDown(() => MockAuthService().clearUser());
+    _setConfirmedSystemSettingsFixture();
+    var returnedToUsers = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: AdminCreateUserScreen(
+          onNavigateToUsers: () => returnedToUsers = true,
         ),
-      );
-      await tester.pump();
+      ),
+    );
+    await tester.pump();
 
-      final role = find.byType(AppDropdownField<AppRole>);
-      await tester.ensureVisible(role);
-      await tester.tap(role);
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Ministry Supervisor').last);
-      await tester.pumpAndSettle();
+    final role = find.byType(AppDropdownField<AppRole>);
+    await tester.ensureVisible(role);
+    await tester.tap(role);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Ministry Supervisor').last);
+    await tester.pumpAndSettle();
 
-      final fields = find.byType(TextField);
-      await tester.enterText(fields.first, 'Akosua Mensah');
-      await tester.enterText(fields.last, '+233 24 123 4567');
-      await tester.pump();
+    final fields = find.byType(TextField);
+    await tester.enterText(fields.first, 'Akosua Mensah');
+    await tester.enterText(fields.last, '+233 24 123 4567');
+    await tester.pump();
 
-      final createButton = find.widgetWithText(FilledButton, 'Create User');
-      await tester.drag(
-        find.byType(Scrollable).first,
-        const Offset(0, -360),
-      );
-      await tester.pumpAndSettle();
-      await tester.ensureVisible(createButton);
-      await tester.tap(createButton);
-      await tester.pump();
-      expect(find.text('Create account?'), findsOneWidget);
-      final createDialog = find.byType(AlertDialog);
-      await tester.tap(
-        find.descendant(of: createDialog, matching: find.text('Cancel')),
-      );
-      await tester.pumpAndSettle();
+    final createButton = find.widgetWithText(FilledButton, 'Create User');
+    await tester.drag(find.byType(Scrollable).first, const Offset(0, -360));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(createButton);
+    await tester.tap(createButton);
+    await tester.pump();
+    expect(find.text('Create account?'), findsOneWidget);
+    final createDialog = find.byType(AlertDialog);
+    await tester.tap(
+      find.descendant(of: createDialog, matching: find.text('Cancel')),
+    );
+    await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Cancel'));
-      await tester.pump();
-      expect(find.text('Discard this account?'), findsOneWidget);
-      await tester.tap(find.text('Discard'));
-      await tester.pump();
+    await tester.tap(find.text('Cancel'));
+    await tester.pump();
+    expect(find.text('Discard this account?'), findsOneWidget);
+    await tester.tap(find.text('Discard'));
+    await tester.pump();
 
-      expect(returnedToUsers, isTrue);
-    },
-  );
+    expect(returnedToUsers, isTrue);
+  });
 
   testWidgets(
     'Admin Create User discards a stale create response after session clear',
@@ -4053,15 +4094,16 @@ void main() {
           theme: AppTheme.light,
           home: AdminCreateUserScreen(
             idTokenProvider: () async => 'token',
-            createUserRequest: ({
-              required idToken,
-              required fullName,
-              required phone,
-              required role,
-              adminTier,
-              region,
-              assembly,
-            }) => response.future,
+            createUserRequest:
+                ({
+                  required idToken,
+                  required fullName,
+                  required phone,
+                  required role,
+                  adminTier,
+                  region,
+                  assembly,
+                }) => response.future,
             onUserCreated: (_) => callbackCalled = true,
             onNavigateToUsers: () => navigated = true,
           ),
@@ -4080,16 +4122,15 @@ void main() {
       await tester.enterText(fields.first, 'Akosua Mensah');
       await tester.enterText(fields.last, '+233 24 123 4567');
       final createButton = find.widgetWithText(FilledButton, 'Create User');
-      await tester.drag(
-        find.byType(Scrollable).first,
-        const Offset(0, -360),
-      );
+      await tester.drag(find.byType(Scrollable).first, const Offset(0, -360));
       await tester.pumpAndSettle();
       await tester.ensureVisible(createButton);
       await tester.tap(createButton);
       await tester.pump();
       final dialog = find.byType(AlertDialog);
-      await tester.tap(find.descendant(of: dialog, matching: find.text('Create')));
+      await tester.tap(
+        find.descendant(of: dialog, matching: find.text('Create')),
+      );
       await tester.pump();
 
       directory.invalidateAndClear();
@@ -4115,35 +4156,34 @@ void main() {
     },
   );
 
-  testWidgets(
-    'Admin Create User remains usable at 375px with 1.5x text',
-    (WidgetTester tester) async {
-      tester.view.physicalSize = const Size(375, 812);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
+  testWidgets('Admin Create User remains usable at 375px with 1.5x text', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(375, 812);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
 
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: AppTheme.light,
-          builder: (context, child) => MediaQuery(
-            data: MediaQuery.of(
-              context,
-            ).copyWith(textScaler: TextScaler.linear(1.5)),
-            child: child!,
-          ),
-          home: const AdminCreateUserScreen(),
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(
+            context,
+          ).copyWith(textScaler: TextScaler.linear(1.5)),
+          child: child!,
         ),
-      );
-      await tester.pump();
+        home: const AdminCreateUserScreen(),
+      ),
+    );
+    await tester.pump();
 
-      expect(find.text('Account Details'), findsOneWidget);
-      expect(find.text('Full Name'), findsOneWidget);
-      expect(find.text('Phone Number'), findsOneWidget);
-      expect(find.text('Access'), findsOneWidget);
-      expect(tester.takeException(), isNull);
-    },
-  );
+    expect(find.text('Account Details'), findsOneWidget);
+    expect(find.text('Full Name'), findsOneWidget);
+    expect(find.text('Phone Number'), findsOneWidget);
+    expect(find.text('Access'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 
   // ---------------------------------------------------------------------
   // ADM-008 Admin Profile
@@ -4852,37 +4892,35 @@ void main() {
     },
   );
 
-  testWidgets(
-    'Admin Maintenance Teams distinguishes confirmed empty data from '
-    'unavailable data',
-    (WidgetTester tester) async {
-      final directory = MaintenanceTeamDirectory.instance;
-      final originalTeams = directory.teams.value;
-      final originalState = directory.state.value;
-      addTearDown(() {
-        directory.teams.value = originalTeams;
-        directory.state.value = originalState;
-      });
-      directory.teams.value = const [];
-      directory.state.value = MaintenanceTeamDirectoryState.loaded;
+  testWidgets('Admin Maintenance Teams distinguishes confirmed empty data from '
+      'unavailable data', (WidgetTester tester) async {
+    final directory = MaintenanceTeamDirectory.instance;
+    final originalTeams = directory.teams.value;
+    final originalState = directory.state.value;
+    addTearDown(() {
+      directory.teams.value = originalTeams;
+      directory.state.value = originalState;
+    });
+    directory.teams.value = const [];
+    directory.state.value = MaintenanceTeamDirectoryState.loaded;
 
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: AppTheme.light,
-          home: const AdminMaintenanceTeamsScreen(),
-        ),
-      );
-      await tester.pump();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: const AdminMaintenanceTeamsScreen(),
+      ),
+    );
+    await tester.pump();
 
-      expect(find.text('No maintenance teams in the system yet.'), findsOneWidget);
-      expect(find.text('Team data unavailable'), findsNothing);
-    },
-  );
+    expect(
+      find.text('No maintenance teams in the system yet.'),
+      findsOneWidget,
+    );
+    expect(find.text('Team data unavailable'), findsNothing);
+  });
 
   testWidgets('Admin Maintenance Teams retry reports unavailable without a '
-      'successful fetch', (
-    WidgetTester tester,
-  ) async {
+      'successful fetch', (WidgetTester tester) async {
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.light,
@@ -4900,23 +4938,32 @@ void main() {
     expect(find.byType(AdminMaintenanceTeamsScreen), findsOneWidget);
   });
 
-  test('Maintenance Team server mutations do not use local success fallback', () async {
-    final team = _seedAdminMaintenanceTeamFixture();
-    final directory = MaintenanceTeamDirectory.instance;
-    final updated = team.copyWith(name: 'Renamed only in a draft');
+  test(
+    'Maintenance Team server mutations do not use local success fallback',
+    () async {
+      final team = _seedAdminMaintenanceTeamFixture();
+      final directory = MaintenanceTeamDirectory.instance;
+      final updated = team.copyWith(name: 'Renamed only in a draft');
 
-    await expectLater(
-      directory.createTeamOnServer(
-        name: 'Unconfirmed team',
-        assembly: team.assembly,
-      ),
-      throwsA(isA<StateError>()),
-    );
-    await expectLater(directory.updateTeamOnServer(updated), throwsA(isA<StateError>()));
-    await expectLater(directory.deleteTeamOnServer(team), throwsA(isA<StateError>()));
+      await expectLater(
+        directory.createTeamOnServer(
+          name: 'Unconfirmed team',
+          assembly: team.assembly,
+        ),
+        throwsA(isA<StateError>()),
+      );
+      await expectLater(
+        directory.updateTeamOnServer(updated),
+        throwsA(isA<StateError>()),
+      );
+      await expectLater(
+        directory.deleteTeamOnServer(team),
+        throwsA(isA<StateError>()),
+      );
 
-    expect(directory.teams.value, [team]);
-  });
+      expect(directory.teams.value, [team]);
+    },
+  );
 
   testWidgets(
     'Admin Team form clears assembly members and lead when its region changes',
@@ -4995,17 +5042,18 @@ void main() {
     },
   );
 
-  testWidgets('Admin Team create form lets a clean system Back close normally', (
-    WidgetTester tester,
-  ) async {
-    await _openMaintenanceTeamFormRoute(tester);
+  testWidgets(
+    'Admin Team create form lets a clean system Back close normally',
+    (WidgetTester tester) async {
+      await _openMaintenanceTeamFormRoute(tester);
 
-    await tester.binding.handlePopRoute();
-    await tester.pumpAndSettle();
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
 
-    expect(find.text('Open team form'), findsOneWidget);
-    expect(find.text('Discard team changes?'), findsNothing);
-  });
+      expect(find.text('Open team form'), findsOneWidget);
+      expect(find.text('Discard team changes?'), findsNothing);
+    },
+  );
 
   testWidgets(
     'Admin Team create form keeps a dirty draft on system Back until discard',
@@ -5077,10 +5125,7 @@ void main() {
     await tester.tap(find.byTooltip('Make team lead'));
     await tester.pump();
     final cancel = find.text('Cancel');
-    await tester.drag(
-      find.byType(Scrollable).first,
-      const Offset(0, -360),
-    );
+    await tester.drag(find.byType(Scrollable).first, const Offset(0, -360));
     await tester.pumpAndSettle();
     await tester.ensureVisible(cancel);
     await tester.tap(cancel);
@@ -5182,36 +5227,42 @@ void main() {
     expect(find.byType(AdminMaintenanceTeamDetailsScreen), findsNothing);
   });
 
-  testWidgets('Admin Team Details shows the empty-team message only for no member IDs', (
-    WidgetTester tester,
-  ) async {
-    _preserveAdminUserDirectory();
-    final team = _adminMaintenanceTeamFixture().copyWith(
-      memberUserIds: const [],
-      leadUserId: null,
-    );
-    _seedMaintenanceTeamDirectoryFixture(team);
-    _setAdminUserDirectoryState(
-      users: const [],
-      state: AdminUserDirectoryState.unavailable,
-      loading: false,
-      hasLiveSnapshot: false,
-    );
+  testWidgets(
+    'Admin Team Details shows the empty-team message only for no member IDs',
+    (WidgetTester tester) async {
+      _preserveAdminUserDirectory();
+      final team = _adminMaintenanceTeamFixture().copyWith(
+        memberUserIds: const [],
+        leadUserId: null,
+      );
+      _seedMaintenanceTeamDirectoryFixture(team);
+      _setAdminUserDirectoryState(
+        users: const [],
+        state: AdminUserDirectoryState.unavailable,
+        loading: false,
+        hasLiveSnapshot: false,
+      );
 
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: AppTheme.light,
-        home: AdminMaintenanceTeamDetailsScreen(team: team),
-      ),
-    );
-    await tester.pump();
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: AdminMaintenanceTeamDetailsScreen(team: team),
+        ),
+      );
+      await tester.pump();
 
-    expect(
-      find.text('No maintenance staff have been added to this team yet.'),
-      findsOneWidget,
-    );
-    expect(find.text('Member details are unavailable. This team has assigned members, but their details cannot be shown yet.'), findsNothing);
-  });
+      expect(
+        find.text('No maintenance staff have been added to this team yet.'),
+        findsOneWidget,
+      );
+      expect(
+        find.text(
+          'Member details are unavailable. This team has assigned members, but their details cannot be shown yet.',
+        ),
+        findsNothing,
+      );
+    },
+  );
 
   testWidgets('Admin Team Details identifies unavailable member data', (
     WidgetTester tester,
@@ -5241,7 +5292,10 @@ void main() {
       ),
       findsOneWidget,
     );
-    expect(find.text('No maintenance staff have been added to this team yet.'), findsNothing);
+    expect(
+      find.text('No maintenance staff have been added to this team yet.'),
+      findsNothing,
+    );
   });
 
   testWidgets('Admin Team Details identifies loading member data', (
@@ -5268,40 +5322,44 @@ void main() {
     expect(find.text('Loading member details for this team.'), findsOneWidget);
   });
 
-  testWidgets('Admin Team Details rebuilds when confirmed member data arrives', (
-    WidgetTester tester,
-  ) async {
-    _preserveAdminUserDirectory();
-    final team = _adminMaintenanceTeamFixture();
-    _seedMaintenanceTeamDirectoryFixture(team);
-    _setAdminUserDirectoryState(
-      users: const [],
-      state: AdminUserDirectoryState.loading,
-      loading: true,
-      hasLiveSnapshot: false,
-    );
+  testWidgets(
+    'Admin Team Details rebuilds when confirmed member data arrives',
+    (WidgetTester tester) async {
+      _preserveAdminUserDirectory();
+      final team = _adminMaintenanceTeamFixture();
+      _seedMaintenanceTeamDirectoryFixture(team);
+      _setAdminUserDirectoryState(
+        users: const [],
+        state: AdminUserDirectoryState.loading,
+        loading: true,
+        hasLiveSnapshot: false,
+      );
 
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: AppTheme.light,
-        home: AdminMaintenanceTeamDetailsScreen(team: team),
-      ),
-    );
-    await tester.pump();
-    expect(find.text('Loading member details for this team.'), findsOneWidget);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: AdminMaintenanceTeamDetailsScreen(team: team),
+        ),
+      );
+      await tester.pump();
+      expect(
+        find.text('Loading member details for this team.'),
+        findsOneWidget,
+      );
 
-    _setAdminUserDirectoryState(
-      users: _maintenanceMemberFixtures(),
-      state: AdminUserDirectoryState.loaded,
-      loading: false,
-      hasLiveSnapshot: true,
-    );
-    await tester.pump();
+      _setAdminUserDirectoryState(
+        users: _maintenanceMemberFixtures(),
+        state: AdminUserDirectoryState.loaded,
+        loading: false,
+        hasLiveSnapshot: true,
+      );
+      await tester.pump();
 
-    expect(find.text('Yaw Asare'), findsOneWidget);
-    expect(find.text('Kojo Mensah-Boateng'), findsOneWidget);
-    expect(find.text('Loading member details for this team.'), findsNothing);
-  });
+      expect(find.text('Yaw Asare'), findsOneWidget);
+      expect(find.text('Kojo Mensah-Boateng'), findsOneWidget);
+      expect(find.text('Loading member details for this team.'), findsNothing);
+    },
+  );
 
   testWidgets('Admin Team Details identifies partially unresolved members', (
     WidgetTester tester,
@@ -5327,7 +5385,9 @@ void main() {
     expect(find.text('Yaw Asare'), findsOneWidget);
     expect(find.text('Kojo Mensah-Boateng'), findsNothing);
     expect(
-      find.text('Some member details are unavailable. 1 assigned member could not be resolved.'),
+      find.text(
+        'Some member details are unavailable. 1 assigned member could not be resolved.',
+      ),
       findsOneWidget,
     );
   });
@@ -5433,9 +5493,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.light,
-          home: AdminNotificationsScreen(
-            onOpenUser: (_) => openedUserId++,
-          ),
+          home: AdminNotificationsScreen(onOpenUser: (_) => openedUserId++),
         ),
       );
       await tester.pump();
@@ -5465,9 +5523,7 @@ void main() {
               onPressed: () => Navigator.of(context).push(
                 MaterialPageRoute<void>(
                   builder: (_) => MediaQuery(
-                    data: MediaQueryData(
-                      textScaler: TextScaler.linear(1.5),
-                    ),
+                    data: MediaQueryData(textScaler: TextScaler.linear(1.5)),
                     child: AdminNotificationsScreen(
                       onBack: () => Navigator.of(context).maybePop(),
                     ),
