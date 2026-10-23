@@ -1,5 +1,11 @@
 # Native map search and pin routing - 22 October 2026
 
+## Native Places token correction - 23 October 2026
+
+Owner phone testing exposed HTTP 400 from an oversized autocomplete session token: the app encoded 24 random bytes as 48 hex characters, exceeding Google's 36-character maximum. Native commit `331909e` preserves the same secure randomness as 32 URL-safe base64 characters. The serialized-request regression failed before the fix and passes after it; 35 related Places/picker/routing/submission tests and changed-file analysis pass. A live check through the actual corrected Dart PlacesService now passes autocomplete and details. The earlier standalone provider probe used UUIDs and missed this app-specific defect; its configuration/restriction results were valid but did not establish phone search acceptance. No further Cloud/key change is needed. Physical retest remains pending.
+
+Queued native UI follow-up from this test: match the web picker search bar's compact height and rounder corners; replace location-capture loading with the shared orb treatment aligned with web. Record these for shared UI reconciliation after core map behavior; do not interrupt the implementation order or owner-owned success/Activity Detail work.
+
 Review branch `codex/flutter-latif-review-fixes`: `4356c99` migrates Places search, `e36e9be` repairs picker operation ownership, and `e954812` reconciles coordinate-only routing. No production deployment, report/account mutation or integration promotion.
 
 ## Implemented
