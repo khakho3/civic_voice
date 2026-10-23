@@ -1,6 +1,7 @@
 import 'package:civic_voice/core/theme/app_map_style.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import '../../../widgets/report_location_map_screen.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:civic_voice/core/theme/app_theme.dart';
@@ -596,10 +597,11 @@ class _ProblemLocationMapState extends State<_ProblemLocationMap> {
                   right: AppSpacing.md,
                   bottom: AppSpacing.md,
                   child: FilledButton.tonalIcon(
-                    onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => _ReportLocationMapScreen(task: task),
-                      ),
+                    onPressed: () => ReportLocationMapScreen.open(
+                      context,
+                      latitude: task.latitude,
+                      longitude: task.longitude,
+                      label: task.locationLabel,
                     ),
                     icon: const Icon(AppIcons.navigate),
                     label: const Text('View Map'),
@@ -654,103 +656,6 @@ class _ProblemLocationMapState extends State<_ProblemLocationMap> {
                   ),
                 ),
               ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ReportLocationMapScreen extends StatelessWidget {
-  const _ReportLocationMapScreen({required this.task});
-
-  final MaintenanceTask task;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-    final target = LatLng(task.latitude, task.longitude);
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Report Location'),
-        actions: const [
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-            child: Chip(label: Text('Read only')),
-          ),
-        ],
-      ),
-      body: Stack(
-        children: [
-          GoogleMap(
-            style: AppMapStyle.of(context),
-            initialCameraPosition: CameraPosition(target: target, zoom: 17),
-            markers: {
-              Marker(
-                markerId: const MarkerId('maintenance-report-location-full'),
-                position: target,
-                infoWindow: InfoWindow(
-                  title: task.locationLabel,
-                  snippet: 'Report pin',
-                ),
-              ),
-            },
-            zoomControlsEnabled: true,
-            myLocationButtonEnabled: false,
-            compassEnabled: true,
-            mapToolbarEnabled: true,
-            scrollGesturesEnabled: true,
-            zoomGesturesEnabled: true,
-            tiltGesturesEnabled: true,
-            rotateGesturesEnabled: true,
-          ),
-          Positioned(
-            left: AppSpacing.md,
-            right: AppSpacing.md,
-            bottom: AppSpacing.md,
-            child: SafeArea(
-              top: false,
-              child: Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(
-                        AppIcons.location,
-                        size: AppIconSize.md,
-                        color: AppSemanticColors.of(context).actionText,
-                      ),
-                      const SizedBox(width: AppSpacing.sm),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              task.locationLabel,
-                              style: textTheme.bodyMedium?.copyWith(
-                                fontWeight: AppFontWeight.semiBold,
-                              ),
-                            ),
-                            const SizedBox(height: AppSpacing.xs),
-                            Text(
-                              '${task.latitude.toStringAsFixed(5)}, '
-                              '${task.longitude.toStringAsFixed(5)}',
-                              style: textTheme.bodySmall?.copyWith(
-                                color: colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
             ),
           ),
         ],
