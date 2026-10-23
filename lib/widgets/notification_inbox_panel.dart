@@ -145,7 +145,7 @@ class _NotificationInboxPanelState extends State<NotificationInboxPanel>
             ),
           ] else ...[
             Text('${page.unreadCount} unread across your current inbox'),
-            if (busy)
+            if (_inbox.writing || _opening)
               const BusyIndicator(
                 semanticsLabel: 'Updating notifications, please wait...',
               ),
