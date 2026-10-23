@@ -2,6 +2,7 @@ import '../../../core/widgets/ghana_refresh_indicator.dart';
 import 'package:flutter/material.dart';
 import '../../../services/public_case_share.dart';
 import '../../../widgets/status_badge.dart';
+import '../../../widgets/evidence_image_viewer.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../models/resolved_report.dart';
@@ -292,11 +293,13 @@ class _EvidenceCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Text(
-                isRejected ? 'Submitted Evidence' : 'Verified Evidence',
-                style: textTheme.titleSmall,
+              Expanded(
+                child: Text(
+                  isRejected ? 'Submitted Evidence' : 'Verified Evidence',
+                  style: textTheme.titleSmall,
+                ),
               ),
-              const Spacer(),
+              const SizedBox(width: AppSpacing.sm),
               Text('$photoCount Photos', style: textTheme.bodySmall),
             ],
           ),
@@ -318,8 +321,17 @@ class _EvidenceCard extends StatelessWidget {
                 mainAxisSpacing: AppSpacing.sm,
               ),
               itemCount: photoUrls.length,
-              itemBuilder: (_, index) =>
-                  _VerifiedThumbnail(url: photoUrls[index]),
+              itemBuilder: (_, index) => _VerifiedThumbnail(
+                key: ValueKey('municipal-resolution-evidence-$index'),
+                url: photoUrls[index],
+                onTap: () => EvidenceImageViewer.openGallery(
+                  context,
+                  photoUrls,
+                  initialIndex: index,
+                ),
+                label: 'Open evidence photo ${index + 1}',
+                verified: !isRejected,
+              ),
             ),
         ],
       ),
@@ -328,57 +340,78 @@ class _EvidenceCard extends StatelessWidget {
 }
 
 class _VerifiedThumbnail extends StatelessWidget {
-  const _VerifiedThumbnail({required this.url});
+  const _VerifiedThumbnail({
+    super.key,
+    required this.url,
+    required this.onTap,
+    required this.label,
+    required this.verified,
+  });
 
   final String url;
+  final VoidCallback onTap;
+  final String label;
+  final bool verified;
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    return AspectRatio(
-      aspectRatio: 1,
-      child: Stack(
-        children: [
-          Positioned.fill(
-            child: ClipRRect(
-              borderRadius: AppComponentRadius.inputField,
-              child: Image.network(
-                url,
-                fit: BoxFit.cover,
-                errorBuilder: (_, _, _) => ColoredBox(
-                  color: colorScheme.surfaceContainer,
-                  child: Icon(
-                    AppIcons.imageUnavailable,
-                    size: AppIconSize.lg,
-                    color: colorScheme.onSurfaceVariant,
+    return Semantics(
+      button: true,
+      label: label,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: AppComponentRadius.inputField,
+        child: AspectRatio(
+          aspectRatio: 1,
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: ClipRRect(
+                  borderRadius: AppComponentRadius.inputField,
+                  child: Image.network(
+                    url,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) => ColoredBox(
+                      color: colorScheme.surfaceContainer,
+                      child: Icon(
+                        AppIcons.imageUnavailable,
+                        size: AppIconSize.lg,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
                   ),
                 ),
               ),
-            ),
-          ),
-          Positioned(
-            left: 4,
-            bottom: 4,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: AppColors.success,
-                borderRadius: AppRadius.allXs,
-              ),
-              child: Text(
-                'VERIFIED',
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  // White on green is 3.30:1 at caption size.
-                  color: AppSemanticColors.of(
-                    context,
-                  ).onFillFor(AppColors.success),
-                  fontWeight: AppFontWeight.semiBold,
-                  fontSize: 9,
+              if (verified)
+                Positioned(
+                  left: 4,
+                  bottom: 4,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.success,
+                      borderRadius: AppRadius.allXs,
+                    ),
+                    child: Text(
+                      'VERIFIED',
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        // White on green is 3.30:1 at caption size.
+                        color: AppSemanticColors.of(
+                          context,
+                        ).onFillFor(AppColors.success),
+                        fontWeight: AppFontWeight.semiBold,
+                        fontSize: 9,
+                      ),
+                    ),
+                  ),
                 ),
-              ),
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

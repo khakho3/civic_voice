@@ -978,8 +978,10 @@ class _CaseSummaryCard extends StatelessWidget {
           const SizedBox(height: AppSpacing.md),
           Row(
             children: [
-              Text('Visual Evidence', style: textTheme.titleSmall),
-              const Spacer(),
+              Expanded(
+                child: Text('Visual Evidence', style: textTheme.titleSmall),
+              ),
+              const SizedBox(width: AppSpacing.sm),
               Text(
                 '${summary.evidencePhotoCount} Photos',
                 style: textTheme.bodySmall,
@@ -987,13 +989,18 @@ class _CaseSummaryCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: AppSpacing.sm),
-          for (final photo in photos)
+          for (var index = 0; index < photos.length; index++)
             Padding(
               padding: const EdgeInsets.only(top: AppSpacing.sm),
               child: InkWell(
-                onTap: () => EvidenceImageViewer.open(context, photo),
+                key: ValueKey('municipal-outcome-evidence-$index'),
+                onTap: () => EvidenceImageViewer.openGallery(
+                  context,
+                  photos,
+                  initialIndex: index,
+                ),
                 child: Image.network(
-                  photo,
+                  photos[index],
                   height: 160,
                   fit: BoxFit.cover,
                   errorBuilder: (context, error, stack) =>
