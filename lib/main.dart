@@ -1,3 +1,5 @@
+import 'features/admin/screens/admin_overview_screen.dart';
+import 'features/admin/screens/admin_alerts_screen.dart';
 import 'services/notification_push_registration.dart';
 import 'models/notification_inbox.dart';
 import 'services/notification_inbox_directory.dart';
@@ -432,6 +434,7 @@ abstract final class AppRoutes {
 
   // Admin.
   static const adminDashboard = '/admin/dashboard';
+  static const adminAlerts = '/admin/alerts';
   static const adminUserManagement = '/admin/user-management';
   static const adminUserDetails = '/admin/user-details';
   static const adminCreateUser = '/admin/create-user';
@@ -776,6 +779,7 @@ class _CivicVoiceAppState extends State<CivicVoiceApp>
               AppRoutes.citizenReportTracking: (context) =>
                   _citizenReportTracking(ModalRoute.of(context)?.settings),
               AppRoutes.adminDashboard: _adminDashboard,
+              AppRoutes.adminAlerts: (_) => const AdminAlertsScreen(),
               AppRoutes.adminUserManagement: _adminUserManagement,
               AppRoutes.adminRoleManagement: _adminRoleManagement,
               AppRoutes.adminSystemActivity: _adminSystemActivity,
@@ -1747,6 +1751,20 @@ MaintenanceTeam? _maintenanceTeamFromSettings(
 }
 
 Widget _adminDashboard(BuildContext context) {
+  if (Firebase.apps.isNotEmpty) {
+    return AdminOverviewScreen(
+      onUsers: () => _replaceWith(context, AppRoutes.adminUserManagement),
+      onTeams: () =>
+          Navigator.of(context).pushNamed(AppRoutes.adminMaintenanceTeams),
+      onActivity: () => _replaceWith(context, AppRoutes.adminSystemActivity),
+      onAlerts: () => Navigator.of(context).pushNamed(AppRoutes.adminAlerts),
+      onRoles: () =>
+          Navigator.of(context).pushNamed(AppRoutes.adminRoleManagement),
+      onSettings: () => _replaceWith(context, AppRoutes.adminSystemSettings),
+      onProfile: () => Navigator.of(context).pushNamed(AppRoutes.adminProfile),
+      onNotifications: () => _openAdminNotifications(context),
+    );
+  }
   return ValueListenableBuilder(
     valueListenable: AdminSystemActivityDirectory.instance.health,
     builder: (context, health, _) => _withSwitchRoleButton(
