@@ -31,6 +31,10 @@ class _AdminAlertsScreenState extends State<AdminAlertsScreen> {
   bool _changingView = false;
   List<String?> _cursors = [null];
   late AdminResource<AdminAlertPage> _source;
+  AdminAlertPage? _lastPage;
+  String? _lastOwner;
+  final _resultsKey = GlobalKey();
+  double _resultHeight = 0;
   @override
   void initState() {
     super.initState();
@@ -54,6 +58,12 @@ class _AdminAlertsScreenState extends State<AdminAlertsScreen> {
   }
 
   void _change(VoidCallback change) {
+    final current = _source.data;
+    if (current != null) {
+      _lastPage = current;
+      _lastOwner = _source.owner();
+    }
+    _resultHeight = _resultsKey.currentContext?.size?.height ?? 0;
     setState(() {
       _source.dispose();
       _changingView = true;
@@ -74,6 +84,7 @@ class _AdminAlertsScreenState extends State<AdminAlertsScreen> {
   }
 
   Future<void> _open(AdminAlert alert) async {
+    if (_source.loading || _source.owner() == null) return;
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => AdminAlertReviewScreen(id: alert.id),
@@ -85,6 +96,17 @@ class _AdminAlertsScreenState extends State<AdminAlertsScreen> {
     }
   }
 
+  bool _matches(AdminAlert alert) {
+    final state =
+        _state == 'ALL' ||
+        (_state == 'ACTIVE' && alert.state != 'RESOLVED') ||
+        alert.state == _state;
+    return state &&
+        '${alert.title} ${alert.description} ${alert.actorName ?? ''} ${alert.actorPublicId ?? ''}'
+            .toLowerCase()
+            .contains(_query.toLowerCase());
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: const Text('Alerts')),
@@ -92,12 +114,22 @@ class _AdminAlertsScreenState extends State<AdminAlertsScreen> {
       animation: _source,
       builder: (context, _) {
         final page = _source.data;
+        final updating = _changingView && _source.loading;
+        // These are matches from a previously verified page for this same owner,
+        // never a cached total or an authoritative empty result for the new query.
+        final preview = updating && _lastOwner == _source.owner();
+        final alerts =
+            page?.alerts ??
+            (preview ? _lastPage?.alerts.where(_matches).toList() : null) ??
+            <AdminAlert>[];
+        final interactive =
+            _source.owner() != null && (!_source.loading || _changingView);
         return SearchFilterList(
           header: SearchFilterHeader(
             screenKey: 'admin-alert-reviews',
             hintText: 'Search recorded alert events',
             query: _query,
-            enabled: !_source.loading,
+            enabled: interactive,
             onQueryChanged: (value) => _change(() {
               _query = value.trim().substring(
                 0,
@@ -106,14 +138,14 @@ class _AdminAlertsScreenState extends State<AdminAlertsScreen> {
               _cursors = [null];
             }),
             results: (term) => [
-              for (final alert in page?.alerts ?? <AdminAlert>[])
+              for (final alert in alerts)
                 if ('${alert.title} ${alert.description}'
                     .toLowerCase()
                     .contains(term.toLowerCase()))
                   FocusedSearchResult(
                     title: alert.title,
-                    subtitle: 'Current page Ã‚· ${alert.state}',
-                    onSelected: () => _open(alert),
+                    subtitle: 'Current page · ${alert.state}',
+                    onSelected: updating ? null : () => _open(alert),
                   ),
             ],
             filters: SingleChildScrollView(
@@ -132,7 +164,7 @@ class _AdminAlertsScreenState extends State<AdminAlertsScreen> {
                       child: CivicFilterChip(
                         label: filter.value,
                         selected: _state == filter.key,
-                        onTap: _source.loading
+                        onTap: !interactive
                             ? null
                             : () {
                                 if (_state == filter.key) return;
@@ -159,91 +191,106 @@ class _AdminAlertsScreenState extends State<AdminAlertsScreen> {
                 'Review alerts and record how they were handled. Acknowledged alerts stay open until resolved. Resolving an alert leaves the original event and report unchanged.',
               ),
               const SizedBox(height: 16),
-              if (_source.loading)
-                if (_changingView)
-                  Semantics(
-                    liveRegion: true,
-                    child: const Text('Updating alerts…'),
-                  )
-                else
-                  const Center(
-                    child: BusyIndicator(
-                      semanticsLabel: 'Loading, please wait...',
-                    ),
+              if (_source.loading && !updating)
+                const Center(
+                  child: BusyIndicator(
+                    semanticsLabel: 'Loading, please wait...',
                   ),
+                ),
               if (_source.error != null || page == null && !_source.loading)
                 Text(
                   _source.error ??
                       'A verified administrator session is required.',
                 ),
-              if (page != null) ...[
-                Text('${page.total} matching alerts'),
-                if (page.alerts.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.all(AppSpacing.lg),
-                    child: Text('No alerts match these filters.'),
-                  ),
-                for (final alert in page.alerts)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8, bottom: 8),
-                    child: _AlertCard(
-                      onTap: () => _open(alert),
-                      children: [
-                        Wrap(
-                          alignment: WrapAlignment.spaceBetween,
-                          spacing: 16,
-                          runSpacing: 8,
+              ConstrainedBox(
+                key: _resultsKey,
+                constraints: BoxConstraints(
+                  minHeight: preview ? _resultHeight : 0,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    SizedBox(
+                      height: 24,
+                      child: updating
+                          ? Semantics(
+                              liveRegion: true,
+                              child: const Text('Updating alerts…'),
+                            )
+                          : page != null
+                          ? Text('${page.total} matching alerts')
+                          : null,
+                    ),
+                    if (page != null && alerts.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.all(AppSpacing.lg),
+                        child: Text('No alerts match these filters.'),
+                      ),
+                    for (final alert in alerts)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8, bottom: 8),
+                        child: _AlertCard(
+                          onTap: updating ? null : () => _open(alert),
                           children: [
-                            _ReviewBadge(state: alert.state),
+                            Wrap(
+                              alignment: WrapAlignment.spaceBetween,
+                              spacing: 16,
+                              runSpacing: 8,
+                              children: [
+                                _ReviewBadge(state: alert.state),
+                                Text(
+                                  _shortDate(alert.createdAt),
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                              ],
+                            ),
                             Text(
-                              _shortDate(alert.createdAt),
+                              alert.title,
+                              style: Theme.of(context).textTheme.titleLarge,
+                            ),
+                            Text(
+                              alert.description,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
                               style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                            Text(
+                              alert.severity == 'CRITICAL'
+                                  ? 'Critical'
+                                  : 'Needs attention',
+                              style: Theme.of(context).textTheme.labelSmall,
                             ),
                           ],
                         ),
-                        Text(
-                          alert.title,
-                          style: Theme.of(context).textTheme.titleLarge,
-                        ),
-                        Text(
-                          alert.description,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                        Text(
-                          alert.severity == 'CRITICAL'
-                              ? 'Critical'
-                              : 'Needs attention',
-                          style: Theme.of(context).textTheme.labelSmall,
-                        ),
-                      ],
-                    ),
-                  ),
-                Wrap(
-                  children: [
-                    TextButton(
-                      onPressed: _source.loading || _cursors.length < 2
-                          ? null
-                          : () => _change(() {
-                              _cursors = [null];
-                            }),
-                      child: const Text('First page'),
-                    ),
-                    TextButton(
-                      onPressed:
-                          _source.loading ||
-                              page.nextCursor == null ||
-                              _cursors.contains(page.nextCursor)
-                          ? null
-                          : () => _change(() {
-                              _cursors = [..._cursors, page.nextCursor];
-                            }),
-                      child: const Text('Next page'),
-                    ),
+                      ),
+                    if (page != null)
+                      Wrap(
+                        children: [
+                          TextButton(
+                            onPressed: _source.loading || _cursors.length < 2
+                                ? null
+                                : () => _change(() => _cursors = [null]),
+                            child: const Text('First page'),
+                          ),
+                          TextButton(
+                            onPressed:
+                                _source.loading ||
+                                    page.nextCursor == null ||
+                                    _cursors.contains(page.nextCursor)
+                                ? null
+                                : () => _change(
+                                    () => _cursors = [
+                                      ..._cursors,
+                                      page.nextCursor,
+                                    ],
+                                  ),
+                            child: const Text('Next page'),
+                          ),
+                        ],
+                      ),
                   ],
                 ),
-              ],
+              ),
               TextButton(
                 onPressed: _source.loading ? null : _reload,
                 child: const Text('Refresh alerts'),

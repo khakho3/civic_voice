@@ -116,8 +116,9 @@ void main() {
         expect(states, ['ACTIVE', 'OPEN']);
         expect(find.text('Updating alerts…'), findsOneWidget);
         expect(find.byType(BusyIndicator), findsNothing);
-        // A pending new filter never labels old rows or an empty state as verified.
-        expect(find.text('System setting changed'), findsNothing);
+        // Same-owner matches stay mounted, without claiming a new total or empty page.
+        expect(find.text('System setting changed'), findsOneWidget);
+        expect(find.text('1 matching alerts'), findsNothing);
         expect(find.text('No alerts match these filters.'), findsNothing);
         pending.completeError(StateError('offline'));
         await tester.pumpAndSettle();
