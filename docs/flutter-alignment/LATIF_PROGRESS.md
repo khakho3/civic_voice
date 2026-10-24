@@ -1,5 +1,15 @@
 # Latif progress
 
+## Latest continuation - 24 October 2026
+
+Runtime: native **7b42fc6**, web **a4dba19**, API **d00b6c6**. Web drawer logout confirmation/focus are repaired; Close is removed, outside tap/Escape retained, red Log Out pinned at the bottom. Native Home retains verified cards during refresh, all five profile roles match web's32px logout gap, User Details places status beside role, and own Admin directory entries are view-only for both tiers. Native/API guards prevent self-edit/deactivate/delete through Users; separate Profile editing and existing permissions for other accounts remain. The native shared live inbox again uses Ghana pull-to-refresh, with Retry only for failed/uncertain requests and no routine Refresh inbox button. See C:/Projects/www/civic-voice-web/docs/OWNER_UI_FOLLOWUPS_2026_10_24.md for exact scope.
+
+Automated: **1,416 native tests/analyzer**, **388 web tests/lint/build** (208 PWA entries), **175 API tests** pass. Profile/badge/Home actual-widget renders and isolated browser drawer flows were checked. Owner confirms native drawer logout works and System Activity flicker looks fixed; new Home/profile/badge/inbox/web drawer checks still need owner confirmation.
+
+DEV through7b42fc6 is verified, replace-installed and launched with app data retained. Six explicit runtime files were copied;29 review-source hashes and14 protected DEV config hashes match. Same DEV signing identity, package/label, compiled local API4000 and Dart/Android Firebase project are verified; production targets are absent. Install Success, launch Status ok, DEV process running. Exact evidence remains private. This is not owner acceptance. Production and original native integration are untouched.
+
+Next: reproduce the reported Flutter tap flash (affected-control example requested), continue the remaining all-screen card/shared-sheet inventory and supported password last-character masking investigation. Later web busy/success buttons must match Flutter colour, smaller check size/radius/check animation; orb already correct. Francis retains that success work and generic Activity Detail. Maintenance/real push and other device acceptance remain pending. No merge/promotion/production deploy.
+
 ## Current owner follow-ups - 24 October 2026
 
 Runtime39ac51d is verified and installed/launched in isolated DEV;1,408 native tests/analyzer pass. Webdf8e870 has383 tests/lint/build passing. New notification gestures, menus, alert continuation, refresh stability, grouped forms/password layout, soft backgrounds, guest/permission and auth feedback fixes are documented in [NATIVE_OWNER_UI_FOLLOWUPS.md](NATIVE_OWNER_UI_FOLLOWUPS.md). These automated/render/install checks are not owner acceptance. Current queue: C:/Projects/www/civic-voice-web/docs/CURRENT_STATUS.md; exact device evidence remains ignored/private. No merge/promotion/production change. Older checkpoint sections are historical.

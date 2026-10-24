@@ -1,5 +1,7 @@
 # Native notification reconciliation
 
+Latest24October follow-up: native7b42fc6 includes Home refresh stability, shared profile spacing, inline User Details status, own-account read-only safeguards and restored live-inbox Ghana pull-to-refresh (routine Refresh inbox removed; recovery Retry retained). API self-edit enforcement isd00b6c6. Full suite1,416/analyzer pass. Owner confirms native drawer logout and says System Activity flicker looks fixed; newest acceptance and general tap-flash investigation remain open. Current authoritative scope/install evidence: LATIF_PROGRESS.md / NATIVE_OWNER_UI_FOLLOWUPS.md and web docs/CURRENT_STATUS.md; previous checkpoints below remain historical.
+
 ## Current owner follow-ups - 24 October 2026
 
 Runtime39ac51d is verified and installed/launched in isolated DEV;1,408 native tests/analyzer pass. Webdf8e870 has383 tests/lint/build passing. New notification gestures, menus, alert continuation, refresh stability, grouped forms/password layout, soft backgrounds, guest/permission and auth feedback fixes are documented in [NATIVE_OWNER_UI_FOLLOWUPS.md](NATIVE_OWNER_UI_FOLLOWUPS.md). These automated/render/install checks are not owner acceptance. Current queue: C:/Projects/www/civic-voice-web/docs/CURRENT_STATUS.md; exact device evidence remains ignored/private. No merge/promotion/production change. Older checkpoint sections are historical.
