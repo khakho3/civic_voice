@@ -1,5 +1,17 @@
 # Native notification reconciliation
 
+## Owner UI correction - 24 October 2026
+
+The owner rejected the presentation introduced by the native overview/inbox integration: separate metric cards, ungrouped Management/Activity, missing notification icon/unread-dot structure and excess explanatory copy. That presentation is not an accepted parity checkpoint. Native `931709a` restores one summary card with a horizontal row divider, semantic warning-coloured Open alerts, a grouped Management card and an Activity Monitoring card with its original heading/icon/numbered rows. Authoritative overview totals, alert-review actions, verified health and request/session guards are preserved; no cached-count fallback was restored.
+
+Native `b296a5e` matches the existing web notification card structure: tinted bell circle, title/unread dot, secondary report message, readable timestamp and compact read/dismiss actions. Empty state is one icon and one short message; first-page empty/single-page views omit irrelevant bulk/paging controls. Permission explanations are collapsed by default, while the inbox remains accessible with permission denied. Web `b2394bb` removes the parallel explanatory footer/long count copy, shortens empty/error copy and collapses device-notification settings; the approved web card treatment is retained.
+
+Validation: all **1,279 Flutter tests** and **365 web tests** pass; native analyzer, web lint/build and whitespace clean. Actual Flutter widgets were rendered to local ignored PNGs and visually inspected in light/dark mode, alongside tests of the explicit grouped-card/divider/status-colour structure at 320/412 widths. Fresh physical acceptance of the corrected APK remains pending. Do not treat earlier test counts as approval of the rejected layout.
+
+Owner also reported Admin credentials working in a fresh Flutter sign-in but failing on web. Read-only verification found web's served development config and local API both target DEV Firebase civic-voice-dev-11d98 and API4000. Inspection of the owner's existing phone browser then showed three recent successful web password-login and account-sync pairs (HTTP 200), with no credential error currently visible. No password, account, role, Firebase setting or key restriction was changed, and the earlier failure's precise cause is not established. Retest if the owner still sees a failure; do not infer a production/password problem or reset credentials.
+
+Continue the recorded queue after this UI correction is checked: Super Admin unresolved-locality routing, password hiding/padlock, remaining card consistency and owner follow-ups. The new alert-review screen does not replace Francis-owned generic Activity Detail. Device acceptance details remain private/uncommitted; original branding SVG is untouched.
+
 ## Durable native inbox - 23 October 2026
 
 Implemented on `codex/flutter-latif-review-fixes` in `9101260`, `a668541`, `1e01aec`, `4a39137` and `350cf83`. All five live role screens now use the existing authenticated `GET /api/notifications` and `POST /api/notifications/actions` contracts. Firebase-free design fixtures remain separate; live failures never fall back to derived/sample messages. Admin uses the same recipient/scope-authorized source rather than user-list events.
