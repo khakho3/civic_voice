@@ -13,7 +13,7 @@ No new APK built or installed for the pills. The installed DEV runtime remains `
 
 ## Current continuation entry point - 24 October 2026
 
-Current queue and cross-repository state: C:/Projects/www/civic-voice-web/docs/CURRENT_STATUS.md. The Flutter-only shared-pill checkpoint above supersedes older web-adoption and pending-repair statements below. Runtime d3bece1/7a796f6 is automatically verified (1,320 tests; clean analyzer); no new APK was built or installed. The owner confirmed the preceding installed Settings/inbox/Admin repair through 93667f6; new shared-pill phone acceptance, Maintenance and real push acceptance remain pending. Native inventory: [NATIVE_FILTER_PILLS.md](NATIVE_FILTER_PILLS.md). Preserve accepted layout/search behaviour and Francis-owned generic Activity Detail/success work. No production change, merge or integration promotion.
+Current state/ordered queue: C:/Projects/www/civic-voice-web/docs/CURRENT_STATUS.md. DEV runtime through2214843 (shared pills, Open alerts drawer, quiet filtering and restored right-hand API badge) is installed/launched;1,339 native tests/analyzer pass. The earlier no-install/pending-repair text below is historical. The owner had confirmed the preceding Settings/inbox/Admin repair through93667f6; current new-feature phone confirmation, Maintenance and real push acceptance remain pending. Web stays unchanged and owner-tested. No production change or integration promotion.
 
 ## Divider and measured geometry correction - 24 October 2026
 

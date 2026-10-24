@@ -1,5 +1,27 @@
 # Latif progress
 
+## Restored API status badge / latest DEV install - 24 October 2026
+
+Runtime `2214843` restores the compact API status badge to the **right of Platform Overview**, replacing the live screen's plain text below the heading. The original badge is now one shared AdminApiStatusBadge used by the legacy preview and live overview. Its dot glows for verified Online; reduced motion keeps it static. Live Online requires both API and database health from the authorized health snapshot; missing/unverified health is Unavailable, never Sample/assumed Online. Offline and explicit preview Sample remain distinct. The badge opens existing System Activity; the existing authorized health source/polling and ordinary Admin scope remain unchanged. Text uses existing semantic success/error colours.
+
+All **1,339 native tests pass**, analyzer/whitespace clean. Fourteen new cases cover header placement/Online/Offline/Unavailable in light/dark at320/448, database failure, glow/reduced motion and ordinary Admin exclusion. Actual font-loaded widgets rendered in light/dark at320/448: the accepted summary remains **416 x310** at448, with its vertical divider, grouped cards and warning Open alerts retained. Existing shared search/pill/navigation/filter checks pass. Web runtime is unchanged; the owner will check it personally.
+
+The isolated DEV profile APK through2214843 (including a52ec9e drawer/quiet filtering and shared pills) was rebuilt, fully artifact/config-verified, replace-installed successfully and brought to the foreground. All18 explicit runtime copies match review; protected DEV config/signing identity is unchanged. Compiled API is the verified Wi-Fi API4000; Dart/Android Firebase and package/label remain DEV, production targets absent. App data retained; exact artifact/install evidence remains private/ignored. **Phone acceptance is still pending** for the new badge, drawer, quiet filtering and shared pills. No API/config/Cloud change, production deployment, merge or integration promotion. System Activity pull-to-refresh flicker, Maintenance and real push checks remain open. Next implementation stays Super Admin unresolved-locality routing, then password hiding/padlocks and remaining consistency work.
+
+
+## DEV phone checkpoint: alerts drawer and quiet filtering - 24 October 2026
+
+Native runtime `a52ec9e` adds **Open alerts** to the existing Super Admin drawer and opens the existing scoped alert route after closing the drawer. The live shared shell provides the same entry on the other Admin screens; the verified overview supplies its existing alert callback. Ordinary Admin navigation stays unchanged, including its existing overview alert shortcut and server-enforced scope. No new alert API or authority was added.
+
+Local pill filters already update their current data without a refresh request. For the server-backed alert queue, filter/query/page changes now show the quiet **Updating alerts…** live-region text instead of the refresh orb. Tapping the selected state does not refetch. Cold loading and explicit Refresh alerts retain their existing busy feedback. A pending changed filter never presents the previous rows or a confirmed-empty message as the new result; errors remain distinct. Existing session fencing, review actions, focused/collapsible search and pills are preserved. This does **not** fix the separately recorded System Activity pull-to-refresh flicker.
+
+Automated verification: **1,325 native tests pass**, analyzer/whitespace clean; five new checks cover drawer navigation/close/back in both themes, quiet delayed/error/retry filtering and ordinary Admin header scope. Actual drawer and pending-filter widgets were rendered/visually inspected in light/dark. The existing held-gesture search-consumer matrix passes. Web runtime was left unchanged; the owner will run/check web personally.
+
+The owner authorized this DEV install. Sixteen explicit Dart runtime files were copied to the isolated DEV snapshot and byte-verified against review. Protected native/Firebase/local configuration hashes stayed unchanged. The profile APK passed package/label/signing checks, compiled Wi-Fi API `http://192.168.100.8:4000`, Dart/Android Firebase `civic-voice-dev-11d98`, absent production targets and new-checkpoint verification. Replace-install succeeded, app data retained; cold launch returned Status ok and DEV was the top resumed activity with a running process. Exact APK hash/install evidence stays only in the ignored private checklist.
+
+**Owner phone acceptance remains pending** for the new pills, drawer and quiet feedback; install/launch/test/render checks are not acceptance. Maintenance and real push checks remain pending. Next recorded implementation: native Super Admin unresolved-locality routing queue/editor, then password hiding/padlock and remaining card consistency. Keep System Activity refresh flicker recorded. No API/config change, production deployment, merge or integration promotion.
+
+
 ## System Activity pull-to-refresh flicker - 24 October 2026
 
 Owner-reported, pending investigation/fix: Flutter System Activity flickers during pull-to-refresh. Reproduce on the actual screen and inspect the refresh/loading transition, existing content retention and Ghana refresh-indicator lifecycle. Keep the accepted layout and shared search/filter behaviour intact. Verify repeated refresh in both themes, including success/error and reduced motion; do not mark resolved from tests alone without visual/device verification. This is separate from the shared filter-pill rollout.
