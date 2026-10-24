@@ -1,5 +1,10 @@
 # Latif progress
 
+## System Activity pull-to-refresh flicker - 24 October 2026
+
+Owner-reported, pending investigation/fix: Flutter System Activity flickers during pull-to-refresh. Reproduce on the actual screen and inspect the refresh/loading transition, existing content retention and Ghana refresh-indicator lifecycle. Keep the accepted layout and shared search/filter behaviour intact. Verify repeated refresh in both themes, including success/error and reduced motion; do not mark resolved from tests alone without visual/device verification. This is separate from the shared filter-pill rollout.
+
+
 ## Shared filter pills - owner requirement confirmed 24 October 2026
 
 Pending implementation: promote the accepted native alert-filter pill appearance and selection behaviour (bounce plus selected checkmark) into a shared component in EACH client, Flutter and web. Reuse it across every screen with filter pills, not only Alert reviews. Inventory and migrate all consumers; preserve their filter values, single/multiple-selection rules, queries and shared focused/collapsible-search behaviour. Verify both themes, keyboard/focus and selected semantics, reduced motion, narrow layouts, and disabled/busy states. This is an approved cross-client rollout requirement, not merely an idea to consider for web; the rollout is not complete yet. Keep the accepted native interaction as the reference.
