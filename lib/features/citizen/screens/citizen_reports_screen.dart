@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../widgets/civic_filter_chip.dart';
+
 import '../../../widgets/search_filter_list.dart';
 import '../../../widgets/focused_search.dart';
 
@@ -235,35 +237,22 @@ class _ReportFilterBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: [
-          for (final filter in _ReportFilter.values) ...[
-            ChoiceChip(
-              selected: selected == filter,
-              onSelected: (_) => onSelected(filter),
-              label: Text(filter.label),
-              labelStyle: theme.textTheme.labelSmall?.copyWith(
-                color: selected == filter
-                    ? AppSemanticColors.of(context).onAction
-                    : theme.colorScheme.secondary,
-                fontWeight: AppFontWeight.semiBold,
+    return SizedBox(
+      height: 48,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            for (final filter in _ReportFilter.values) ...[
+              CivicFilterChip(
+                selected: selected == filter,
+                onTap: () => onSelected(filter),
+                label: filter.label,
               ),
-              showCheckmark: false,
-              selectedColor: AppSemanticColors.of(context).actionFill,
-              backgroundColor: theme.colorScheme.surfaceContainerLow,
-              side: BorderSide(
-                color: selected == filter
-                    ? AppSemanticColors.of(context).controlBorder
-                    : theme.colorScheme.outlineVariant,
-              ),
-            ),
-            const SizedBox(width: AppSpacing.sm),
+              const SizedBox(width: AppSpacing.sm),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }

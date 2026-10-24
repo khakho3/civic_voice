@@ -200,6 +200,7 @@ class _AssignedTasksContent extends StatelessWidget {
                     ),
               ],
               filters: _FilterRail(
+                enabled: !disabled,
                 statusFilter: statusFilter,
                 onStatusChanged: onStatusChanged,
               ),
@@ -344,12 +345,15 @@ class _QueueMetric extends StatelessWidget {
 class _FilterRail extends StatelessWidget {
   const _FilterRail({
     required this.statusFilter,
+    required this.enabled,
     required this.onStatusChanged,
   });
+  final bool enabled;
   final MaintenanceTaskStatus? statusFilter;
   final ValueChanged<MaintenanceTaskStatus?> onStatusChanged;
   @override
   Widget build(BuildContext context) => TextFilterChips<MaintenanceTaskStatus?>(
+    enabled: enabled,
     padding: EdgeInsets.zero,
     options: const [
       TextFilterOption(value: null, label: 'All'),

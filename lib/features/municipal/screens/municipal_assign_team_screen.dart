@@ -473,6 +473,7 @@ class _AssignBody extends StatelessWidget {
         ],
         enabled: enabled,
         filters: TextFilterChips<TeamFilter>(
+          enabled: enabled,
           options: [
             for (final option in TeamFilter.values)
               TextFilterOption(value: option, label: option.label),

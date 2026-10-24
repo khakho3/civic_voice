@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../widgets/civic_filter_chip.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../models/region.dart';
 import '../../../widgets/app_state_message.dart';
@@ -358,7 +359,7 @@ class _FilterControls extends StatelessWidget {
         AppSpacing.sm,
       ),
       child: SizedBox(
-        height: 44,
+        height: 48,
         child: ListView.separated(
               scrollDirection: Axis.horizontal,
               // Region picker first — it's the primary narrowing dimension
@@ -375,7 +376,7 @@ class _FilterControls extends StatelessWidget {
                   );
                 }
                 final option = PerformanceFilter.values[index - 1];
-                return _ScopeChip(
+                return CivicFilterChip(
                   label: option.label,
                   selected: option == filter,
                   onTap: enabled ? () => onFilterSelected?.call(option) : null,
@@ -387,42 +388,6 @@ class _FilterControls extends StatelessWidget {
   }
 }
 
-class _ScopeChip extends StatelessWidget {
-  const _ScopeChip({required this.label, required this.selected, this.onTap});
-
-  final String label;
-  final bool selected;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Material(
-      color: selected
-          ? AppSemanticColors.of(context).actionFill
-          : colorScheme.surfaceContainer,
-      shape: const StadiumBorder(),
-      child: InkWell(
-        customBorder: const StadiumBorder(),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.sm,
-          ),
-          child: Text(
-            label,
-            style: Theme.of(context).textTheme.labelLarge?.copyWith(
-              color: selected
-                  ? AppSemanticColors.of(context).onAction
-                  : colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 // ---------------------------------------------------------------------------
 // Loaded content

@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../../../widgets/civic_filter_chip.dart';
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../services/api_client.dart';
@@ -121,12 +122,12 @@ class _AdminAlertsScreenState extends State<AdminAlertsScreen> {
                   }.entries)
                     Padding(
                       padding: const EdgeInsets.only(right: AppSpacing.sm),
-                      child: ChoiceChip(
-                        label: Text(filter.value),
+                      child: CivicFilterChip(
+                        label: filter.value,
                         selected: _state == filter.key,
-                        onSelected: _source.loading
+                        onTap: _source.loading
                             ? null
-                            : (_) => _change(() {
+                            : () => _change(() {
                                 _state = filter.key;
                                 _cursors = [null];
                               }),

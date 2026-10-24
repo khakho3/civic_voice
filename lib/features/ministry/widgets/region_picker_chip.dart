@@ -1,3 +1,4 @@
+import '../../../widgets/civic_filter_chip.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
@@ -45,9 +46,8 @@ Future<RegionPickerSelection?> pickRegion(
                       color: AppSemanticColors.of(context).actionText,
                     )
                   : null,
-              onTap: () => Navigator.of(
-                context,
-              ).pop(const RegionPickerSelection(null)),
+              onTap: () =>
+                  Navigator.of(context).pop(const RegionPickerSelection(null)),
             ),
             for (final region in Region.values)
               ListTile(
@@ -58,9 +58,8 @@ Future<RegionPickerSelection?> pickRegion(
                         color: AppSemanticColors.of(context).actionText,
                       )
                     : null,
-                onTap: () => Navigator.of(
-                  context,
-                ).pop(RegionPickerSelection(region)),
+                onTap: () =>
+                    Navigator.of(context).pop(RegionPickerSelection(region)),
               ),
           ],
         ),
@@ -94,48 +93,13 @@ class RegionPickerChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final foreground = active
-        ? AppSemanticColors.of(context).onAction
-        : colorScheme.onSurfaceVariant;
-    return Material(
-      color: active
-          ? AppSemanticColors.of(context).actionFill
-          : colorScheme.surfaceContainer,
-      shape: const StadiumBorder(),
-      child: InkWell(
-        customBorder: const StadiumBorder(),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.sm,
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                AppIcons.municipality,
-                size: AppIconSize.sm,
-                color: foreground,
-              ),
-              const SizedBox(width: AppSpacing.xs),
-              Text(
-                label,
-                style: Theme.of(
-                  context,
-                ).textTheme.labelLarge?.copyWith(color: foreground),
-              ),
-              const SizedBox(width: 2),
-              Icon(
-                AppIcons.chevronDown,
-                size: AppIconSize.sm,
-                color: foreground,
-              ),
-            ],
-          ),
-        ),
-      ),
+    return CivicFilterChip(
+      label: label,
+      selected: active,
+      picker: true,
+      onTap: onTap,
+      leading: const Icon(AppIcons.municipality, size: AppIconSize.sm),
+      trailing: const Icon(AppIcons.chevronDown, size: AppIconSize.sm),
     );
   }
 }

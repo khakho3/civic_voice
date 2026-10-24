@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../widgets/civic_filter_chip.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../widgets/civic_bottom_sheet.dart';
 import '../../../widgets/app_state_message.dart';
@@ -382,23 +383,26 @@ class _FilterChrome extends StatelessWidget {
         AppSpacing.sm,
       ),
       child: SizedBox(
-        height: 40,
+        height: 48,
         child: ListView(
           scrollDirection: Axis.horizontal,
           children: [
-            _FilterChip(
+            CivicFilterChip(
+              picker: true,
               label: dateRangeLabel,
               selected: true,
               onTap: onDateRangeTap,
             ),
             const SizedBox(width: AppSpacing.xs),
-            _FilterChip(
+            CivicFilterChip(
+              picker: true,
               label: categoryLabel,
               selected: false,
               onTap: onCategoryTap,
             ),
             const SizedBox(width: AppSpacing.xs),
-            _FilterChip(
+            CivicFilterChip(
+              picker: true,
               label: statusLabel,
               selected: false,
               onTap: onStatusTap,
@@ -410,42 +414,6 @@ class _FilterChrome extends StatelessWidget {
   }
 }
 
-class _FilterChip extends StatelessWidget {
-  const _FilterChip({required this.label, required this.selected, this.onTap});
-
-  final String label;
-  final bool selected;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Material(
-      color: selected
-          ? AppSemanticColors.of(context).actionFill
-          : colorScheme.surfaceContainer,
-      shape: const StadiumBorder(),
-      child: InkWell(
-        customBorder: const StadiumBorder(),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.sm,
-          ),
-          child: Text(
-            label,
-            style: Theme.of(context).textTheme.labelLarge?.copyWith(
-              color: selected
-                  ? AppSemanticColors.of(context).onAction
-                  : colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 // ---------------------------------------------------------------------------
 // Loaded content

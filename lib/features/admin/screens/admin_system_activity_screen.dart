@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../widgets/civic_filter_chip.dart';
 import '../../../widgets/search_filter_list.dart';
 import '../../../widgets/focused_search.dart';
 
@@ -556,14 +557,14 @@ class _FilterChrome extends StatelessWidget {
                   },
 
     filters: SizedBox(
-              height: 40,
+              height: 48,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 itemCount: ActivityFilter.values.length,
         separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.xs),
                 itemBuilder: (context, index) {
                   final option = ActivityFilter.values[index];
-                  return _FilterChip(
+                  return CivicFilterChip(
                     label: option.label,
                     selected: option == filter,
             onTap: enabled ? () => onFilterSelected?.call(option) : null,
@@ -723,43 +724,6 @@ class _HealthStatCard extends StatelessWidget {
   }
 }
 
-class _FilterChip extends StatelessWidget {
-  const _FilterChip({required this.label, required this.selected, this.onTap});
-
-  final String label;
-  final bool selected;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Material(
-      color: selected
-          ? AppSemanticColors.of(context).actionFill
-          : colorScheme.surfaceContainer,
-      shape: const StadiumBorder(),
-      child: InkWell(
-        customBorder: const StadiumBorder(),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.sm,
-          ),
-          child: Text(
-            label,
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.labelLarge?.copyWith(
-              color: selected
-                  ? AppSemanticColors.of(context).onAction
-                  : colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 class _TimeRangeDropdown extends StatelessWidget {
   const _TimeRangeDropdown({

@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../../widgets/civic_filter_chip.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../widgets/app_dropdown_field.dart';
 import '../../../widgets/app_state_message.dart';
@@ -353,14 +354,14 @@ class _DimensionFilterRow extends StatelessWidget {
         AppSpacing.sm,
       ),
       child: SizedBox(
-        height: 40,
+        height: 48,
         child: ListView.separated(
           scrollDirection: Axis.horizontal,
           itemCount: AnalyticsDimension.values.length,
           separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.xs),
           itemBuilder: (context, index) {
             final option = AnalyticsDimension.values[index];
-            return _DimensionChip(
+            return CivicFilterChip(
               label: option.label,
               selected: option == dimension,
               onTap: enabled ? () => onDimensionSelected?.call(option) : null,
@@ -372,46 +373,6 @@ class _DimensionFilterRow extends StatelessWidget {
   }
 }
 
-class _DimensionChip extends StatelessWidget {
-  const _DimensionChip({
-    required this.label,
-    required this.selected,
-    this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Material(
-      color: selected
-          ? AppSemanticColors.of(context).actionFill
-          : colorScheme.surfaceContainer,
-      shape: const StadiumBorder(),
-      child: InkWell(
-        customBorder: const StadiumBorder(),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.sm,
-          ),
-          child: Text(
-            label,
-            style: Theme.of(context).textTheme.labelLarge?.copyWith(
-              color: selected
-                  ? AppSemanticColors.of(context).onAction
-                  : colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 // ---------------------------------------------------------------------------
 // Loaded content

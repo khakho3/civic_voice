@@ -29,6 +29,7 @@ import 'package:civic_voice/models/region.dart';
 import 'package:civic_voice/services/app_cache_service.dart';
 import 'package:civic_voice/services/mock_auth_service.dart';
 import 'package:civic_voice/widgets/focused_search.dart';
+import 'package:civic_voice/widgets/civic_filter_chip.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -219,6 +220,9 @@ void main() {
             ),
           );
           await tester.pumpAndSettle();
+          if (entry.key != 'Admin teams') {
+            expect(find.byType(CivicFilterChip), findsWidgets);
+          }
           expect(find.byType(SearchTriggerField), findsOneWidget);
           final vertical = tester
               .stateList<ScrollableState>(find.byType(Scrollable))

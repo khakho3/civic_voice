@@ -360,6 +360,7 @@ class _CategoryChips extends StatelessWidget {
   Widget build(BuildContext context) => IgnorePointer(
     ignoring: onSelected == null,
     child: TextFilterChips<ReportCategory?>(
+      enabled: onSelected != null,
       padding: EdgeInsets.zero,
       options: [
         const TextFilterOption(value: null, label: 'All New'),
