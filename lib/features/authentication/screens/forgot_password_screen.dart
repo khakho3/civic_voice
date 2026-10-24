@@ -88,6 +88,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   @override
   Widget build(BuildContext context) {
     return AuthScreenLayout(
+      groupHeadingWithForm: true,
       onBack: widget.onBack,
       title: 'Forgot Password',
       supportingText:
