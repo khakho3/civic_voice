@@ -21,10 +21,12 @@ class OtpVerificationScreen extends StatefulWidget {
     this.onResend,
     this.onBack,
     this.resendCooldownDuration = _defaultResendCooldown,
+    this.groupHeadingWithForm = false,
   });
 
   static const _defaultResendCooldown = Duration(minutes: 2);
 
+  final bool groupHeadingWithForm;
   final String phoneNumber;
   final OtpPurpose purpose;
   final DateTime? expiresAt;
@@ -149,6 +151,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
             : AppSemanticColors.light);
 
     return AuthScreenLayout(
+      groupHeadingWithForm: widget.groupHeadingWithForm,
       onBack: widget.onBack,
       title: _title,
       supportingText: 'We sent a code to ${widget.phoneNumber}.',

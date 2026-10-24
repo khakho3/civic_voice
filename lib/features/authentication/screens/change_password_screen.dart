@@ -7,6 +7,7 @@ import 'package:civic_voice/features/authentication/screens/otp_verification_scr
 import 'package:civic_voice/features/authentication/widgets/auth_presentation.dart';
 import 'package:civic_voice/features/authentication/widgets/set_new_password_form.dart';
 import 'package:civic_voice/services/api_client.dart';
+import 'package:civic_voice/services/auth_failure_message.dart';
 
 enum _ChangePasswordStep { phone, otp, password }
 
@@ -58,7 +59,10 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       if (!mounted) return;
       setState(() {
         _sending = false;
-        _phoneError = error.message;
+        _phoneError = authFailureMessage(
+          error,
+          fallback: 'Check your phone number and try again.',
+        );
       });
       return;
     } catch (_) {
@@ -81,7 +85,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   Future<bool> _verifyCode(String code) async {
     try {
       final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
-      if (idToken == null) return false;
+      if (idToken == null) {
+        throw const ApiException(statusCode: 401, message: 'Sign in again.');
+      }
       final token = await ApiClient.instance
           .verifyAuthenticatedPasswordChangeOtp(idToken: idToken, otp: code);
       if (!mounted) return false;
@@ -90,27 +96,20 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
         _step = _ChangePasswordStep.password;
       });
       return true;
-    } on ApiException {
-      return false;
-    } catch (_) {
-      return false;
+    } on ApiException catch (error) {
+      if (error.statusCode == 400) return false;
+      rethrow;
     }
   }
 
   Future<bool> _savePassword(String newPassword) async {
     final token = _resetToken;
     if (token == null) return false;
-    try {
-      await ApiClient.instance.resetPassword(
-        phone: _phone,
-        resetToken: token,
-        newPassword: newPassword,
-      );
-    } on ApiException {
-      return false;
-    } catch (_) {
-      return false;
-    }
+    await ApiClient.instance.resetPassword(
+      phone: _phone,
+      resetToken: token,
+      newPassword: newPassword,
+    );
     await widget.onSaved();
     return true;
   }
@@ -119,6 +118,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   Widget build(BuildContext context) {
     if (_step == _ChangePasswordStep.otp) {
       return OtpVerificationScreen(
+        groupHeadingWithForm: true,
         phoneNumber: _phone,
         purpose: OtpPurpose.changePassword,
         expiresAt: _otpExpiresAt,
@@ -136,6 +136,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     }
     if (_step == _ChangePasswordStep.password) {
       return AuthScreenLayout(
+        groupHeadingWithForm: true,
         onBack: () => setState(() => _step = _ChangePasswordStep.otp),
         title: 'Change Password',
         supportingText: 'Choose a new password for future sign-ins.',
@@ -154,6 +155,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     }
 
     return AuthScreenLayout(
+      groupHeadingWithForm: true,
       onBack: widget.onBack,
       title: 'Change Password',
       supportingText:

@@ -14,63 +14,44 @@ class AuthBackdrop extends StatelessWidget {
     super.key,
     required this.child,
     this.emphasizeRecoveryGlass = false,
+    this.onboarding = false,
   });
 
   final Widget child;
   final bool emphasizeRecoveryGlass;
+  final bool onboarding;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
-    final semantic =
-        theme.extension<AppSemanticColors>() ??
-        (theme.brightness == Brightness.dark
-            ? AppSemanticColors.dark
-            : AppSemanticColors.light);
-
     return ColoredBox(
-      color: colors.surface,
+      color: theme.scaffoldBackgroundColor,
       child: Stack(
         fit: StackFit.expand,
         children: [
-          if (emphasizeRecoveryGlass) ...[
-            Positioned(
-              key: const ValueKey('recovery-auth-back-ambient'),
-              top: -AppSpacing.xl,
-              left: -AppSpacing.xxxxl,
-              child: _AmbientOrb(
-                size: AppSpacing.xxxxl * 2 + AppSpacing.xl,
-                color: colors.primary.withValues(alpha: semantic.glassBorder.a),
-              ),
+          Positioned(
+            key: emphasizeRecoveryGlass
+                ? const ValueKey('recovery-auth-back-ambient')
+                : null,
+            top: onboarding ? -AppSpacing.xxxxl * 2 : -AppSpacing.xxxxl,
+            right: -AppSpacing.xxxxl,
+            child: _AmbientOrb(
+              size: AppSpacing.xxxxl * 4,
+              color: colors.primary.withValues(alpha: onboarding ? .08 : .12),
             ),
-            Positioned(
-              key: const ValueKey('recovery-auth-form-ambient'),
-              top: AppSpacing.xxxxl * 4,
-              right: -AppSpacing.xxxxl,
-              child: _AmbientOrb(
-                size: AppSpacing.xxxxl * 3,
-                color: colors.primary.withValues(alpha: semantic.glassBorder.a),
-              ),
+          ),
+          Positioned(
+            key: emphasizeRecoveryGlass
+                ? const ValueKey('recovery-auth-form-ambient')
+                : null,
+            bottom: onboarding ? -AppSpacing.xxxxl * 2 : -AppSpacing.xxxxl,
+            left: -AppSpacing.xxxxl,
+            child: _AmbientOrb(
+              size: AppSpacing.xxxxl * 4,
+              color: colors.primary.withValues(alpha: onboarding ? .08 : .06),
             ),
-          ] else ...[
-            Positioned(
-              top: -AppSpacing.xxxxl,
-              right: -AppSpacing.xxxxl,
-              child: _AmbientOrb(
-                size: AppSpacing.xxxxl * 3,
-                color: colors.primary.withValues(alpha: 0.1),
-              ),
-            ),
-            Positioned(
-              bottom: -AppSpacing.xxxxl,
-              left: -AppSpacing.xxxxl,
-              child: _AmbientOrb(
-                size: AppSpacing.xxxxl * 2 + AppSpacing.xl,
-                color: colors.primary.withValues(alpha: 0.06),
-              ),
-            ),
-          ],
+          ),
           child,
         ],
       ),
@@ -89,6 +70,7 @@ class AuthScreenLayout extends StatelessWidget {
     this.footer,
     this.showIllustrationHero = false,
     this.useRecoveryGlass = false,
+    this.groupHeadingWithForm = false,
   });
 
   final VoidCallback? onBack;
@@ -97,6 +79,7 @@ class AuthScreenLayout extends StatelessWidget {
   final Widget form;
   final bool showIllustrationHero;
   final bool useRecoveryGlass;
+  final bool groupHeadingWithForm;
 
   /// Omitted (rather than a `SizedBox.shrink()` placeholder) on screens
   /// with no "go to a different auth screen" link to offer — e.g.
@@ -118,14 +101,23 @@ class AuthScreenLayout extends StatelessWidget {
             )
           : AuthBackdrop(
               emphasizeRecoveryGlass: useRecoveryGlass,
-              child: _StandardAuthLayout(
-                onBack: onBack,
-                title: title,
-                supportingText: supportingText,
-                form: form,
-                footer: footer,
-                useRecoveryGlass: useRecoveryGlass,
-              ),
+              child: groupHeadingWithForm
+                  ? _GroupedAuthLayout(
+                      onBack: onBack,
+                      title: title,
+                      supportingText: supportingText,
+                      form: form,
+                      footer: footer,
+                      useRecoveryGlass: useRecoveryGlass,
+                    )
+                  : _StandardAuthLayout(
+                      onBack: onBack,
+                      title: title,
+                      supportingText: supportingText,
+                      form: form,
+                      footer: footer,
+                      useRecoveryGlass: useRecoveryGlass,
+                    ),
             ),
     );
   }
@@ -202,6 +194,129 @@ class _StandardAuthLayout extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Web's grouped task card: only the brand and Back control sit outside it.
+class _GroupedAuthLayout extends StatelessWidget {
+  const _GroupedAuthLayout({
+    required this.onBack,
+    required this.title,
+    required this.supportingText,
+    required this.form,
+    required this.footer,
+    required this.useRecoveryGlass,
+  });
+  final VoidCallback? onBack;
+  final String title, supportingText;
+  final Widget form;
+  final Widget? footer;
+  final bool useRecoveryGlass;
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final task = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          title,
+          textAlign: TextAlign.center,
+          style: theme.textTheme.headlineSmall?.copyWith(
+            fontWeight: AppFontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Text(
+          supportingText,
+          textAlign: TextAlign.center,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        form,
+        if (footer != null) ...[const SizedBox(height: AppSpacing.lg), footer!],
+      ],
+    );
+    return SafeArea(
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: LayoutBuilder(
+              builder: (context, constraints) => SingleChildScrollView(
+                padding: EdgeInsets.fromLTRB(
+                  AppSpacing.md,
+                  AppSpacing.xxxxl + AppSpacing.md,
+                  AppSpacing.md,
+                  AppSpacing.lg + MediaQuery.viewInsetsOf(context).bottom,
+                ),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minHeight: math.max(
+                      0,
+                      constraints.maxHeight -
+                          AppSpacing.xxxxl -
+                          AppSpacing.md -
+                          AppSpacing.lg -
+                          MediaQuery.viewInsetsOf(context).bottom,
+                    ),
+                  ),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 384),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Semantics(
+                            label: 'CivicVoice',
+                            image: true,
+                            excludeSemantics: true,
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Image.asset(
+                                    AppAssets.logoApp,
+                                    width: 40,
+                                    height: 40,
+                                  ),
+                                  const SizedBox(width: AppSpacing.sm),
+                                  Text(
+                                    'CivicVoice',
+                                    style: theme.textTheme.headlineSmall
+                                        ?.copyWith(
+                                          fontWeight: AppFontWeight.bold,
+                                        ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.lg),
+                          useRecoveryGlass
+                              ? RecoveryAuthFormSurface(child: task)
+                              : AuthFormSurface(
+                                  padding: const EdgeInsets.all(AppSpacing.xl),
+                                  child: task,
+                                ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          if (onBack != null)
+            Positioned(
+              top: AppSpacing.md,
+              left: AppSpacing.md,
+              child: AuthBackButton(onPressed: onBack!),
+            ),
+        ],
       ),
     );
   }
@@ -400,10 +515,16 @@ class _AmbientOrb extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => IgnorePointer(
-    child: Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+    child: ImageFiltered(
+      imageFilter: ImageFilter.blur(
+        sigmaX: AppGlassBlur.large,
+        sigmaY: AppGlassBlur.large,
+      ),
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+      ),
     ),
   );
 }
@@ -470,9 +591,14 @@ class AuthBrandHeader extends StatelessWidget {
 
 /// Opaque, legible form surface with Civic Glass border and elevation tokens.
 class AuthFormSurface extends StatelessWidget {
-  const AuthFormSurface({super.key, required this.child});
+  const AuthFormSurface({
+    super.key,
+    required this.child,
+    this.padding = const EdgeInsets.all(AppSpacing.md),
+  });
 
   final Widget child;
+  final EdgeInsets padding;
 
   @override
   Widget build(BuildContext context) {
@@ -481,7 +607,7 @@ class AuthFormSurface extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: padding,
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         border: Border.all(

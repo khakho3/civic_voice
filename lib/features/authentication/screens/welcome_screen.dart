@@ -1,3 +1,4 @@
+import '../widgets/auth_presentation.dart';
 import 'package:flutter/material.dart';
 
 import 'package:civic_voice/core/theme/app_theme.dart';
@@ -106,54 +107,57 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         : AppBreakpoints.largeMobile;
 
     return Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: maxContentWidth),
-            child: Column(
-              children: [
-                _OnboardingSkip(
-                  isVisible: _currentPage < _slides.length - 1,
-                  onPressed: () => _goToPage(_slides.length - 1),
-                ),
-                Expanded(
-                  // When a swipe or animation settles, the target follows
-                  // the real page so the next button press steps from where
-                  // the person actually is.
-                  child: NotificationListener<ScrollEndNotification>(
-                    onNotification: (_) {
-                      final page = _pageController.page?.round();
-                      if (page != null) _targetPage = page;
-                      return false;
-                    },
-                    child: PageView.builder(
-                      controller: _pageController,
-                      itemCount: _slides.length,
-                      onPageChanged: (page) {
-                        setState(() => _currentPage = page);
-                        if (page == _slides.length - 1) {
-                          widget.onOnboardingCompleted?.call();
-                        }
+      body: AuthBackdrop(
+        onboarding: true,
+        child: SafeArea(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: maxContentWidth),
+              child: Column(
+                children: [
+                  _OnboardingSkip(
+                    isVisible: _currentPage < _slides.length - 1,
+                    onPressed: () => _goToPage(_slides.length - 1),
+                  ),
+                  Expanded(
+                    // When a swipe or animation settles, the target follows
+                    // the real page so the next button press steps from where
+                    // the person actually is.
+                    child: NotificationListener<ScrollEndNotification>(
+                      onNotification: (_) {
+                        final page = _pageController.page?.round();
+                        if (page != null) _targetPage = page;
+                        return false;
                       },
-                      itemBuilder: (context, index) => _SlideFade(
+                      child: PageView.builder(
                         controller: _pageController,
-                        index: index,
-                        child: RepaintBoundary(
-                          child: _OnboardingSlide(content: _slides[index]),
+                        itemCount: _slides.length,
+                        onPageChanged: (page) {
+                          setState(() => _currentPage = page);
+                          if (page == _slides.length - 1) {
+                            widget.onOnboardingCompleted?.call();
+                          }
+                        },
+                        itemBuilder: (context, index) => _SlideFade(
+                          controller: _pageController,
+                          index: index,
+                          child: RepaintBoundary(
+                            child: _OnboardingSlide(content: _slides[index]),
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-                _OnboardingActions(
-                  currentPage: _currentPage,
-                  onNext: () => _goToPage(_targetPage + 1),
-                  onPrevious: () => _goToPage(_targetPage - 1),
-                  onGetStarted: widget.onGetStarted,
-                  onContinueAsGuest: widget.onContinueAsGuest,
-                  onLogin: widget.onLogin,
-                ),
-              ],
+                  _OnboardingActions(
+                    currentPage: _currentPage,
+                    onNext: () => _goToPage(_targetPage + 1),
+                    onPrevious: () => _goToPage(_targetPage - 1),
+                    onGetStarted: widget.onGetStarted,
+                    onContinueAsGuest: widget.onContinueAsGuest,
+                    onLogin: widget.onLogin,
+                  ),
+                ],
+              ),
             ),
           ),
         ),
