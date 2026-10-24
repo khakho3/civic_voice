@@ -1,5 +1,11 @@
 # Native notification reconciliation
 
+## Divider and measured geometry correction - 24 October 2026
+
+The owner clarified that the dashboard summary divider is **vertical**, not horizontal. The first horizontal restoration was wrong and was not installed as the corrected checkpoint. `c51a851` replaces it with one continuous centre divider and matches the web summary's actual CSS/markup: at the owner's observed 448 logical-pixel browser viewport, the isolated web reference renders 416 x 309.6 px; actual font-loaded Flutter widgets render 416 x 310 px in both themes. The summary uses 16 px corners, 24 px vertical/16 px horizontal metric padding, 32 px/600 values, matching labels/captions and warning-coloured Open alerts. Responsive width and native text scaling remain supported. Notification corners also use web's 16 px card radius. Grouped Management/Activity cards and verified live data/actions remain intact.
+
+The reference measurement used the existing web Card/AdminDashboard styles and matching rendered markup in an isolated loopback fixture, not a claimed successful inspection of a frozen background phone tab. The active phone tab supplied viewport metadata. Local actual-widget light/dark PNGs were visually checked; no owner data was changed to create test content. The full native suite remains 1,279 pass, analyzer clean, and final font-loaded render checks pass. Physical acceptance of the corrected APK remains pending. This supersedes earlier horizontal-divider wording below.
+
 ## Owner UI correction - 24 October 2026
 
 The owner rejected the presentation introduced by the native overview/inbox integration: separate metric cards, ungrouped Management/Activity, missing notification icon/unread-dot structure and excess explanatory copy. That presentation is not an accepted parity checkpoint. Native `931709a` restores one summary card with a horizontal row divider, semantic warning-coloured Open alerts, a grouped Management card and an Activity Monitoring card with its original heading/icon/numbered rows. Authoritative overview totals, alert-review actions, verified health and request/session guards are preserved; no cached-count fallback was restored.
