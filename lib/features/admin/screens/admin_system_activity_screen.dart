@@ -239,7 +239,9 @@ class _AdminSystemActivityScreenState extends State<AdminSystemActivityScreen> {
   Future<void> _retry() async {
     final onRefresh = widget.onRefresh;
     if (onRefresh == null) return;
-    setState(() => _state = AdminSystemActivityViewState.loading);
+    if (!_hasActivitySnapshot) {
+      setState(() => _state = AdminSystemActivityViewState.loading);
+    }
     try {
       await onRefresh();
       if (mounted) setState(() => _state = AdminSystemActivityViewState.loaded);
@@ -325,7 +327,7 @@ class _AdminSystemActivityScreenState extends State<AdminSystemActivityScreen> {
       onOpenRoleManagement: widget.onNavigateToRoles,
       onOpenMaintenanceTeams: widget.onNavigateToMaintenanceTeams,
       onOpenProfile: widget.onOpenProfile,
-      body: directoryLoading
+      body: directoryLoading && !_hasActivitySnapshot
           ? const _LoadingSkeleton()
           : directoryUnavailable &&
                 !_canRetry &&
