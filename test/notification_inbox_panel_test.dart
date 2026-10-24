@@ -171,8 +171,8 @@ void main() {
     await tester.tap(find.text('Refresh inbox'));
     await tester.pumpAndSettle();
     expect(find.text("You're all caught up"), findsOneWidget);
-    expect(find.text('Mark this page read'), findsNothing);
-    expect(find.text('Clear this page'), findsNothing);
+    expect(find.text('Mark all read'), findsNothing);
+    expect(find.text('Clear'), findsNothing);
     expect(find.text('Previous page'), findsNothing);
     expect(find.text('Next page'), findsNothing);
   });
@@ -186,7 +186,7 @@ void main() {
         return {'updated': ids.length};
       };
       await mount(tester);
-      await tester.tap(find.text('Clear this page'));
+      await tester.tap(find.text('Clear'));
       await tester.pumpAndSettle();
       load = (_, _) async => page(rows: [row('one'), row('new')]);
       await inbox.refresh();
@@ -201,6 +201,49 @@ void main() {
       expect(find.text('Report new'), findsOneWidget);
     },
   );
+  testWidgets('swipe waits for server acknowledgment and removes only its ID', (
+    tester,
+  ) async {
+    final pending = Completer<Map<String, dynamic>>();
+    var calls = 0;
+    write = (_, ids, action) {
+      expect(ids, ['one']);
+      expect(action, 'dismiss');
+      calls++;
+      return pending.future;
+    };
+    await mount(tester);
+    expect(find.text('Dismiss'), findsNothing);
+    await tester.drag(find.byType(Dismissible), const Offset(-650, 0));
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(calls, 1);
+    expect(find.text('Report one'), findsOneWidget);
+    load = (_, _) async => page(rows: [row('new')]);
+    pending.complete({'updated': 1});
+    await tester.pumpAndSettle();
+    expect(find.text('Report one'), findsNothing);
+    expect(find.text('Report new'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+  testWidgets('failed swipe retains the notification and locks another write', (
+    tester,
+  ) async {
+    var calls = 0;
+    write = (_, _, _) async {
+      calls++;
+      throw StateError('offline');
+    };
+    await mount(tester);
+    await tester.drag(find.byType(Dismissible), const Offset(-650, 0));
+    await tester.pumpAndSettle();
+    expect(find.text('Report one'), findsOneWidget);
+    expect(inbox.uncertain, isTrue);
+    await tester.drag(find.byType(Dismissible), const Offset(-650, 0));
+    await tester.pumpAndSettle();
+    expect(calls, 1);
+    expect(tester.takeException(), isNull);
+  });
   for (final dark in [false, true]) {
     testWidgets(
       'small ${dark ? 'dark' : 'light'} inbox keeps actions readable',

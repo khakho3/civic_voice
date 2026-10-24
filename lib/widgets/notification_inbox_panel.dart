@@ -117,7 +117,8 @@ class _NotificationInboxPanelState extends State<NotificationInboxPanel>
       final roleAllowed = _inbox.owner()?.role == widget.role;
       final page = roleAllowed ? _inbox.page : null;
       final busy = _inbox.writing || _opening || _confirming;
-      final blocked = busy || _inbox.uncertain;
+      final blocked =
+          busy || _inbox.uncertain || _inbox.status != InboxStatus.ready;
       final ready =
           roleAllowed && _inbox.status == InboxStatus.ready && page != null;
       return ListView(
@@ -165,13 +166,13 @@ class _NotificationInboxPanelState extends State<NotificationInboxPanel>
                             page.rows.map((row) => row.id).toList(),
                             'read',
                           ),
-                    child: const Text('Mark this page read'),
+                    child: const Text('Mark all read'),
                   ),
                   TextButton(
                     onPressed: blocked || page.rows.isEmpty
                         ? null
                         : () => _clear(page.rows.map((row) => row.id).toList()),
-                    child: const Text('Clear this page'),
+                    child: const Text('Clear'),
                   ),
                 ],
               ),
@@ -188,13 +189,38 @@ class _NotificationInboxPanelState extends State<NotificationInboxPanel>
             for (final item in page.rows)
               Padding(
                 padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                child: _InboxCard(
-                  item: item,
-                  blocked: blocked,
-                  onOpen: () => _open(item),
-                  onRead: () =>
-                      _inbox.act([item.id], item.read ? 'unread' : 'read'),
-                  onDismiss: () => _inbox.act([item.id], 'dismiss'),
+                child: Dismissible(
+                  key: ValueKey(
+                    'notification-swipe-${_inbox.owner()?.key}-${item.id}',
+                  ),
+                  direction: blocked
+                      ? DismissDirection.none
+                      : DismissDirection.endToStart,
+                  background: Container(
+                    alignment: AlignmentDirectional.centerEnd,
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    decoration: BoxDecoration(
+                      color: AppColors.error.withValues(alpha: .12),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Icon(
+                      AppIcons.delete,
+                      color: AppSemanticColors.of(context).errorText,
+                    ),
+                  ),
+                  // Only the verified server refresh removes a card. A failed,
+                  // partial or uncertain write leaves it available for recovery.
+                  confirmDismiss: (_) async {
+                    await _inbox.act([item.id], 'dismiss');
+                    return false;
+                  },
+                  child: _InboxCard(
+                    item: item,
+                    blocked: blocked,
+                    onOpen: () => _open(item),
+                    onRead: () =>
+                        _inbox.act([item.id], item.read ? 'unread' : 'read'),
+                  ),
                 ),
               ),
             Wrap(
@@ -293,11 +319,10 @@ class _InboxCard extends StatelessWidget {
     required this.blocked,
     required this.onOpen,
     required this.onRead,
-    required this.onDismiss,
   });
   final InboxNotification item;
   final bool blocked;
-  final VoidCallback onOpen, onRead, onDismiss;
+  final VoidCallback onOpen, onRead;
   @override
   Widget build(BuildContext context) {
     final semantic = AppSemanticColors.of(context), theme = Theme.of(context);
@@ -404,10 +429,6 @@ class _InboxCard extends StatelessWidget {
               TextButton(
                 onPressed: blocked ? null : onRead,
                 child: Text(item.read ? 'Mark unread' : 'Mark read'),
-              ),
-              TextButton(
-                onPressed: blocked ? null : onDismiss,
-                child: const Text('Dismiss'),
               ),
             ],
           ),
