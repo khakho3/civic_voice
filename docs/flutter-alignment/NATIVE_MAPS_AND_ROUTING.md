@@ -1,5 +1,10 @@
 # Native map search and pin routing - 22 October 2026
 
+## Super Admin safeguard client -24October2026
+
+Native7b25813/983468e implements the separately scoped unresolved-locality queue/editor; see [NATIVE_REPORT_ROUTING.md](NATIVE_REPORT_ROUTING.md). Automatic citizen routing remains owned by the server from the issue pin, with no citizen assembly selector. The editor uses the exact allowed geography/reason/version/acknowledgment contract and existing read-only pin/evidence viewers; it never chooses geography from staffing. Installed DEV runtime throughad28085 still requires owner confirmation; no real records were routed for QA. Earlier pending-client statements below are historical.
+
+
 ## Map theme and pin feedback - 23 October 2026
 
 Web `69636c8` applies one dark tile palette to LocationPicker and all shared MapPreview consumers. Changing the resolved app theme updates the existing map without recentering; light mode clears custom styling and unmount disconnects the observer. `ebe43bd` explicitly preserves busy-button opacity, primary fill and WebKit text colour while retaining disabled duplicate-click protection.
