@@ -1,5 +1,7 @@
 # Native Admin reconciliation
 
+Latest24October: native137562b includes the restored User Details identity card, clearer verified-online API pulse and removal of Governance approved profile subtitle. Tap feedback72e2793 is owner-confirmed; Forgot Password6692013 is grouped like Change Password.1,430 tests/analyzer pass; verified isolated DEV installed/open, data retained. Newest card/profile/badge acceptance remains pending. Current authoritative scope: LATIF_PROGRESS.md / NATIVE_OWNER_UI_FOLLOWUPS.md; historical checkpoints follow.
+
 Latest24October follow-up: native7b42fc6 includes Home refresh stability, shared profile spacing, inline User Details status, own-account read-only safeguards and restored live-inbox Ghana pull-to-refresh (routine Refresh inbox removed; recovery Retry retained). API self-edit enforcement isd00b6c6. Full suite1,416/analyzer pass. Owner confirms native drawer logout and says System Activity flicker looks fixed; newest acceptance and general tap-flash investigation remain open. Current authoritative scope/install evidence: LATIF_PROGRESS.md / NATIVE_OWNER_UI_FOLLOWUPS.md and web docs/CURRENT_STATUS.md; previous checkpoints below remain historical.
 
 ## Current owner follow-ups - 24 October 2026
