@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:civic_voice/core/theme/app_theme.dart';
+import 'package:civic_voice/core/widgets/ghana_refresh_indicator.dart';
 import 'package:civic_voice/models/app_role.dart';
 import 'package:civic_voice/services/notification_inbox_directory.dart';
 import 'package:civic_voice/widgets/notification_inbox_panel.dart';
@@ -60,6 +61,52 @@ void main() {
   }
 
   testWidgets(
+    'pull refresh retains verified cards and rejects late results after owner switch',
+    (tester) async {
+      await mount(tester);
+      final card = find.byKey(const ValueKey('notification-card-one'));
+      final element = tester.element(card);
+      final response = Completer<Map<String, dynamic>>();
+      load = (_, _) => response.future;
+      final refreshing = inbox.refresh();
+      await tester.pump();
+      expect(tester.element(card), same(element));
+      identity = const InboxOwner('other-account', AppRole.citizen);
+      inbox.notifyListeners();
+      await tester.pump();
+      expect(card, findsNothing);
+      response.complete(page());
+      await refreshing;
+      await tester.pump();
+      expect(card, findsNothing);
+    },
+  );
+  testWidgets(
+    'ready and empty live inbox use custom pull-to-refresh without a refresh button',
+    (tester) async {
+      var requests = 0;
+      load = (_, _) async {
+        requests++;
+        return page();
+      };
+      await mount(tester);
+      expect(find.text('Refresh inbox'), findsNothing);
+      expect(find.text('Retry'), findsNothing);
+      expect(find.byType(GhanaRefreshIndicator), findsOneWidget);
+      final before = requests;
+      await tester.drag(find.byType(ListView), const Offset(0, 420));
+      await tester.pumpAndSettle();
+      expect(requests, greaterThan(before));
+      load = (_, _) async => page(rows: []);
+      await inbox.refresh();
+      await tester.pumpAndSettle();
+      expect(find.text("You're all caught up"), findsOneWidget);
+      final physics = tester.widget<ListView>(find.byType(ListView)).physics;
+      expect(physics, isA<AlwaysScrollableScrollPhysics>());
+      expect(find.text('Refresh inbox'), findsNothing);
+    },
+  );
+  testWidgets(
     'denied OS permission preserves verified inbox and acknowledged navigation',
     (tester) async {
       var opens = 0;
@@ -106,16 +153,16 @@ void main() {
       );
       expect(read.onPressed, isNull);
       await tester.scrollUntilVisible(
-        find.text('Refresh inbox'),
+        find.text('Retry'),
         150,
         scrollable: find.byType(Scrollable).first,
       );
       await Scrollable.ensureVisible(
-        tester.element(find.text('Refresh inbox')),
+        tester.element(find.text('Retry')),
         alignment: 0.5,
       );
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Refresh inbox'));
+      await tester.tap(find.text('Retry'));
       await tester.pumpAndSettle();
       expect(inbox.uncertain, isFalse);
     },
@@ -168,7 +215,7 @@ void main() {
     expect(find.textContaining('Could not load notifications'), findsOneWidget);
     expect(find.text('Report one'), findsNothing);
     load = (_, _) async => page(rows: [], unread: 0);
-    await tester.tap(find.text('Refresh inbox'));
+    await tester.tap(find.text('Retry'));
     await tester.pumpAndSettle();
     expect(find.text("You're all caught up"), findsOneWidget);
     expect(find.text('Mark all read'), findsNothing);

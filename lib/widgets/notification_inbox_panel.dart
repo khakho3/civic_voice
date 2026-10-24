@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../core/theme/app_theme.dart';
+import '../core/widgets/ghana_refresh_indicator.dart';
 import '../models/app_role.dart';
 import '../models/notification_inbox.dart';
 import '../services/notification_inbox_directory.dart';
@@ -120,144 +121,163 @@ class _NotificationInboxPanelState extends State<NotificationInboxPanel>
       final blocked =
           busy || _inbox.uncertain || _inbox.status != InboxStatus.ready;
       final ready =
-          roleAllowed && _inbox.status == InboxStatus.ready && page != null;
-      return ListView(
-        padding: widget.padding,
-        children: [
-          const NotificationDeviceSettings(),
-          if (roleAllowed &&
-              (_inbox.status == InboxStatus.loading ||
-                  _inbox.status == InboxStatus.idle))
-            const Padding(
-              padding: EdgeInsets.all(AppSpacing.xl),
-              child: Center(
-                child: BusyIndicator(
-                  semanticsLabel: 'Loading notifications, please wait...',
+          roleAllowed &&
+          page != null &&
+          (_inbox.status == InboxStatus.ready ||
+              _inbox.status == InboxStatus.loading);
+      return GhanaRefreshIndicator(
+        topOffset: widget.padding.top,
+        onRefresh: () async {
+          if (busy) return;
+          setState(() => _navigationError = null);
+          await _inbox.refresh();
+        },
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: widget.padding,
+          children: [
+            const NotificationDeviceSettings(),
+            if (roleAllowed && page == null &&
+                (_inbox.status == InboxStatus.loading ||
+                    _inbox.status == InboxStatus.idle))
+              const Padding(
+                padding: EdgeInsets.all(AppSpacing.xl),
+                child: Center(
+                  child: BusyIndicator(
+                    semanticsLabel: 'Loading notifications, please wait...',
+                  ),
                 ),
+              )
+            else if (!ready) ...[
+              const _InboxState(
+                icon: AppIcons.warning,
+                message: 'Could not load notifications. Please try again.',
               ),
-            )
-          else if (!ready) ...[
-            const _InboxState(
-              icon: AppIcons.warning,
-              message: 'Could not load notifications. Please try again.',
-            ),
-            TextButton(
-              onPressed: busy ? null : () => _inbox.refresh(reset: true),
-              child: const Text('Refresh inbox'),
-            ),
-          ] else ...[
-            if (page.rows.isNotEmpty)
-              Text(
-                '${page.unreadCount} unread',
-                style: Theme.of(context).textTheme.labelSmall,
+              TextButton(
+                onPressed: busy ? null : () => _inbox.refresh(reset: true),
+                child: const Text('Retry'),
               ),
-            if (_inbox.writing || _opening)
-              const BusyIndicator(
-                semanticsLabel: 'Updating notifications, please wait...',
-              ),
-            if (page.rows.isNotEmpty)
+            ] else ...[
+              if (page.rows.isNotEmpty)
+                Text(
+                  '${page.unreadCount} unread',
+                  style: Theme.of(context).textTheme.labelSmall,
+                ),
+              if (_inbox.writing || _opening)
+                const BusyIndicator(
+                  semanticsLabel: 'Updating notifications, please wait...',
+                ),
+              if (page.rows.isNotEmpty)
+                Wrap(
+                  spacing: AppSpacing.sm,
+                  children: [
+                    TextButton(
+                      onPressed: blocked || page.rows.isEmpty
+                          ? null
+                          : () => _inbox.act(
+                              page.rows.map((row) => row.id).toList(),
+                              'read',
+                            ),
+                      child: const Text('Mark all read'),
+                    ),
+                    TextButton(
+                      onPressed: blocked || page.rows.isEmpty
+                          ? null
+                          : () =>
+                                _clear(page.rows.map((row) => row.id).toList()),
+                      child: const Text('Clear'),
+                    ),
+                  ],
+                ),
+              if (_inbox.error != null)
+                Semantics(liveRegion: true, child: Text(_inbox.error!)),
+              if (_navigationError != null)
+                Semantics(liveRegion: true, child: Text(_navigationError!)),
+              if (page.rows.isEmpty)
+                const _InboxState(
+                  message: "You're all caught up",
+                  detail:
+                      'Report updates and account notifications will appear here.',
+                ),
+              for (final item in page.rows)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                  child: Semantics(
+                    key: ValueKey('notification-actions-${item.id}'),
+                    onDismiss: blocked
+                        ? null
+                        : () {
+                            unawaited(_inbox.act([item.id], 'dismiss'));
+                          },
+                    child: Dismissible(
+                      key: ValueKey(
+                        'notification-swipe-${_inbox.owner()?.key}-${item.id}',
+                      ),
+                      direction: blocked
+                          ? DismissDirection.none
+                          : DismissDirection.endToStart,
+                      background: Container(
+                        alignment: AlignmentDirectional.centerEnd,
+                        padding: const EdgeInsets.all(AppSpacing.md),
+                        decoration: BoxDecoration(
+                          color: AppColors.error.withValues(alpha: .12),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Icon(
+                          AppIcons.delete,
+                          color: AppSemanticColors.of(context).errorText,
+                        ),
+                      ),
+                      // Only the verified server refresh removes a card. A failed,
+                      // partial or uncertain write leaves it available for recovery.
+                      confirmDismiss: (_) async {
+                        await _inbox.act([item.id], 'dismiss');
+                        return false;
+                      },
+                      child: _InboxCard(
+                        item: item,
+                        blocked: blocked,
+                        onOpen: () => _open(item),
+                        onRead: () => _inbox.act([
+                          item.id,
+                        ], item.read ? 'unread' : 'read'),
+                      ),
+                    ),
+                  ),
+                ),
               Wrap(
-                spacing: AppSpacing.sm,
                 children: [
-                  TextButton(
-                    onPressed: blocked || page.rows.isEmpty
-                        ? null
-                        : () => _inbox.act(
-                            page.rows.map((row) => row.id).toList(),
-                            'read',
-                          ),
-                    child: const Text('Mark all read'),
-                  ),
-                  TextButton(
-                    onPressed: blocked || page.rows.isEmpty
-                        ? null
-                        : () => _clear(page.rows.map((row) => row.id).toList()),
-                    child: const Text('Clear'),
-                  ),
+                  if (_inbox.canPrevious || _inbox.canNext)
+                    TextButton(
+                      onPressed: blocked || !_inbox.canPrevious
+                          ? null
+                          : _inbox.previous,
+                      child: const Text('Previous page'),
+                    ),
+                  if (_inbox.canPrevious || _inbox.canNext)
+                    TextButton(
+                      onPressed: blocked || !_inbox.canNext
+                          ? null
+                          : _inbox.next,
+                      child: const Text('Next page'),
+                    ),
+                  if (_inbox.uncertain ||
+                      _inbox.error != null ||
+                      _navigationError != null)
+                    TextButton(
+                      onPressed: busy
+                          ? null
+                          : () {
+                              setState(() => _navigationError = null);
+                              unawaited(_inbox.refresh());
+                            },
+                      child: const Text('Retry'),
+                    ),
                 ],
               ),
-            if (_inbox.error != null)
-              Semantics(liveRegion: true, child: Text(_inbox.error!)),
-            if (_navigationError != null)
-              Semantics(liveRegion: true, child: Text(_navigationError!)),
-            if (page.rows.isEmpty)
-              const _InboxState(
-                message: "You're all caught up",
-                detail:
-                    'Report updates and account notifications will appear here.',
-              ),
-            for (final item in page.rows)
-              Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                child: Semantics(
-                  key: ValueKey('notification-actions-${item.id}'),
-                  onDismiss: blocked
-                      ? null
-                      : () {
-                          unawaited(_inbox.act([item.id], 'dismiss'));
-                        },
-                  child: Dismissible(
-                    key: ValueKey(
-                      'notification-swipe-${_inbox.owner()?.key}-${item.id}',
-                    ),
-                    direction: blocked
-                        ? DismissDirection.none
-                        : DismissDirection.endToStart,
-                    background: Container(
-                      alignment: AlignmentDirectional.centerEnd,
-                      padding: const EdgeInsets.all(AppSpacing.md),
-                      decoration: BoxDecoration(
-                        color: AppColors.error.withValues(alpha: .12),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Icon(
-                        AppIcons.delete,
-                        color: AppSemanticColors.of(context).errorText,
-                      ),
-                    ),
-                    // Only the verified server refresh removes a card. A failed,
-                    // partial or uncertain write leaves it available for recovery.
-                    confirmDismiss: (_) async {
-                      await _inbox.act([item.id], 'dismiss');
-                      return false;
-                    },
-                    child: _InboxCard(
-                      item: item,
-                      blocked: blocked,
-                      onOpen: () => _open(item),
-                      onRead: () =>
-                          _inbox.act([item.id], item.read ? 'unread' : 'read'),
-                    ),
-                  ),
-                ),
-              ),
-            Wrap(
-              children: [
-                if (_inbox.canPrevious || _inbox.canNext)
-                  TextButton(
-                    onPressed: blocked || !_inbox.canPrevious
-                        ? null
-                        : _inbox.previous,
-                    child: const Text('Previous page'),
-                  ),
-                if (_inbox.canPrevious || _inbox.canNext)
-                  TextButton(
-                    onPressed: blocked || !_inbox.canNext ? null : _inbox.next,
-                    child: const Text('Next page'),
-                  ),
-                TextButton(
-                  onPressed: busy
-                      ? null
-                      : () {
-                          setState(() => _navigationError = null);
-                          unawaited(_inbox.refresh());
-                        },
-                  child: const Text('Refresh inbox'),
-                ),
-              ],
-            ),
+            ],
           ],
-        ],
+        ),
       );
     },
   );
