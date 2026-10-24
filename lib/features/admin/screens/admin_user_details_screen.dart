@@ -422,6 +422,7 @@ class _DetailsForm extends StatelessWidget {
         _Section(
           title: 'Account information',
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _ReadOnlyField(label: 'Full Name', value: user.name),
               const SizedBox(height: AppSpacing.sm),
@@ -440,6 +441,7 @@ class _DetailsForm extends StatelessWidget {
         _Section(
           title: 'Access',
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               if (canEditRole)
                 _LabeledDropdown<AppRole>(
@@ -511,6 +513,7 @@ class _DetailsForm extends StatelessWidget {
         _Section(
           title: 'Account Activity',
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _ActivityRow(
                 label: 'Last sign-in',
