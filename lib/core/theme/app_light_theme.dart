@@ -13,6 +13,7 @@ import '../constants/app_dimensions.dart';
 import 'app_colors.dart';
 import 'app_elevation.dart';
 import 'app_icons.dart';
+import 'app_interaction.dart';
 import 'app_motion.dart';
 import 'app_radius.dart';
 import 'app_typography.dart';
@@ -67,10 +68,24 @@ abstract final class AppLightTheme {
     scaffoldBackgroundColor: AppColorsLight.canvas,
     fontFamily: AppTypography.fontFamily,
     textTheme: _textTheme,
-    splashFactory: InkSparkle.splashFactory,
+    splashFactory: NoSplash.splashFactory,
     pageTransitionsTheme: AppMotion.pageTransitionsTheme,
 
     extensions: const <ThemeExtension<dynamic>>[AppSemanticColors.light],
+
+    iconButtonTheme: IconButtonThemeData(
+      style: ButtonStyle(
+        overlayColor: AppInteraction.overlay(_colorScheme.onSurfaceVariant),
+      ),
+    ),
+    segmentedButtonTheme: SegmentedButtonThemeData(
+      style: ButtonStyle(
+        overlayColor: AppInteraction.overlay(_colorScheme.onSurface),
+      ),
+    ),
+    switchTheme: SwitchThemeData(
+      overlayColor: AppInteraction.overlay(_colorScheme.onSurface),
+    ),
 
     iconTheme: const IconThemeData(
       color: AppColorsLight.primaryText,
@@ -179,6 +194,7 @@ abstract final class AppLightTheme {
     ),
 
     radioTheme: RadioThemeData(
+      overlayColor: AppInteraction.overlay(_colorScheme.onSurface),
       fillColor: WidgetStateProperty.resolveWith(
         (states) => states.contains(WidgetState.selected)
             ? AppColors.primaryText
@@ -187,6 +203,7 @@ abstract final class AppLightTheme {
     ),
 
     checkboxTheme: CheckboxThemeData(
+      overlayColor: AppInteraction.overlay(_colorScheme.onSurface),
       side: const BorderSide(
         color: AppColors.controlBorder,
         width: AppDimensions.borderWidthFocused,
@@ -216,7 +233,7 @@ abstract final class AppLightTheme {
         ),
         textStyle: _textTheme.labelLarge,
         elevation: AppElevation.level0,
-      ),
+      ).copyWith(overlayColor: AppInteraction.overlay(_colorScheme.onPrimary)),
     ),
 
     filledButtonTheme: FilledButtonThemeData(
@@ -229,7 +246,7 @@ abstract final class AppLightTheme {
           borderRadius: AppComponentRadius.button,
         ),
         textStyle: _textTheme.labelLarge,
-      ),
+      ).copyWith(overlayColor: AppInteraction.overlay(_colorScheme.onPrimary)),
     ),
 
     outlinedButtonTheme: OutlinedButtonThemeData(
@@ -245,7 +262,7 @@ abstract final class AppLightTheme {
           borderRadius: AppComponentRadius.button,
         ),
         textStyle: _textTheme.labelLarge,
-      ),
+      ).copyWith(overlayColor: AppInteraction.overlay(_colorScheme.primary)),
     ),
 
     // Every button theme above uses a 64px intrinsic-width minimum, not a
@@ -264,7 +281,7 @@ abstract final class AppLightTheme {
           borderRadius: AppComponentRadius.button,
         ),
         textStyle: _textTheme.labelLarge,
-      ),
+      ).copyWith(overlayColor: AppInteraction.overlay(_colorScheme.primary)),
     ),
 
     // Glass (AppColorsLight.glassSurface) rather than the opaque primary
@@ -299,6 +316,7 @@ abstract final class AppLightTheme {
     ),
 
     navigationBarTheme: NavigationBarThemeData(
+      overlayColor: AppInteraction.overlay(_colorScheme.onSurface),
       backgroundColor: AppColorsLight.primarySurface,
       surfaceTintColor: Colors.transparent,
       // No filled indicator pill — active state is icon/label color+weight
@@ -378,7 +396,7 @@ abstract final class AppLightTheme {
     dividerColor: AppColorsLight.border,
     disabledColor: AppColorsLight.secondaryText,
     hintColor: AppColorsLight.secondaryText,
-    highlightColor: AppColors.primary.withValues(alpha: 0.08),
+    highlightColor: AppInteraction.pressedTint(_colorScheme.onSurface),
     focusColor: AppColors.focus.withValues(alpha: 0.12),
   );
 }

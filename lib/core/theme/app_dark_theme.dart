@@ -13,6 +13,7 @@ import '../constants/app_dimensions.dart';
 import 'app_colors.dart';
 import 'app_elevation.dart';
 import 'app_icons.dart';
+import 'app_interaction.dart';
 import 'app_motion.dart';
 import 'app_radius.dart';
 import 'app_typography.dart';
@@ -61,10 +62,24 @@ abstract final class AppDarkTheme {
     scaffoldBackgroundColor: AppColorsDark.canvas,
     fontFamily: AppTypography.fontFamily,
     textTheme: _textTheme,
-    splashFactory: InkSparkle.splashFactory,
+    splashFactory: NoSplash.splashFactory,
     pageTransitionsTheme: AppMotion.pageTransitionsTheme,
 
     extensions: const <ThemeExtension<dynamic>>[AppSemanticColors.dark],
+
+    iconButtonTheme: IconButtonThemeData(
+      style: ButtonStyle(
+        overlayColor: AppInteraction.overlay(_colorScheme.onSurfaceVariant),
+      ),
+    ),
+    segmentedButtonTheme: SegmentedButtonThemeData(
+      style: ButtonStyle(
+        overlayColor: AppInteraction.overlay(_colorScheme.onSurface),
+      ),
+    ),
+    switchTheme: SwitchThemeData(
+      overlayColor: AppInteraction.overlay(_colorScheme.onSurface),
+    ),
 
     iconTheme: const IconThemeData(
       color: AppColorsDark.primaryText,
@@ -168,6 +183,7 @@ abstract final class AppDarkTheme {
     ),
 
     radioTheme: RadioThemeData(
+      overlayColor: AppInteraction.overlay(_colorScheme.onSurface),
       fillColor: WidgetStateProperty.resolveWith(
         (states) => states.contains(WidgetState.selected)
             ? AppColors.primaryDark
@@ -176,6 +192,7 @@ abstract final class AppDarkTheme {
     ),
 
     checkboxTheme: CheckboxThemeData(
+      overlayColor: AppInteraction.overlay(_colorScheme.onSurface),
       side: const BorderSide(
         color: AppColorsDark.secondaryText,
         width: AppDimensions.borderWidthFocused,
@@ -204,7 +221,7 @@ abstract final class AppDarkTheme {
         ),
         textStyle: _textTheme.labelLarge,
         elevation: AppElevation.level0,
-      ),
+      ).copyWith(overlayColor: AppInteraction.overlay(_colorScheme.onPrimary)),
     ),
 
     filledButtonTheme: FilledButtonThemeData(
@@ -216,7 +233,7 @@ abstract final class AppDarkTheme {
           borderRadius: AppComponentRadius.button,
         ),
         textStyle: _textTheme.labelLarge,
-      ),
+      ).copyWith(overlayColor: AppInteraction.overlay(_colorScheme.onPrimary)),
     ),
 
     outlinedButtonTheme: OutlinedButtonThemeData(
@@ -231,7 +248,7 @@ abstract final class AppDarkTheme {
           borderRadius: AppComponentRadius.button,
         ),
         textStyle: _textTheme.labelLarge,
-      ),
+      ).copyWith(overlayColor: AppInteraction.overlay(_colorScheme.primary)),
     ),
 
     textButtonTheme: TextButtonThemeData(
@@ -243,7 +260,7 @@ abstract final class AppDarkTheme {
           borderRadius: AppComponentRadius.button,
         ),
         textStyle: _textTheme.labelLarge,
-      ),
+      ).copyWith(overlayColor: AppInteraction.overlay(_colorScheme.primary)),
     ),
 
     // See AppLightTheme for why these are glass (AppColorsDark.glassSurface)
@@ -273,6 +290,7 @@ abstract final class AppDarkTheme {
     ),
 
     navigationBarTheme: NavigationBarThemeData(
+      overlayColor: AppInteraction.overlay(_colorScheme.onSurface),
       backgroundColor: AppColorsDark.primarySurface,
       surfaceTintColor: Colors.transparent,
       // No filled indicator pill — active state is icon/label color+weight
@@ -344,7 +362,7 @@ abstract final class AppDarkTheme {
     dividerColor: AppColorsDark.border,
     disabledColor: AppColorsDark.secondaryText,
     hintColor: AppColorsDark.secondaryText,
-    highlightColor: AppColors.primaryDark.withValues(alpha: 0.16),
+    highlightColor: AppInteraction.pressedTint(_colorScheme.onSurface),
     focusColor: AppColors.primaryDark.withValues(alpha: 0.20),
   );
 }
