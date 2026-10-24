@@ -136,137 +136,77 @@ class _NotificationInboxPanelState extends State<NotificationInboxPanel>
               ),
             )
           else if (!ready) ...[
-            const Text(
-              'Your inbox could not be verified. No sample messages are shown.',
+            const _InboxState(
+              icon: AppIcons.warning,
+              message: 'Could not load notifications. Please try again.',
             ),
             TextButton(
               onPressed: busy ? null : () => _inbox.refresh(reset: true),
               child: const Text('Refresh inbox'),
             ),
           ] else ...[
-            Text('${page.unreadCount} unread across your current inbox'),
+            if (page.rows.isNotEmpty)
+              Text(
+                '${page.unreadCount} unread',
+                style: Theme.of(context).textTheme.labelSmall,
+              ),
             if (_inbox.writing || _opening)
               const BusyIndicator(
                 semanticsLabel: 'Updating notifications, please wait...',
               ),
-            Wrap(
-              spacing: AppSpacing.sm,
-              children: [
-                TextButton(
-                  onPressed: blocked || page.rows.isEmpty
-                      ? null
-                      : () => _inbox.act(
-                          page.rows.map((row) => row.id).toList(),
-                          'read',
-                        ),
-                  child: const Text('Mark this page read'),
-                ),
-                TextButton(
-                  onPressed: blocked || page.rows.isEmpty
-                      ? null
-                      : () => _clear(page.rows.map((row) => row.id).toList()),
-                  child: const Text('Clear this page'),
-                ),
-              ],
-            ),
+            if (page.rows.isNotEmpty)
+              Wrap(
+                spacing: AppSpacing.sm,
+                children: [
+                  TextButton(
+                    onPressed: blocked || page.rows.isEmpty
+                        ? null
+                        : () => _inbox.act(
+                            page.rows.map((row) => row.id).toList(),
+                            'read',
+                          ),
+                    child: const Text('Mark this page read'),
+                  ),
+                  TextButton(
+                    onPressed: blocked || page.rows.isEmpty
+                        ? null
+                        : () => _clear(page.rows.map((row) => row.id).toList()),
+                    child: const Text('Clear this page'),
+                  ),
+                ],
+              ),
             if (_inbox.error != null)
               Semantics(liveRegion: true, child: Text(_inbox.error!)),
             if (_navigationError != null)
               Semantics(liveRegion: true, child: Text(_navigationError!)),
             if (page.rows.isEmpty)
-              const Text(
-                'No notifications on this page. New updates will appear here.',
-              ),
+              const _InboxState(message: 'No notifications yet.'),
             for (final item in page.rows)
               Padding(
                 padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                child: Card(
-                  elevation: 0,
-                  margin: EdgeInsets.zero,
-                  color: Theme.of(context).colorScheme.surfaceContainerLow,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: AppComponentRadius.card,
-                    side: BorderSide(
-                      color: Theme.of(context).colorScheme.outlineVariant,
-                    ),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(AppSpacing.md),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Semantics(
-                          button: true,
-                          label:
-                              '${item.read ? '' : 'Unread. '}${item.title}. ${item.body}',
-                          child: InkWell(
-                            onTap: blocked ? null : () => _open(item),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                vertical: AppSpacing.sm,
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    item.title,
-                                    style: Theme.of(
-                                      context,
-                                    ).textTheme.titleSmall,
-                                  ),
-                                  Text(item.body),
-                                  Text(
-                                    item.createdAt
-                                        .toLocal()
-                                        .toString()
-                                        .split('.')
-                                        .first,
-                                    style: Theme.of(
-                                      context,
-                                    ).textTheme.labelSmall,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                        Wrap(
-                          children: [
-                            TextButton(
-                              onPressed: blocked
-                                  ? null
-                                  : () => _inbox.act([
-                                      item.id,
-                                    ], item.read ? 'unread' : 'read'),
-                              child: Text(
-                                item.read ? 'Mark unread' : 'Mark read',
-                              ),
-                            ),
-                            TextButton(
-                              onPressed: blocked
-                                  ? null
-                                  : () => _inbox.act([item.id], 'dismiss'),
-                              child: const Text('Dismiss'),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
+                child: _InboxCard(
+                  item: item,
+                  blocked: blocked,
+                  onOpen: () => _open(item),
+                  onRead: () =>
+                      _inbox.act([item.id], item.read ? 'unread' : 'read'),
+                  onDismiss: () => _inbox.act([item.id], 'dismiss'),
                 ),
               ),
             Wrap(
               children: [
-                TextButton(
-                  onPressed: blocked || !_inbox.canPrevious
-                      ? null
-                      : _inbox.previous,
-                  child: const Text('Previous page'),
-                ),
-                TextButton(
-                  onPressed: blocked || !_inbox.canNext ? null : _inbox.next,
-                  child: const Text('Next page'),
-                ),
+                if (_inbox.canPrevious || _inbox.canNext)
+                  TextButton(
+                    onPressed: blocked || !_inbox.canPrevious
+                        ? null
+                        : _inbox.previous,
+                    child: const Text('Previous page'),
+                  ),
+                if (_inbox.canPrevious || _inbox.canNext)
+                  TextButton(
+                    onPressed: blocked || !_inbox.canNext ? null : _inbox.next,
+                    child: const Text('Next page'),
+                  ),
                 TextButton(
                   onPressed: busy
                       ? null
@@ -283,4 +223,165 @@ class _NotificationInboxPanelState extends State<NotificationInboxPanel>
       );
     },
   );
+}
+
+class _InboxState extends StatelessWidget {
+  const _InboxState({
+    required this.message,
+    this.icon = AppIcons.notifications,
+  });
+  final String message;
+  final IconData icon;
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    height: 280,
+    child: Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            size: 40,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _InboxCard extends StatelessWidget {
+  const _InboxCard({
+    required this.item,
+    required this.blocked,
+    required this.onOpen,
+    required this.onRead,
+    required this.onDismiss,
+  });
+  final InboxNotification item;
+  final bool blocked;
+  final VoidCallback onOpen, onRead, onDismiss;
+  @override
+  Widget build(BuildContext context) {
+    final semantic = AppSemanticColors.of(context), theme = Theme.of(context);
+    final date = item.createdAt.toLocal();
+    return Card(
+      key: ValueKey('notification-card-${item.id}'),
+      elevation: 0,
+      margin: EdgeInsets.zero,
+      color: theme.colorScheme.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: AppComponentRadius.card,
+        side: BorderSide(
+          color: item.read
+              ? semantic.glassBorder
+              : semantic.actionText.withValues(alpha: .4),
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Semantics(
+            button: true,
+            label: '${item.read ? '' : 'Unread. '}${item.title}. ${item.body}',
+            child: InkWell(
+              onTap: blocked ? null : onOpen,
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.sm),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: semantic.actionFill.withValues(alpha: .12),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        AppIcons.notifications,
+                        color: semantic.actionText,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  item.title,
+                                  style: theme.textTheme.titleSmall,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              if (!item.read)
+                                Padding(
+                                  padding: const EdgeInsets.only(
+                                    left: AppSpacing.sm,
+                                  ),
+                                  child: Semantics(
+                                    label: 'Unread',
+                                    child: Container(
+                                      width: 8,
+                                      height: 8,
+                                      decoration: BoxDecoration(
+                                        color: semantic.actionFill,
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                          Text(
+                            item.body,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '${MaterialLocalizations.of(context).formatMediumDate(date)} · ${TimeOfDay.fromDateTime(date).format(context)}',
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Wrap(
+            children: [
+              TextButton(
+                onPressed: blocked ? null : onRead,
+                child: Text(item.read ? 'Mark unread' : 'Mark read'),
+              ),
+              TextButton(
+                onPressed: blocked ? null : onDismiss,
+                child: const Text('Dismiss'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 }

@@ -469,9 +469,19 @@ class _NotificationDeviceSettingsState extends State<NotificationDeviceSettings>
       ? const SizedBox.shrink()
       : Padding(
           padding: const EdgeInsets.only(bottom: AppSpacing.md),
-          child: _PermissionBanner(
-            settingsRequired: _status!.isPermanentlyDenied,
-            onPressed: _enable,
+          child: ExpansionTile(
+            tilePadding: EdgeInsets.zero,
+            leading: const Icon(AppIcons.notificationsOff),
+            title: Text(
+              'Device Notifications Are Off',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            children: [
+              _PermissionBanner(
+                settingsRequired: _status!.isPermanentlyDenied,
+                onPressed: _enable,
+              ),
+            ],
           ),
         );
 }

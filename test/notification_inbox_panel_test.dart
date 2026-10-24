@@ -71,7 +71,7 @@ void main() {
       );
       expect(find.text('Device Notifications Are Off'), findsOneWidget);
       expect(find.text('Report one'), findsOneWidget);
-      expect(find.text('4 unread across your current inbox'), findsOneWidget);
+      expect(find.text('4 unread'), findsOneWidget);
       await tester.tap(find.text('Report one'));
       await tester.pumpAndSettle();
       expect(opens, 1);
@@ -165,18 +165,16 @@ void main() {
   ) async {
     load = (_, _) async => throw StateError('offline');
     await mount(tester);
-    expect(
-      find.textContaining('Your inbox could not be verified'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('Could not load notifications'), findsOneWidget);
     expect(find.text('Report one'), findsNothing);
     load = (_, _) async => page(rows: [], unread: 0);
     await tester.tap(find.text('Refresh inbox'));
     await tester.pumpAndSettle();
-    expect(
-      find.textContaining('No notifications on this page'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('No notifications yet.'), findsOneWidget);
+    expect(find.text('Mark this page read'), findsNothing);
+    expect(find.text('Clear this page'), findsNothing);
+    expect(find.text('Previous page'), findsNothing);
+    expect(find.text('Next page'), findsNothing);
   });
   testWidgets(
     'bulk clear freezes displayed IDs and retains newly arriving updates',
