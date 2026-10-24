@@ -3,6 +3,7 @@ import 'package:civic_voice/services/app_cache_service.dart';
 import 'package:civic_voice/widgets/collapsible_list_header.dart';
 import 'package:civic_voice/widgets/focused_search.dart';
 import 'package:civic_voice/widgets/text_filter_chips.dart';
+import 'package:civic_voice/widgets/civic_filter_chip.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -236,7 +237,7 @@ void main() {
   );
 
   testWidgets(
-    'text-only chips: no icons, gold fill and dark ink when selected',
+    'shared pills retain controlled selection and native checkmark',
     (tester) async {
       var selected = 'all';
       await tester.pumpWidget(
@@ -257,15 +258,18 @@ void main() {
         ),
       );
 
-      expect(find.byType(Icon), findsNothing);
-      final semantic = AppSemanticColors.light;
-      Text label(String text) => tester.widget<Text>(find.text(text));
-      expect(label('All').style?.color, semantic.onAction);
+      CivicFilterChip chip(String text) => tester.widget<CivicFilterChip>(
+        find.widgetWithText(CivicFilterChip, text),
+      );
+      expect(chip('All').selected, isTrue);
+      expect(chip('Open').selected, isFalse);
+      expect(tester.widget<ChoiceChip>(find.byType(ChoiceChip).first).showCheckmark, isTrue);
 
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
       expect(selected, 'open');
-      expect(label('Open').style?.color, semantic.onAction);
+      expect(chip('Open').selected, isTrue);
+      expect(chip('All').selected, isFalse);
       expect(
         tester.getSize(find.text('Open')).height,
         lessThan(TextFilterChips.chipHeight),
