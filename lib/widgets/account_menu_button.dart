@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/theme/app_theme.dart';
 import '../services/session_actions.dart' as session;
+import '../services/notification_inbox_directory.dart' show currentInboxOwner;
 import 'confirm_dialog.dart';
 import 'kebab_menu_button.dart';
 
@@ -8,6 +9,7 @@ Future<void> _confirmLogout(
   BuildContext context,
   Future<void> Function(BuildContext) endSession,
 ) async {
+  final owner = currentInboxOwner()?.key;
   final confirmed = await showConfirmDialog(
     context,
     title: 'Log out?',
@@ -15,7 +17,19 @@ Future<void> _confirmLogout(
     confirmLabel: 'Log Out',
     destructive: true,
   );
-  if (confirmed && context.mounted) await endSession(context);
+  if (confirmed && context.mounted && owner == currentInboxOwner()?.key) {
+    try {
+      await endSession(context);
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not finish signing out. Please try again.'),
+          ),
+        );
+      }
+    }
+  }
 }
 
 /// Account actions retain the shared native popup positioning and motion.
