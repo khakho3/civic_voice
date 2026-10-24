@@ -599,8 +599,7 @@ void main() {
   );
 
   testWidgets(
-    'Maintenance header keeps Profile only in the bottom nav and shifts '
-    'the bell to the rightmost action slot',
+    'Maintenance header shows account menu beside the bell and keeps bottom Profile',
     (WidgetTester tester) async {
       tester.view.physicalSize = const Size(428, 2600);
       tester.view.devicePixelRatio = 1.0;
@@ -620,7 +619,7 @@ void main() {
       expect(find.byIcon(AppIcons.profile), findsOneWidget);
       expect(
         tester.getCenter(find.byIcon(AppIcons.notifications)).dx,
-        greaterThan(375),
+        lessThan(tester.getCenter(find.byTooltip('Account options')).dx),
       );
       final glassBars = tester.widgetList<GlassBar>(find.byType(GlassBar));
       expect(glassBars.last.borderRadius, isNull);

@@ -24,6 +24,7 @@ class KebabMenuButton<T> extends StatelessWidget {
     this.iconColor,
     this.tooltip,
     this.onSelected,
+    this.enabled = true,
   });
 
   final PopupMenuItemBuilder<T> itemBuilder;
@@ -31,10 +32,12 @@ class KebabMenuButton<T> extends StatelessWidget {
   final Color? iconColor;
   final String? tooltip;
   final PopupMenuItemSelected<T>? onSelected;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
     return PopupMenuButton<T>(
+      enabled: enabled,
       position: PopupMenuPosition.under,
       tooltip: tooltip,
       icon: Icon(icon ?? AppIcons.more, size: AppIconSize.md, color: iconColor),

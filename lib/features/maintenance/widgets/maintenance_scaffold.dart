@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../widgets/account_menu_button.dart';
 
 import '../../../services/app_haptics.dart';
 
@@ -102,6 +103,9 @@ class MaintenanceScaffold extends StatelessWidget {
               child: _Header(
                 tab: selectedTab,
                 onNotificationsTap: onNotificationsTap,
+                onProfileTap: hideBottomNav || onTabSelected == null
+                    ? null
+                    : () => onTabSelected!(MaintenanceTab.profile),
               ),
             ),
             if (!keyboardVisible && !hideBottomNav)
@@ -120,10 +124,15 @@ class MaintenanceScaffold extends StatelessWidget {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({required this.tab, this.onNotificationsTap});
+  const _Header({
+    required this.tab,
+    this.onNotificationsTap,
+    this.onProfileTap,
+  });
 
   final MaintenanceTab tab;
   final VoidCallback? onNotificationsTap;
+  final VoidCallback? onProfileTap;
 
   @override
   Widget build(BuildContext context) {
@@ -183,6 +192,7 @@ class _Header extends StatelessWidget {
                     ),
                   ),
                 ),
+                AccountMenuButton(onProfile: onProfileTap),
               ],
             ),
           ),

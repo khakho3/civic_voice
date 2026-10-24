@@ -250,7 +250,9 @@ void main() {
 
       expect(find.text('Closed Reports'), findsOneWidget);
 
-      await tester.tap(find.byIcon(AppIcons.profile));
+      await tester.tap(find.byTooltip('Account options'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(PopupMenuItem<String>, 'Profile'));
       await advanceRoute();
 
       expect(find.text('Municipal Profile'), findsOneWidget);
@@ -825,7 +827,9 @@ void main() {
       expect(find.text('Unit Delta'), findsOneWidget);
       // Unit Alpha is pre-selected, matching every approved reference frame.
       expect(
-        find.text('Selected team: Unit Alpha. Confirm below to assign this report.'),
+        find.text(
+          'Selected team: Unit Alpha. Confirm below to assign this report.',
+        ),
         findsOneWidget,
       );
     },
@@ -1785,7 +1789,7 @@ void main() {
   );
 
   testWidgets(
-    'Municipal Dashboard header profile avatar opens Municipal Profile',
+    'Municipal Dashboard header account menu opens Municipal Profile',
     (WidgetTester tester) async {
       tester.view.physicalSize = const Size(428, 2600);
       tester.view.devicePixelRatio = 1.0;
@@ -1803,7 +1807,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byIcon(AppIcons.profile));
+      await tester.tap(find.byTooltip('Account options'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(PopupMenuItem<String>, 'Profile'));
       await tester.pumpAndSettle();
 
       expect(profileTapped, isTrue);

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../widgets/account_menu_button.dart';
 
 import '../../../services/app_haptics.dart';
 
@@ -258,7 +259,7 @@ class _Header extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: AppSpacing.xs),
-                _ProfileButton(onTap: onProfileTap),
+                AccountMenuButton(onProfile: onProfileTap),
               ],
             ),
           ),
@@ -274,39 +275,6 @@ class _Header extends StatelessWidget {
 /// glyph, not the initials shown in the raw Figma export) — the same
 /// account-entry affordance should look identical across every role's
 /// scaffold, not vary per module.
-class _ProfileButton extends StatelessWidget {
-  const _ProfileButton({this.onTap});
-
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: AppDimensions.controlHeightStandard,
-      height: AppDimensions.controlHeightStandard,
-      child: Material(
-        color: Colors.transparent,
-        shape: const CircleBorder(),
-        child: InkWell(
-          customBorder: const CircleBorder(),
-          onTap: onTap,
-          child: Center(
-            child: CircleAvatar(
-              radius: AppIconSize.md / 2 + 2,
-              backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-              child: Icon(
-                AppIcons.profile,
-                size: AppIconSize.sm,
-                color: AppSemanticColors.of(context).actionText,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _IconButton extends StatelessWidget {
   const _IconButton({
     required this.icon,

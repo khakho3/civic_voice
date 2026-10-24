@@ -1,6 +1,7 @@
 import '../../../services/notification_inbox_directory.dart';
 import '../../../widgets/unread_dot_badge.dart';
 import 'package:flutter/material.dart';
+import '../../../widgets/account_menu_button.dart';
 import 'package:firebase_core/firebase_core.dart';
 
 import '../../../services/app_haptics.dart';
@@ -386,49 +387,9 @@ class _Header extends StatelessWidget {
 /// Maintenance's own header avatar.
 class _ProfileButton extends StatelessWidget {
   const _ProfileButton({this.onTap});
-
   final VoidCallback? onTap;
-  static const semanticLabel = 'Admin profile';
-
   @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      container: true,
-      button: true,
-      enabled: onTap != null,
-      label: semanticLabel,
-      onTap: onTap,
-      child: Tooltip(
-        message: semanticLabel,
-        excludeFromSemantics: true,
-        child: ExcludeSemantics(
-          child: SizedBox(
-            width: AppDimensions.controlHeightStandard,
-            height: AppDimensions.controlHeightStandard,
-            child: Material(
-              color: Colors.transparent,
-              shape: const CircleBorder(),
-              child: InkWell(
-                customBorder: const CircleBorder(),
-                onTap: onTap,
-                child: Center(
-                  child: CircleAvatar(
-                    radius: AppIconSize.md / 2 + 2,
-                    backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-                    child: Icon(
-                      AppIcons.profile,
-                      size: AppIconSize.sm,
-                      color: AppSemanticColors.of(context).actionText,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => AccountMenuButton(onProfile: onTap);
 }
 
 class _IconButton extends StatelessWidget {
@@ -505,85 +466,95 @@ class _AdminDrawer extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
     return Drawer(
       child: SafeArea(
-        child: ListView(
-          padding: EdgeInsets.zero,
+        child: Column(
           children: [
-            Padding(
-              padding: const EdgeInsets.all(AppSpacing.md),
-              child: Row(
+            Expanded(
+              child: ListView(
+                padding: EdgeInsets.zero,
                 children: [
-                  Image.asset(
-                    AppAssets.logoApp,
-                    width: AppIconSize.lg,
-                    height: AppIconSize.lg,
+                  Padding(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    child: Row(
+                      children: [
+                        Image.asset(
+                          AppAssets.logoApp,
+                          width: AppIconSize.lg,
+                          height: AppIconSize.lg,
+                        ),
+                        const SizedBox(width: AppSpacing.sm),
+                        Text('CivicVoice', style: textTheme.titleLarge),
+                      ],
+                    ),
                   ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Text('CivicVoice', style: textTheme.titleLarge),
+                  const Divider(height: 1),
+                  if (onOpenAlerts != null)
+                    _DrawerItem(
+                      icon: AppIcons.warning,
+                      label: 'Open alerts',
+                      selected: false,
+                      onTap: () {
+                        Navigator.of(context).pop();
+                        onOpenAlerts!();
+                      },
+                    ),
+                  if (onOpenRouting != null)
+                    _DrawerItem(
+                      icon: AppIcons.location,
+                      label: 'Report Routing',
+                      selected: false,
+                      onTap: () {
+                        Navigator.of(context).pop();
+                        onOpenRouting!();
+                      },
+                    ),
+                  // Role Management is a Super Admin-only concern — so the item is
+                  // dropped entirely rather than shown disabled.
+                  if (AdminSession.instance.isSuperAdmin)
+                    _DrawerItem(
+                      icon: AppIcons.roleManagement,
+                      label: 'Role Management',
+                      selected:
+                          activeDestination ==
+                          AdminDrawerDestination.roleManagement,
+                      onTap: onOpenRoleManagement == null
+                          ? null
+                          : () {
+                              Navigator.of(context).pop();
+                              onOpenRoleManagement!();
+                            },
+                    ),
+                  if (AdminSession.instance.canManageTeams)
+                    _DrawerItem(
+                      icon: AppIcons.maintenanceTeam,
+                      label: 'Maintenance Teams',
+                      selected:
+                          activeDestination ==
+                          AdminDrawerDestination.maintenanceTeams,
+                      onTap: onOpenMaintenanceTeams == null
+                          ? null
+                          : () {
+                              Navigator.of(context).pop();
+                              onOpenMaintenanceTeams!();
+                            },
+                    ),
+                  _DrawerItem(
+                    icon: AppIcons.profile,
+                    label: 'Admin Profile',
+                    selected:
+                        activeDestination ==
+                        AdminDrawerDestination.adminProfile,
+                    onTap: onOpenProfile == null
+                        ? null
+                        : () {
+                            Navigator.of(context).pop();
+                            onOpenProfile!();
+                          },
+                  ),
                 ],
               ),
             ),
             const Divider(height: 1),
-            if (onOpenAlerts != null)
-              _DrawerItem(
-                icon: AppIcons.warning,
-                label: 'Open alerts',
-                selected: false,
-                onTap: () {
-                  Navigator.of(context).pop();
-                  onOpenAlerts!();
-                },
-              ),
-            if (onOpenRouting != null)
-              _DrawerItem(
-                icon: AppIcons.location,
-                label: 'Report Routing',
-                selected: false,
-                onTap: () {
-                  Navigator.of(context).pop();
-                  onOpenRouting!();
-                },
-              ),
-            // Role Management is a Super Admin-only concern — so the item is
-            // dropped entirely rather than shown disabled.
-            if (AdminSession.instance.isSuperAdmin)
-              _DrawerItem(
-                icon: AppIcons.roleManagement,
-                label: 'Role Management',
-                selected:
-                    activeDestination == AdminDrawerDestination.roleManagement,
-                onTap: onOpenRoleManagement == null
-                    ? null
-                    : () {
-                        Navigator.of(context).pop();
-                        onOpenRoleManagement!();
-                      },
-              ),
-            if (AdminSession.instance.canManageTeams)
-              _DrawerItem(
-                icon: AppIcons.maintenanceTeam,
-                label: 'Maintenance Teams',
-                selected:
-                    activeDestination ==
-                    AdminDrawerDestination.maintenanceTeams,
-                onTap: onOpenMaintenanceTeams == null
-                    ? null
-                    : () {
-                        Navigator.of(context).pop();
-                        onOpenMaintenanceTeams!();
-                      },
-              ),
-            _DrawerItem(
-              icon: AppIcons.profile,
-              label: 'Admin Profile',
-              selected:
-                  activeDestination == AdminDrawerDestination.adminProfile,
-              onTap: onOpenProfile == null
-                  ? null
-                  : () {
-                      Navigator.of(context).pop();
-                      onOpenProfile!();
-                    },
-            ),
+            const AccountLogoutButton(),
           ],
         ),
       ),

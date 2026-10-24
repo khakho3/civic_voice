@@ -1088,7 +1088,7 @@ void main() {
 
     final semantics = tester.ensureSemantics();
     try {
-      final profile = find.bySemanticsLabel('Admin profile');
+      final profile = find.byTooltip('Account options');
       expect(profile, findsOneWidget);
       expect(
         tester
@@ -1098,6 +1098,9 @@ void main() {
         isTrue,
       );
       await tester.tap(profile);
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(PopupMenuItem<String>, 'Profile'));
+      await tester.pumpAndSettle();
       expect(profileTapped, isTrue);
     } finally {
       semantics.dispose();
@@ -1127,25 +1130,26 @@ void main() {
     );
     await tester.pump();
 
-    final disabledSemantics = tester.ensureSemantics();
-    try {
-      final profile = find.bySemanticsLabel('Admin profile');
-      expect(profile, findsOneWidget);
-      expect(
-        tester.getSemantics(profile).flagsCollection.isEnabled ==
-            Tristate.isTrue,
-        isFalse,
-      );
-      expect(
-        tester
-            .getSemantics(profile)
-            .getSemanticsData()
-            .hasAction(SemanticsAction.tap),
-        isFalse,
-      );
-    } finally {
-      disabledSemantics.dispose();
-    }
+    await tester.tap(find.byTooltip('Account options'));
+    await tester.pumpAndSettle();
+    expect(
+      tester
+          .widget<PopupMenuItem<String>>(
+            find.widgetWithText(PopupMenuItem<String>, 'Profile'),
+          )
+          .enabled,
+      isFalse,
+    );
+    expect(
+      tester
+          .widget<PopupMenuItem<String>>(
+            find.widgetWithText(PopupMenuItem<String>, 'Log Out'),
+          )
+          .enabled,
+      isTrue,
+    );
+    await tester.tapAt(const Offset(10, 500));
+    await tester.pumpAndSettle();
   });
 
   testWidgets(
@@ -1177,7 +1181,7 @@ void main() {
       final drawerLabels = drawerTiles
           .map((tile) => (tile.title! as Text).data)
           .toList();
-      expect(drawerLabels, ['Role Management', 'Admin Profile']);
+      expect(drawerLabels, ['Role Management', 'Admin Profile', 'Log Out']);
     },
   );
 

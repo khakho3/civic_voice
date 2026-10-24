@@ -183,13 +183,21 @@ MinistryAnalyticsData ministryAnalyticsFixture() {
     },
     statusCounts: statusCounts,
     statusDistribution: [
-      StatusSlice(label: 'Submitted', percent: 3, color: AppColors.statusSubmitted),
+      StatusSlice(
+        label: 'Submitted',
+        percent: 3,
+        color: AppColors.statusSubmitted,
+      ),
       StatusSlice(
         label: 'Under Review',
         percent: 13,
         color: AppColors.statusUnderReview,
       ),
-      StatusSlice(label: 'Assigned', percent: 3, color: AppColors.statusAssigned),
+      StatusSlice(
+        label: 'Assigned',
+        percent: 3,
+        color: AppColors.statusAssigned,
+      ),
       StatusSlice(
         label: 'In Progress',
         percent: 1,
@@ -200,8 +208,16 @@ MinistryAnalyticsData ministryAnalyticsFixture() {
         percent: 5,
         color: AppColors.statusPendingApproval,
       ),
-      StatusSlice(label: 'Resolved', percent: 75, color: AppColors.statusResolved),
-      StatusSlice(label: 'Rejected', percent: 0, color: AppColors.statusRejected),
+      StatusSlice(
+        label: 'Resolved',
+        percent: 75,
+        color: AppColors.statusResolved,
+      ),
+      StatusSlice(
+        label: 'Rejected',
+        percent: 0,
+        color: AppColors.statusRejected,
+      ),
     ],
     trendInsight: '18,600 of 24,800 reports are resolved nationally.',
   );
@@ -451,26 +467,27 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('Ministry Dashboard zero state keeps the national summary honest', (
-    WidgetTester tester,
-  ) async {
-    await pumpMinistryDashboard(tester, MinistryDashboardViewState.empty);
-    expect(find.text('National Dashboard'), findsOneWidget);
-    expect(find.text('Total Reports'), findsOneWidget);
-    expect(find.text('Open Work'), findsOneWidget);
-    expect(find.text('Resolved'), findsOneWidget);
-    expect(find.text('Municipalities'), findsWidgets);
-    expect(find.text('0'), findsNWidgets(4));
-    expect(find.text('Welcome to the national dashboard'), findsOneWidget);
-    // Matches every other Ministry screen's Empty-state button label —
-    // this used to say "Retry" here alone, a real inconsistency, not a
-    // deliberate per-screen wording choice.
-    expect(find.text('Refresh'), findsOneWidget);
-    expect(find.text('Report Statistics'), findsNothing);
-    expect(find.text('Municipality Performance'), findsNothing);
-    expect(find.text('Accra Metropolitan'), findsNothing);
-    expect(find.textContaining('%'), findsNothing);
-  });
+  testWidgets(
+    'Ministry Dashboard zero state keeps the national summary honest',
+    (WidgetTester tester) async {
+      await pumpMinistryDashboard(tester, MinistryDashboardViewState.empty);
+      expect(find.text('National Dashboard'), findsOneWidget);
+      expect(find.text('Total Reports'), findsOneWidget);
+      expect(find.text('Open Work'), findsOneWidget);
+      expect(find.text('Resolved'), findsOneWidget);
+      expect(find.text('Municipalities'), findsWidgets);
+      expect(find.text('0'), findsNWidgets(4));
+      expect(find.text('Welcome to the national dashboard'), findsOneWidget);
+      // Matches every other Ministry screen's Empty-state button label —
+      // this used to say "Retry" here alone, a real inconsistency, not a
+      // deliberate per-screen wording choice.
+      expect(find.text('Refresh'), findsOneWidget);
+      expect(find.text('Report Statistics'), findsNothing);
+      expect(find.text('Municipality Performance'), findsNothing);
+      expect(find.text('Accra Metropolitan'), findsNothing);
+      expect(find.textContaining('%'), findsNothing);
+    },
+  );
 
   test('Ministry Dashboard aggregates all seven statuses truthfully', () {
     final data = ministryDashboardFixture();
@@ -579,31 +596,30 @@ void main() {
     },
   );
 
-  testWidgets(
-    'Ministry Dashboard header profile avatar opens Ministry Profile',
-    (WidgetTester tester) async {
-      tester.view.physicalSize = const Size(428, 2600);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
+  testWidgets('Ministry Dashboard header account menu opens Ministry Profile', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
 
-      var profileTapped = false;
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: AppTheme.light,
-          home: MinistryDashboardScreen(
-            onProfileTap: () => profileTapped = true,
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
+    var profileTapped = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: MinistryDashboardScreen(onProfileTap: () => profileTapped = true),
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      await tester.tap(find.byIcon(AppIcons.profile));
-      await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Account options'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(PopupMenuItem<String>, 'Profile'));
+    await tester.pumpAndSettle();
 
-      expect(profileTapped, isTrue);
-    },
-  );
+    expect(profileTapped, isTrue);
+  });
 
   testWidgets('Ministry routes connect Dashboard, Analytics, Municipalities, '
       'Reports, and Profile', (WidgetTester tester) async {
@@ -646,7 +662,9 @@ void main() {
 
     expect(find.text('Reports Overview'), findsOneWidget);
 
-    await tester.tap(find.byIcon(AppIcons.profile));
+    await tester.tap(find.byTooltip('Account options'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(PopupMenuItem<String>, 'Profile'));
     await advanceRoute();
 
     expect(find.text('My Profile'), findsOneWidget);
@@ -832,10 +850,7 @@ void main() {
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(
-      MaterialApp(
-        theme: AppTheme.light,
-        home: const MinistryAnalyticsScreen(),
-      ),
+      MaterialApp(theme: AppTheme.light, home: const MinistryAnalyticsScreen()),
     );
     await tester.pumpAndSettle();
 
@@ -1044,31 +1059,30 @@ void main() {
     },
   );
 
-  testWidgets(
-    'Ministry Analytics header profile avatar opens Ministry Profile',
-    (WidgetTester tester) async {
-      tester.view.physicalSize = const Size(428, 2600);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
+  testWidgets('Ministry Analytics header account menu opens Ministry Profile', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
 
-      var profileTapped = false;
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: AppTheme.light,
-          home: MinistryAnalyticsScreen(
-            onProfileTap: () => profileTapped = true,
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
+    var profileTapped = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: MinistryAnalyticsScreen(onProfileTap: () => profileTapped = true),
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      await tester.tap(find.byIcon(AppIcons.profile));
-      await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Account options'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(PopupMenuItem<String>, 'Profile'));
+    await tester.pumpAndSettle();
 
-      expect(profileTapped, isTrue);
-    },
-  );
+    expect(profileTapped, isTrue);
+  });
 
   testWidgets(
     'Ministry Analytics Trend Insights callout opens Report Insights',
@@ -1384,7 +1398,10 @@ void main() {
       await tester.tap(regionChip);
       await tester.pumpAndSettle();
       await tester.tap(
-        find.descendant(of: find.byType(BottomSheet), matching: find.text('All Regions')),
+        find.descendant(
+          of: find.byType(BottomSheet),
+          matching: find.text('All Regions'),
+        ),
       );
       await tester.pumpAndSettle();
       expect(
@@ -1457,23 +1474,20 @@ void main() {
       of: find.text('All'),
       matching: find.byWidgetPredicate(
         (widget) =>
-            widget is Scrollable &&
-            widget.axisDirection == AxisDirection.right,
+            widget is Scrollable && widget.axisDirection == AxisDirection.right,
       ),
     );
     expect(filterRow, findsOneWidget);
     final regionChip = find.byType(RegionPickerChip);
-    Future<void> openVisibleRegionPicker({required bool revealFromStart}) async {
+    Future<void> openVisibleRegionPicker({
+      required bool revealFromStart,
+    }) async {
       // The initial reveal must start from the leading status chip. Once a
       // region has been chosen, that leading lazy child can be evicted while
       // the rail stays positioned at the trailing picker, so do not resolve
       // the rail through the no-longer-built `All` chip a second time.
       if (revealFromStart) {
-        await tester.scrollUntilVisible(
-          regionChip,
-          240,
-          scrollable: filterRow,
-        );
+        await tester.scrollUntilVisible(regionChip, 240, scrollable: filterRow);
       }
       final pickerTapTarget = find.descendant(
         of: regionChip,
@@ -1494,7 +1508,10 @@ void main() {
 
     await openVisibleRegionPicker(revealFromStart: true);
     await tester.tap(
-      find.descendant(of: find.byType(BottomSheet), matching: find.text('Ashanti')),
+      find.descendant(
+        of: find.byType(BottomSheet),
+        matching: find.text('Ashanti'),
+      ),
     );
     await tester.pumpAndSettle();
     expect(
@@ -1652,9 +1669,9 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.light,
-        home: MinistryMunicipalPerformanceScreen(
-          data: ministryMunicipalPerformanceFixture(),
-          onNavigateToDashboard: () => dashboardTapped = true,
+          home: MinistryMunicipalPerformanceScreen(
+            data: ministryMunicipalPerformanceFixture(),
+            onNavigateToDashboard: () => dashboardTapped = true,
             onNavigateToAnalytics: () => analyticsTapped = true,
           ),
         ),
@@ -1675,7 +1692,7 @@ void main() {
   );
 
   testWidgets(
-    'Ministry Municipal Performance header profile avatar opens Ministry '
+    'Ministry Municipal Performance header account menu opens Ministry '
     'Profile',
     (WidgetTester tester) async {
       tester.view.physicalSize = const Size(428, 2600);
@@ -1687,15 +1704,17 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.light,
-        home: MinistryMunicipalPerformanceScreen(
-          data: ministryMunicipalPerformanceFixture(),
-          onProfileTap: () => profileTapped = true,
+          home: MinistryMunicipalPerformanceScreen(
+            data: ministryMunicipalPerformanceFixture(),
+            onProfileTap: () => profileTapped = true,
           ),
         ),
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byIcon(AppIcons.profile));
+      await tester.tap(find.byTooltip('Account options'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(PopupMenuItem<String>, 'Profile'));
       await tester.pumpAndSettle();
 
       expect(profileTapped, isTrue);
@@ -1748,10 +1767,7 @@ void main() {
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(
-      MaterialApp(
-        theme: AppTheme.light,
-        home: const MinistryReportsScreen(),
-      ),
+      MaterialApp(theme: AppTheme.light, home: const MinistryReportsScreen()),
     );
     await tester.pumpAndSettle();
 
@@ -2069,7 +2085,7 @@ void main() {
   );
 
   testWidgets(
-    'Ministry Reports Overview header profile avatar opens Ministry Profile',
+    'Ministry Reports Overview header account menu opens Ministry Profile',
     (WidgetTester tester) async {
       tester.view.physicalSize = const Size(428, 2600);
       tester.view.devicePixelRatio = 1.0;
@@ -2085,7 +2101,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byIcon(AppIcons.profile));
+      await tester.tap(find.byTooltip('Account options'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(PopupMenuItem<String>, 'Profile'));
       await tester.pumpAndSettle();
 
       expect(profileTapped, isTrue);
@@ -2302,7 +2320,9 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.light,
-        home: MinistryReportInsightsScreen(data: ministryReportInsightsFixture()),
+        home: MinistryReportInsightsScreen(
+          data: ministryReportInsightsFixture(),
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -2325,7 +2345,9 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.light,
-          home: MinistryReportInsightsScreen(data: ministryReportInsightsFixture()),
+          home: MinistryReportInsightsScreen(
+            data: ministryReportInsightsFixture(),
+          ),
         ),
       );
       await tester.pumpAndSettle();
@@ -2427,19 +2449,18 @@ void main() {
     expect(find.text('Try again'), findsOneWidget);
   });
 
-  testWidgets(
-    'Ministry Municipal Performance does not invent retry success',
-    (WidgetTester tester) async {
-      await pumpMinistryMunicipalPerformance(
-        tester,
-        MinistryMunicipalPerformanceViewState.error,
-      );
+  testWidgets('Ministry Municipal Performance does not invent retry success', (
+    WidgetTester tester,
+  ) async {
+    await pumpMinistryMunicipalPerformance(
+      tester,
+      MinistryMunicipalPerformanceViewState.error,
+    );
 
-      final retry = tester.widget<FilledButton>(find.byType(FilledButton));
-      expect(retry.onPressed, isNull);
-      expect(find.text('Unable to Load Performance'), findsOneWidget);
-    },
-  );
+    final retry = tester.widget<FilledButton>(find.byType(FilledButton));
+    expect(retry.onPressed, isNull);
+    expect(find.text('Unable to Load Performance'), findsOneWidget);
+  });
 
   testWidgets('Ministry Reports Overview does not invent retry success', (
     WidgetTester tester,
