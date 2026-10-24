@@ -125,7 +125,15 @@ class AdminResource<T> extends ChangeNotifier {
           !_loading &&
           _error == null &&
           _data != null;
-      if (!ready) return false;
+      if (!ready) {
+        if (_current && _key == key) {
+          _uncertain = true;
+          _error ??=
+              'The saved state could not be verified. Reload before trying again.';
+          notifyListeners();
+        }
+        return false;
+      }
       if (verify != null && !verify(_data as T)) {
         _uncertain = true;
         _error =

@@ -653,6 +653,22 @@ class ApiClient {
   Future<Map<String, dynamic>> adminOverview({required String idToken}) =>
       _get('/api/admin/overview', idToken: idToken);
 
+  Future<Map<String, dynamic>> adminRoutingQueue({
+    required String idToken, String query = '', String? cursor,
+  }) {
+    final params = Uri(queryParameters: {'limit': '25',
+      if (query.isNotEmpty) 'q': query, 'cursor': ?cursor}).query;
+    return _get('/api/admin/report-routing?$params', idToken: idToken);
+  }
+
+  Future<Map<String, dynamic>> adminRoutingReport(String id, {
+    required String idToken,
+  }) => _get('/api/admin/report-routing/${Uri.encodeComponent(id)}', idToken: idToken);
+
+  Future<Map<String, dynamic>> routeAdminReport(String id, {
+    required String idToken, required Map<String, dynamic> body,
+  }) => _patch('/api/admin/report-routing/${Uri.encodeComponent(id)}', body, idToken: idToken);
+
   Future<Map<String, dynamic>> adminAlerts({
     required String idToken,
     String state = 'ACTIVE',
