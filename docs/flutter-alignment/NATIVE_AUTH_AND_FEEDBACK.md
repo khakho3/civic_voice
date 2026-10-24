@@ -1,5 +1,9 @@
 # Native auth and feedback integration
 
+## Current owner follow-ups - 24 October 2026
+
+Runtime39ac51d is verified and installed/launched in isolated DEV;1,408 native tests/analyzer pass. Webdf8e870 has383 tests/lint/build passing. New notification gestures, menus, alert continuation, refresh stability, grouped forms/password layout, soft backgrounds, guest/permission and auth feedback fixes are documented in [NATIVE_OWNER_UI_FOLLOWUPS.md](NATIVE_OWNER_UI_FOLLOWUPS.md). These automated/render/install checks are not owner acceptance. Current queue: C:/Projects/www/civic-voice-web/docs/CURRENT_STATUS.md; exact device evidence remains ignored/private. No merge/promotion/production change. Older checkpoint sections are historical.
+
 22 October 2026. Review branch codex/flutter-latif-review-fixes. Automated checks: 1,032 passing tests; analyzer and whitespace clean. Physical/live-provider acceptance remains pending.
 
 - aae4383: server password handoff, Firebase custom-token exchange and authenticated sync are one verified path for ordinary login, registration continuation and forced first-login password renewal. Active non-guest account, known role, public ID and matching Firebase UID are required before account cache/notification ownership and routing are published. Keep-signed-in preferences and mounted cleanup are retained. API 401/429/network/service errors remain distinct; no direct Firebase password fallback. Registration-created-but-sign-in-failed returns clearly to Login without replaying registration. Password-saved-but-renewal-failed asks for sign-in with the new password. Voluntary changes/reset end the session for a fresh login.
