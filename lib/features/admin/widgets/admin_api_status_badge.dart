@@ -24,7 +24,7 @@ class _AdminApiStatusBadgeState extends State<AdminApiStatusBadge>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 1400),
+    duration: const Duration(milliseconds: 900),
   );
 
   void _syncMotion() {
@@ -89,28 +89,42 @@ class _AdminApiStatusBadgeState extends State<AdminApiStatusBadge>
             children: [
               AnimatedBuilder(
                 animation: _controller,
-                builder: (context, _) => Container(
-                  key: const ValueKey('admin-api-status-dot'),
-                  width: 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: color,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: color.withValues(
-                          alpha: reduceMotion
-                              ? 0.25
-                              : 0.15 + (_controller.value * 0.35),
+                builder: (context, _) {
+                  final pulse = live && online && !reduceMotion
+                      ? Curves.easeInOut.transform(_controller.value)
+                      : 0.0;
+                  return SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: Center(
+                      child: Transform.scale(
+                        scale: 1 + pulse * 0.18,
+                        child: Container(
+                          key: const ValueKey('admin-api-status-dot'),
+                          width: 10,
+                          height: 10,
+                          decoration: BoxDecoration(
+                            color: color,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: color.withValues(
+                                  alpha: live && online
+                                      ? 0.2 + pulse * 0.25
+                                      : 0,
+                                ),
+                                blurRadius: 4 + pulse * 6,
+                                spreadRadius: live && online
+                                    ? 1 + pulse * 4
+                                    : 0,
+                              ),
+                            ],
+                          ),
                         ),
-                        blurRadius: reduceMotion
-                            ? 4
-                            : 4 + (_controller.value * 6),
-                        spreadRadius: reduceMotion ? 0 : _controller.value * 2,
                       ),
-                    ],
-                  ),
-                ),
+                    ),
+                  );
+                },
               ),
               const SizedBox(width: AppSpacing.xs),
               Text(
