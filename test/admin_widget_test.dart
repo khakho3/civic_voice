@@ -3410,7 +3410,7 @@ void main() {
       );
       await tester.pump();
 
-      expect(find.text('System Preferences'), findsOneWidget);
+      expect(find.text('General Configuration'), findsOneWidget);
       expect(find.text('Session timeout'), findsOneWidget);
       expect(find.text('Audit logging'), findsOneWidget);
       expect(find.text('Allow new account creation'), findsOneWidget);
@@ -3472,10 +3472,10 @@ void main() {
       );
       await tester.pump();
 
-      expect(find.text('System Preferences'), findsOneWidget);
-      expect(find.text('General Configuration'), findsNothing);
-      expect(find.text('Security & Access'), findsNothing);
-      expect(find.text('Service Preferences'), findsNothing);
+      expect(find.text('General Configuration'), findsOneWidget);
+      expect(find.text('System Preferences'), findsNothing);
+      expect(find.text('Security & Access'), findsOneWidget);
+      expect(find.text('Service Preferences'), findsOneWidget);
       expect(find.text('Default Language'), findsOneWidget);
       expect(find.text('English'), findsOneWidget);
       expect(find.text('Maintenance Mode'), findsOneWidget);
@@ -3608,35 +3608,32 @@ void main() {
     },
   );
 
-  testWidgets(
-    'Admin System Settings initialSaveState previews the Update Failed '
-    'banner',
-    (WidgetTester tester) async {
-      _setConfirmedSystemSettingsFixture();
-      tester.view.physicalSize = const Size(428, 2600);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
+  testWidgets('Admin System Settings initialSaveState previews the Update Failed '
+      'banner', (WidgetTester tester) async {
+    _setConfirmedSystemSettingsFixture();
+    tester.view.physicalSize = const Size(428, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
 
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: AppTheme.light,
-          home: const AdminSystemSettingsScreen(
-            initialSaveState: SystemSettingsSaveState.failed,
-          ),
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: const AdminSystemSettingsScreen(
+          initialSaveState: SystemSettingsSaveState.failed,
         ),
-      );
-      await tester.pump();
+      ),
+    );
+    await tester.pump();
 
-      expect(find.text('Update Failed'), findsOneWidget);
-      expect(
-        find.text(
-          'System settings could not be saved. No changes were applied.',
-        ),
-        findsOneWidget,
-      );
-    },
-  );
+    expect(find.text('Update Failed'), findsOneWidget);
+    expect(
+      find.text(
+        'The save could not be confirmed. Reload settings before trying again.',
+      ),
+      findsOneWidget,
+    );
+  });
 
   testWidgets(
     'Admin System Settings locks editable controls and actions while saving',
@@ -3915,7 +3912,7 @@ void main() {
         ),
       );
       await tester.pump();
-      expect(find.text('System Preferences'), findsOneWidget);
+      expect(find.text('General Configuration'), findsOneWidget);
 
       directory.state.value = AdminSystemSettingsDirectoryState.failed;
       await tester.pump();

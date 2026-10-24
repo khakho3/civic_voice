@@ -210,12 +210,13 @@ class _AdminSystemSettingsScreenState extends State<AdminSystemSettingsScreen> {
       context,
       title: 'Save system settings?',
       message:
-          'Supported settings will be sent to the authorized server. '
-          'Server policy determines where they are enforced.',
+          'These changes apply across CivicVoice. Existing audit history stays visible when collection is off.',
       confirmLabel: 'Save Changes',
       destructive: true,
     );
-    if (!confirmed || !mounted || _saveState == SystemSettingsSaveState.saving) {
+    if (!confirmed ||
+        !mounted ||
+        _saveState == SystemSettingsSaveState.saving) {
       return;
     }
 
@@ -265,60 +266,60 @@ class _AdminSystemSettingsScreenState extends State<AdminSystemSettingsScreen> {
           : showUnavailable
           ? _UnavailableSystemSettings(onRetry: _canRetry ? _load : null)
           : switch (_state) {
-        AdminSystemSettingsViewState.loading => const _LoadingSkeleton(),
-        AdminSystemSettingsViewState.loaded => _SettingsForm(
-          original: _original,
-          draft: _draft,
-          saveState: _saveState,
-          showStaleSettings: _showStaleSettings,
-          onUpdate: _update,
-          onReset: _resetChanges,
-          onSave: _saveChanges,
-        ),
-        _ => Center(
-          child: Padding(
-            padding: EdgeInsets.only(
-              top: AdminScaffold.contentPadding(context).top,
-              bottom: AdminScaffold.contentPadding(context).bottom,
-              left: AppSpacing.md,
-              right: AppSpacing.md,
-            ),
-            child: switch (_state) {
-              AdminSystemSettingsViewState.offline => AppStateMessage(
-                icon: AppIcons.offline,
-                badgeColor: AppColors.error,
-                title: 'You\'re offline',
-                message:
-                    'Check your connection and retry loading system '
-                    'settings.',
-                primaryActionLabel: 'Retry connection',
-                onPrimaryAction: _canRetry ? _load : null,
-                primaryActionColor: AppColors.error,
-                bordered: true,
+              AdminSystemSettingsViewState.loading => const _LoadingSkeleton(),
+              AdminSystemSettingsViewState.loaded => _SettingsForm(
+                original: _original,
+                draft: _draft,
+                saveState: _saveState,
+                showStaleSettings: _showStaleSettings,
+                onUpdate: _update,
+                onReset: _resetChanges,
+                onSave: _saveChanges,
               ),
-              AdminSystemSettingsViewState.error => AppStateMessage(
-                icon: AppIcons.warning,
-                badgeColor: AppColors.error,
-                title: 'Something went wrong',
-                message: 'Unable to load system settings right now.',
-                primaryActionLabel: 'Retry',
-                onPrimaryAction: _canRetry ? _load : null,
-                primaryActionColor: AppColors.error,
-                bordered: true,
-              ),
-              _ => const AppStateMessage(
-                icon: AppIcons.permissionDenied,
-                badgeColor: AppColors.error,
-                title: 'Unauthorized Access',
-                message:
-                    'Administrative privileges are required to manage '
-                    'system settings.',
-                bordered: true,
+              _ => Center(
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    top: AdminScaffold.contentPadding(context).top,
+                    bottom: AdminScaffold.contentPadding(context).bottom,
+                    left: AppSpacing.md,
+                    right: AppSpacing.md,
+                  ),
+                  child: switch (_state) {
+                    AdminSystemSettingsViewState.offline => AppStateMessage(
+                      icon: AppIcons.offline,
+                      badgeColor: AppColors.error,
+                      title: 'You\'re offline',
+                      message:
+                          'Check your connection and retry loading system '
+                          'settings.',
+                      primaryActionLabel: 'Retry connection',
+                      onPrimaryAction: _canRetry ? _load : null,
+                      primaryActionColor: AppColors.error,
+                      bordered: true,
+                    ),
+                    AdminSystemSettingsViewState.error => AppStateMessage(
+                      icon: AppIcons.warning,
+                      badgeColor: AppColors.error,
+                      title: 'Something went wrong',
+                      message: 'Unable to load system settings right now.',
+                      primaryActionLabel: 'Retry',
+                      onPrimaryAction: _canRetry ? _load : null,
+                      primaryActionColor: AppColors.error,
+                      bordered: true,
+                    ),
+                    _ => const AppStateMessage(
+                      icon: AppIcons.permissionDenied,
+                      badgeColor: AppColors.error,
+                      title: 'Unauthorized Access',
+                      message:
+                          'Administrative privileges are required to manage '
+                          'system settings.',
+                      bordered: true,
+                    ),
+                  },
+                ),
               ),
             },
-          ),
-        ),
-      },
     );
   }
 }
@@ -352,125 +353,145 @@ class _SettingsForm extends StatelessWidget {
     final dirty = draft != original;
     final isSaving = saveState == SystemSettingsSaveState.saving;
 
-    return ListView(
+    return SingleChildScrollView(
       padding: EdgeInsets.fromLTRB(
         AppSpacing.md,
         chromeInset.top + AppSpacing.md,
         AppSpacing.md,
         chromeInset.bottom + AppSpacing.xl,
       ),
-      children: [
-        switch (saveState) {
-          SystemSettingsSaveState.saved => const Padding(
-            padding: EdgeInsets.only(bottom: AppSpacing.sm),
-            child: _Banner(
-              icon: AppIcons.success,
-              color: AppColors.statusResolved,
-              title: 'Configuration saved',
-              message: 'Supported settings were accepted by the server.',
-            ),
-          ),
-          SystemSettingsSaveState.failed => const Padding(
-            padding: EdgeInsets.only(bottom: AppSpacing.sm),
-            child: _Banner(
-              icon: AppIcons.warning,
-              color: AppColors.error,
-              title: 'Update Failed',
-              message:
-                  'System settings could not be saved. No changes were '
-                  'applied.',
-            ),
-          ),
-          _ => const SizedBox.shrink(),
-        },
-        if (showStaleSettings) const Padding(
-          padding: EdgeInsets.only(bottom: AppSpacing.sm),
-          child: _SettingsStaleNotice(),
-        ),
-        _SystemPreferencesSection(
-          children: [
-            _SystemPreferenceRow(
-              label: 'Default Language',
-              badge: const ComingSoonBadge(),
-              trailing: Text(
-                'English',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          switch (saveState) {
+            SystemSettingsSaveState.saved => const Padding(
+              padding: EdgeInsets.only(bottom: AppSpacing.sm),
+              child: _Banner(
+                icon: AppIcons.success,
+                color: AppColors.statusResolved,
+                title: 'Configuration saved',
+                message: 'System settings were updated successfully.',
               ),
             ),
-            _SystemPreferenceRow(
-              label: 'Maintenance Mode',
-              badge: const ComingSoonBadge(),
-              description:
-                  'Restricts platform access during approved maintenance.',
-              trailing: const Switch(value: false, onChanged: null),
-            ),
-            _SystemPreferenceRow(
-              label: 'Session timeout',
-              description: 'Signs out an idle session automatically.',
-              trailing: _InlineDropdown(
-                value: draft.sessionTimeout,
-                options: kSessionTimeoutOptions,
-                onChanged: isSaving
-                    ? null
-                    : (v) => onUpdate((d) => d.copyWith(sessionTimeout: v)),
+            SystemSettingsSaveState.failed => const Padding(
+              padding: EdgeInsets.only(bottom: AppSpacing.sm),
+              child: _Banner(
+                icon: AppIcons.warning,
+                color: AppColors.error,
+                title: 'Update Failed',
+                message:
+                    'The save could not be confirmed. Reload settings before trying again.',
               ),
             ),
-            _SystemPreferenceRow(
-              label: 'Audit logging',
-              description: 'Retains administrative activity records.',
-              trailing: Switch(
-                value: draft.auditLogging,
-                onChanged: isSaving
-                    ? null
-                    : (v) => onUpdate((d) => d.copyWith(auditLogging: v)),
-              ),
+            _ => const SizedBox.shrink(),
+          },
+          if (showStaleSettings)
+            const Padding(
+              padding: EdgeInsets.only(bottom: AppSpacing.sm),
+              child: _SettingsStaleNotice(),
             ),
-            _SystemPreferenceRow(
-              label: 'Allow new account creation',
-              description: 'Turn off to freeze provisioning platform-wide.',
-              trailing: Switch(
-                value: draft.allowNewAccountCreation,
-                onChanged: isSaving
-                    ? null
-                    : (v) =>
-                          onUpdate((d) => d.copyWith(allowNewAccountCreation: v)),
-              ),
-            ),
-            _SystemPreferenceRow(
-              label: 'Public status page',
-              badge: const ComingSoonBadge(),
-              description: 'Shows approved system availability updates.',
-              trailing: const Switch(value: true, onChanged: null),
-            ),
-          ],
-        ),
-        if (dirty || isSaving) ...[
-          const SizedBox(height: AppSpacing.lg),
-          Row(
+          _SystemPreferencesSection(
+            title: 'General Configuration',
+            icon: AppIcons.filter,
             children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: isSaving ? null : onReset,
-                  child: const Text('Reset Changes'),
+              _SystemPreferenceRow(
+                label: 'Default Language',
+                badge: const ComingSoonBadge(),
+                trailing: Text(
+                  'English',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: FilledButton(
-                  onPressed: isSaving ? null : onSave,
-                  child: BusyLabel(
-                    busy: isSaving,
-                    busyLabel: 'Saving settings',
-                    child: const Text('Save Changes'),
-                  ),
+              _SystemPreferenceRow(
+                label: 'Maintenance Mode',
+                badge: const ComingSoonBadge(),
+                description:
+                    'Restricts platform access during approved maintenance.',
+                trailing: const Switch(value: false, onChanged: null),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          _SystemPreferencesSection(
+            title: 'Security & Access',
+            icon: AppIcons.shield,
+            children: [
+              _SystemPreferenceRow(
+                label: 'Session timeout',
+                description: 'Signs out an idle session automatically.',
+                trailing: _InlineDropdown(
+                  value: draft.sessionTimeout,
+                  options: kSessionTimeoutOptions,
+                  onChanged: isSaving
+                      ? null
+                      : (v) => onUpdate((d) => d.copyWith(sessionTimeout: v)),
+                ),
+              ),
+              _SystemPreferenceRow(
+                label: 'Audit logging',
+                description: 'Retains administrative activity records.',
+                trailing: Switch(
+                  value: draft.auditLogging,
+                  onChanged: isSaving
+                      ? null
+                      : (v) => onUpdate((d) => d.copyWith(auditLogging: v)),
+                ),
+              ),
+              _SystemPreferenceRow(
+                label: 'Allow new account creation',
+                description: 'Turn off to freeze provisioning platform-wide.',
+                trailing: Switch(
+                  value: draft.allowNewAccountCreation,
+                  onChanged: isSaving
+                      ? null
+                      : (v) => onUpdate(
+                          (d) => d.copyWith(allowNewAccountCreation: v),
+                        ),
                 ),
               ),
             ],
           ),
+          const SizedBox(height: AppSpacing.lg),
+          _SystemPreferencesSection(
+            title: 'Service Preferences',
+            icon: AppIcons.globe,
+            children: [
+              _SystemPreferenceRow(
+                label: 'Public status page',
+                badge: const ComingSoonBadge(),
+                description: 'Shows approved system availability updates.',
+                trailing: const Switch(value: true, onChanged: null),
+              ),
+            ],
+          ),
+          if (dirty || isSaving) ...[
+            const SizedBox(height: AppSpacing.lg),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: isSaving ? null : onReset,
+                    child: const Text('Reset Changes'),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: isSaving ? null : onSave,
+                    child: BusyLabel(
+                      busy: isSaving,
+                      busyLabel: 'Saving settings',
+                      child: const Text('Save Changes'),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
-      ],
+      ),
     );
   }
 }
@@ -521,17 +542,45 @@ class _SettingsStaleNotice extends StatelessWidget {
 }
 
 class _SystemPreferencesSection extends StatelessWidget {
-  const _SystemPreferencesSection({required this.children});
-
+  const _SystemPreferencesSection({
+    required this.title,
+    required this.icon,
+    required this.children,
+  });
+  final String title;
+  final IconData icon;
   final List<Widget> children;
-
   @override
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Text('System Preferences', style: Theme.of(context).textTheme.titleMedium),
+      Row(
+        children: [
+          Icon(icon, size: 16, color: AppSemanticColors.of(context).actionText),
+          const SizedBox(width: AppSpacing.xs),
+          Expanded(
+            child: Text(title, style: Theme.of(context).textTheme.titleMedium),
+          ),
+        ],
+      ),
       const SizedBox(height: AppSpacing.sm),
-      ...children,
+      Material(
+        key: ValueKey('settings-card-$title'),
+        color: Theme.of(context).colorScheme.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: AppSemanticColors.of(context).glassBorder),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          children: [
+            for (var i = 0; i < children.length; i++) ...[
+              if (i > 0) const Divider(height: 1),
+              children[i],
+            ],
+          ],
+        ),
+      ),
     ],
   );
 }
@@ -551,7 +600,7 @@ class _SystemPreferenceRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+    padding: const EdgeInsets.all(AppSpacing.md),
     child: Row(
       crossAxisAlignment: description == null
           ? CrossAxisAlignment.center
