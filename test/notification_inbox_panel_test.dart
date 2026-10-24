@@ -244,6 +244,31 @@ void main() {
     expect(calls, 1);
     expect(tester.takeException(), isNull);
   });
+  testWidgets(
+    'assistive dismissal uses the same verified action and uncertainty lock',
+    (tester) async {
+      var calls = 0;
+      List<String>? writtenIds;
+      String? writtenAction;
+      write = (_, ids, operation) async {
+        calls++;
+        writtenIds = ids;
+        writtenAction = operation;
+        throw StateError('offline');
+      };
+      await mount(tester);
+      final target = find.byKey(const ValueKey('notification-actions-one'));
+      tester.widget<Semantics>(target).properties.onDismiss!();
+      await tester.pump();
+      await tester.pumpAndSettle();
+      expect(calls, 1);
+      expect(writtenIds, ['one']);
+      expect(writtenAction, 'dismiss');
+      expect(find.text('Report one'), findsOneWidget);
+      expect(tester.widget<Semantics>(target).properties.onDismiss, isNull);
+    },
+  );
+
   for (final dark in [false, true]) {
     testWidgets(
       'small ${dark ? 'dark' : 'light'} inbox keeps actions readable',

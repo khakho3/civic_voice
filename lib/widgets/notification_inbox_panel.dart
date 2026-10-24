@@ -189,37 +189,45 @@ class _NotificationInboxPanelState extends State<NotificationInboxPanel>
             for (final item in page.rows)
               Padding(
                 padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                child: Dismissible(
-                  key: ValueKey(
-                    'notification-swipe-${_inbox.owner()?.key}-${item.id}',
-                  ),
-                  direction: blocked
-                      ? DismissDirection.none
-                      : DismissDirection.endToStart,
-                  background: Container(
-                    alignment: AlignmentDirectional.centerEnd,
-                    padding: const EdgeInsets.all(AppSpacing.md),
-                    decoration: BoxDecoration(
-                      color: AppColors.error.withValues(alpha: .12),
-                      borderRadius: BorderRadius.circular(16),
+                child: Semantics(
+                  key: ValueKey('notification-actions-${item.id}'),
+                  onDismiss: blocked
+                      ? null
+                      : () {
+                          unawaited(_inbox.act([item.id], 'dismiss'));
+                        },
+                  child: Dismissible(
+                    key: ValueKey(
+                      'notification-swipe-${_inbox.owner()?.key}-${item.id}',
                     ),
-                    child: Icon(
-                      AppIcons.delete,
-                      color: AppSemanticColors.of(context).errorText,
+                    direction: blocked
+                        ? DismissDirection.none
+                        : DismissDirection.endToStart,
+                    background: Container(
+                      alignment: AlignmentDirectional.centerEnd,
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      decoration: BoxDecoration(
+                        color: AppColors.error.withValues(alpha: .12),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Icon(
+                        AppIcons.delete,
+                        color: AppSemanticColors.of(context).errorText,
+                      ),
                     ),
-                  ),
-                  // Only the verified server refresh removes a card. A failed,
-                  // partial or uncertain write leaves it available for recovery.
-                  confirmDismiss: (_) async {
-                    await _inbox.act([item.id], 'dismiss');
-                    return false;
-                  },
-                  child: _InboxCard(
-                    item: item,
-                    blocked: blocked,
-                    onOpen: () => _open(item),
-                    onRead: () =>
-                        _inbox.act([item.id], item.read ? 'unread' : 'read'),
+                    // Only the verified server refresh removes a card. A failed,
+                    // partial or uncertain write leaves it available for recovery.
+                    confirmDismiss: (_) async {
+                      await _inbox.act([item.id], 'dismiss');
+                      return false;
+                    },
+                    child: _InboxCard(
+                      item: item,
+                      blocked: blocked,
+                      onOpen: () => _open(item),
+                      onRead: () =>
+                          _inbox.act([item.id], item.read ? 'unread' : 'read'),
+                    ),
                   ),
                 ),
               ),
