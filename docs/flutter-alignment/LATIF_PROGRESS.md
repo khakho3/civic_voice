@@ -1,6 +1,12 @@
 # Latif progress
 
-## Latest repair - tap feedback, identity card, route handoff and API heartbeat
+## Current API halo reference follow-up - 24 October 2026
+
+Owner prefers web's contained expanding halo over Flutter's changing glow. Web pulse appearance is the accepted reference; its source remains unchanged at46eb9aa. Native **dcf06f4** now matches: steady10px core,18px halo scaling0.65–1.2 with0.12–0.30 opacity over1.8seconds, and only the same small fixed core shadow. The core does not grow or bloom. Offline/unavailable/sample states do not breathe; reduced motion keeps a static halo. Health sources/polling, header layout, navigation and accepted tap/search behaviour are unchanged.
+
+**1,430 native tests pass; analyzer clean.** Badge regressions verify changing halo with constant core size/blur, truthful statuses, small widths and static reduced motion; actual light/dark low/high-phase renders inspected. Latest isolated DEV profile APK throughdcf06f4 is verified, replace-installed and open with app data retained:34 source and14 protected config hashes match, same DEV signing identity/package/label/local API/Firebase; production targets absent. Exact evidence is private. Flutter's revised halo still needs owner phone confirmation. Web route-gap handoff and other pending physical checks from the preceding round remain open. No merge/promotion/production deploy.
+
+## Previous repair - tap feedback, identity card, route handoff and API heartbeat
 
 24 October 2026. Native runtime **137562b**, web runtime **46eb9aa**; API remains **d00b6c6**. These are review branches; no merge, promotion or production deployment.
 
