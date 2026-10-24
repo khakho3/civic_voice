@@ -49,6 +49,28 @@ void main() {
           expect(find.text('1234'), findsOneWidget);
           expect(find.text('601'), findsOneWidget);
           expect(find.text('7'), findsOneWidget);
+          final stats = find.byKey(const ValueKey('admin-overview-stats'));
+          expect(
+            find.descendant(of: stats, matching: find.byType(Divider)),
+            findsOneWidget,
+          );
+          final alertValue = tester.widget<Text>(
+            find.descendant(of: stats, matching: find.text('7')),
+          );
+          expect(
+            alertValue.style!.color,
+            dark ? AppColors.warningTextDark : AppColors.warningTextLight,
+          );
+          expect(
+            find.byKey(const ValueKey('admin-overview-management')),
+            findsOneWidget,
+          );
+          expect(
+            find.byKey(const ValueKey('admin-overview-activity')),
+            findsOneWidget,
+          );
+          expect(find.textContaining('Open alerts include'), findsNothing);
+
           expect(find.text('Assembly Overview'), findsOneWidget);
           expect(find.text('System Settings'), findsNothing);
           expect(find.textContaining('route handoff'), findsNothing);

@@ -72,6 +72,19 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen>
     if (state == AppLifecycleState.resumed) unawaited(_source.load());
   }
 
+  Widget _management(
+    IconData icon,
+    String title,
+    String subtitle,
+    VoidCallback onTap,
+  ) => ListTile(
+    leading: Icon(icon, color: AppSemanticColors.of(context).actionText),
+    title: Text(title, style: Theme.of(context).textTheme.titleSmall),
+    subtitle: Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
+    trailing: const Icon(Icons.chevron_right),
+    onTap: onTap,
+  );
+
   @override
   Widget build(BuildContext context) => AdminScaffold(
     selectedTab: AdminTab.dashboard,
@@ -149,107 +162,174 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen>
                 ),
               ],
               if (data != null) ...[
-                Row(
-                  children: [
-                    Expanded(
-                      child: _Metric(
-                        'Total users',
-                        data.totalUsers,
-                        widget.onUsers,
+                _DashboardCard(
+                  key: const ValueKey('admin-overview-stats'),
+                  padding: EdgeInsets.zero,
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _Metric(
+                              'Total users',
+                              data.totalUsers,
+                              widget.onUsers,
+                            ),
+                          ),
+                          Expanded(
+                            child: _Metric(
+                              'Active roles',
+                              data.activeRoles,
+                              widget.onUsers,
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      child: _Metric(
-                        'Active roles',
-                        data.activeRoles,
-                        widget.onUsers,
+                      const Divider(height: 1),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _Metric(
+                              'Audit events (24h)',
+                              data.auditEvents24h,
+                              widget.onActivity,
+                            ),
+                          ),
+                          Expanded(
+                            child: _Metric(
+                              'Open alerts',
+                              data.openAlerts,
+                              widget.onAlerts,
+                              warning: true,
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-                const SizedBox(height: AppSpacing.sm),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _Metric(
-                        'Audit events (24h)',
-                        data.auditEvents24h,
-                        widget.onActivity,
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      child: _Metric(
-                        'Open alerts',
-                        data.openAlerts,
-                        widget.onAlerts,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                const Text(
-                  'Open alerts include acknowledged items and exclude resolved items.',
-                ),
-                const SizedBox(height: AppSpacing.lg),
+                const SizedBox(height: AppSpacing.xl),
                 Text(
                   'Management',
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
-                ListTile(
-                  leading: const Icon(AppIcons.team),
-                  title: const Text('User Management'),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: widget.onUsers,
-                ),
-                ListTile(
-                  leading: const Icon(AppIcons.team),
-                  title: const Text('Maintenance Teams'),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: widget.onTeams,
-                ),
-                if (superAdmin) ...[
-                  ListTile(
-                    leading: const Icon(AppIcons.roleManagement),
-                    title: const Text('Role Management'),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: widget.onRoles,
+                const SizedBox(height: AppSpacing.sm),
+                _DashboardCard(
+                  key: const ValueKey('admin-overview-management'),
+                  padding: EdgeInsets.zero,
+                  child: Column(
+                    children: [
+                      _management(
+                        AppIcons.team,
+                        'User Management',
+                        'Manage administrator and staff accounts',
+                        widget.onUsers,
+                      ),
+                      const Divider(height: 1),
+                      _management(
+                        AppIcons.team,
+                        'Maintenance Teams',
+                        'Manage crews and membership',
+                        widget.onTeams,
+                      ),
+                      if (superAdmin) ...[
+                        const Divider(height: 1),
+                        _management(
+                          AppIcons.roleManagement,
+                          'Role Management',
+                          'Review privileges and access groups',
+                          widget.onRoles,
+                        ),
+                        const Divider(height: 1),
+                        _management(
+                          AppIcons.settings,
+                          'System Settings',
+                          'Governance-approved configuration',
+                          widget.onSettings,
+                        ),
+                      ],
+                    ],
                   ),
-                  ListTile(
-                    leading: const Icon(AppIcons.settings),
-                    title: const Text('System Settings'),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: widget.onSettings,
-                  ),
-                ],
-                const SizedBox(height: AppSpacing.lg),
-                Text(
-                  'Activity Monitoring',
-                  style: Theme.of(context).textTheme.titleMedium,
                 ),
-                if (!data.collectionEnabled)
-                  const Text(
-                    'Audit collection is off. Existing history remains available.',
+                const SizedBox(height: AppSpacing.xl),
+                _DashboardCard(
+                  key: const ValueKey('admin-overview-activity'),
+                  onTap: widget.onActivity,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Activity Monitoring',
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                          ),
+                          Icon(
+                            AppIcons.activityLog,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      if (!data.collectionEnabled)
+                        const Text(
+                          'Audit collection is off. Existing history remains available.',
+                        ),
+                      if (data.recent.isEmpty)
+                        const Text('No recent activity.'),
+                      for (var i = 0; i < data.recent.length; i++)
+                        Padding(
+                          padding: EdgeInsets.only(
+                            top: i == 0 ? 0 : AppSpacing.md,
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              CircleAvatar(
+                                radius: 14,
+                                backgroundColor: Theme.of(
+                                  context,
+                                ).colorScheme.surfaceContainerLow,
+                                child: Text(
+                                  '${i + 1}',
+                                  style: Theme.of(context).textTheme.labelSmall,
+                                ),
+                              ),
+                              const SizedBox(width: AppSpacing.sm),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      data.recent[i].title,
+                                      style: Theme.of(
+                                        context,
+                                      ).textTheme.titleSmall,
+                                    ),
+                                    Text(
+                                      '${data.recent[i].tag} · ${data.recent[i].severity.label}',
+                                      style: Theme.of(
+                                        context,
+                                      ).textTheme.bodySmall,
+                                    ),
+                                    Text(
+                                      '${MaterialLocalizations.of(context).formatMediumDate(data.recent[i].timestamp)} · ${TimeOfDay.fromDateTime(data.recent[i].timestamp).format(context)}',
+                                      style: Theme.of(
+                                        context,
+                                      ).textTheme.labelSmall,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
                   ),
-                if (data.recent.isEmpty)
-                  const Text('No activity recorded in your scope.'),
-                for (final item in data.recent)
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(item.title),
-                    subtitle: Text(
-                      '${item.tag} · ${item.severity.label}\n${item.timestamp}',
-                    ),
-                    onTap: widget.onActivity,
-                  ),
-                TextButton(
-                  onPressed: widget.onActivity,
-                  child: const Text('View system activity'),
-                ),
-                Text(
-                  'Last checked ${data.checkedAt.toLocal()}',
-                  style: Theme.of(context).textTheme.labelSmall,
                 ),
               ],
             ],
@@ -261,28 +341,54 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen>
 }
 
 class _Metric extends StatelessWidget {
-  const _Metric(this.label, this.value, this.onTap);
+  const _Metric(this.label, this.value, this.onTap, {this.warning = false});
   final String label;
   final int value;
   final VoidCallback onTap;
+  final bool warning;
   @override
-  Widget build(BuildContext context) => Card(
-    elevation: 0,
-    margin: EdgeInsets.zero,
-    color: Theme.of(context).colorScheme.surfaceContainerLow,
-    child: InkWell(
-      borderRadius: AppComponentRadius.card,
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('$value', style: Theme.of(context).textTheme.headlineSmall),
-            Text(label),
-          ],
-        ),
+  Widget build(BuildContext context) => InkWell(
+    onTap: onTap,
+    child: Padding(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: Theme.of(context).textTheme.bodySmall),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            '$value',
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              color: warning ? AppSemanticColors.of(context).warningText : null,
+            ),
+          ),
+        ],
       ),
+    ),
+  );
+}
+
+class _DashboardCard extends StatelessWidget {
+  const _DashboardCard({
+    super.key,
+    required this.child,
+    this.padding = const EdgeInsets.all(AppSpacing.md),
+    this.onTap,
+  });
+  final Widget child;
+  final EdgeInsets padding;
+  final VoidCallback? onTap;
+  @override
+  Widget build(BuildContext context) => Material(
+    color: Theme.of(context).colorScheme.surface,
+    shape: RoundedRectangleBorder(
+      borderRadius: AppComponentRadius.card,
+      side: BorderSide(color: AppSemanticColors.of(context).glassBorder),
+    ),
+    clipBehavior: Clip.antiAlias,
+    child: InkWell(
+      onTap: onTap,
+      child: Padding(padding: padding, child: child),
     ),
   );
 }
