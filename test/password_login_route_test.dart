@@ -82,7 +82,7 @@ void main() {
     429: LoginViewState.rateLimited,
     503: LoginViewState.serviceUnavailable,
     404: LoginViewState.serviceUnavailable,
-    0: LoginViewState.offline,
+    0: LoginViewState.serviceUnavailable,
   }.entries) {
     testWidgets(
       'login route maps HTTP ${entry.key} clearly and clears partial sessions',
@@ -211,7 +211,8 @@ void main() {
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
       await tester.pumpWidget(
-      MaterialApp(theme: AppTheme.light,
+        MaterialApp(
+          theme: AppTheme.light,
           home: OtpVerificationScreen(
             phoneNumber: '0200000000',
             purpose: OtpPurpose.registration,

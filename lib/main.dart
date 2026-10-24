@@ -1,3 +1,4 @@
+import 'services/auth_failure_message.dart';
 import 'features/admin/screens/admin_overview_screen.dart';
 import 'features/admin/screens/admin_alerts_screen.dart';
 import 'features/admin/screens/admin_report_routing_screen.dart';
@@ -782,7 +783,8 @@ class _CivicVoiceAppState extends State<CivicVoiceApp>
                   _citizenReportTracking(ModalRoute.of(context)?.settings),
               AppRoutes.adminDashboard: _adminDashboard,
               AppRoutes.adminAlerts: (_) => const AdminAlertsScreen(),
-              AppRoutes.adminReportRouting: (_) => const AdminReportRoutingScreen(),
+              AppRoutes.adminReportRouting: (_) =>
+                  const AdminReportRoutingScreen(),
               AppRoutes.adminUserManagement: _adminUserManagement,
               AppRoutes.adminRoleManagement: _adminRoleManagement,
               AppRoutes.adminSystemActivity: _adminSystemActivity,
@@ -1281,7 +1283,13 @@ class _RegistrationRouteState extends State<_RegistrationRoute> {
         _state = error.statusCode == 409
             ? RegistrationViewState.phoneAlreadyRegistered
             : RegistrationViewState.error;
-        _errorMessage = error.statusCode == 409 ? null : error.message;
+        _errorMessage = error.statusCode == 409
+            ? null
+            : authFailureMessage(
+                error,
+                fallback:
+                    'Could not create your account. Check your details and try again.',
+              );
       });
     } catch (_) {
       if (!mounted) return;
@@ -1458,8 +1466,11 @@ void _startForgotPasswordOtp(
               phone: phoneNumber,
               otp: code,
             );
-          } on ApiException {
-            return false;
+          } on ApiException catch (error) {
+            if (error.statusCode == 400 || error.statusCode == 401) {
+              return false;
+            }
+            rethrow;
           }
           if (!context.mounted) return false;
           Navigator.of(context).pushReplacement(
@@ -1476,7 +1487,7 @@ void _startForgotPasswordOtp(
                       newPassword: newPassword,
                     );
                   } on ApiException {
-                    return false;
+                    rethrow;
                   }
                   navigator.pushNamedAndRemoveUntil(
                     AppRoutes.login,
@@ -1521,7 +1532,12 @@ class _ForgotPasswordRouteState extends State<_ForgotPasswordRoute> {
         _state = error.statusCode == 404
             ? ForgotPasswordViewState.phoneNotFound
             : ForgotPasswordViewState.recoveryError;
-        _errorMessage = error.statusCode == 404 ? null : error.message;
+        _errorMessage = error.statusCode == 404
+            ? null
+            : authFailureMessage(
+                error,
+                fallback: 'Could not request a reset code. Please try again.',
+              );
       });
     }
   }

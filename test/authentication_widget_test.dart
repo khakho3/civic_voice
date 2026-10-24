@@ -1170,7 +1170,7 @@ void main() {
 
     expect(find.text('Could Not Resend'), findsOneWidget);
     expect(
-      find.text('Please wait before requesting another OTP.'),
+      find.text('Too many attempts. Please wait before trying again.'),
       findsOneWidget,
     );
   });

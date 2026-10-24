@@ -1,5 +1,6 @@
 import 'package:civic_voice/widgets/validation_attention.dart';
 import 'package:flutter/material.dart';
+import '../../../services/auth_failure_message.dart';
 
 import 'package:civic_voice/core/theme/app_theme.dart';
 import 'package:civic_voice/features/authentication/widgets/auth_presentation.dart';
@@ -33,6 +34,7 @@ class _SetNewPasswordFormState extends State<SetNewPasswordForm> {
   bool _hideConfirmPassword = true;
   bool _saving = false;
   bool _saveFailed = false;
+  String? _failureMessage;
 
   @override
   void dispose() {
@@ -49,8 +51,15 @@ class _SetNewPasswordFormState extends State<SetNewPasswordForm> {
     setState(() {
       _saving = true;
       _saveFailed = false;
+      _failureMessage = null;
     });
-    final succeeded = await widget.onSaved(_passwordController.text);
+    var succeeded = false;
+    try {
+      succeeded = await widget.onSaved(_passwordController.text);
+    } catch (error) {
+      if (!mounted) return;
+      _failureMessage = authFailureMessage(error);
+    }
     if (!mounted) return;
     setState(() {
       _saving = false;
@@ -131,7 +140,8 @@ class _SetNewPasswordFormState extends State<SetNewPasswordForm> {
             const SizedBox(height: AppSpacing.md),
             AuthStatusAlert(
               title: 'Could Not Save',
-              message: 'Something went wrong. Please try again.',
+              message:
+                  _failureMessage ?? 'Something went wrong. Please try again.',
               icon: AppIcons.error,
               statusColor:
                   theme.extension<AppSemanticColors>()?.error ??

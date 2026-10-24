@@ -16,13 +16,14 @@ PasswordLoginFailure passwordLoginFailure(Object error) {
       401 => PasswordLoginFailure.credentials,
       403 => PasswordLoginFailure.account,
       429 => PasswordLoginFailure.throttled,
-      0 || 408 => PasswordLoginFailure.offline,
+      // A connection failure/timeout says nothing about device internet access.
+      0 || 408 => PasswordLoginFailure.unavailable,
       _ => PasswordLoginFailure.unavailable,
     };
   }
   if (error is FirebaseAuthException) {
     return switch (error.code) {
-      'network-request-failed' => PasswordLoginFailure.offline,
+      'network-request-failed' => PasswordLoginFailure.unavailable,
       'too-many-requests' => PasswordLoginFailure.throttled,
       // A rejected custom handoff is a service/project/session problem,
       // not proof that the password the API already verified was wrong.
@@ -87,7 +88,20 @@ class PasswordSessionService {
         (expectedUid != null && identity.uid != expectedUid)) {
       throw _invalidSession;
     }
-    final user = await _sync(identity.idToken);
+    late final SyncedUser user;
+    try {
+      user = await _sync(identity.idToken);
+    } on ApiException catch (error) {
+      // The password was already verified. A rejected session/sync must not
+      // be presented as an invalid password.
+      if (error.statusCode == 401) {
+        throw const ApiException(
+          statusCode: 503,
+          message: 'Could not complete sign-in. Please try again.',
+        );
+      }
+      rethrow;
+    }
     if (user.firebaseUid != identity.uid ||
         !user.active ||
         user.isGuest ||

@@ -1,3 +1,4 @@
+import '../../../services/auth_failure_message.dart';
 import '../../../widgets/validation_attention.dart';
 import 'dart:async';
 
@@ -51,6 +52,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
   bool _resent = false;
   bool _invalidCode = false;
   bool _verificationUnavailable = false;
+  String? _verificationMessage;
   String? _resendError;
 
   bool get _expired => _timeToExpiry != null && _timeToExpiry!.inSeconds <= 0;
@@ -105,7 +107,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
       if (!mounted) return;
       setState(() {
         _resending = false;
-        _resendError = error.toString();
+        _resendError = authFailureMessage(error);
       });
     }
   }
@@ -120,11 +122,12 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
     bool verified;
     try {
       verified = await widget.onVerify(_codeController.text.trim());
-    } catch (_) {
+    } catch (error) {
       if (!mounted) return;
       setState(() {
         _verifying = false;
         _verificationUnavailable = true;
+        _verificationMessage = authFailureMessage(error);
       });
       return;
     }
@@ -211,7 +214,9 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
           else if (_verificationUnavailable)
             AuthStatusAlert(
               title: 'Unable to Verify',
-              message: 'Verification is unavailable. Please try again shortly.',
+              message:
+                  _verificationMessage ??
+                  'Verification is unavailable. Please try again shortly.',
               icon: AppIcons.warning,
               statusColor: semantic.warning,
             )
