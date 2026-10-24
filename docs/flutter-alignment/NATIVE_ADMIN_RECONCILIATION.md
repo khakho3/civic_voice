@@ -1,5 +1,12 @@
 # Native Admin reconciliation
 
+## Current continuation entry point - 24 October 2026
+
+Current cross-repository state and ordered queue: C:/Projects/www/civic-voice-web/docs/CURRENT_STATUS.md. Read it before older dated next-item instructions below. Settings now matches web's General Configuration / Security & Access / Service Preferences cards; supported controls/save/reset remain intact. Both live inboxes use the bell circle, "You're all caught up" and CivicVoice report/account wording. The owner accepted preceding dashboard corrections; current Settings/empty-state phone acceptance remains pending. No production change or integration promotion.
+
+Settings a4fc05d; empty inbox 4e71d3b; alert flow 93667f6. Alerts now use web's compact state/date/description cards and event/follow-up/history groups, correct acknowledged-to-open reopening, secondary Acknowledge/Reopen actions, actor history and a read-only original-event snapshot. Native filter-pill bounce/checkmark is deliberately retained; future web adoption is queued. Generic Activity Detail remains Francis-owned. Final checks: 1,281 native tests pass, analyzer clean; web 365 tests, lint/build clean. Light/dark actual-widget render QA passed; final phone acceptance remains pending.
+
+
 ## Divider and measured geometry correction - 24 October 2026
 
 The owner clarified that the dashboard summary divider is **vertical**, not horizontal. The first horizontal restoration was wrong and was not installed as the corrected checkpoint. `c51a851` replaces it with one continuous centre divider and matches the web summary's actual CSS/markup: at the owner's observed 448 logical-pixel browser viewport, the isolated web reference renders 416 x 309.6 px; actual font-loaded Flutter widgets render 416 x 310 px in both themes. The summary uses 16 px corners, 24 px vertical/16 px horizontal metric padding, 32 px/600 values, matching labels/captions and warning-coloured Open alerts. Responsive width and native text scaling remain supported. Notification corners also use web's 16 px card radius. Grouped Management/Activity cards and verified live data/actions remain intact.

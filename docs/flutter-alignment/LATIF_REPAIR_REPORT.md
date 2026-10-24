@@ -1,5 +1,12 @@
 # Latif PR integration review and repairs
 
+## Current continuation entry point - 24 October 2026
+
+Current cross-repository state and ordered queue: C:/Projects/www/civic-voice-web/docs/CURRENT_STATUS.md. Read it before older dated next-item instructions below. Settings now matches web's General Configuration / Security & Access / Service Preferences cards; supported controls/save/reset remain intact. Both live inboxes use the bell circle, "You're all caught up" and CivicVoice report/account wording. The owner accepted preceding dashboard corrections; current Settings/empty-state phone acceptance remains pending. No production change or integration promotion.
+
+Settings a4fc05d; empty inbox 4e71d3b; alert flow 93667f6. Alerts now use web's compact state/date/description cards and event/follow-up/history groups, correct acknowledged-to-open reopening, secondary Acknowledge/Reopen actions, actor history and a read-only original-event snapshot. Native filter-pill bounce/checkmark is deliberately retained; future web adoption is queued. Generic Activity Detail remains Francis-owned. Final checks: 1,281 native tests pass, analyzer clean; web 365 tests, lint/build clean. Light/dark actual-widget render QA passed; final phone acceptance remains pending.
+
+
 ## Current-location button visibility - 23 October 2026
 
 Web and native map pickers now use their shared gold action fill with a dark location glyph and 2 px dark outline in both themes, retaining the 48 px action target and existing capture callback. Web validation: 8 existing LocationPicker tests pass and actual stylesheet controls visually checked over synthetic light/dark map backgrounds (not live provider/GPS acceptance). Native: 21 existing picker chrome/ownership tests pass; changed-file analyzer clean. Scope is the current-location control; remaining shared UI inventory and Maintenance device acceptance stay queued.
