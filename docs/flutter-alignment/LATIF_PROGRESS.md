@@ -1,5 +1,12 @@
 # Latif progress
 
+## Shared filter pills - owner requirement confirmed 24 October 2026
+
+Pending implementation: promote the accepted native alert-filter pill appearance and selection behaviour (bounce plus selected checkmark) into a shared component in EACH client, Flutter and web. Reuse it across every screen with filter pills, not only Alert reviews. Inventory and migrate all consumers; preserve their filter values, single/multiple-selection rules, queries and shared focused/collapsible-search behaviour. Verify both themes, keyboard/focus and selected semantics, reduced motion, narrow layouts, and disabled/busy states. This is an approved cross-client rollout requirement, not merely an idea to consider for web; the rollout is not complete yet. Keep the accepted native interaction as the reference.
+
+Owner confirmed the current Settings/inbox/Admin repair checkpoint; independent Maintenance and real push acceptance remain pending.
+
+
 ## Current continuation entry point - 24 October 2026
 
 Current cross-repository state and ordered queue: C:/Projects/www/civic-voice-web/docs/CURRENT_STATUS.md. Read it before older dated next-item instructions below. Settings now matches web's General Configuration / Security & Access / Service Preferences cards; supported controls/save/reset remain intact. Both live inboxes use the bell circle, "You're all caught up" and CivicVoice report/account wording. The owner accepted preceding dashboard corrections; current Settings/empty-state phone acceptance remains pending. No production change or integration promotion.
