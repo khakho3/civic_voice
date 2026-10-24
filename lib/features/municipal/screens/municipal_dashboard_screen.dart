@@ -254,7 +254,7 @@ class _DashboardContent extends StatelessWidget {
           const SizedBox(height: AppSpacing.sm),
           const _LoadingIndicatorRow(),
         ],
-        const SizedBox(height: AppSpacing.xl),
+        const SizedBox(height: AppSpacing.md),
         _StatsGrid(stats: stats, isLoading: loading),
         const SizedBox(height: AppSpacing.xl),
         if (!loading &&
