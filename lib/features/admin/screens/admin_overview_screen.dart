@@ -8,6 +8,7 @@ import '../services/admin_overview_directory.dart';
 import '../services/admin_resource.dart';
 import '../services/admin_system_activity_directory.dart';
 import '../widgets/admin_scaffold.dart';
+import '../widgets/admin_api_status_badge.dart';
 
 /// Live Home uses server totals, never counts a bounded cached directory.
 class AdminOverviewScreen extends StatefulWidget {
@@ -125,25 +126,32 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen>
               inset.bottom + AppSpacing.lg,
             ),
             children: [
-              Text(
-                superAdmin ? 'Platform Overview' : 'Assembly Overview',
-                style: Theme.of(context).textTheme.headlineSmall,
-              ),
-              if (superAdmin)
-                ValueListenableBuilder(
-                  valueListenable: AdminSystemActivityDirectory.instance.health,
-                  builder: (context, health, _) => Text(
-                    !AdminSystemActivityDirectory
-                                .instance
-                                .hasLiveHealthSnapshot ||
-                            health == null
-                        ? 'API status unavailable'
-                        : health.apiOnline
-                        ? 'API: Online'
-                        : 'API: Offline',
-                    style: Theme.of(context).textTheme.labelMedium,
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      superAdmin ? 'Platform Overview' : 'Assembly Overview',
+                      style: Theme.of(context).textTheme.headlineSmall,
+                    ),
                   ),
-                ),
+                  if (superAdmin) ...[
+                    const SizedBox(width: AppSpacing.sm),
+                    ValueListenableBuilder(
+                      valueListenable:
+                          AdminSystemActivityDirectory.instance.health,
+                      builder: (context, health, _) => AdminApiStatusBadge(
+                        stats:
+                            AdminSystemActivityDirectory
+                                .instance
+                                .hasLiveHealthSnapshot
+                            ? health
+                            : null,
+                        onTap: widget.onActivity,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
               const SizedBox(height: AppSpacing.lg),
               if (_source.loading)
                 const Center(

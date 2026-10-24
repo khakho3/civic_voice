@@ -15,6 +15,7 @@ import '../services/admin_session.dart';
 import '../services/admin_system_activity_directory.dart';
 import '../services/admin_user_directory.dart';
 import '../widgets/admin_scaffold.dart';
+import '../widgets/admin_api_status_badge.dart';
 
 /// ADM-001 — Admin Dashboard.
 ///
@@ -309,8 +310,9 @@ class _DashboardBody extends StatelessWidget {
                         style: textTheme.headlineSmall,
                       ),
                     ),
-                    _ApiStatusBadge(
+                    AdminApiStatusBadge(
                       stats: healthStats,
+                      sample: !AdminSystemActivityDirectory.instance.hasLiveHealthSnapshot,
                       onTap: onNavigateToActivity,
                     ),
                   ],
@@ -368,98 +370,6 @@ class _DashboardBody extends StatelessWidget {
           ),
         },
       ],
-    );
-  }
-}
-
-class _ApiStatusBadge extends StatefulWidget {
-  const _ApiStatusBadge({required this.stats, this.onTap});
-
-  final SystemHealthStats? stats;
-  final VoidCallback? onTap;
-
-  @override
-  State<_ApiStatusBadge> createState() => _ApiStatusBadgeState();
-}
-
-class _ApiStatusBadgeState extends State<_ApiStatusBadge>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1400),
-  )..repeat(reverse: true);
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final stats = widget.stats;
-    final live = AdminSystemActivityDirectory.instance.hasLiveHealthSnapshot;
-    final online = stats?.apiOnline == true && stats?.databaseOnline == true;
-    final unavailable = stats == null;
-    final color = unavailable || !live
-        ? Theme.of(context).colorScheme.onSurfaceVariant
-        : online
-        ? AppColors.statusResolved
-        : AppColors.error;
-    final reduceMotion =
-        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
-    return Material(
-      color: color.withValues(alpha: 0.1),
-      shape: StadiumBorder(
-        side: BorderSide(color: color.withValues(alpha: 0.3)),
-      ),
-      child: InkWell(
-        customBorder: const StadiumBorder(),
-        onTap: widget.onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.sm,
-            vertical: AppSpacing.xs,
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              AnimatedBuilder(
-                animation: _controller,
-                builder: (context, _) => Container(
-                  width: 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: color,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: color.withValues(
-                          alpha: reduceMotion
-                              ? 0.25
-                              : 0.15 + (_controller.value * 0.35),
-                        ),
-                        blurRadius: reduceMotion
-                            ? 4
-                            : 4 + (_controller.value * 6),
-                        spreadRadius: reduceMotion ? 0 : _controller.value * 2,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.xs),
-              Text(
-                'API: ${unavailable ? 'Unavailable' : !live ? 'Sample' : online ? 'Online' : 'Offline'}',
-                style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color: color,
-                  fontWeight: AppFontWeight.semiBold,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }
