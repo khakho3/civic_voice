@@ -6,6 +6,8 @@ abstract final class AppMapStyle {
   static String? of(BuildContext context) =>
       Theme.of(context).brightness == Brightness.dark ? dark : null;
 
+  // Explicit label visibility/contrast avoids relying on Android tile defaults.
+  // Google still chooses label density at each zoom; this cannot invent places.
   static const String dark = r'''[
   {
     "elementType": "geometry",
@@ -93,6 +95,13 @@ abstract final class AppMapStyle {
         "color": "#9bbccc"
       }
     ]
-  }
+  },
+  {"featureType":"road", "elementType":"labels", "stylers":[{"visibility":"on"}]},
+  {"featureType":"road", "elementType":"labels.text.fill", "stylers":[{"color":"#e8ede5"}]},
+  {"featureType":"road", "elementType":"labels.text.stroke", "stylers":[{"color":"#202622"}]},
+  {"featureType":"poi", "elementType":"labels", "stylers":[{"visibility":"on"}]},
+  {"featureType":"poi", "elementType":"labels.text.fill", "stylers":[{"color":"#d5dbd2"}]},
+  {"featureType":"poi", "elementType":"labels.text.stroke", "stylers":[{"color":"#202622"}]},
+  {"featureType":"transit", "elementType":"labels", "stylers":[{"visibility":"on"}]}
 ]''';
 }

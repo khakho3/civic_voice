@@ -21,6 +21,18 @@ void main() {
       );
       await show(Brightness.dark);
       expect(jsonDecode(style!), isA<List<dynamic>>());
+      final rules = jsonDecode(style!) as List;
+      for (final feature in ['road', 'poi', 'transit']) {
+        expect(
+          rules.any(
+            (r) =>
+                r['featureType'] == feature &&
+                r['elementType'] == 'labels' &&
+                r['stylers'].any((s) => s['visibility'] == 'on'),
+          ),
+          isTrue,
+        );
+      }
       expect(
         (jsonDecode(style!) as List).first['stylers'].first['color'],
         '#202622',
