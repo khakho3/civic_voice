@@ -296,7 +296,7 @@ class _ProfileBody extends StatelessWidget {
         ],
         ProfileHeaderCard(
           name: profile.fullName,
-          subtitle: 'Administrator account · Governance approved',
+          subtitle: 'Administrator account',
           onEdit: onEdit,
         ),
         ProfileSection(
