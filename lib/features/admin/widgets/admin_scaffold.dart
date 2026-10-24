@@ -1,6 +1,7 @@
 import '../../../services/notification_inbox_directory.dart';
 import '../../../widgets/unread_dot_badge.dart';
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
 
 import '../../../services/app_haptics.dart';
 
@@ -98,6 +99,7 @@ class AdminScaffold extends StatelessWidget {
     this.onNotificationsTap,
     this.onTabSelected,
     this.onOpenRoleManagement,
+    this.onOpenAlerts,
     this.onOpenMaintenanceTeams,
     this.onOpenProfile,
     this.onBack,
@@ -143,6 +145,7 @@ class AdminScaffold extends StatelessWidget {
   /// now that it's no longer a bottom-nav tab (see [AdminTab]'s own doc
   /// comment for why).
   final VoidCallback? onOpenRoleManagement;
+  final VoidCallback? onOpenAlerts;
   final VoidCallback? onOpenMaintenanceTeams;
 
   /// Opens ADM-008 Admin Profile from Super Admin's drawer or regular Admin's
@@ -197,6 +200,11 @@ class AdminScaffold extends StatelessWidget {
           ? _AdminDrawer(
               activeDestination: activeDrawerDestination,
               onOpenRoleManagement: onOpenRoleManagement,
+              onOpenAlerts:
+                  onOpenAlerts ??
+                  (Firebase.apps.isEmpty
+                      ? null
+                      : () => Navigator.of(context).pushNamed('/admin/alerts')),
               onOpenMaintenanceTeams: onOpenMaintenanceTeams,
               onOpenProfile: onOpenProfile,
             )
@@ -469,12 +477,14 @@ class _AdminDrawer extends StatelessWidget {
   const _AdminDrawer({
     this.activeDestination,
     this.onOpenRoleManagement,
+    this.onOpenAlerts,
     this.onOpenMaintenanceTeams,
     this.onOpenProfile,
   });
 
   final AdminDrawerDestination? activeDestination;
   final VoidCallback? onOpenRoleManagement;
+  final VoidCallback? onOpenAlerts;
   final VoidCallback? onOpenMaintenanceTeams;
   final VoidCallback? onOpenProfile;
 
@@ -501,6 +511,16 @@ class _AdminDrawer extends StatelessWidget {
               ),
             ),
             const Divider(height: 1),
+            if (onOpenAlerts != null)
+              _DrawerItem(
+                icon: AppIcons.warning,
+                label: 'Open alerts',
+                selected: false,
+                onTap: () {
+                  Navigator.of(context).pop();
+                  onOpenAlerts!();
+                },
+              ),
             // An assembly Admin has no tiers to review or reassign — Role
             // Management is a Super Admin-only concern — so the item is
             // dropped entirely rather than shown disabled.

@@ -90,6 +90,7 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen>
     selectedTab: AdminTab.dashboard,
     onNotificationsTap: widget.onNotifications,
     onOpenRoleManagement: widget.onRoles,
+    onOpenAlerts: widget.onAlerts,
     onOpenMaintenanceTeams: widget.onTeams,
     onOpenProfile: widget.onProfile,
     onTabSelected: (tab) {

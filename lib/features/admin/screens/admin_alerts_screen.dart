@@ -28,6 +28,7 @@ class AdminAlertsScreen extends StatefulWidget {
 
 class _AdminAlertsScreenState extends State<AdminAlertsScreen> {
   String _state = 'ACTIVE', _query = '';
+  bool _changingView = false;
   List<String?> _cursors = [null];
   late AdminResource<AdminAlertPage> _source;
   @override
@@ -55,9 +56,15 @@ class _AdminAlertsScreenState extends State<AdminAlertsScreen> {
   void _change(VoidCallback change) {
     setState(() {
       _source.dispose();
+      _changingView = true;
       change();
       _create();
     });
+  }
+
+  Future<void> _reload() async {
+    setState(() => _changingView = false);
+    await _source.load();
   }
 
   @override
@@ -73,7 +80,7 @@ class _AdminAlertsScreenState extends State<AdminAlertsScreen> {
       ),
     );
     if (mounted) {
-      unawaited(_source.load());
+      unawaited(_reload());
       unawaited(AdminOverviewDirectory.instance.load());
     }
   }
@@ -127,10 +134,13 @@ class _AdminAlertsScreenState extends State<AdminAlertsScreen> {
                         selected: _state == filter.key,
                         onTap: _source.loading
                             ? null
-                            : () => _change(() {
-                                _state = filter.key;
-                                _cursors = [null];
-                              }),
+                            : () {
+                                if (_state == filter.key) return;
+                                _change(() {
+                                  _state = filter.key;
+                                  _cursors = [null];
+                                });
+                              },
                       ),
                     ),
                 ],
@@ -150,11 +160,17 @@ class _AdminAlertsScreenState extends State<AdminAlertsScreen> {
               ),
               const SizedBox(height: 16),
               if (_source.loading)
-                const Center(
-                  child: BusyIndicator(
-                    semanticsLabel: 'Loading, please wait...',
+                if (_changingView)
+                  Semantics(
+                    liveRegion: true,
+                    child: const Text('Updating alerts…'),
+                  )
+                else
+                  const Center(
+                    child: BusyIndicator(
+                      semanticsLabel: 'Loading, please wait...',
+                    ),
                   ),
-                ),
               if (_source.error != null || page == null && !_source.loading)
                 Text(
                   _source.error ??
@@ -229,7 +245,7 @@ class _AdminAlertsScreenState extends State<AdminAlertsScreen> {
                 ),
               ],
               TextButton(
-                onPressed: _source.loading ? null : _source.load,
+                onPressed: _source.loading ? null : _reload,
                 child: const Text('Refresh alerts'),
               ),
             ],
