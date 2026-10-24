@@ -170,7 +170,7 @@ void main() {
     load = (_, _) async => page(rows: [], unread: 0);
     await tester.tap(find.text('Refresh inbox'));
     await tester.pumpAndSettle();
-    expect(find.textContaining('No notifications yet.'), findsOneWidget);
+    expect(find.text("You're all caught up"), findsOneWidget);
     expect(find.text('Mark this page read'), findsNothing);
     expect(find.text('Clear this page'), findsNothing);
     expect(find.text('Previous page'), findsNothing);

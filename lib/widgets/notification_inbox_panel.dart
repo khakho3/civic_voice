@@ -180,7 +180,11 @@ class _NotificationInboxPanelState extends State<NotificationInboxPanel>
             if (_navigationError != null)
               Semantics(liveRegion: true, child: Text(_navigationError!)),
             if (page.rows.isEmpty)
-              const _InboxState(message: 'No notifications yet.'),
+              const _InboxState(
+                message: "You're all caught up",
+                detail:
+                    'Report updates and account notifications will appear here.',
+              ),
             for (final item in page.rows)
               Padding(
                 padding: const EdgeInsets.only(bottom: AppSpacing.sm),
@@ -228,9 +232,11 @@ class _NotificationInboxPanelState extends State<NotificationInboxPanel>
 class _InboxState extends StatelessWidget {
   const _InboxState({
     required this.message,
+    this.detail,
     this.icon = AppIcons.notifications,
   });
   final String message;
+  final String? detail;
   final IconData icon;
   @override
   Widget build(BuildContext context) => SizedBox(
@@ -239,17 +245,42 @@ class _InboxState extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            icon,
-            size: 40,
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurfaceVariant.withValues(alpha: .08),
+            ),
+            child: Icon(
+              icon,
+              size: 22,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: AppSpacing.md),
           Text(
             message,
             textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodyMedium,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              fontWeight: detail == null ? FontWeight.normal : FontWeight.w600,
+            ),
           ),
+          if (detail != null) ...[
+            const SizedBox(height: 4),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 340),
+              child: Text(
+                detail!,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     ),
