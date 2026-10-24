@@ -277,7 +277,7 @@ class _InboxCard extends StatelessWidget {
       margin: EdgeInsets.zero,
       color: theme.colorScheme.surface,
       shape: RoundedRectangleBorder(
-        borderRadius: AppComponentRadius.card,
+        borderRadius: BorderRadius.circular(16),
         side: BorderSide(
           color: item.read
               ? semantic.glassBorder

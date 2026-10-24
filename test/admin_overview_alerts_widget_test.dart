@@ -51,7 +51,7 @@ void main() {
           expect(find.text('7'), findsOneWidget);
           final stats = find.byKey(const ValueKey('admin-overview-stats'));
           expect(
-            find.descendant(of: stats, matching: find.byType(Divider)),
+            find.descendant(of: stats, matching: find.byType(VerticalDivider)),
             findsOneWidget,
           );
           final alertValue = tester.widget<Text>(
@@ -65,11 +65,13 @@ void main() {
             find.byKey(const ValueKey('admin-overview-management')),
             findsOneWidget,
           );
-          expect(
-            find.byKey(const ValueKey('admin-overview-activity')),
-            findsOneWidget,
-          );
           expect(find.textContaining('Open alerts include'), findsNothing);
+          expect(
+            find.descendant(of: stats, matching: find.byType(Divider)),
+            findsNothing,
+          );
+          expect(tester.getSize(stats).width, width - 32);
+          expect(find.text('Last 24 hours'), findsOneWidget);
 
           expect(find.text('Assembly Overview'), findsOneWidget);
           expect(find.text('System Settings'), findsNothing);
@@ -77,6 +79,15 @@ void main() {
           expect(find.text('View alert events'), findsNothing);
           await tester.tap(find.text('Open alerts'));
           expect(alerts, 1);
+          await tester.scrollUntilVisible(
+            find.byKey(const ValueKey('admin-overview-activity')),
+            180,
+            scrollable: find.byType(Scrollable).first,
+          );
+          expect(
+            find.byKey(const ValueKey('admin-overview-activity')),
+            findsOneWidget,
+          );
           expect(tester.takeException(), isNull);
         },
       );

@@ -164,46 +164,61 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen>
               if (data != null) ...[
                 _DashboardCard(
                   key: const ValueKey('admin-overview-stats'),
-                  padding: EdgeInsets.zero,
-                  child: Column(
+                  padding: const EdgeInsets.all(1),
+                  child: Stack(
                     children: [
-                      Row(
+                      Column(
                         children: [
-                          Expanded(
-                            child: _Metric(
-                              'Total users',
-                              data.totalUsers,
-                              widget.onUsers,
-                            ),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: _Metric(
+                                  'Total users',
+                                  data.totalUsers,
+                                  widget.onUsers,
+                                  detail: 'Registered accounts in your scope',
+                                ),
+                              ),
+                              Expanded(
+                                child: _Metric(
+                                  'Active roles',
+                                  data.activeRoles,
+                                  widget.onUsers,
+                                  detail: 'Among active registered accounts',
+                                ),
+                              ),
+                            ],
                           ),
-                          Expanded(
-                            child: _Metric(
-                              'Active roles',
-                              data.activeRoles,
-                              widget.onUsers,
-                            ),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: _Metric(
+                                  'Audit events',
+                                  data.auditEvents24h,
+                                  widget.onActivity,
+                                  detail: 'Last 24 hours',
+                                ),
+                              ),
+                              Expanded(
+                                child: _Metric(
+                                  'Open alerts',
+                                  data.openAlerts,
+                                  widget.onAlerts,
+                                  warning: true,
+                                  detail:
+                                      'Includes acknowledged · excludes resolved',
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
-                      const Divider(height: 1),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _Metric(
-                              'Audit events (24h)',
-                              data.auditEvents24h,
-                              widget.onActivity,
-                            ),
-                          ),
-                          Expanded(
-                            child: _Metric(
-                              'Open alerts',
-                              data.openAlerts,
-                              widget.onAlerts,
-                              warning: true,
-                            ),
-                          ),
-                        ],
+                      const Positioned.fill(
+                        child: Center(
+                          child: VerticalDivider(width: 1, thickness: 1),
+                        ),
                       ),
                     ],
                   ),
@@ -341,8 +356,14 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen>
 }
 
 class _Metric extends StatelessWidget {
-  const _Metric(this.label, this.value, this.onTap, {this.warning = false});
-  final String label;
+  const _Metric(
+    this.label,
+    this.value,
+    this.onTap, {
+    required this.detail,
+    this.warning = false,
+  });
+  final String label, detail;
   final int value;
   final VoidCallback onTap;
   final bool warning;
@@ -350,16 +371,42 @@ class _Metric extends StatelessWidget {
   Widget build(BuildContext context) => InkWell(
     onTap: onTap,
     child: Padding(
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.lg,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: Theme.of(context).textTheme.bodySmall),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              fontSize: 14,
+              letterSpacing: 0,
+              height: 1.2,
+              fontWeight: FontWeight.w500,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
           const SizedBox(height: AppSpacing.xs),
           Text(
             '$value',
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+            style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+              fontSize: 32,
+              letterSpacing: 0,
+              height: 1.4,
+              fontWeight: FontWeight.w600,
               color: warning ? AppSemanticColors.of(context).warningText : null,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            detail,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              fontSize: 12,
+              letterSpacing: 0,
+              height: 1.5,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
         ],
@@ -382,7 +429,7 @@ class _DashboardCard extends StatelessWidget {
   Widget build(BuildContext context) => Material(
     color: Theme.of(context).colorScheme.surface,
     shape: RoundedRectangleBorder(
-      borderRadius: AppComponentRadius.card,
+      borderRadius: BorderRadius.circular(16),
       side: BorderSide(color: AppSemanticColors.of(context).glassBorder),
     ),
     clipBehavior: Clip.antiAlias,
