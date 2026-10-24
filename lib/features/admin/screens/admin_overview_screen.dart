@@ -153,7 +153,9 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen>
                 ],
               ),
               const SizedBox(height: AppSpacing.lg),
-              if (_source.loading)
+              // Pull/resume refresh already has its own feedback. Only a cold
+              // load needs this row; adding it above verified cards shifts them.
+              if (_source.loading && data == null)
                 const Center(
                   child: BusyIndicator(
                     semanticsLabel: 'Loading, please wait...',
