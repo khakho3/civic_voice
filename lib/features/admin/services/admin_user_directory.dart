@@ -141,7 +141,17 @@ class AdminUserDirectory {
     return user;
   }
 
+  bool isOwnAccount(AdminUserItem user) =>
+      currentApiUserId != null && user.apiRecordId == currentApiUserId;
+
+  void _requireOtherAccount(AdminUserItem user) {
+    if (isOwnAccount(user)) {
+      throw StateError('Your own account is read-only in User Management');
+    }
+  }
+
   Future<void> saveOnServer(AdminUserItem user) async {
+    _requireOtherAccount(user);
     final operation = _beginMutation(user.apiRecordId);
     try {
       if (!canRefresh) {
@@ -149,6 +159,7 @@ class AdminUserDirectory {
       }
       final token = await _idToken();
       _requireCurrentMutation(operation);
+      _requireOtherAccount(user);
       if (token == null) throw StateError('A signed-in Admin is required');
       final fields = {
         'role': _backendRole(user.role),
@@ -173,6 +184,7 @@ class AdminUserDirectory {
   }
 
   Future<void> deleteOnServer(AdminUserItem user) async {
+    _requireOtherAccount(user);
     final operation = _beginMutation(user.apiRecordId);
     try {
       if (!canRefresh) {
@@ -180,6 +192,7 @@ class AdminUserDirectory {
       }
       final token = await _idToken();
       _requireCurrentMutation(operation);
+      _requireOtherAccount(user);
       if (token == null) throw StateError('A signed-in Admin is required');
       await _deleteUser(user.apiRecordId, token);
       _requireCurrentMutation(operation);

@@ -157,6 +157,7 @@ class _AdminUserDetailsScreenState extends State<AdminUserDetailsScreen> {
   }
 
   Future<void> _save() async {
+    if (AdminUserDirectory.instance.isOwnAccount(widget.user)) return;
     final session = AdminSession.instance;
     // A session that can't edit roles/deactivate accounts never changed
     // _role/_status in the first place (their dropdowns render read-only —
@@ -224,6 +225,7 @@ class _AdminUserDetailsScreenState extends State<AdminUserDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final ownAccount = AdminUserDirectory.instance.isOwnAccount(widget.user);
     return AdminScaffold(
       selectedTab: AdminTab.users,
       headerTitle: 'User Details',
@@ -250,8 +252,9 @@ class _AdminUserDetailsScreenState extends State<AdminUserDetailsScreen> {
           region: _region,
           assembly: _assembly,
           showSuccess: _showSuccess,
-          canEditRole: AdminSession.instance.canEditUserRoles,
-          canEditStatus: AdminSession.instance.canDeactivateUsers,
+          canEditRole: !ownAccount && AdminSession.instance.canEditUserRoles,
+          canEditStatus:
+              !ownAccount && AdminSession.instance.canDeactivateUsers,
           onRoleChanged: (role) => setState(() {
             _role = role;
             _showSuccess = false;
@@ -289,6 +292,7 @@ class _AdminUserDetailsScreenState extends State<AdminUserDetailsScreen> {
           onCancel: _handleCancel,
           onSave: _save,
           saving: _saving,
+          ownAccount: ownAccount,
         ),
         _ => Column(
           children: [
@@ -356,6 +360,7 @@ class _DetailsForm extends StatelessWidget {
     this.onBack,
     this.onCancel,
     this.saving = false,
+    this.ownAccount = false,
   });
 
   final AdminUserItem user;
@@ -381,6 +386,7 @@ class _DetailsForm extends StatelessWidget {
   final VoidCallback? onBack;
   final VoidCallback? onCancel;
   final bool saving;
+  final bool ownAccount;
   final VoidCallback onSave;
 
   @override
@@ -418,6 +424,12 @@ class _DetailsForm extends StatelessWidget {
           const SizedBox(height: AppSpacing.sm),
         ],
         _CompactIdentity(user: user, previewRole: role, previewStatus: status),
+        if (ownAccount) ...[
+          const SizedBox(height: AppSpacing.sm),
+          const Text(
+            'Your own account is read-only here. Use Profile to update your personal details.',
+          ),
+        ],
         const SizedBox(height: AppSpacing.lg),
         _Section(
           title: 'Account information',
@@ -471,12 +483,24 @@ class _DetailsForm extends StatelessWidget {
               ],
               if (needsAssembly) ...[
                 const SizedBox(height: AppSpacing.sm),
-                RegionAssemblyPicker(
-                  region: region,
-                  assembly: assembly,
-                  onRegionChanged: onRegionChanged,
-                  onAssemblyChanged: onAssemblyChanged,
-                ),
+                if (canEditRole)
+                  RegionAssemblyPicker(
+                    region: region,
+                    assembly: assembly,
+                    onRegionChanged: onRegionChanged,
+                    onAssemblyChanged: onAssemblyChanged,
+                  )
+                else ...[
+                  _ReadOnlyField(
+                    label: 'Region',
+                    value: region?.label ?? 'Not assigned',
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  _ReadOnlyField(
+                    label: 'Assembly',
+                    value: assembly?.name ?? 'Not assigned',
+                  ),
+                ],
               ],
               const SizedBox(height: AppSpacing.sm),
               if (canEditStatus)
@@ -544,7 +568,10 @@ class _DetailsForm extends StatelessWidget {
             const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: FilledButton(
-                onPressed: saving ? null : onSave,
+                onPressed:
+                    saving || ownAccount || (!canEditRole && !canEditStatus)
+                    ? null
+                    : onSave,
                 child: BusyLabel(
                   busy: saving,
                   busyLabel: 'Saving changes',
@@ -622,28 +649,32 @@ class _CompactIdentity extends StatelessWidget {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: AppSpacing.xs),
-                      Text(
-                        previewRole.label,
-                        style: textTheme.bodyMedium?.copyWith(
-                          color: actionColor,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
                     ],
                   ),
                 ),
               ),
-              const SizedBox(height: AppSpacing.sm),
-              Semantics(
-                label: 'Account status: ${previewStatus.label}',
-                child: ExcludeSemantics(
-                  child: _Pill(
-                    label: previewStatus.label,
-                    color: previewStatus.color,
+              const SizedBox(height: AppSpacing.xs),
+              Wrap(
+                spacing: AppSpacing.sm,
+                runSpacing: AppSpacing.xs,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  ExcludeSemantics(
+                    child: Text(
+                      previewRole.label,
+                      style: textTheme.bodyMedium?.copyWith(color: actionColor),
+                    ),
                   ),
-                ),
+                  Semantics(
+                    label: 'Account status: ${previewStatus.label}',
+                    child: ExcludeSemantics(
+                      child: _Pill(
+                        label: previewStatus.label,
+                        color: previewStatus.color,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

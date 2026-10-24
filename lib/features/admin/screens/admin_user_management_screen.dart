@@ -181,7 +181,10 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
   }
 
   Future<void> _toggleActive(AdminUserItem user) async {
-    if (!AdminSession.instance.canDeactivateUsers) return;
+    if (!AdminSession.instance.canDeactivateUsers ||
+        AdminUserDirectory.instance.isOwnAccount(user)) {
+      return;
+    }
     final deactivating = user.status != AdminUserStatus.inactive;
     if (deactivating) {
       final confirmed = await showConfirmDialog(
@@ -217,7 +220,10 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
   }
 
   Future<void> _deleteUser(AdminUserItem user) async {
-    if (!AdminSession.instance.isSuperAdmin) return;
+    if (!AdminSession.instance.isSuperAdmin ||
+        AdminUserDirectory.instance.isOwnAccount(user)) {
+      return;
+    }
     final confirmed = await showConfirmDialog(
       context,
       title: 'Delete this account permanently?',
@@ -631,7 +637,8 @@ class _UserList extends StatelessWidget {
                 user: user,
                 onToggleActive: () => onToggleActive(user),
                 onDelete: () => onDelete(user),
-                canDeactivate: canDeactivate,
+                canDeactivate: canDeactivate &&
+                    !AdminUserDirectory.instance.isOwnAccount(user),
                 canDelete:
                     canDelete &&
                     user.apiRecordId !=
