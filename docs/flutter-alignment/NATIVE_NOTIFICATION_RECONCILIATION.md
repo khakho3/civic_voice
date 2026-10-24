@@ -1,11 +1,19 @@
 # Native notification reconciliation
 
+## Flutter-only shared filter pills - 24 October 2026
+
+Owner scope correction: keep the shared animated filter pills in **Flutter only**. The web trial flickered and was fully restored before committing; retain the existing web FilterChip/dropdowns and collapsible search. This supersedes the earlier cross-client rollout requirement.
+
+Native `d3bece1` / `7a796f6` introduce CivicFilterChip and adopt it across all 13 native filter-pill screens, including existing TextFilterChips rows and Ministry picker triggers. The accepted alert ChoiceChip theme/checkmark motion is retained, with reduced-motion and disabled/keyboard/selected semantics. Existing filter values, queries, picker results, haptics and shared search ownership remain intact. Inventory and limits: C:/Projects/mobile/civic_voice_latif_review/docs/flutter-alignment/NATIVE_FILTER_PILLS.md.
+
+Automated verification: **1,320 Flutter tests pass**, analyzer/whitespace clean; **365 web tests pass**, lint/build clean (209 PWA entries). Native checks include the 80 existing held-gesture search cases across ten consumers/four widths/both themes, plus 24 additional Ministry consumer cases, shared keyboard/selection/picker/disabled/reduced-motion and long-label/2x-text coverage. Actual native alert widgets were rendered and inspected in both themes. The restored web's actual shared search passed eight browser width/theme cases for collapse, focused search and exact offset restoration, with no page overflow or API requests.
+
+No new APK built or installed for the pills. The installed DEV runtime remains `93667f6`; owner acceptance of the preceding Settings/inbox/Admin repair is recorded, while these new shared pills remain phone-unconfirmed. Maintenance and real push acceptance remain pending. System Activity pull-to-refresh flicker is still recorded and unfixed. Next implementation remains Super Admin unresolved-locality routing, then password hiding/padlock and remaining consolidated items. No API/config change, integration promotion, merge or deployment.
+
+
 ## Current continuation entry point - 24 October 2026
 
-Current cross-repository state and ordered queue: C:/Projects/www/civic-voice-web/docs/CURRENT_STATUS.md. Read it before older dated next-item instructions below. Settings now matches web's General Configuration / Security & Access / Service Preferences cards; supported controls/save/reset remain intact. Both live inboxes use the bell circle, "You're all caught up" and CivicVoice report/account wording. The owner accepted preceding dashboard corrections; current Settings/empty-state phone acceptance remains pending. No production change or integration promotion.
-
-Settings a4fc05d; empty inbox 4e71d3b; alert flow 93667f6. Alerts now use web's compact state/date/description cards and event/follow-up/history groups, correct acknowledged-to-open reopening, secondary Acknowledge/Reopen actions, actor history and a read-only original-event snapshot. Native filter-pill bounce/checkmark is deliberately retained; future web adoption is queued. Generic Activity Detail remains Francis-owned. Final checks: 1,281 native tests pass, analyzer clean; web 365 tests, lint/build clean. Light/dark actual-widget render QA passed; final phone acceptance remains pending.
-
+Current queue and cross-repository state: C:/Projects/www/civic-voice-web/docs/CURRENT_STATUS.md. The Flutter-only shared-pill checkpoint above supersedes older web-adoption and pending-repair statements below. Runtime d3bece1/7a796f6 is automatically verified (1,320 tests; clean analyzer); no new APK was built or installed. The owner confirmed the preceding installed Settings/inbox/Admin repair through 93667f6; new shared-pill phone acceptance, Maintenance and real push acceptance remain pending. Native inventory: [NATIVE_FILTER_PILLS.md](NATIVE_FILTER_PILLS.md). Preserve accepted layout/search behaviour and Francis-owned generic Activity Detail/success work. No production change, merge or integration promotion.
 
 ## Divider and measured geometry correction - 24 October 2026
 
