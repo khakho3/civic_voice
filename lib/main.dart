@@ -1,5 +1,6 @@
 import 'features/admin/screens/admin_overview_screen.dart';
 import 'features/admin/screens/admin_alerts_screen.dart';
+import 'features/admin/screens/admin_report_routing_screen.dart';
 import 'services/notification_push_registration.dart';
 import 'models/notification_inbox.dart';
 import 'services/notification_inbox_directory.dart';
@@ -435,6 +436,7 @@ abstract final class AppRoutes {
   // Admin.
   static const adminDashboard = '/admin/dashboard';
   static const adminAlerts = '/admin/alerts';
+  static const adminReportRouting = '/admin/report-routing';
   static const adminUserManagement = '/admin/user-management';
   static const adminUserDetails = '/admin/user-details';
   static const adminCreateUser = '/admin/create-user';
@@ -780,6 +782,7 @@ class _CivicVoiceAppState extends State<CivicVoiceApp>
                   _citizenReportTracking(ModalRoute.of(context)?.settings),
               AppRoutes.adminDashboard: _adminDashboard,
               AppRoutes.adminAlerts: (_) => const AdminAlertsScreen(),
+              AppRoutes.adminReportRouting: (_) => const AdminReportRoutingScreen(),
               AppRoutes.adminUserManagement: _adminUserManagement,
               AppRoutes.adminRoleManagement: _adminRoleManagement,
               AppRoutes.adminSystemActivity: _adminSystemActivity,

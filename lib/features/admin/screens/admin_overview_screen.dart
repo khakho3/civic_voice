@@ -259,6 +259,15 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen>
                       if (superAdmin) ...[
                         const Divider(height: 1),
                         _management(
+                          AppIcons.location,
+                          'Report Routing',
+                          'Resolve reports with an unknown assembly',
+                          () => Navigator.of(
+                            context,
+                          ).pushNamed('/admin/report-routing'),
+                        ),
+                        const Divider(height: 1),
+                        _management(
                           AppIcons.roleManagement,
                           'Role Management',
                           'Review privileges and access groups',

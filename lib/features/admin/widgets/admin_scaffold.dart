@@ -8,6 +8,7 @@ import '../../../services/app_haptics.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../widgets/glass_bar.dart';
 import '../services/admin_session.dart';
+import '../services/admin_resource.dart' show verifiedSuperAdmin;
 
 /// Primary bottom-navigation destinations for the System Administrator
 /// module — revised from the originally-approved Figma nav ("Dashboard /
@@ -100,6 +101,7 @@ class AdminScaffold extends StatelessWidget {
     this.onTabSelected,
     this.onOpenRoleManagement,
     this.onOpenAlerts,
+    this.onOpenRouting,
     this.onOpenMaintenanceTeams,
     this.onOpenProfile,
     this.onBack,
@@ -146,6 +148,7 @@ class AdminScaffold extends StatelessWidget {
   /// comment for why).
   final VoidCallback? onOpenRoleManagement;
   final VoidCallback? onOpenAlerts;
+  final VoidCallback? onOpenRouting;
   final VoidCallback? onOpenMaintenanceTeams;
 
   /// Opens ADM-008 Admin Profile from Super Admin's drawer or regular Admin's
@@ -206,6 +209,13 @@ class AdminScaffold extends StatelessWidget {
                       ? null
                       : () => Navigator.of(context).pushNamed('/admin/alerts')),
               onOpenMaintenanceTeams: onOpenMaintenanceTeams,
+              onOpenRouting:
+                  onOpenRouting ??
+                  (verifiedSuperAdmin
+                      ? () => Navigator.of(
+                          context,
+                        ).pushNamed('/admin/report-routing')
+                      : null),
               onOpenProfile: onOpenProfile,
             )
           : null,
@@ -478,6 +488,7 @@ class _AdminDrawer extends StatelessWidget {
     this.activeDestination,
     this.onOpenRoleManagement,
     this.onOpenAlerts,
+    this.onOpenRouting,
     this.onOpenMaintenanceTeams,
     this.onOpenProfile,
   });
@@ -485,6 +496,7 @@ class _AdminDrawer extends StatelessWidget {
   final AdminDrawerDestination? activeDestination;
   final VoidCallback? onOpenRoleManagement;
   final VoidCallback? onOpenAlerts;
+  final VoidCallback? onOpenRouting;
   final VoidCallback? onOpenMaintenanceTeams;
   final VoidCallback? onOpenProfile;
 
@@ -521,8 +533,17 @@ class _AdminDrawer extends StatelessWidget {
                   onOpenAlerts!();
                 },
               ),
-            // An assembly Admin has no tiers to review or reassign — Role
-            // Management is a Super Admin-only concern — so the item is
+            if (onOpenRouting != null)
+              _DrawerItem(
+                icon: AppIcons.location,
+                label: 'Report Routing',
+                selected: false,
+                onTap: () {
+                  Navigator.of(context).pop();
+                  onOpenRouting!();
+                },
+              ),
+            // Role Management is a Super Admin-only concern — so the item is
             // dropped entirely rather than shown disabled.
             if (AdminSession.instance.isSuperAdmin)
               _DrawerItem(
