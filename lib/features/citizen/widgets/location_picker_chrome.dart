@@ -89,23 +89,18 @@ class LocationPickerBusyStatus extends StatelessWidget {
     liveRegion: true,
     label: message,
     excludeSemantics: true,
-    child: Material(
-      color: Theme.of(context).colorScheme.surface,
-      elevation: AppElevation.level2,
-      borderRadius: AppRadius.allXl,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.sm,
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const BusyIndicator(size: 20),
-            const SizedBox(width: AppSpacing.sm),
-            Flexible(child: Text(message)),
-          ],
-        ),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const BusyIndicator(size: 20),
+          const SizedBox(width: AppSpacing.sm),
+          Flexible(child: Text(message)),
+        ],
       ),
     ),
   );
