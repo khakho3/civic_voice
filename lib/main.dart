@@ -283,51 +283,70 @@ String? _notificationsRouteForRole(AppRole? role) => switch (role) {
   null => null,
 };
 
+bool _notificationPromptShowing = false;
 Future<void> _offerNotificationPermissionAfterLogin(
   BuildContext context,
 ) async {
+  final owner = currentInboxOwner()?.key;
+  if (owner == null || _notificationPromptShowing || !context.mounted) return;
+  _notificationPromptShowing = true;
   final service = const NotificationPermissionService();
   try {
-    if (await service.hasAskedBefore()) return;
-  } catch (_) {
-    return;
-  }
-  if (!context.mounted) return;
-  final allow = await showDialog<bool>(
-    context: context,
-    barrierDismissible: false,
-    builder: (context) => GlassDialogBackdrop(
-      child: AlertDialog(
-        icon: Icon(
-          AppIcons.notifications,
-          color: AppSemanticColors.of(context).actionText,
-        ),
-        title: const Text('Stay Updated'),
-        content: const Text(
-          'Allow notifications so CivicVoice can alert you about new tasks, '
-          'report decisions, and status changes even when the app is closed.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Not Now'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Allow'),
-          ),
-        ],
-      ),
-    ),
-  );
-  if (allow == true) {
-    try {
-      await service.requestOnce();
-    } catch (_) {
-      // Permission plugins must never turn a valid sign-in into an error.
+    final status = await service.currentStatus();
+    if (owner != currentInboxOwner()?.key || !context.mounted) return;
+    if (status.isGranted) {
+      await service.markAsked();
+      return;
     }
-  } else {
-    await service.markAsked();
+    if (await service.hasAskedBefore()) return;
+    if (owner != currentInboxOwner()?.key || !context.mounted) return;
+    final blocked = status.isPermanentlyDenied || status.isRestricted;
+    final allow = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => GlassDialogBackdrop(
+        child: AlertDialog(
+          icon: Icon(
+            AppIcons.notifications,
+            color: AppSemanticColors.of(context).actionText,
+          ),
+          title: Text(blocked ? 'Notifications Are Blocked' : 'Stay Updated'),
+          content: Text(
+            blocked
+                ? 'Allow notifications in app settings to get updates when CivicVoice is closed. Your inbox still works.'
+                : 'Allow notifications so CivicVoice can alert you about report updates and tasks even when the app is closed.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Not Now'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: Text(blocked ? 'Open Settings' : 'Allow'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (owner != currentInboxOwner()?.key || !context.mounted) return;
+    if (allow == true) {
+      if (blocked) {
+        await service.markAsked();
+        await service.openSettings();
+      } else {
+        await service.requestOnce();
+      }
+      if (owner == currentInboxOwner()?.key) {
+        await _configurePushNotifications();
+      }
+    } else {
+      await service.markAsked();
+    }
+  } catch (_) {
+    // Optional OS capabilities never turn verified sign-in into a failure.
+  } finally {
+    _notificationPromptShowing = false;
   }
 }
 
@@ -395,7 +414,9 @@ Future<void> _finishPostLoginNotifications() async {
   await Future<void>.delayed(Duration.zero);
   await _configurePushNotifications();
   final context = _navigatorKey.currentContext;
-  if (context != null && context.mounted) {
+  if (context != null &&
+      context.mounted &&
+      MockAuthService().getCurrentRole() != AppRole.citizen) {
     await _offerNotificationPermissionAfterLogin(context);
   }
 }
@@ -530,65 +551,12 @@ class _CivicVoiceAppState extends State<CivicVoiceApp>
   }
 
   Future<void> _promptForNotificationPermission() async {
-    // Citizen's dashboard may be presenting the required location flow on
-    // its first frame. New sign-ins are prompted before routing, and the
-    // Alerts page always exposes the OS state, so avoid stacked dialogs on
-    // a restored citizen session.
+    // Citizen's dashboard serializes this after its location setup, including
+    // restored and guest sessions. Other roles use the same shared offer.
     if (MockAuthService().getCurrentRole() == AppRole.citizen) return;
-    final service = const NotificationPermissionService();
-    try {
-      if (FirebaseAuth.instance.currentUser == null ||
-          await service.hasAskedBefore()) {
-        return;
-      }
-      final status = await service.currentStatus();
-      if (status.isGranted) {
-        await service.markAsked();
-        await _configurePushNotifications();
-        return;
-      }
-    } catch (_) {
-      return;
-    }
     final context = _navigatorKey.currentContext;
-    if (context == null || !context.mounted) return;
-    final allow = await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => GlassDialogBackdrop(
-        child: AlertDialog(
-          icon: Icon(
-            AppIcons.notifications,
-            color: AppSemanticColors.of(context).actionText,
-          ),
-          title: const Text('Stay Updated'),
-          content: const Text(
-            'Allow notifications so CivicVoice can alert you about new tasks, '
-            'report decisions, and status changes even when the app is closed.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Not Now'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Allow'),
-            ),
-          ],
-        ),
-      ),
-    );
-    if (allow == true) {
-      try {
-        await service.requestOnce();
-        await _configurePushNotifications();
-      } catch (_) {
-        // Permission/plugins are optional; the notification page exposes a
-        // retry/settings action without blocking the signed-in session.
-      }
-    } else {
-      await service.markAsked();
+    if (context != null && context.mounted) {
+      await _offerNotificationPermissionAfterLogin(context);
     }
   }
 
@@ -762,8 +730,17 @@ class _CivicVoiceAppState extends State<CivicVoiceApp>
                 context,
                 widget.passwordSessions ?? PasswordSessionService.instance,
               ),
-              AppRoutes.citizenDashboard: (context) =>
-                  const CitizenDashboardScreen(),
+              AppRoutes.citizenDashboard: (context) => CitizenDashboardScreen(
+                onLocationSetupFinished: () async {
+                  if (Firebase.apps.isEmpty ||
+                      FirebaseAuth.instance.currentUser == null ||
+                      !context.mounted) {
+                    return;
+                  }
+                  await _offerNotificationPermissionAfterLogin(context);
+                  await _configurePushNotifications();
+                },
+              ),
               AppRoutes.citizenAlerts: (_) => const CitizenAlertsScreen(),
               AppRoutes.citizenProfile: (context) => CitizenProfileScreen(
                 onAbout: () => Navigator.of(context).pushNamed(AppRoutes.about),

@@ -149,6 +149,62 @@ Future<void> _waitForSubmittedRoute(WidgetTester tester) async {
 }
 
 void main() {
+  testWidgets(
+    'empty guest dashboard shows account notice and finishes location before notification offer',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      await AppCacheService.instance.initialize(
+        accountId: 'guest-notice-fixture',
+      );
+      final profileService = ProfileCrudService.instance;
+      final original = profileService.profile.value;
+      addTearDown(() => profileService.createProfile(original));
+      await profileService.createProfile(
+        const CitizenProfile(
+          id: 'guest-fixture',
+          fullName: '',
+          email: '',
+          phone: '',
+          primaryLocation: '',
+          isGuest: true,
+        ),
+      );
+      tester.view.physicalSize = const Size(412, 1800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      var offered = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark,
+          routes: {'/registration': (_) => const RegistrationScreen()},
+          home: CitizenDashboardScreen(
+            locationService: const _FakeLocationService(
+              LocationAccessResult(status: LocationAccessStatus.ready),
+            ),
+            nearbySecondingLoader: (_, _) async => [],
+            onLocationSetupFinished: () async {
+              offered++;
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(offered, 1);
+      expect(find.text("You're browsing as a guest"), findsOneWidget);
+      expect(
+        find.textContaining('Reports are tied to this guest session'),
+        findsOneWidget,
+      );
+      final action = find.widgetWithText(TextButton, 'Create Account');
+      await tester.ensureVisible(action);
+      await tester.tap(action);
+      await tester.pumpAndSettle();
+      expect(find.byType(RegistrationScreen), findsOneWidget);
+    },
+  );
+
+
   testWidgets('C03 Submit Report prevents concurrent submissions', (tester) async {
     // Review performs the real draft clear before it navigates after a
     // confirmed submission. Supply the same initialized cache fixture used by

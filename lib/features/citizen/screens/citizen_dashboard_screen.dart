@@ -39,6 +39,7 @@ class CitizenDashboardScreen extends StatefulWidget {
     this.locationService = const LocationService(),
     this.nearbySecondingLoader,
     this.nearbySecondingConfirmer,
+    this.onLocationSetupFinished,
   });
 
   static const String routeName = '/citizen/dashboard';
@@ -47,6 +48,7 @@ class CitizenDashboardScreen extends StatefulWidget {
   final LocationService locationService;
   final NearbySecondingLoader? nearbySecondingLoader;
   final NearbySecondingConfirmer? nearbySecondingConfirmer;
+  final Future<void> Function()? onLocationSetupFinished;
 
   @override
   State<CitizenDashboardScreen> createState() => _CitizenDashboardScreenState();
@@ -71,6 +73,9 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen>
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await _checkLocationAccess(requestPermission: true);
+      if (mounted && !_locationDialogVisible) {
+        await widget.onLocationSetupFinished?.call();
+      }
     });
   }
 
@@ -83,7 +88,14 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      _checkLocationAccess(requestPermission: false);
+      _resumeLocationSetup();
+    }
+  }
+
+  Future<void> _resumeLocationSetup() async {
+    await _checkLocationAccess(requestPermission: false);
+    if (mounted && !_locationDialogVisible) {
+      await widget.onLocationSetupFinished?.call();
     }
   }
 
@@ -210,8 +222,9 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen>
       if (override != null) {
         await override(report.id);
       } else {
-        await NearbyReportsService(locationService: widget.locationService)
-            .confirm(report);
+        await NearbyReportsService(
+          locationService: widget.locationService,
+        ).confirm(report);
       }
       if (!mounted || account != AppCacheService.instance.activeAccountId) {
         return;
@@ -270,6 +283,7 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen>
   }) async {
     if (_locationDialogVisible || !mounted) return;
     _locationDialogVisible = true;
+    var continuing = false;
 
     await showDialog<void>(
       context: context,
@@ -290,8 +304,10 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen>
               ),
               FilledButton(
                 onPressed: () async {
+                  continuing = true;
                   Navigator.of(context).pop();
                   await onAction();
+                  if (mounted) await widget.onLocationSetupFinished?.call();
                 },
                 child: Text(actionLabel),
               ),
@@ -302,6 +318,7 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen>
     );
 
     _locationDialogVisible = false;
+    if (mounted && !continuing) await widget.onLocationSetupFinished?.call();
   }
 
   @override
@@ -333,7 +350,9 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen>
                           return _DashboardBody(
                             state: dashboardState,
                             reports: reports,
-                            displayName: profile.fullName,
+                            displayName: profile.isGuest
+                                ? 'Guest'
+                                : profile.fullName,
                             onReset: _dashboardStateService.reset,
                             onOpenSettings:
                                 widget.locationService.openAppSettings,
@@ -563,26 +582,7 @@ class _DashboardContent extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.xl),
             ],
-            ValueListenableBuilder<CitizenProfile>(
-              valueListenable: ProfileCrudService.instance.profile,
-              builder: (context, profile, _) {
-                if (!profile.isGuest) return const SizedBox.shrink();
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: AppSpacing.xl),
-                  child: _InlineStateBanner(
-                    icon: AppIcons.profile,
-                    title: "You're browsing as a guest",
-                    message:
-                        'Reports you submit are saved and trackable right '
-                        "here. Create a free account so they're tied to "
-                        "you permanently, even if you switch devices.",
-                    actionLabel: 'Create Account',
-                    onAction: () =>
-                        Navigator.of(context).pushNamed('/registration'),
-                  ),
-                );
-              },
-            ),
+            const _GuestDashboardNotice(),
             if (nearbySecondingReport != null) ...[
               NearbySecondingCard(
                 report: nearbySecondingReport!,
@@ -605,6 +605,28 @@ class _DashboardContent extends StatelessWidget {
       },
     );
   }
+}
+
+/// Both empty and populated dashboards must explain the real guest session.
+class _GuestDashboardNotice extends StatelessWidget {
+  const _GuestDashboardNotice();
+  @override
+  Widget build(BuildContext context) => ValueListenableBuilder<CitizenProfile>(
+    valueListenable: ProfileCrudService.instance.profile,
+    builder: (context, profile, _) => !profile.isGuest
+        ? const SizedBox.shrink()
+        : Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.xl),
+            child: _InlineStateBanner(
+              icon: AppIcons.profile,
+              title: "You're browsing as a guest",
+              message:
+                  'Reports are tied to this guest session. Create an account to keep access across devices.',
+              actionLabel: 'Create Account',
+              onAction: () => Navigator.of(context).pushNamed('/registration'),
+            ),
+          ),
+  );
 }
 
 class _DashboardEmptyContent extends StatelessWidget {
@@ -662,6 +684,7 @@ class _DashboardEmptyContent extends StatelessWidget {
               onViewReports: null,
             ),
             const SizedBox(height: AppSpacing.xl),
+            const _GuestDashboardNotice(),
             if (nearbySecondingReport != null) ...[
               NearbySecondingCard(
                 report: nearbySecondingReport!,
