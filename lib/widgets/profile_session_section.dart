@@ -22,7 +22,8 @@ class ProfileSessionSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.sm),
+      // Web's profile grid has a 24px section gap plus the 8px logout margin.
+      padding: const EdgeInsets.only(top: AppSpacing.xl),
       child: ProfileGroupTile(
         child: ProfileActionRow(
           icon: AppIcons.logOut,
