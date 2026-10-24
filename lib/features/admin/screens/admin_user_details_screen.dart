@@ -1,3 +1,4 @@
+import '../../../widgets/form_section_card.dart';
 import 'package:flutter/material.dart';
 
 import '../../../widgets/busy_indicator.dart';
@@ -416,11 +417,7 @@ class _DetailsForm extends StatelessWidget {
           const _SuccessBanner(),
           const SizedBox(height: AppSpacing.sm),
         ],
-        _CompactIdentity(
-          user: user,
-          previewRole: role,
-          previewStatus: status,
-        ),
+        _CompactIdentity(user: user, previewRole: role, previewStatus: status),
         const SizedBox(height: AppSpacing.lg),
         _Section(
           title: 'Account information',
@@ -691,31 +688,14 @@ class _Pill extends StatelessWidget {
 }
 
 class _Section extends StatelessWidget {
-  const _Section({
-    required this.title,
-    required this.child,
-  });
+  const _Section({required this.title, required this.child});
 
   final String title;
   final Widget child;
 
   @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: textTheme.titleMedium,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        child,
-      ],
-    );
-  }
+  Widget build(BuildContext context) =>
+      FormSectionCard(title: title, child: child);
 }
 
 class _ReadOnlyField extends StatelessWidget {

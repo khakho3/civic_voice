@@ -1,3 +1,4 @@
+import '../../../widgets/form_section_card.dart';
 import '../../../widgets/validation_attention.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -559,22 +560,8 @@ class _Section extends StatelessWidget {
   final Widget child;
 
   @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: textTheme.titleMedium,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        child,
-      ],
-    );
-  }
+  Widget build(BuildContext context) =>
+      FormSectionCard(title: title, child: child);
 }
 
 class _TextField extends StatelessWidget {
