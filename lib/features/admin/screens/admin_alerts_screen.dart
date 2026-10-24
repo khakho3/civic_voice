@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../services/api_client.dart';
+import '../../../models/region.dart';
 import '../../../widgets/busy_indicator.dart';
 import '../../../widgets/confirm_dialog.dart';
 import '../../../widgets/focused_search.dart';
@@ -78,7 +79,7 @@ class _AdminAlertsScreenState extends State<AdminAlertsScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Alert reviews')),
+    appBar: AppBar(title: const Text('Alerts')),
     body: AnimatedBuilder(
       animation: _source,
       builder: (context, _) {
@@ -86,7 +87,7 @@ class _AdminAlertsScreenState extends State<AdminAlertsScreen> {
         return SearchFilterList(
           header: SearchFilterHeader(
             screenKey: 'admin-alert-reviews',
-            hintText: 'Search alert reviews',
+            hintText: 'Search recorded alert events',
             query: _query,
             enabled: !_source.loading,
             onQueryChanged: (value) => _change(() {
@@ -103,7 +104,7 @@ class _AdminAlertsScreenState extends State<AdminAlertsScreen> {
                     .contains(term.toLowerCase()))
                   FocusedSearchResult(
                     title: alert.title,
-                    subtitle: 'Current page · ${alert.state}',
+                    subtitle: 'Current page Ã‚· ${alert.state}',
                     onSelected: () => _open(alert),
                   ),
             ],
@@ -112,11 +113,11 @@ class _AdminAlertsScreenState extends State<AdminAlertsScreen> {
               child: Row(
                 children: [
                   for (final filter in const {
-                    'ACTIVE': 'Active',
+                    'ACTIVE': 'Open and acknowledged',
                     'OPEN': 'Open',
                     'ACKNOWLEDGED': 'Acknowledged',
                     'RESOLVED': 'Resolved',
-                    'ALL': 'All',
+                    'ALL': 'All alerts',
                   }.entries)
                     Padding(
                       padding: const EdgeInsets.only(right: AppSpacing.sm),
@@ -138,9 +139,15 @@ class _AdminAlertsScreenState extends State<AdminAlertsScreen> {
           child: ListView(
             padding: const EdgeInsets.all(AppSpacing.md),
             children: [
-              const Text(
-                'Actionable system and security events. Routine password changes remain in Activity.',
+              Text(
+                'Alert follow-up',
+                style: Theme.of(context).textTheme.titleLarge,
               ),
+              const SizedBox(height: 8),
+              const Text(
+                'Review alerts and record how they were handled. Acknowledged alerts stay open until resolved. Resolving an alert leaves the original event and report unchanged.',
+              ),
+              const SizedBox(height: 16),
               if (_source.loading)
                 const Center(
                   child: BusyIndicator(
@@ -160,16 +167,40 @@ class _AdminAlertsScreenState extends State<AdminAlertsScreen> {
                     child: Text('No alerts match these filters.'),
                   ),
                 for (final alert in page.alerts)
-                  Card(
-                    elevation: 0,
-                    color: Theme.of(context).colorScheme.surfaceContainerLow,
-                    child: ListTile(
-                      title: Text(alert.title),
-                      subtitle: Text(
-                        '${alert.state.replaceAll('_', ' ')} · ${alert.severity}\n${alert.createdAt.toLocal()}',
-                      ),
-                      trailing: const Icon(Icons.chevron_right),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8, bottom: 8),
+                    child: _AlertCard(
                       onTap: () => _open(alert),
+                      children: [
+                        Wrap(
+                          alignment: WrapAlignment.spaceBetween,
+                          spacing: 16,
+                          runSpacing: 8,
+                          children: [
+                            _ReviewBadge(state: alert.state),
+                            Text(
+                              _shortDate(alert.createdAt),
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          ],
+                        ),
+                        Text(
+                          alert.title,
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                        Text(
+                          alert.description,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                        Text(
+                          alert.severity == 'CRITICAL'
+                              ? 'Critical'
+                              : 'Needs attention',
+                          style: Theme.of(context).textTheme.labelSmall,
+                        ),
+                      ],
                     ),
                   ),
                 Wrap(
@@ -178,12 +209,9 @@ class _AdminAlertsScreenState extends State<AdminAlertsScreen> {
                       onPressed: _source.loading || _cursors.length < 2
                           ? null
                           : () => _change(() {
-                              _cursors = _cursors.sublist(
-                                0,
-                                _cursors.length - 1,
-                              );
+                              _cursors = [null];
                             }),
-                      child: const Text('Previous page'),
+                      child: const Text('First page'),
                     ),
                     TextButton(
                       onPressed:
@@ -279,9 +307,9 @@ class _AdminAlertReviewScreenState extends State<AdminAlertReviewScreen> {
     try {
       final confirmed = await showConfirmDialog(
         context,
-        title: 'Confirm alert review?',
-        message: '${alert.title}\nMark as ${state.toLowerCase()}.\n$note',
-        confirmLabel: 'Save review',
+        title: '${_actionLabel(action)}?',
+        message: note,
+        confirmLabel: _actionLabel(action),
       );
       if (!confirmed || !mounted || _source.owner() != owner) return;
       final saved = await _source.mutate(
@@ -333,93 +361,282 @@ class _AdminAlertReviewScreenState extends State<AdminAlertReviewScreen> {
             _source.writing ||
             _source.uncertain ||
             _confirming;
-        return ListView(
+        return SingleChildScrollView(
           padding: const EdgeInsets.all(AppSpacing.md),
-          children: [
-            if (_source.loading)
-              const Center(
-                child: BusyIndicator(semanticsLabel: 'Loading, please wait...'),
-              ),
-            if (_source.error != null || detail == null && !_source.loading)
-              Semantics(
-                liveRegion: true,
-                child: Text(_source.error ?? 'This alert is unavailable.'),
-              ),
-            if (alert != null) ...[
-              Text(
-                alert.title,
-                style: Theme.of(context).textTheme.headlineSmall,
-              ),
-              Text('${alert.severity} · ${alert.state.replaceAll('_', ' ')}'),
-              Text(alert.description),
-              Text('Recorded ${alert.createdAt.toLocal()}'),
-              const SizedBox(height: AppSpacing.lg),
-              TextField(
-                controller: _note,
-                enabled: !locked,
-                minLines: 2,
-                maxLines: 5,
-                maxLength: 1000,
-                onChanged: (_) => setState(() {}),
-                decoration: const InputDecoration(
-                  labelText: 'Review note',
-                  helperText: 'Explain this review in 10–1000 characters.',
-                ),
-              ),
-              Wrap(
-                spacing: AppSpacing.sm,
-                children: [
-                  if (alert.state == 'OPEN')
-                    _action(
-                      'Acknowledge',
-                      'ACKNOWLEDGE',
-                      'ACKNOWLEDGED',
-                      locked,
-                    ),
-                  if (alert.state != 'RESOLVED')
-                    _action('Resolve', 'RESOLVE', 'RESOLVED', locked),
-                  if (alert.state == 'RESOLVED')
-                    _action('Reopen', 'REOPEN', 'OPEN', locked),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.lg),
-              Text(
-                'Review history (${detail!.actionCount})',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              if (detail.actions.isEmpty)
-                const Text('No review actions recorded.'),
-              for (final item in detail.actions)
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text('${item['state']} · ${item['actorName']}'),
-                  subtitle: Text(
-                    '${item['note']}\n${adminInstant(item['createdAt']).toLocal()}',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (_source.loading)
+                const Center(
+                  child: BusyIndicator(
+                    semanticsLabel: 'Loading, please wait...',
                   ),
                 ),
-              if (detail.actionCount > detail.actions.length)
-                const Text('Showing the latest 20 review actions.'),
+              if (_source.error != null || detail == null && !_source.loading)
+                Semantics(
+                  liveRegion: true,
+                  child: Text(_source.error ?? 'This alert is unavailable.'),
+                ),
+              if (alert != null) ...[
+                _AlertCard(
+                  children: [
+                    Text(
+                      '${alert.severity} · ${_stateLabel(alert.state)}',
+                      style: Theme.of(context).textTheme.labelSmall,
+                    ),
+                    Text(
+                      alert.title,
+                      style: Theme.of(context).textTheme.headlineSmall,
+                    ),
+                    Text(alert.description),
+                    Text(
+                      _fullDate(alert.createdAt),
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    Text(
+                      _geography(alert),
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => _OriginalAlertEvent(alert: alert),
+                        ),
+                      ),
+                      child: const Text('View original audit event'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                _AlertCard(
+                  children: [
+                    Text(
+                      'Alert follow-up',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    const Text(
+                      'Record who is reviewing this alert and how it was handled. Resolving an alert leaves the original event and report unchanged.',
+                    ),
+                    TextField(
+                      controller: _note,
+                      enabled: !locked,
+                      minLines: 3,
+                      maxLines: 5,
+                      maxLength: 1000,
+                      onChanged: (_) => setState(() {}),
+                      decoration: const InputDecoration(
+                        labelText: 'Follow-up note',
+                        helperText:
+                            '10–1000 characters. Describe the follow-up; do not include passwords or private credentials.',
+                        helperMaxLines: 4,
+                      ),
+                    ),
+                    Wrap(
+                      spacing: AppSpacing.sm,
+                      runSpacing: AppSpacing.sm,
+                      children: [
+                        if (alert.state == 'OPEN')
+                          _action(
+                            'Acknowledge',
+                            'ACKNOWLEDGE',
+                            'ACKNOWLEDGED',
+                            locked,
+                          ),
+                        if (alert.state != 'RESOLVED')
+                          _action(
+                            'Resolve alert',
+                            'RESOLVE',
+                            'RESOLVED',
+                            locked,
+                          ),
+                        if (alert.state != 'OPEN')
+                          _action('Reopen alert', 'REOPEN', 'OPEN', locked),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                _AlertCard(
+                  children: [
+                    Text(
+                      'Recorded follow-up',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    if (detail!.actions.isEmpty)
+                      const Text('No follow-up recorded yet.'),
+                    for (final item in detail.actions) ...[
+                      Text(
+                        '${_stateLabel(item['state'])} · ${item['actorName']} (${item['actorPublicId']})',
+                        style: Theme.of(context).textTheme.titleSmall,
+                      ),
+                      Text(item['note']),
+                      Text(
+                        _fullDate(adminInstant(item['createdAt'])),
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                    if (detail.actionCount > detail.actions.length)
+                      Text(
+                        'Showing the latest ${detail.actions.length} of ${detail.actionCount} follow-up records.',
+                      ),
+                  ],
+                ),
+              ],
+              TextButton(
+                onPressed: _source.loading || _source.writing || _confirming
+                    ? null
+                    : _source.load,
+                child: const Text('Reload alert'),
+              ),
             ],
-            TextButton(
-              onPressed: _source.loading || _source.writing || _confirming
-                  ? null
-                  : _source.load,
-              child: const Text('Reload alert'),
-            ),
-          ],
+          ),
         );
       },
     ),
   );
-  Widget _action(String label, String action, String state, bool locked) =>
-      FilledButton(
-        onPressed: locked || _note.text.trim().length < 10
-            ? null
-            : () => _review(action, state),
-        child: BusyLabel(
-          busy: _source.writing,
-          busyLabel: 'Saving alert review',
-          child: Text(label),
+  Widget _action(String label, String action, String state, bool locked) {
+    final enabled =
+        !locked &&
+        _note.text.trim().length >= 10 &&
+        _note.text.trim().length <= 1000;
+    final child = BusyLabel(
+      busy: _source.writing,
+      busyLabel: 'Saving alert review',
+      child: Text(label),
+    );
+    return action == 'RESOLVE'
+        ? FilledButton(
+            onPressed: enabled ? () => _review(action, state) : null,
+            child: child,
+          )
+        : OutlinedButton(
+            onPressed: enabled ? () => _review(action, state) : null,
+            child: child,
+          );
+  }
+}
+
+String _stateLabel(String state) =>
+    const {
+      'OPEN': 'Open',
+      'ACKNOWLEDGED': 'Acknowledged',
+      'RESOLVED': 'Resolved',
+    }[state] ??
+    state;
+String _actionLabel(String action) => const {
+  'ACKNOWLEDGE': 'Acknowledge',
+  'RESOLVE': 'Resolve alert',
+  'REOPEN': 'Reopen alert',
+}[action]!;
+String _shortDate(DateTime value) {
+  final d = value.toLocal();
+  const months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
+  return '${d.day} ${months[d.month - 1]}, ${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+}
+
+String _fullDate(DateTime value) {
+  final d = value.toLocal();
+  final short = _shortDate(d).split(', ');
+  return '${short.first} ${d.year}, ${short.last}:${d.second.toString().padLeft(2, '0')} ${d.timeZoneOffset == Duration.zero ? 'GMT' : d.timeZoneName}';
+}
+
+String _geography(AdminAlert alert) {
+  final region =
+      Region.values.where((r) => r.name == alert.region).firstOrNull?.label ??
+      alert.region;
+  return '${region ?? 'National/system'} · ${alert.assembly ?? 'No assembly recorded'}';
+}
+
+class _ReviewBadge extends StatelessWidget {
+  const _ReviewBadge({required this.state});
+  final String state;
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+    decoration: BoxDecoration(
+      color: Theme.of(context).colorScheme.surfaceContainerLow,
+      borderRadius: BorderRadius.circular(24),
+    ),
+    child: Text(
+      _stateLabel(state),
+      style: Theme.of(context).textTheme.bodySmall,
+    ),
+  );
+}
+
+class _AlertCard extends StatelessWidget {
+  const _AlertCard({required this.children, this.onTap});
+  final List<Widget> children;
+  final VoidCallback? onTap;
+  @override
+  Widget build(BuildContext context) => Card(
+    margin: EdgeInsets.zero,
+    elevation: 0,
+    color: Theme.of(context).colorScheme.surface,
+    clipBehavior: Clip.antiAlias,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(16),
+      side: BorderSide(color: AppSemanticColors.of(context).glassBorder),
+    ),
+    child: InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (var i = 0; i < children.length; i++) ...[
+              if (i > 0) const SizedBox(height: 8),
+              children[i],
+            ],
+          ],
         ),
-      );
+      ),
+    ),
+  );
+}
+
+/// Read-only original event snapshot already returned by the scoped alert API.
+/// This does not replace the separately assigned generic Activity Detail screen.
+class _OriginalAlertEvent extends StatelessWidget {
+  const _OriginalAlertEvent({required this.alert});
+  final AdminAlert alert;
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Original audit event')),
+    body: ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        _AlertCard(
+          children: [
+            Text(alert.title, style: Theme.of(context).textTheme.headlineSmall),
+            Text(alert.description),
+            Text(_fullDate(alert.createdAt)),
+            Text(_geography(alert)),
+            Text('Event ID: ${alert.id}'),
+            Text('Severity: ${alert.severity}'),
+            if (alert.action != null) Text('Action: ${alert.action}'),
+            if (alert.actorName != null)
+              Text(
+                'Recorded actor: ${alert.actorName}${alert.actorPublicId == null ? '' : ' (${alert.actorPublicId})'}',
+              ),
+            if (alert.outcome != null) Text('Outcome: ${alert.outcome}'),
+          ],
+        ),
+      ],
+    ),
+  );
 }

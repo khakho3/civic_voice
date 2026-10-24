@@ -135,24 +135,28 @@ void main() {
       await tester.pumpAndSettle();
       expect(
         tester
-            .widget<FilledButton>(
-              find.widgetWithText(FilledButton, 'Acknowledge'),
+            .widget<OutlinedButton>(
+              find.widgetWithText(OutlinedButton, 'Acknowledge'),
             )
             .onPressed,
         isNull,
       );
+      await tester.ensureVisible(find.byType(TextField));
+      await tester.pumpAndSettle();
       await tester.enterText(
         find.byType(TextField),
         'I am investigating this change.',
       );
       await tester.pump();
+      await tester.ensureVisible(find.text('Acknowledge'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Acknowledge'));
       await tester.pumpAndSettle();
       expect(calls, 0);
-      await tester.tap(find.text('Save review'));
+      await tester.tap(find.text('Acknowledge').last);
       await tester.pumpAndSettle();
       expect(calls, 1);
-      expect(find.text('ALERT · ACKNOWLEDGED'), findsOneWidget);
+      expect(find.text('ALERT · Acknowledged'), findsOneWidget);
       expect(find.text('Acknowledge'), findsNothing);
       expect(
         tester.widget<TextField>(find.byType(TextField)).controller!.text,
@@ -196,14 +200,18 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      await tester.ensureVisible(find.byType(TextField));
+      await tester.pumpAndSettle();
       await tester.enterText(
         find.byType(TextField),
         'Investigated and corrected configuration.',
       );
       await tester.pump();
-      await tester.tap(find.text('Resolve'));
+      await tester.ensureVisible(find.text('Resolve alert'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Save review'));
+      await tester.tap(find.text('Resolve alert'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Resolve alert').last);
       await tester.pumpAndSettle();
       expect(calls, 1);
       expect(resource.uncertain, isTrue);
@@ -213,7 +221,9 @@ void main() {
       );
       expect(
         tester
-            .widget<FilledButton>(find.widgetWithText(FilledButton, 'Resolve'))
+            .widget<FilledButton>(
+              find.widgetWithText(FilledButton, 'Resolve alert'),
+            )
             .onPressed,
         isNull,
       );
@@ -257,9 +267,9 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(find.text('Reopen'), findsOneWidget);
+      expect(find.text('Reopen alert'), findsOneWidget);
       expect(find.text('Acknowledge'), findsNothing);
-      expect(find.text('Resolve'), findsNothing);
+      expect(find.text('Resolve alert'), findsNothing);
     },
   );
   testWidgets(
@@ -290,11 +300,111 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('System setting changed'), findsOneWidget);
       expect(find.text('Review alert'), findsNothing);
-      expect(find.text('Active'), findsOneWidget);
+      expect(find.text('Open and acknowledged'), findsOneWidget);
       expect(tester.takeException(), isNull);
       // The screen owns and disposes its page resource.
       await tester.pumpWidget(const SizedBox.shrink());
       expect(resources, isNotEmpty);
     },
   );
+  for (final dark in [false, true]) {
+    testWidgets(
+      'acknowledged review can reopen with note, source and history dark=$dark',
+      (tester) async {
+        tester.view.physicalSize = const Size(320, 900);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        var state = 'ACKNOWLEDGED', revision = 1, writes = 0;
+        final resource = AdminResource<AdminAlertDetail>(
+          owner: () => 'fixture-admin',
+          credential: () async => 'fixture',
+          fetch: (_) async => {
+            'alert': {
+              ...alertFixture(state: state, revision: revision),
+              'region': 'greaterAccra',
+              'assembly': 'Ga Central',
+              'actorName': 'Test Admin',
+              'actorPublicId': 'CV-ADMIN-1',
+              'action': 'SETTINGS_UPDATED',
+              'outcome': 'SUCCESS',
+            },
+            'actions': [
+              {
+                'id': 'review-one',
+                'state': 'ACKNOWLEDGED',
+                'revision': 1,
+                'note': 'Investigating the configuration.',
+                'actorName': 'Test Admin',
+                'actorPublicId': 'CV-ADMIN-1',
+                'createdAt': '2026-10-23T12:00:00Z',
+              },
+            ],
+            'actionCount': 30,
+          },
+          parse: AdminAlertDetail.parse,
+        );
+        addTearDown(resource.dispose);
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: dark ? AppTheme.dark : AppTheme.light,
+            home: AdminAlertReviewScreen(
+              id: 'event-one',
+              resource: resource,
+              save: (_, action, expected, note) async {
+                expect(action, 'REOPEN');
+                expect(expected, 1);
+                expect(note, 'Needs another investigation.');
+                writes++;
+                state = 'OPEN';
+                revision = 2;
+                return {
+                  'review': {
+                    'state': state,
+                    'revision': revision,
+                    'updatedAt': '2026-10-23T12:01:00Z',
+                  },
+                };
+              },
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('Greater Accra · Ga Central'), findsOneWidget);
+        expect(find.text('Recorded follow-up'), findsOneWidget);
+        expect(
+          find.text('Showing the latest 1 of 30 follow-up records.'),
+          findsOneWidget,
+        );
+        expect(
+          find.text('Acknowledged · Test Admin (CV-ADMIN-1)'),
+          findsOneWidget,
+        );
+        await tester.tap(find.text('View original audit event'));
+        await tester.pumpAndSettle();
+        expect(find.text('Original audit event'), findsOneWidget);
+        expect(find.text('Action: SETTINGS_UPDATED'), findsOneWidget);
+        expect(find.byType(TextField), findsNothing);
+        await tester.pageBack();
+        await tester.pumpAndSettle();
+        await tester.ensureVisible(find.byType(TextField));
+        await tester.enterText(
+          find.byType(TextField),
+          'Needs another investigation.',
+        );
+        await tester.pump();
+        await tester.ensureVisible(find.text('Reopen alert'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Reopen alert'));
+        await tester.pumpAndSettle();
+        expect(writes, 0);
+        await tester.tap(find.text('Reopen alert').last);
+        await tester.pumpAndSettle();
+        expect(writes, 1);
+        expect(find.text('ALERT · Open'), findsOneWidget);
+        expect(find.text('Reopen alert'), findsNothing);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
 }

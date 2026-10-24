@@ -83,7 +83,14 @@ class AdminAlert {
     required this.createdAt,
     required this.state,
     required this.revision,
+    this.region,
+    this.assembly,
+    this.actorName,
+    this.actorPublicId,
+    this.action,
+    this.outcome,
   });
+  final String? region, assembly, actorName, actorPublicId, action, outcome;
   final String id, title, description, severity, state;
   final DateTime createdAt;
   final int revision;
@@ -95,6 +102,18 @@ class AdminAlert {
         !['ALERT', 'CRITICAL'].contains(value['severity']) ||
         value['review'] is! Map) {
       throw const FormatException('Unverified alert');
+    }
+    for (final key in [
+      'region',
+      'assembly',
+      'actorName',
+      'actorPublicId',
+      'action',
+      'outcome',
+    ]) {
+      if (value[key] != null && value[key] is! String) {
+        throw const FormatException('Invalid event field');
+      }
     }
     final review = value['review'];
     if (!adminCount(review['revision']) ||
@@ -112,6 +131,12 @@ class AdminAlert {
       createdAt: adminInstant(value['createdAt']),
       state: review['state'],
       revision: review['revision'],
+      region: value['region'],
+      assembly: value['assembly'],
+      actorName: value['actorName'],
+      actorPublicId: value['actorPublicId'],
+      action: value['action'],
+      outcome: value['outcome'],
     );
   }
 }
