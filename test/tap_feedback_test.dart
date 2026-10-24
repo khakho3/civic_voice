@@ -168,6 +168,7 @@ void main() {
           tester.getCenter(find.text('Total users').first),
         );
         await tester.pump(const Duration(milliseconds: 200));
+        await tester.pump(const Duration(milliseconds: 100));
         expect(
           greatestChange(idle, await pixels(tester, key)),
           lessThanOrEqualTo(12),
