@@ -25,6 +25,105 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     await AppCacheService.instance.initialize(accountId: 'alert-stability');
   });
+  testWidgets(
+    'scrolling extends alerts, deduplicates IDs, and keeps search position',
+    (tester) async {
+      final pending = Completer<Map<String, dynamic>>();
+      var requests = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: AdminAlertsScreen(
+            resourceFactory: (_, _, cursor) => AdminResource<AdminAlertPage>(
+              owner: () => 'admin-A',
+              credential: () async => 'fixture',
+              fetch: (_) {
+                if (cursor != null) {
+                  expect(cursor, 'cursor-next');
+                  requests++;
+                  return pending.future;
+                }
+                return Future.value({
+                  ...alertsPage('First'),
+                  'total': 21,
+                  'nextCursor': 'cursor-next',
+                });
+              },
+              parse: AdminAlertPage.parse,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final scroll = tester
+          .stateList<ScrollableState>(find.byType(Scrollable))
+          .where(
+            (s) =>
+                axisDirectionToAxis(s.position.axisDirection) == Axis.vertical,
+          )
+          .last;
+      await tester.drag(find.byType(ListView).last, const Offset(0, -6000));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(requests, 1);
+      expect(find.text('Next page'), findsNothing);
+      expect(find.text('First page'), findsNothing);
+      pending.complete({
+        'alerts': [
+          alertFixture(),
+          {...alertFixture(), 'id': 'new-alert', 'title': 'Later alert'},
+        ],
+        'total': 21,
+        'nextCursor': null,
+      });
+      await tester.pumpAndSettle();
+      expect(find.text('First 0'), findsOneWidget);
+      expect(find.text('Later alert'), findsOneWidget);
+      scroll.position.jumpTo(700);
+      await tester.pumpAndSettle();
+      final offset = scroll.position.pixels;
+      await tester.tap(find.byType(SearchTriggerField));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Close search'));
+      await tester.pumpAndSettle();
+      expect(scroll.position.pixels, offset);
+      expect(tester.takeException(), isNull);
+    },
+  );
+  testWidgets('filter change fences an in-flight continuation', (tester) async {
+    final pending = Completer<Map<String, dynamic>>();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.dark,
+        home: AdminAlertsScreen(
+          resourceFactory: (state, _, cursor) => AdminResource<AdminAlertPage>(
+            owner: () => 'admin-A',
+            credential: () async => 'fixture',
+            fetch: (_) => cursor != null
+                ? pending.future
+                : Future.value({
+                    ...alertsPage(state),
+                    'nextCursor': state == 'ACTIVE' ? 'cursor-next' : null,
+                  }),
+            parse: AdminAlertPage.parse,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.drag(find.byType(ListView).last, const Offset(0, -6000));
+    await tester.pump();
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.widgetWithText(CivicFilterChip, 'Open').hitTestable(),
+    );
+    await tester.pumpAndSettle();
+    pending.complete(alertsPage('Stale'));
+    await tester.pumpAndSettle();
+    expect(find.text('Stale 0'), findsNothing);
+    expect(find.text('OPEN 0'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
   for (final dark in [false, true]) {
     testWidgets(
       'matching cards and filter controls stay stable during rapid server filtering dark=$dark',

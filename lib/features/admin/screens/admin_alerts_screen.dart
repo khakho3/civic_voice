@@ -29,7 +29,11 @@ class AdminAlertsScreen extends StatefulWidget {
 class _AdminAlertsScreenState extends State<AdminAlertsScreen> {
   String _state = 'ACTIVE', _query = '';
   bool _changingView = false;
-  List<String?> _cursors = [null];
+  final List<AdminAlert> _appended = [];
+  final Set<String> _seenCursors = {};
+  String? _appendedOwner, _nextCursor, _moreError;
+  AdminResource<AdminAlertPage>? _more;
+  bool _continued = false;
   late AdminResource<AdminAlertPage> _source;
   AdminAlertPage? _lastPage;
   String? _lastOwner;
@@ -42,7 +46,8 @@ class _AdminAlertsScreenState extends State<AdminAlertsScreen> {
   }
 
   void _create() {
-    final state = _state, query = _query, cursor = _cursors.last;
+    final state = _state, query = _query;
+    const String? cursor = null;
     _source =
         widget.resourceFactory?.call(state, query, cursor) ??
         AdminResource<AdminAlertPage>(
@@ -60,11 +65,26 @@ class _AdminAlertsScreenState extends State<AdminAlertsScreen> {
   void _change(VoidCallback change) {
     final current = _source.data;
     if (current != null) {
-      _lastPage = current;
+      _lastPage = AdminAlertPage(
+        [
+          ...current.alerts,
+          if (_appendedOwner == _source.owner()) ..._appended,
+        ],
+        current.total,
+        null,
+      );
       _lastOwner = _source.owner();
     }
     _resultHeight = _resultsKey.currentContext?.size?.height ?? 0;
     setState(() {
+      _more?.dispose();
+      _more = null;
+      _appended.clear();
+      _seenCursors.clear();
+      _appendedOwner = null;
+      _nextCursor = null;
+      _moreError = null;
+      _continued = false;
       _source.dispose();
       _changingView = true;
       change();
@@ -73,12 +93,76 @@ class _AdminAlertsScreenState extends State<AdminAlertsScreen> {
   }
 
   Future<void> _reload() async {
-    setState(() => _changingView = false);
-    await _source.load();
+    _change(() => _changingView = false);
+  }
+
+  Future<void> _loadMore() async {
+    final page = _source.data, owner = _source.owner();
+    final cursor = _continued ? _nextCursor : page?.nextCursor;
+    if (_source.loading ||
+        _more != null ||
+        page == null ||
+        owner == null ||
+        cursor == null) {
+      return;
+    }
+    if (_seenCursors.contains(cursor)) {
+      setState(
+        () => _moreError =
+            'More alerts could not be verified. Refresh alerts to try again.',
+      );
+      return;
+    }
+    final state = _state, query = _query;
+    final resource =
+        widget.resourceFactory?.call(state, query, cursor) ??
+        AdminResource<AdminAlertPage>(
+          fetch: (token) => ApiClient.instance.adminAlerts(
+            idToken: token,
+            state: state,
+            query: query,
+            cursor: cursor,
+          ),
+          parse: AdminAlertPage.parse,
+        );
+    setState(() {
+      _more = resource;
+      _moreError = null;
+    });
+    await resource.load();
+    if (!mounted || _more != resource) return;
+    final next = resource.data;
+    if (owner == _source.owner() &&
+        owner == resource.owner() &&
+        next != null &&
+        next.nextCursor != cursor &&
+        !_seenCursors.contains(next.nextCursor)) {
+      setState(() {
+        if (_appendedOwner != owner) _appended.clear();
+        _appendedOwner = owner;
+        final ids = {
+          ...page.alerts.map((a) => a.id),
+          ..._appended.map((a) => a.id),
+        };
+        for (final alert in next.alerts) {
+          if (ids.add(alert.id)) _appended.add(alert);
+        }
+        _seenCursors.add(cursor);
+        _nextCursor = next.nextCursor;
+        _continued = true;
+      });
+    } else if (owner == _source.owner()) {
+      setState(
+        () => _moreError = 'More alerts could not be loaded. Please try again.',
+      );
+    }
+    resource.dispose();
+    if (mounted && _more == resource) setState(() => _more = null);
   }
 
   @override
   void dispose() {
+    _more?.dispose();
     _source.dispose();
     super.dispose();
   }
@@ -119,7 +203,12 @@ class _AdminAlertsScreenState extends State<AdminAlertsScreen> {
         // never a cached total or an authoritative empty result for the new query.
         final preview = updating && _lastOwner == _source.owner();
         final alerts =
-            page?.alerts ??
+            (page == null
+                ? null
+                : [
+                    ...page.alerts,
+                    if (_appendedOwner == _source.owner()) ..._appended,
+                  ]) ??
             (preview ? _lastPage?.alerts.where(_matches).toList() : null) ??
             <AdminAlert>[];
         final interactive =
@@ -135,7 +224,6 @@ class _AdminAlertsScreenState extends State<AdminAlertsScreen> {
                 0,
                 value.trim().length.clamp(0, 200),
               );
-              _cursors = [null];
             }),
             results: (term) => [
               for (final alert in alerts)
@@ -170,7 +258,6 @@ class _AdminAlertsScreenState extends State<AdminAlertsScreen> {
                                 if (_state == filter.key) return;
                                 _change(() {
                                   _state = filter.key;
-                                  _cursors = [null];
                                 });
                               },
                       ),
@@ -179,123 +266,123 @@ class _AdminAlertsScreenState extends State<AdminAlertsScreen> {
               ),
             ),
           ),
-          child: ListView(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            children: [
-              Text(
-                'Alert follow-up',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Review alerts and record how they were handled. Acknowledged alerts stay open until resolved. Resolving an alert leaves the original event and report unchanged.',
-              ),
-              const SizedBox(height: 16),
-              if (_source.loading && !updating)
-                const Center(
-                  child: BusyIndicator(
-                    semanticsLabel: 'Loading, please wait...',
+          child: NotificationListener<ScrollNotification>(
+            onNotification: (notification) {
+              if (notification.depth == 0 &&
+                  notification.metrics.axis == Axis.vertical &&
+                  notification.metrics.extentAfter < 320 &&
+                  notification.metrics.pixels > 0 &&
+                  notification is ScrollUpdateNotification &&
+                  _moreError == null) {
+                unawaited(_loadMore());
+              }
+              return false;
+            },
+            child: ListView(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              children: [
+                Text(
+                  'Alert follow-up',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Review alerts and record how they were handled. Acknowledged alerts stay open until resolved. Resolving an alert leaves the original event and report unchanged.',
+                ),
+                const SizedBox(height: 16),
+                if (_source.loading && !updating)
+                  const Center(
+                    child: BusyIndicator(
+                      semanticsLabel: 'Loading, please wait...',
+                    ),
+                  ),
+                if (_source.error != null || page == null && !_source.loading)
+                  Text(
+                    _source.error ??
+                        'A verified administrator session is required.',
+                  ),
+                ConstrainedBox(
+                  key: _resultsKey,
+                  constraints: BoxConstraints(
+                    minHeight: preview ? _resultHeight : 0,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      SizedBox(
+                        height: 24,
+                        child: updating
+                            ? Semantics(
+                                liveRegion: true,
+                                child: const Text('Updating alerts…'),
+                              )
+                            : page != null
+                            ? Text('${page.total} matching alerts')
+                            : null,
+                      ),
+                      if (page != null && alerts.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.all(AppSpacing.lg),
+                          child: Text('No alerts match these filters.'),
+                        ),
+                      for (final alert in alerts)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8, bottom: 8),
+                          child: _AlertCard(
+                            onTap: updating ? null : () => _open(alert),
+                            children: [
+                              Wrap(
+                                alignment: WrapAlignment.spaceBetween,
+                                spacing: 16,
+                                runSpacing: 8,
+                                children: [
+                                  _ReviewBadge(state: alert.state),
+                                  Text(
+                                    _shortDate(alert.createdAt),
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.bodySmall,
+                                  ),
+                                ],
+                              ),
+                              Text(
+                                alert.title,
+                                style: Theme.of(context).textTheme.titleLarge,
+                              ),
+                              Text(
+                                alert.description,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                              Text(
+                                alert.severity == 'CRITICAL'
+                                    ? 'Critical'
+                                    : 'Needs attention',
+                                style: Theme.of(context).textTheme.labelSmall,
+                              ),
+                            ],
+                          ),
+                        ),
+                      if (_more != null && page != null)
+                        const Padding(
+                          padding: EdgeInsets.all(AppSpacing.md),
+                          child: Text('Loading more alerts…'),
+                        ),
+                      if (_moreError != null && page != null)
+                        TextButton(
+                          onPressed: _more == null ? _loadMore : null,
+                          child: Text(_moreError!),
+                        ),
+                    ],
                   ),
                 ),
-              if (_source.error != null || page == null && !_source.loading)
-                Text(
-                  _source.error ??
-                      'A verified administrator session is required.',
+                TextButton(
+                  onPressed: _source.loading ? null : _reload,
+                  child: const Text('Refresh alerts'),
                 ),
-              ConstrainedBox(
-                key: _resultsKey,
-                constraints: BoxConstraints(
-                  minHeight: preview ? _resultHeight : 0,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    SizedBox(
-                      height: 24,
-                      child: updating
-                          ? Semantics(
-                              liveRegion: true,
-                              child: const Text('Updating alerts…'),
-                            )
-                          : page != null
-                          ? Text('${page.total} matching alerts')
-                          : null,
-                    ),
-                    if (page != null && alerts.isEmpty)
-                      const Padding(
-                        padding: EdgeInsets.all(AppSpacing.lg),
-                        child: Text('No alerts match these filters.'),
-                      ),
-                    for (final alert in alerts)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 8, bottom: 8),
-                        child: _AlertCard(
-                          onTap: updating ? null : () => _open(alert),
-                          children: [
-                            Wrap(
-                              alignment: WrapAlignment.spaceBetween,
-                              spacing: 16,
-                              runSpacing: 8,
-                              children: [
-                                _ReviewBadge(state: alert.state),
-                                Text(
-                                  _shortDate(alert.createdAt),
-                                  style: Theme.of(context).textTheme.bodySmall,
-                                ),
-                              ],
-                            ),
-                            Text(
-                              alert.title,
-                              style: Theme.of(context).textTheme.titleLarge,
-                            ),
-                            Text(
-                              alert.description,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.bodySmall,
-                            ),
-                            Text(
-                              alert.severity == 'CRITICAL'
-                                  ? 'Critical'
-                                  : 'Needs attention',
-                              style: Theme.of(context).textTheme.labelSmall,
-                            ),
-                          ],
-                        ),
-                      ),
-                    if (page != null)
-                      Wrap(
-                        children: [
-                          TextButton(
-                            onPressed: _source.loading || _cursors.length < 2
-                                ? null
-                                : () => _change(() => _cursors = [null]),
-                            child: const Text('First page'),
-                          ),
-                          TextButton(
-                            onPressed:
-                                _source.loading ||
-                                    page.nextCursor == null ||
-                                    _cursors.contains(page.nextCursor)
-                                ? null
-                                : () => _change(
-                                    () => _cursors = [
-                                      ..._cursors,
-                                      page.nextCursor,
-                                    ],
-                                  ),
-                            child: const Text('Next page'),
-                          ),
-                        ],
-                      ),
-                  ],
-                ),
-              ),
-              TextButton(
-                onPressed: _source.loading ? null : _reload,
-                child: const Text('Refresh alerts'),
-              ),
-            ],
+              ],
+            ),
           ),
         );
       },
