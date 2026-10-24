@@ -89,7 +89,7 @@ void main() {
     }
   }
   testWidgets(
-    'database failure is offline and reduced motion keeps glow static',
+    'online halo expands without core bloom; offline and reduced motion stay still',
     (tester) async {
       Widget host({required bool reduced, required SystemHealthStats stats}) =>
           MaterialApp(
@@ -101,26 +101,44 @@ void main() {
           );
       final good = health();
       await tester.pumpWidget(host(reduced: false, stats: good));
-      double blur() =>
+      double haloAlpha() =>
           (tester
-                      .widget<Container>(
-                        find.byKey(const ValueKey('admin-api-status-dot')),
+                      .widget<DecoratedBox>(
+                        find.byKey(const ValueKey('admin-api-status-halo')),
                       )
                       .decoration
                   as BoxDecoration)
-              .boxShadow!
-              .single
-              .blurRadius;
-      final initial = blur();
+              .color!
+              .a;
+      BoxDecoration core() =>
+          tester
+                  .widget<Container>(
+                    find.byKey(const ValueKey('admin-api-status-dot')),
+                  )
+                  .decoration
+              as BoxDecoration;
+      final initial = haloAlpha();
+      final coreSize = tester.getSize(
+        find.byKey(const ValueKey('admin-api-status-dot')),
+      );
+      final coreBlur = core().boxShadow!.single.blurRadius;
       await tester.pump(const Duration(milliseconds: 400));
-      expect(blur(), greaterThan(initial));
+      expect(haloAlpha(), greaterThan(initial));
+      expect(
+        tester.getSize(find.byKey(const ValueKey('admin-api-status-dot'))),
+        coreSize,
+      );
+      expect(core().boxShadow!.single.blurRadius, coreBlur);
+      expect(coreBlur, 5);
       await tester.pumpWidget(host(reduced: true, stats: good));
-      final still = blur();
+      final still = haloAlpha();
       await tester.pump(const Duration(seconds: 1));
-      expect(blur(), still);
+      expect(haloAlpha(), still);
       expect(tester.binding.hasScheduledFrame, isFalse);
       await tester.pumpWidget(host(reduced: true, stats: health(db: false)));
       expect(find.text('API: Offline'), findsOneWidget);
+      expect(find.byKey(const ValueKey('admin-api-status-halo')), findsNothing);
+      expect(core().boxShadow, isEmpty);
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
     },

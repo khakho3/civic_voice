@@ -96,32 +96,49 @@ class _AdminApiStatusBadgeState extends State<AdminApiStatusBadge>
                   return SizedBox(
                     width: 14,
                     height: 14,
-                    child: Center(
-                      child: Transform.scale(
-                        scale: 1 + pulse * 0.18,
-                        child: Container(
+                    child: Stack(
+                      alignment: Alignment.center,
+                      clipBehavior: Clip.none,
+                      children: [
+                        if (live && online)
+                          Positioned(
+                            left: -2,
+                            top: -2,
+                            width: 18,
+                            height: 18,
+                            child: Transform.scale(
+                              scale: reduceMotion ? 1 : 0.65 + pulse * 0.55,
+                              child: DecoratedBox(
+                                key: const ValueKey('admin-api-status-halo'),
+                                decoration: BoxDecoration(
+                                  color: color.withValues(
+                                    alpha: reduceMotion
+                                        ? 0.2
+                                        : 0.12 + pulse * 0.18,
+                                  ),
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                            ),
+                          ),
+                        Container(
                           key: const ValueKey('admin-api-status-dot'),
                           width: 10,
                           height: 10,
                           decoration: BoxDecoration(
                             color: color,
                             shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: color.withValues(
-                                  alpha: live && online
-                                      ? 0.2 + pulse * 0.25
-                                      : 0,
-                                ),
-                                blurRadius: 4 + pulse * 6,
-                                spreadRadius: live && online
-                                    ? 1 + pulse * 4
-                                    : 0,
-                              ),
-                            ],
+                            boxShadow: live && online
+                                ? [
+                                    BoxShadow(
+                                      color: color.withValues(alpha: 0.35),
+                                      blurRadius: 5,
+                                    ),
+                                  ]
+                                : const [],
                           ),
                         ),
-                      ),
+                      ],
                     ),
                   );
                 },
