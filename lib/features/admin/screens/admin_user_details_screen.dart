@@ -423,7 +423,23 @@ class _DetailsForm extends StatelessWidget {
           const _SuccessBanner(),
           const SizedBox(height: AppSpacing.sm),
         ],
-        _CompactIdentity(user: user, previewRole: role, previewStatus: status),
+        Card(
+          margin: EdgeInsets.zero,
+          elevation: 0,
+          color: Theme.of(context).colorScheme.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(color: AppSemanticColors.of(context).glassBorder),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: _CompactIdentity(
+              user: user,
+              previewRole: role,
+              previewStatus: status,
+            ),
+          ),
+        ),
         if (ownAccount) ...[
           const SizedBox(height: AppSpacing.sm),
           const Text(

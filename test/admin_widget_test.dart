@@ -2310,6 +2310,7 @@ void main() {
 
       expect(find.text('YA'), findsOneWidget);
       expect(find.text('Yaw Asare'), findsWidgets);
+    expect(find.ancestor(of: find.text('Yaw Asare').first, matching: find.byType(Card)), findsOneWidget);
       expect(find.text('+233 27 777 8888'), findsWidgets);
       expect(find.text('Maintenance Team'), findsWidgets);
       expect(find.text('Active'), findsOneWidget);
