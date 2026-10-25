@@ -13,7 +13,7 @@
 
     <application
         android:label="Civic Voice"
-        android:name="${applicationName}"
+        android:name="com.example.civic_voice.CivicVoiceApplication"
         android:icon="@mipmap/ic_launcher">
         <activity
             android:name=".MainActivity"
