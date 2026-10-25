@@ -1,5 +1,17 @@
 # Latif progress
 
+## Citizen Reports history-card parity - 25 October 2026
+
+Owner reported that Citizen Reports still looked glassy, moving this screen ahead of the queued Alert review slice. Native runtime **af4992c** matches web's report-history override: solid primary surface and normal border, retaining the20px corners/padding, title/location/status/progress/reference, single accessible whole-card tracking action and accepted tap/focus feedback. The old history fill was already opaque, but tinted secondary with a faded border. The shared CivicGlassCard, totals/empty treatment, search/collapse/filter/refresh and report ownership/data logic are unchanged. This repairs the history cards, not the entire all-role card inventory.
+
+**1,531 native tests and analyzer pass.** Two actual-pixel regressions failed on the previous fill and now match the exact primary/border colors in both themes.110 focused Citizen/search-consumer checks pass. Actual-font320/412 light/dark1x/1.4x renders cover seven status fixtures, long content, list top/bottom, no-match and empty states (32 final captures). The412px/1x header/totals pixels are unchanged before/after in both themes. Owner phone appearance confirmation remains pending.
+
+**Separate new open finding:** Citizen bottom-nav item Columns overflow by1px at412px/1.5x text in both themes (civic_app_chrome.dart:321). Reproduced before the card edit; fixed56px item height cannot fit the scaled label. Initial visual matrix passed6/8 with those two cases blocked; final1x/1.4x matrix passes8/8. The nav issue is logged, not fixed or counted as a1.5x full-screen pass.
+
+Isolated DEV throughaf4992c is built, artifact-verified, replace-installed and launched with data retained; installed APK digest matches. One explicit source copied after confirming DEV matched its pre-change review;43 source hashes match review and all14 protected config hashes remain unchanged. DEV package/label/signature/local API/Firebase and preserved masking/Application/alert summary verified; production targets absent. API remains stopped, configured DEV targets verified only; no live read or process change claimed. Exact evidence stays private.
+
+Next recorded screen remains **Open Alerts review/detail**; retain the new Citizen-nav issue as a separate follow-up, remaining all-role card/state comparisons, C01/P04 standing integration and other device/Maintenance/push/Francis-owned work. Web runtime536ddf1 (last423 tests/lint/build), API d00b6c6, original native6ace645/owner SVG and web untracked output/ are preserved. No merge, promotion, production deployment or real account/report mutation.
+
 ## Open Alerts list card/state slice - 25 October 2026
 
 Native runtime **af5754b** addresses this list only. Existing populated cards already use solid surfaces/zero elevation and are retained. The empty result now uses that same card, matching web grouping. The fixed24px count/updating slot clipped larger text; it now measures actual width/text scale and reserves both labels so same-owner filtering does not move matching cards. Normal short1x summaries retain24px. Search/collapse, chip motion, cursor continuation, request/session guards, refresh/error wording and the separate alert review/detail remain unchanged.

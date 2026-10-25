@@ -1,5 +1,36 @@
 # Card and shared-sheet inventory - 25 October 2026
 
+## Owner-reported Citizen Reports history cards - 25 October 2026
+
+Native af4992c matches the web history-card override in ReportsPage.css: opaque
+primary surface and the normal border, with the existing 20px corners, padding,
+content/status/progress and whole-card tracking action. The old history fill was
+already opaque but used the tinted secondary surface and faded glass border;
+that did not match web. The local Ink decoration keeps the accepted Material tap
+and focus feedback. This does not change the shared CivicGlassCard, totals,
+empty/no-match cards, filters or collapsing search. Their web reference still
+uses the shared/default treatment. No global quiet-card completion is implied.
+
+Two rendered-pixel regressions failed on the old history fill and now match the
+exact primary/border pixels in both themes. All 1,531 native tests and analyzer
+pass; 110 focused Citizen and all-consumer search checks pass. Actual-font
+320/412 light/dark renders at 1x/1.4x cover all seven status fixtures, long copy,
+list top/bottom, no-match and empty states: 32 final captures. The 412px/1x
+header-and-totals pixels are identical before/after in both themes. These are
+automated/fixture checks; current DEV install/owner acceptance are in the handoff.
+
+**New open issue, separate from this style repair:** at 412px and 1.5x actual
+bundled fonts, Citizen bottom-navigation item Columns overflow by 1px at
+lib/features/citizen/widgets/civic_app_chrome.dart:321 in both themes. This was
+reproduced before the card edit; the fixed 56px item height cannot fit the
+scaled label. The initial visual matrix passed 6/8, with those two cases blocked
+by the existing nav issue. Final 1x/1.4x renders pass 8/8; do not call the 1.5x
+full-screen case fixed. Log retained in the owner follow-ups/private checklist.
+
+Owner's Citizen Reports report was handled ahead of the queued Alert review
+slice. Return to Open Alerts review/detail next; retain the separate Citizen
+navigation issue and every remaining mapped screen/state and C01/P04 feature.
+
 ## Open Alerts list slice - 25 October 2026
 
 Native af5754b checks the first mapped list only. Existing alert cards already
@@ -89,7 +120,7 @@ All rows below mean **source located; full visual/state/device check still pendi
 | [citizen/screens/citizen_alerts_screen.dart](../../lib/features/citizen/screens/citizen_alerts_screen.dart) | NotificationInboxPanel |
 | [citizen/screens/citizen_dashboard_screen.dart](../../lib/features/citizen/screens/citizen_dashboard_screen.dart) | CivicGlassCard, CivicStatusPanel, NearbySecondingCard, _DashboardStatePanel, _EmptyRecentReportsCard, _QuickActionCard, _RecentReportsSection, _ReportHeroCard |
 | [citizen/screens/citizen_profile_screen.dart](../../lib/features/citizen/screens/citizen_profile_screen.dart) | ProfileHeaderCard, ProfileSection, ProfileSessionSection |
-| [citizen/screens/citizen_reports_screen.dart](../../lib/features/citizen/screens/citizen_reports_screen.dart) | CivicGlassCard, _ReportHistoryCard, _ReportsStatCard |
+| [citizen/screens/citizen_reports_screen.dart](../../lib/features/citizen/screens/citizen_reports_screen.dart) | History-card surface repaired above; shared stats/empty treatment retained. _ReportHistoryCard, _ReportsStatCard |
 | [citizen/screens/create_report_screen.dart](../../lib/features/citizen/screens/create_report_screen.dart) | CivicGlassCard, _LocationCard |
 | [citizen/screens/location_picker_screen.dart](../../lib/features/citizen/screens/location_picker_screen.dart) | CivicGlassCard, _SearchPanel, _SelectedLocationCard |
 | [citizen/screens/photo_upload_screen.dart](../../lib/features/citizen/screens/photo_upload_screen.dart) | CivicGlassCard, _PhotoActionsCard, _PhotoTipsCard, _UploadedPhotosSection |
@@ -143,6 +174,8 @@ Every actual native modal-bottom-sheet launch found in `lib` uses showCivicBotto
 - [x] Render the first direct-form slice: Maintenance Update Progress, Citizen Create Report, Set New Password and About. Final password grouping repaired in6f7ea7f; other sampled compositions preserved. Scope and automated evidence are above; physical acceptance remains separate.
 - [x] Render representative remaining auth compositions/states and all remaining shared-sheet surfaces. Scoped evidence above; physical and exhaustive workflow checks remain pending.
 - [x] Open Alerts list fixture slice: opaque populated/empty cards, larger count/updating text, loading/failure/recovery. Owner phone acceptance remains pending.
+- [x] Citizen Reports history-card surface corrected against web; scoped pixel/search/fixture checks above. Owner phone acceptance pending.
+- [ ] Citizen bottom-navigation 1px overflow at 412px/1.5x text (separate open issue); no fix included in the history-card repair.
 - [ ] Open Alerts review/detail is next; inspect this screen before moving to later mapped screens.
 - [ ] Continue all-role card/data-state comparisons; the C01/P04 rating/standing feature remains explicitly unfinished.
 - [ ] Continue all-role visual/state comparisons for the mapped cards, including long content, narrow/large text, light/dark, loading/failure and keyboard. Keep each confirmed defect scoped to its screen; do not infer a global redesign from this map.
