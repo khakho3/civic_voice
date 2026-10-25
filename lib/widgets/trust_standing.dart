@@ -4,72 +4,8 @@ import 'package:flutter/material.dart';
 
 import '../core/theme/app_theme.dart';
 
-/// A citizen's reporting standing exactly as the API's `/auth/sync`
-/// `trustRating` delivers it. The raw trust score never reaches the client,
-/// and the milestone is server-computed, so this widget only renders.
-///
-/// [fromJson] is the shared decoding contract; wiring `/auth/sync` into the
-/// Citizen profile model belongs to the Citizen model owner, and this file
-/// owns only the shared presentation.
-@immutable
-class TrustStandingData {
-  const TrustStandingData({
-    required this.stars,
-    this.outOf = 5,
-    required this.label,
-    this.lowStanding = false,
-    this.nextStepStars,
-    this.resolvedReportsAway,
-  });
-
-  /// Parses the `trustRating` object; returns null when it is absent or
-  /// malformed so callers show nothing rather than an invented standing.
-  static TrustStandingData? fromJson(Object? json) {
-    if (json is! Map) return null;
-    final stars = json['stars'];
-    final label = json['label'];
-    if (stars is! num || label is! String) return null;
-    final outOf = json['outOf'];
-    final next = json['nextStep'];
-    return TrustStandingData(
-      stars: stars.toDouble(),
-      outOf: outOf is num ? outOf.toDouble() : 5,
-      label: label,
-      lowStanding: json['lowStanding'] == true,
-      nextStepStars: next is Map && next['stars'] is num
-          ? (next['stars'] as num).toDouble()
-          : null,
-      resolvedReportsAway: next is Map && next['resolvedReportsAway'] is num
-          ? (next['resolvedReportsAway'] as num).toInt()
-          : null,
-    );
-  }
-
-  final double stars;
-  final double outOf;
-  final String label;
-  final bool lowStanding;
-  final double? nextStepStars;
-  final int? resolvedReportsAway;
-
-  String get readout => '${_trim(stars)} out of ${_trim(outOf)} stars — $label';
-
-  /// Server milestone as copy; "highest standing" when there is none.
-  String get milestone {
-    final next = nextStepStars;
-    final count = resolvedReportsAway;
-    if (next == null || count == null) {
-      return 'You have reached the highest standing.';
-    }
-    const words = ['', 'One', 'Two', 'Three', 'Four', 'Five'];
-    final counted = count < words.length ? words[count] : '$count';
-    final reports = count == 1 ? 'report' : 'reports';
-    return '$counted more resolved $reports to reach ${_trim(next)} stars.';
-  }
-
-  static String _trim(double value) =>
-      value == value.roundToDouble() ? value.toInt().toString() : '$value';
-}
+import '../models/trust_standing.dart';
+export '../models/trust_standing.dart' show TrustStandingData;
 
 enum TrustStandingVariant { compact, detailed }
 
@@ -107,8 +43,7 @@ class TrustStanding extends StatelessWidget {
         FractionalStars(value: standing.stars, outOf: standing.outOf),
         const SizedBox(width: AppSpacing.sm),
         Text(
-          '${TrustStandingData._trim(standing.stars)}/'
-          '${TrustStandingData._trim(standing.outOf)}',
+          standing.scoreLabel,
           style: textTheme.labelSmall?.copyWith(
             color: colorScheme.onSurfaceVariant,
             fontWeight: AppFontWeight.semiBold,
@@ -168,6 +103,7 @@ class TrustStanding extends StatelessWidget {
       return Semantics(
         button: true,
         label: '$label. View details.',
+        onTap: onOpenDetail,
         excludeSemantics: true,
         child: InkWell(
           onTap: onOpenDetail,

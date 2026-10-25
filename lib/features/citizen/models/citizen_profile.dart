@@ -1,3 +1,5 @@
+import '../../../models/trust_standing.dart';
+
 class CitizenProfile {
   const CitizenProfile({
     required this.id,
@@ -7,6 +9,7 @@ class CitizenProfile {
     required this.primaryLocation,
     this.twoStepEnabled = true,
     this.isGuest = false,
+    this.trustRating,
   });
 
   final String id;
@@ -21,6 +24,7 @@ class CitizenProfile {
   /// Drives the guest-mode messaging on Dashboard/Profile; never true for
   /// an account that's registered for real.
   final bool isGuest;
+  final TrustStandingData? trustRating;
 
   factory CitizenProfile.fromMap(Map<String, Object?> map) {
     return CitizenProfile(
@@ -31,6 +35,9 @@ class CitizenProfile {
       primaryLocation: map['primaryLocation'] as String? ?? '',
       twoStepEnabled: map['twoStepEnabled'] as bool? ?? true,
       isGuest: map['isGuest'] as bool? ?? false,
+      trustRating: map['isGuest'] == true
+          ? null
+          : TrustStandingData.fromJson(map['trustRating']),
     );
   }
 
@@ -43,6 +50,7 @@ class CitizenProfile {
       'primaryLocation': primaryLocation,
       'twoStepEnabled': twoStepEnabled,
       'isGuest': isGuest,
+      'trustRating': isGuest ? null : trustRating?.toJson(),
     };
   }
 
@@ -54,6 +62,8 @@ class CitizenProfile {
     String? primaryLocation,
     bool? twoStepEnabled,
     bool? isGuest,
+    TrustStandingData? trustRating,
+    bool clearTrustRating = false,
   }) {
     return CitizenProfile(
       id: id ?? this.id,
@@ -63,6 +73,9 @@ class CitizenProfile {
       primaryLocation: primaryLocation ?? this.primaryLocation,
       twoStepEnabled: twoStepEnabled ?? this.twoStepEnabled,
       isGuest: isGuest ?? this.isGuest,
+      trustRating: (isGuest ?? this.isGuest) || clearTrustRating
+          ? null
+          : trustRating ?? this.trustRating,
     );
   }
 }

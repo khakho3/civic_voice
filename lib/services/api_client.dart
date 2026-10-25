@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
+import '../models/trust_standing.dart';
 
 /// Thin wrapper around civic_voice_api (c:\Projects\mobile\servers\civic_voice_api).
 /// Auth uses server-verified password handoffs and signed session sync;
@@ -810,6 +811,7 @@ class SyncedUser {
     required this.isGuest,
     this.firebaseUid,
     this.active = false,
+    this.trustRating,
   });
 
   final String id;
@@ -827,6 +829,7 @@ class SyncedUser {
   final bool isGuest;
   final String? firebaseUid;
   final bool active;
+  final TrustStandingData? trustRating;
 
   factory SyncedUser.fromJson(Map<String, dynamic> json) {
     return SyncedUser(
@@ -845,6 +848,12 @@ class SyncedUser {
       isGuest: json['isGuest'] as bool? ?? false,
       firebaseUid: json['firebaseUid'] as String?,
       active: json['active'] == true,
+      trustRating:
+          json['role'] == 'CITIZEN' &&
+              json['isGuest'] != true &&
+              json['active'] == true
+          ? TrustStandingData.fromJson(json['trustRating'])
+          : null,
     );
   }
 }
