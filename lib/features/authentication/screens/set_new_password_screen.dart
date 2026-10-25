@@ -22,6 +22,7 @@ class SetNewPasswordScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return AuthScreenLayout(
+      groupHeadingWithForm: true,
       onBack: purpose == SetNewPasswordPurpose.firstLogin ? null : onBack,
       title: _title,
       supportingText: _supportingText,
