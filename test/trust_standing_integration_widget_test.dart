@@ -5,6 +5,7 @@ import 'package:civic_voice/features/citizen/screens/citizen_dashboard_screen.da
 import 'package:civic_voice/features/citizen/screens/citizen_profile_screen.dart';
 import 'package:civic_voice/features/citizen/services/profile_crud_service.dart';
 import 'package:civic_voice/features/citizen/services/report_crud_service.dart';
+import 'package:civic_voice/features/citizen/widgets/civic_glass_card.dart';
 import 'package:civic_voice/services/api_client.dart';
 import 'package:civic_voice/services/app_cache_service.dart';
 import 'package:civic_voice/widgets/trust_standing.dart';
@@ -36,8 +37,10 @@ void main() {
         (tester) async {
           tester.view.physicalSize = const Size(412, 1800);
           tester.view.devicePixelRatio = 1;
+          tester.view.padding = const FakeViewPadding(top: 64, bottom: 24);
           addTearDown(tester.view.resetPhysicalSize);
           addTearDown(tester.view.resetDevicePixelRatio);
+          addTearDown(tester.view.resetPadding);
           final profile = ProfileCrudService.instance;
           profile.loadSignedInUser(
             SyncedUser.fromJson(
@@ -68,6 +71,16 @@ void main() {
           await tester.pumpAndSettle();
           final compact = find.byType(TrustStanding);
           expect(compact, findsOneWidget);
+          final firstAction = find.ancestor(
+            of: find.text('Report Issue'),
+            matching: find.byType(CivicGlassCard),
+          );
+          expect(
+            tester.getTopLeft(firstAction).dy -
+                tester.getBottomLeft(compact).dy,
+            AppSpacing.xl,
+            reason: 'Nested actions must not add the phone safe-area inset.',
+          );
           expect(
             tester.widget<FractionalStars>(find.byType(FractionalStars)).value,
             3.7,
