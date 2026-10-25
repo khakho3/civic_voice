@@ -4,6 +4,7 @@ import '../../../models/app_role.dart';
 import '../../../services/mock_auth_service.dart';
 import '../../../services/notification_inbox_directory.dart';
 import '../models/admin_role_management_data.dart';
+import 'admin_read_failure.dart';
 
 String? adminRequestKey() {
   final owner = currentInboxOwner();
@@ -37,12 +38,14 @@ class AdminResource<T> extends ChangeNotifier {
       _uncertain = false,
       _disposed = false;
   String? _error;
+  AdminReadFailure? _failure;
   bool get _current => !_disposed && _key != null && owner() == _key;
   T? get data => _current ? _data : null;
   bool get loading => _current && _loading;
   bool get writing => _current && _writing;
   bool get uncertain => _current && _uncertain;
   String? get error => _current ? _error : null;
+  AdminReadFailure? get failure => _current ? _failure : null;
   bool _owns(String key, int revision) =>
       _current && _key == key && _revision == revision;
   void clearSession() {
@@ -53,6 +56,7 @@ class AdminResource<T> extends ChangeNotifier {
     _writing = false;
     _uncertain = false;
     _error = null;
+    _failure = null;
     if (!_disposed) notifyListeners();
   }
 
@@ -78,17 +82,26 @@ class AdminResource<T> extends ChangeNotifier {
     final revision = ++_revision;
     _loading = true;
     _error = null;
+    _failure = null;
     notifyListeners();
+    var fetching = false;
     try {
       final token = await credential();
       if (!_owns(key, revision)) return;
-      if (token == null) throw StateError('Sign in required');
+      if (token == null) {
+        _failure = AdminReadFailure.unauthorized;
+        throw StateError('Sign in required');
+      }
+      fetching = true;
       final raw = await fetch(token);
       if (!_owns(key, revision)) return;
       _data = parse(raw);
       _uncertain = false;
-    } catch (_) {
+    } catch (exception) {
       if (!_owns(key, revision)) return;
+      _failure ??= fetching
+          ? classifyAdminReadFailure(exception)
+          : AdminReadFailure.unverified;
       _data = null;
       _error =
           'This information could not be verified. Please refresh and try again.';
@@ -110,6 +123,7 @@ class AdminResource<T> extends ChangeNotifier {
     final key = _key!, revision = _revision, previous = _data as T;
     _writing = true;
     _error = null;
+    _failure = null;
     notifyListeners();
     try {
       final token = await credential();

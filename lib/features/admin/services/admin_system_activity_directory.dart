@@ -1,3 +1,4 @@
+import 'admin_read_failure.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
@@ -68,6 +69,7 @@ class AdminSystemActivityDirectory {
   );
   final ValueNotifier<bool> loading = ValueNotifier(false);
   final ValueNotifier<String?> error = ValueNotifier(null);
+  final healthFailure = ValueNotifier<AdminReadFailure?>(null);
   bool hasLiveSnapshot = false;
   bool hasLiveHealthSnapshot = false;
 
@@ -102,6 +104,7 @@ class AdminSystemActivityDirectory {
     ++_healthRefreshRevision;
     hasLiveSnapshot = false;
     hasLiveHealthSnapshot = false;
+    healthFailure.value = null;
     loading.value = false;
     error.value = null;
     items.value = const <ActivityItem>[];
@@ -158,8 +161,9 @@ class AdminSystemActivityDirectory {
             !_isCurrentHealthRefresh(healthFenceRevision)) {
           return;
         }
-        health.value = null;
         hasLiveHealthSnapshot = false;
+        healthFailure.value = null;
+        health.value = null;
       }
     } catch (exception) {
       _publishFailure(revision, exception);
@@ -185,20 +189,28 @@ class AdminSystemActivityDirectory {
     if (!_firebaseAvailable() || !_isSuperAdmin()) {
       if (_isCurrentHealthRefresh(healthRevision)) {
         hasLiveHealthSnapshot = false;
+        healthFailure.value = null;
         health.value = null;
       }
       return;
     }
+    var fetching = false;
     try {
       final token = idToken ?? await _tokenProvider();
       if (token == null) throw StateError('A signed-in Admin is required');
+      fetching = true;
       final response = await _healthFetcher(token);
       if (!_isCurrentHealthRefresh(healthRevision)) return;
-      health.value = SystemHealthStats.fromApi(response);
+      final verified = SystemHealthStats.fromApi(response);
       hasLiveHealthSnapshot = true;
-    } catch (_) {
+      healthFailure.value = null;
+      health.value = verified;
+    } catch (exception) {
       if (_isCurrentHealthRefresh(healthRevision)) {
         hasLiveHealthSnapshot = false;
+        healthFailure.value = fetching
+            ? classifyAdminReadFailure(exception)
+            : AdminReadFailure.unverified;
         health.value = null;
       }
     }
