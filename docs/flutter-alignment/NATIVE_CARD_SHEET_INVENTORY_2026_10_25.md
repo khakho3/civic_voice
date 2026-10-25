@@ -175,7 +175,7 @@ Every actual native modal-bottom-sheet launch found in `lib` uses showCivicBotto
 - [x] Render representative remaining auth compositions/states and all remaining shared-sheet surfaces. Scoped evidence above; physical and exhaustive workflow checks remain pending.
 - [x] Open Alerts list fixture slice: opaque populated/empty cards, larger count/updating text, loading/failure/recovery. Owner phone acceptance remains pending.
 - [x] Citizen Reports history-card surface corrected against web; scoped pixel/search/fixture checks above. Owner phone acceptance pending.
-- [ ] Citizen bottom-navigation 1px overflow at 412px/1.5x text (separate open issue); no fix included in the history-card repair.
+- [ ] DEFERRED by owner: Citizen bottom-navigation/long-text overflow at412px/1.5x (1px). Owner has a larger idea; retain repro and await that design before changing sizing/wrapping.
 - [ ] Open Alerts review/detail is next; inspect this screen before moving to later mapped screens.
 - [ ] Continue all-role card/data-state comparisons; the C01/P04 rating/standing feature remains explicitly unfinished.
 - [ ] Continue all-role visual/state comparisons for the mapped cards, including long content, narrow/large text, light/dark, loading/failure and keyboard. Keep each confirmed defect scoped to its screen; do not infer a global redesign from this map.

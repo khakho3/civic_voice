@@ -1,5 +1,21 @@
 # Latif progress
 
+## Current Citizen rating/standing integration - 25 October 2026
+
+Owner moved C01/P04 ahead of the queued Alert review/card sweep. Native runtime **9b4948d** (data/model **431fceb**) now consumes the existing auth-sync `trustRating`, binds it to the active registered Citizen account, and supplies compact Home and live detailed Profile. Arbitrary fractional stars, server labels/milestones and server low-standing flags are preserved. Missing/malformed/guest/staff standing stays hidden; raw trustScore is not used. Home opens Profile accessibly. Entry/resume and existing Home pull-to-refresh refresh standing without a new button/blocking loader. Request/session guards prevent late responses crossing accounts, logout or newer refreshes; name edits retain newer standing. Scoring and officer review are unchanged.
+
+**Automated validation:** all **1,583 Flutter tests pass; analyzer clean**. Parser/model/session/race/HTTP and Home-to-Profile checks cover identity, missing/invalid/fractional/guest data, server flags, late responses, missing credentials and concurrent name saves. Eleven unchanged API rating tests pass; all 201 synthetic DTOs from the current server parse/serialize unchanged. Actual-font Home/Profile renders cover 320/412, both themes, 1x/1.4x and fractional/low/highest/guest/malformed data (80 captures); standalone standing components also fit 320px at 2x. These checks validate client compatibility, not scoring-policy correctness or owner device acceptance.
+
+**Isolated DEV through 9b4948d is artifact-verified, replace-installed and launched with app data retained; installed APK digest matches.** Seven explicit runtime files copied; 49 tracked source hashes match review, and all 14 protected DEV configurations remain unchanged. DEV package/label/signature/local API/Firebase and compiled standing/masking/alert components are verified; production targets absent. The already-running local API process was checked read-only and targets DEV Firebase/local database; it was not started/stopped by this work. **Owner phone/live standing confirmation remains pending:** registered Citizen Home -> Profile, foreground/resume/PTR freshness, server low-standing/highest/missing data and guest exclusion. Do not mutate real reports/accounts to manufacture test states. Exact device/artifact evidence stays private.
+
+Owner confirms the preceding Citizen report-history appearance repair only. **Citizen long-text/bottom-navigation overflow is explicitly DEFERRED for the owner's larger idea.** Preserve the 412px/1.5x/1px repro at native civic_app_chrome.dart:321; await the owner's design before changing sizing/wrapping. No full-screen 1.5x pass is claimed.
+
+**Separate open work:** B07/I03 report-confidence/integrity/trust-engine review (explanations, evidence/uncertainty, gaming, role-safe DTOs); B14/I06/V02 AI categorization, Municipal report-review advisory and grounded analytics/advisory (deterministic fallback, privacy/cost/latency contract). Neither is completed by standing integration or existing engine tests. C01/P04 implementation is integrated, but final live/device acceptance and the broader Flutter/profile backlog are not cleared.
+
+**Required before production: smoke codebase review across all three active repos (web, Flutter review, API).** Audit dead/unreachable code, unused/obsolete files/assets/imports/routes/services/scripts and stale flags/configuration. Prove dynamic/build/runtime references and ownership before deletion; preserve owner-untracked/private assets, migrations and useful tests/docs. Use scoped cleanup commits with appropriate tests/analyzer/lint/build plus role/guest/auth/report/approval/notification smoke checks. This remains logged future work; no speculative deletion was performed now.
+
+**Next independent slice: Open Alerts review/detail**, including note/history, loading/failure and narrow/large-text/keyboard states, followed by the remaining all-role card/state sweep in recorded order. Standing owner checks remain pending alongside it. Maintenance/real push, uncertain-save wording, native iOS masking and Francis-owned work remain open. Web runtime 536ddf1 (last 423 tests/lint/build), API runtime d00b6c6 and original native 6ace645/owner SVG remain unchanged. Web untracked output/ is preserved. Earlier checkpoint sections below are historical; this section controls current state. No merge, promotion or production deployment.
+
 ## Citizen Reports history-card parity - 25 October 2026
 
 Owner reported that Citizen Reports still looked glassy, moving this screen ahead of the queued Alert review slice. Native runtime **af4992c** matches web's report-history override: solid primary surface and normal border, retaining the20px corners/padding, title/location/status/progress/reference, single accessible whole-card tracking action and accepted tap/focus feedback. The old history fill was already opaque, but tinted secondary with a faded border. The shared CivicGlassCard, totals/empty treatment, search/collapse/filter/refresh and report ownership/data logic are unchanged. This repairs the history cards, not the entire all-role card inventory.
@@ -1196,11 +1212,11 @@ historical context only.
 
 ### Historical module scope and remaining integration
 
-This older module checklist is not a cleared feature backlog or end-to-end/device acceptance. Current checkpoints above and consolidated backlogs control remaining work; C01 standing integration is explicitly unfinished.
+This older module checklist is not a cleared feature backlog or end-to-end/device acceptance. Current checkpoints above and consolidated backlogs control remaining work; C01 standing code is integrated, with live/device acceptance still pending.
 
 | Task | Status | Remaining boundary |
 | --- | --- | --- |
-| C01 - My Reports / standing | PARTIAL: My Reports tested; standing integration pending | Live trustRating parsing, compact Home placement and passing actual standing into Profile remain unfinished. Shared display widgets alone are not feature integration. |
+| C01 - My Reports / standing | PARTIAL: code integrated; live/device acceptance pending | 431fceb/9b4948d connect validated auth-sync standing, compact Home and live Profile with guarded refresh; 1,583 tests/analyzer pass and DEV installed. Owner rating/refresh confirmation and broader Profile obligations remain open; engine/AI reviews are separate. |
 | C02 - Nearby Issues | PARTIALLY BLOCKED | The owned accessible sheet/navigation slice is complete; I03 server-authorized proximity and safe-detail data are required for the full feature. |
 | C03 - Create Report | COMPLETED and TESTED | Server-side submission idempotency and real device camera/location/permission validation remain required. |
 | C04 - Report Tracking | PARTIALLY BLOCKED | Pending Approval presentation is complete; I07 map-gesture policy and guest-account report-ownership/origin continuity remain product/shared Auth work. |
