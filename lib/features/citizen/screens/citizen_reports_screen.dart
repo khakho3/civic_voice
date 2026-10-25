@@ -293,13 +293,18 @@ class _ReportHistoryCard extends StatelessWidget {
       excludeSemantics: true,
       child: Material(
         color: Colors.transparent,
+        borderRadius: AppRadius.allLg,
+        clipBehavior: Clip.antiAlias,
         child: InkWell(
           borderRadius: AppRadius.allLg,
           onTap: () => _openTracking(context),
-          child: CivicGlassCard(
-            borderRadius: AppRadius.allLg,
+          child: Ink(
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surface,
+              borderRadius: AppRadius.allLg,
+              border: Border.all(color: theme.colorScheme.outlineVariant),
+            ),
             padding: const EdgeInsets.all(AppSpacing.md),
-            backgroundColor: theme.colorScheme.surfaceContainerLow,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -326,10 +331,7 @@ class _ReportHistoryCard extends StatelessWidget {
                         ],
                       ),
                     ),
-                    _StatusPill(
-                      label: report.status.label,
-                      color: statusColor,
-                    ),
+                    _StatusPill(label: report.status.label, color: statusColor),
                   ],
                 ),
                 const SizedBox(height: AppSpacing.md),
