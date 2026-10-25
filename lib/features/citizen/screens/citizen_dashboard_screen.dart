@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import '../../../widgets/trust_standing.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/ghana_refresh_indicator.dart';
@@ -72,6 +74,7 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen>
     _dashboardStateService.setState(widget.initialState);
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      unawaited(_profileCrudService.refreshStanding());
       await _checkLocationAccess(requestPermission: true);
       if (mounted && !_locationDialogVisible) {
         await widget.onLocationSetupFinished?.call();
@@ -93,6 +96,7 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen>
   }
 
   Future<void> _resumeLocationSetup() async {
+    unawaited(_profileCrudService.refreshStanding());
     await _checkLocationAccess(requestPermission: false);
     if (mounted && !_locationDialogVisible) {
       await widget.onLocationSetupFinished?.call();
@@ -332,7 +336,12 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen>
         children: [
           Positioned.fill(
             child: GhanaRefreshIndicator(
-              onRefresh: _reportCrudService.refresh,
+              onRefresh: () async {
+                await Future.wait<void>([
+                  _reportCrudService.refresh(),
+                  _profileCrudService.refreshStanding(),
+                ]);
+              },
               // CivicTopBar paints on top of this Positioned.fill (a later
               // sibling in the outer Stack), so without this the pull
               // indicator would grow in from behind it, invisible until it
@@ -582,6 +591,7 @@ class _DashboardContent extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.xl),
             ],
+            const _CitizenStandingSummary(),
             const _GuestDashboardNotice(),
             if (nearbySecondingReport != null) ...[
               NearbySecondingCard(
@@ -605,6 +615,35 @@ class _DashboardContent extends StatelessWidget {
       },
     );
   }
+}
+
+class _CitizenStandingSummary extends StatelessWidget {
+  const _CitizenStandingSummary();
+  @override
+  Widget build(BuildContext context) => ValueListenableBuilder<CitizenProfile>(
+    valueListenable: ProfileCrudService.instance.profile,
+    builder: (context, profile, _) {
+      final standing = profile.isGuest ? null : profile.trustRating;
+      if (standing == null) return const SizedBox.shrink();
+      final scheme = Theme.of(context).colorScheme;
+      return Padding(
+        padding: const EdgeInsets.only(bottom: AppSpacing.xl),
+        child: Material(
+          color: scheme.surface,
+          clipBehavior: Clip.antiAlias,
+          shape: RoundedRectangleBorder(
+            borderRadius: AppRadius.allMd,
+            side: BorderSide(color: scheme.outlineVariant),
+          ),
+          child: TrustStanding(
+            standing: standing,
+            onOpenDetail: () =>
+                Navigator.of(context).push(citizenProfileTabRoute(context)),
+          ),
+        ),
+      );
+    },
+  );
 }
 
 /// Both empty and populated dashboards must explain the real guest session.
@@ -684,6 +723,7 @@ class _DashboardEmptyContent extends StatelessWidget {
               onViewReports: null,
             ),
             const SizedBox(height: AppSpacing.xl),
+            const _CitizenStandingSummary(),
             const _GuestDashboardNotice(),
             if (nearbySecondingReport != null) ...[
               NearbySecondingCard(

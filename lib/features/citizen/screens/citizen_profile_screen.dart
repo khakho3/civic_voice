@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
@@ -44,19 +45,41 @@ class CitizenProfileScreen extends StatefulWidget {
   /// Fired after the sign-out confirmation dialog is accepted.
   final VoidCallback? onLogOut;
 
-  /// The server's `trustRating` for this citizen. Null until the Citizen
-  /// model parses `/auth/sync`'s `trustRating`; the standing section is
-  /// omitted rather than invented.
+  /// Optional presentation override. Live routes read the account-bound
+  /// profile's server standing; guests always omit it.
   final TrustStandingData? standing;
 
   @override
   State<CitizenProfileScreen> createState() => _CitizenProfileScreenState();
 }
 
-class _CitizenProfileScreenState extends State<CitizenProfileScreen> {
+class _CitizenProfileScreenState extends State<CitizenProfileScreen>
+    with WidgetsBindingObserver {
   final ProfileCrudService _profileCrudService = ProfileCrudService.instance;
 
   bool _showSaveSuccess = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) unawaited(_profileCrudService.refreshStanding());
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(_profileCrudService.refreshStanding());
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
 
   Future<void> _startEditing(CitizenProfile profile) async {
     final saved = await showProfileNameEditSheet(
@@ -132,7 +155,9 @@ class _CitizenProfileScreenState extends State<CitizenProfileScreen> {
               valueListenable: _profileCrudService.profile,
               builder: (context, profile, _) {
                 final guest = profile.isGuest;
-                final standing = guest ? null : widget.standing;
+                final standing = guest
+                    ? null
+                    : widget.standing ?? profile.trustRating;
                 return ListView(
                   // One 16px inset each side and one 16px visible gap above
                   // the bottom navigation.
