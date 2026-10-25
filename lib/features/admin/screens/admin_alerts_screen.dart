@@ -309,21 +309,19 @@ class _AdminAlertsScreenState extends State<AdminAlertsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      SizedBox(
-                        height: 24,
-                        child: updating
-                            ? Semantics(
-                                liveRegion: true,
-                                child: const Text('Updating alerts…'),
-                              )
-                            : page != null
-                            ? Text('${page.total} matching alerts')
-                            : null,
+                      _AlertResultSummary(
+                        total: page?.total,
+                        reserveTotal: preview ? _lastPage?.total : page?.total,
+                        updating: updating,
                       ),
                       if (page != null && alerts.isEmpty)
                         const Padding(
-                          padding: EdgeInsets.all(AppSpacing.lg),
-                          child: Text('No alerts match these filters.'),
+                          padding: EdgeInsets.symmetric(
+                            vertical: AppSpacing.sm,
+                          ),
+                          child: _AlertCard(
+                            children: [Text('No alerts match these filters.')],
+                          ),
                         ),
                       for (final alert in alerts)
                         Padding(
@@ -709,6 +707,56 @@ String _geography(AdminAlert alert) {
       Region.values.where((r) => r.name == alert.region).firstOrNull?.label ??
       alert.region;
   return '${region ?? 'National/system'} · ${alert.assembly ?? 'No assembly recorded'}';
+}
+
+class _AlertResultSummary extends StatelessWidget {
+  const _AlertResultSummary({
+    required this.total,
+    required this.reserveTotal,
+    required this.updating,
+  });
+  final int? total, reserveTotal;
+  final bool updating;
+
+  @override
+  Widget build(BuildContext context) {
+    if (total == null && !updating) return const SizedBox(height: 24);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final defaults = DefaultTextStyle.of(context);
+        final style = MediaQuery.boldTextOf(context)
+            ? defaults.style.copyWith(fontWeight: FontWeight.bold)
+            : defaults.style;
+        var height = 24.0;
+        // Reserve both labels at the actual width/text scale. A same-owner
+        // preview must not move when its count becomes the updating message.
+        for (final label in {
+          'Updating alerts…',
+          if (reserveTotal != null) '$reserveTotal matching alerts',
+        }) {
+          final painter = TextPainter(
+            text: TextSpan(text: label, style: style),
+            textDirection: Directionality.of(context),
+            textAlign: defaults.textAlign ?? TextAlign.start,
+            textScaler: MediaQuery.textScalerOf(context),
+            textHeightBehavior: defaults.textHeightBehavior,
+            locale: Localizations.maybeLocaleOf(context),
+          )..layout(maxWidth: constraints.maxWidth);
+          if (painter.height > height) height = painter.height;
+          painter.dispose();
+        }
+        return SizedBox(
+          height: height,
+          child: updating
+              ? Semantics(
+                  liveRegion: true,
+                  child: const Text('Updating alerts…'),
+                )
+              : Text('$total matching alerts'),
+        );
+      },
+    );
+  }
 }
 
 class _ReviewBadge extends StatelessWidget {
