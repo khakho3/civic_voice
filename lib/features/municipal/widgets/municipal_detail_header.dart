@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
@@ -43,7 +44,31 @@ class MunicipalDetailHeader extends StatelessWidget {
   /// Top padding a screen's own scrollable body must reserve so its content
   /// doesn't start permanently hidden underneath this floating header.
   static double topInset(BuildContext context) =>
-      MediaQuery.paddingOf(context).top + AppDimensions.headerHeight;
+      MediaQuery.paddingOf(context).top + _height(context);
+
+  static double _height(BuildContext context) {
+    // Reserve both text lines at the user's scale; body consumers use the
+    // identical height through topInset so the first card stays below them.
+    final textTheme = Theme.of(context).textTheme;
+    double lineHeight(TextStyle? style) {
+      final painter = TextPainter(
+        text: TextSpan(text: 'Ag', style: style),
+        textDirection: Directionality.of(context),
+        textScaler: MediaQuery.textScalerOf(context),
+        maxLines: 1,
+      )..layout();
+      final height = painter.height;
+      painter.dispose();
+      return height;
+    }
+
+    return math.max(
+      AppDimensions.headerHeight,
+      lineHeight(textTheme.titleMedium) +
+          lineHeight(textTheme.bodySmall) +
+          AppSpacing.sm,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -54,7 +79,7 @@ class MunicipalDetailHeader extends StatelessWidget {
       child: SafeArea(
         bottom: false,
         child: SizedBox(
-          height: AppDimensions.headerHeight,
+          height: _height(context),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
             child: Row(
