@@ -1,0 +1,98 @@
+# Card and shared-sheet inventory - 25 October 2026
+
+Scope: source discovery at native runtime 6f2fe41 (test-only follow-up c9db7e0). This lists all 59 current `lib/features/*/screens/*screen.dart` files and the 10 shared-sheet launches in eight consumer files. It is a source map, not a claim that every screen/state has been rendered or accepted on a phone. Shared widgets and routing still require their consumer checks. No runtime layout was changed by this inventory.
+
+The earlier repaired Admin identity/create/details/Settings/overview groups remain in source. Citizen report summaries/review/photos/location and Municipal/Ministry/Maintenance detail groups still delegate to their named cards. All five profile families use ProfileHeaderCard/ProfileSection. All five notification entries delegate to NotificationInboxPanel. Card names alone do not prove correct visual containment, spacing or state behavior.
+
+Exceptions require context, not automatic wrapping: Change/Forgot Password and OTP delegate to AuthScreenLayout (recovery grouping already implemented); Login/Register/Set New Password use that shared layout too. About, biometric lock, onboarding and the test role selector have separate compositions. Maintenance Update Progress's outer form is a ListView/Column; its earlier source before ca225c8 also used that structure, so this is not evidence of a card removed by the recent Admin repair. Keep it on the visual comparison list rather than inventing a new card design. Citizen Create Report intentionally mixes direct fields with location/action cards. Settings' groups use shaped Material surfaces, not a class named Card.
+
+## Screen source map
+
+All rows below mean **source located; full visual/state/device check still pending**, except the narrow owner confirmations recorded in the current handoff. Group names are discovery clues, not an acceptance result.
+
+| Feature / screen | Named surface or composition |
+| --- | --- |
+| [admin/screens/admin_alerts_screen.dart](../../lib/features/admin/screens/admin_alerts_screen.dart) | Card, _AlertCard |
+| [admin/screens/admin_create_user_screen.dart](../../lib/features/admin/screens/admin_create_user_screen.dart) | FormSectionCard, _Section |
+| [admin/screens/admin_dashboard_screen.dart](../../lib/features/admin/screens/admin_dashboard_screen.dart) | GlassCard |
+| [admin/screens/admin_maintenance_teams_screen.dart](../../lib/features/admin/screens/admin_maintenance_teams_screen.dart) | GlassCard, _Section, _TeamCard |
+| [admin/screens/admin_notifications_screen.dart](../../lib/features/admin/screens/admin_notifications_screen.dart) | NotificationInboxPanel |
+| [admin/screens/admin_overview_screen.dart](../../lib/features/admin/screens/admin_overview_screen.dart) | _DashboardCard |
+| [admin/screens/admin_profile_screen.dart](../../lib/features/admin/screens/admin_profile_screen.dart) | ProfileHeaderCard, ProfileSection, ProfileSessionSection |
+| [admin/screens/admin_report_routing_screen.dart](../../lib/features/admin/screens/admin_report_routing_screen.dart) | _RoutingCard |
+| [admin/screens/admin_role_management_screen.dart](../../lib/features/admin/screens/admin_role_management_screen.dart) | GlassCard, _TierCard |
+| [admin/screens/admin_system_activity_screen.dart](../../lib/features/admin/screens/admin_system_activity_screen.dart) | GlassCard, _ActivityCard, _HealthStatCard |
+| [admin/screens/admin_system_settings_screen.dart](../../lib/features/admin/screens/admin_system_settings_screen.dart) | Three shaped Material groups via _SystemPreferencesSection |
+| [admin/screens/admin_user_details_screen.dart](../../lib/features/admin/screens/admin_user_details_screen.dart) | Card, FormSectionCard, _Section |
+| [admin/screens/admin_user_management_screen.dart](../../lib/features/admin/screens/admin_user_management_screen.dart) | GlassCard, _UserCard |
+| [authentication/screens/about_screen.dart](../../lib/features/authentication/screens/about_screen.dart) | Static About composition |
+| [authentication/screens/bio_lock_screen.dart](../../lib/features/authentication/screens/bio_lock_screen.dart) | AuthBackdrop / biometric lock |
+| [authentication/screens/change_password_screen.dart](../../lib/features/authentication/screens/change_password_screen.dart) | AuthScreenLayout; implemented grouped recovery flow |
+| [authentication/screens/forgot_password_screen.dart](../../lib/features/authentication/screens/forgot_password_screen.dart) | AuthScreenLayout; implemented grouped recovery flow |
+| [authentication/screens/login_screen.dart](../../lib/features/authentication/screens/login_screen.dart) | AuthScreenLayout; _LoginStatusPanel |
+| [authentication/screens/otp_verification_screen.dart](../../lib/features/authentication/screens/otp_verification_screen.dart) | AuthScreenLayout; recovery grouping |
+| [authentication/screens/registration_screen.dart](../../lib/features/authentication/screens/registration_screen.dart) | AuthScreenLayout; _RegistrationStatusPanel |
+| [authentication/screens/set_new_password_screen.dart](../../lib/features/authentication/screens/set_new_password_screen.dart) | AuthScreenLayout / SetNewPasswordForm |
+| [authentication/screens/test_role_selector_screen.dart](../../lib/features/authentication/screens/test_role_selector_screen.dart) | Test role-selector composition |
+| [authentication/screens/welcome_screen.dart](../../lib/features/authentication/screens/welcome_screen.dart) | AuthBackdrop / onboarding pager |
+| [citizen/screens/citizen_alerts_screen.dart](../../lib/features/citizen/screens/citizen_alerts_screen.dart) | NotificationInboxPanel |
+| [citizen/screens/citizen_dashboard_screen.dart](../../lib/features/citizen/screens/citizen_dashboard_screen.dart) | CivicGlassCard, CivicStatusPanel, NearbySecondingCard, _DashboardStatePanel, _EmptyRecentReportsCard, _QuickActionCard, _RecentReportsSection, _ReportHeroCard |
+| [citizen/screens/citizen_profile_screen.dart](../../lib/features/citizen/screens/citizen_profile_screen.dart) | ProfileHeaderCard, ProfileSection, ProfileSessionSection |
+| [citizen/screens/citizen_reports_screen.dart](../../lib/features/citizen/screens/citizen_reports_screen.dart) | CivicGlassCard, _ReportHistoryCard, _ReportsStatCard |
+| [citizen/screens/create_report_screen.dart](../../lib/features/citizen/screens/create_report_screen.dart) | CivicGlassCard, _LocationCard |
+| [citizen/screens/location_picker_screen.dart](../../lib/features/citizen/screens/location_picker_screen.dart) | CivicGlassCard, _SearchPanel, _SelectedLocationCard |
+| [citizen/screens/photo_upload_screen.dart](../../lib/features/citizen/screens/photo_upload_screen.dart) | CivicGlassCard, _PhotoActionsCard, _PhotoTipsCard, _UploadedPhotosSection |
+| [citizen/screens/report_submitted_screen.dart](../../lib/features/citizen/screens/report_submitted_screen.dart) | CivicGlassCard, _ActionCard, _NextInfoCard, _ReferenceCard |
+| [citizen/screens/report_tracking_screen.dart](../../lib/features/citizen/screens/report_tracking_screen.dart) | CivicGlassCard, _CurrentStatusCard, _LatestUpdateCard, _ReportSummaryCard |
+| [citizen/screens/review_report_screen.dart](../../lib/features/citizen/screens/review_report_screen.dart) | CivicGlassCard, _CategoryCard, _LocationCard, _PhotosCard, _ReportDetailsCard, _ReviewCard, _SubmitCard |
+| [maintenance/screens/assigned_tasks_screen.dart](../../lib/features/maintenance/screens/assigned_tasks_screen.dart) | GlassCard, _NoMatchesCard, _TaskCard |
+| [maintenance/screens/dashboard_screen.dart](../../lib/features/maintenance/screens/dashboard_screen.dart) | GlassCard, _StatCard, _WeeklyCompletionCard |
+| [maintenance/screens/maintenance_notifications_screen.dart](../../lib/features/maintenance/screens/maintenance_notifications_screen.dart) | NotificationInboxPanel |
+| [maintenance/screens/profile_screen.dart](../../lib/features/maintenance/screens/profile_screen.dart) | ProfileHeaderCard, ProfileSection, ProfileSessionSection |
+| [maintenance/screens/task_completed_screen.dart](../../lib/features/maintenance/screens/task_completed_screen.dart) | GlassCard |
+| [maintenance/screens/task_details_screen.dart](../../lib/features/maintenance/screens/task_details_screen.dart) | GlassCard |
+| [maintenance/screens/update_progress_screen.dart](../../lib/features/maintenance/screens/update_progress_screen.dart) | Direct outer form; status/evidence controls, no recent card-loss evidence |
+| [ministry/screens/ministry_analytics_screen.dart](../../lib/features/ministry/screens/ministry_analytics_screen.dart) | GlassCard, _StatCard |
+| [ministry/screens/ministry_dashboard_screen.dart](../../lib/features/ministry/screens/ministry_dashboard_screen.dart) | GlassCard, _QuickInsightCard, _ReportStatisticsCard |
+| [ministry/screens/ministry_municipal_performance_screen.dart](../../lib/features/ministry/screens/ministry_municipal_performance_screen.dart) | GlassCard, _StatCard |
+| [ministry/screens/ministry_municipality_detail_screen.dart](../../lib/features/ministry/screens/ministry_municipality_detail_screen.dart) | GlassCard, _OfficerContactCard, _StatCard |
+| [ministry/screens/ministry_notifications_screen.dart](../../lib/features/ministry/screens/ministry_notifications_screen.dart) | NotificationInboxPanel |
+| [ministry/screens/ministry_profile_screen.dart](../../lib/features/ministry/screens/ministry_profile_screen.dart) | ProfileHeaderCard, ProfileSection, ProfileSessionSection |
+| [ministry/screens/ministry_report_insights_screen.dart](../../lib/features/ministry/screens/ministry_report_insights_screen.dart) | GlassCard, _StatCard, _StrategicFocusCard |
+| [ministry/screens/ministry_reports_screen.dart](../../lib/features/ministry/screens/ministry_reports_screen.dart) | GlassCard, _ReportCard, _StatCard |
+| [municipal/screens/municipal_active_reports_screen.dart](../../lib/features/municipal/screens/municipal_active_reports_screen.dart) | GlassCard, _ActiveReportCard |
+| [municipal/screens/municipal_assign_team_screen.dart](../../lib/features/municipal/screens/municipal_assign_team_screen.dart) | GlassCard, _AssignmentSummaryCard, _ReportSummaryCard, _TeamCard |
+| [municipal/screens/municipal_dashboard_screen.dart](../../lib/features/municipal/screens/municipal_dashboard_screen.dart) | GlassCard, _AssignmentSummaryCard, _RecentReportsCard, _StatCard |
+| [municipal/screens/municipal_inbox_screen.dart](../../lib/features/municipal/screens/municipal_inbox_screen.dart) | GlassCard, MunicipalInboxScreen, _InboxContent, _InboxEmpty, _InboxNoResults, _MunicipalInboxScreenState, _ReportCard, _ReportCardSkeleton |
+| [municipal/screens/municipal_notifications_screen.dart](../../lib/features/municipal/screens/municipal_notifications_screen.dart) | NotificationInboxPanel |
+| [municipal/screens/municipal_profile_screen.dart](../../lib/features/municipal/screens/municipal_profile_screen.dart) | ProfileHeaderCard, ProfileSection, ProfileSessionSection |
+| [municipal/screens/municipal_report_progress_screen.dart](../../lib/features/municipal/screens/municipal_report_progress_screen.dart) | GlassCard, _CaseSummaryCard, _FailureNoticeCard, _RecentActivityCard, _StatusTimelineCard, _SummaryCard, _SyncPendingCard |
+| [municipal/screens/municipal_report_review_screen.dart](../../lib/features/municipal/screens/municipal_report_review_screen.dart) | GlassCard, _SectionCard |
+| [municipal/screens/municipal_resolution_details_screen.dart](../../lib/features/municipal/screens/municipal_resolution_details_screen.dart) | GlassCard, _EvidenceCard, _SummaryCard, _TimelineCard |
+| [municipal/screens/municipal_resolved_reports_screen.dart](../../lib/features/municipal/screens/municipal_resolved_reports_screen.dart) | GlassCard, _ResolvedReportCard, _StatCard |
+| [municipal/screens/municipal_verification_screen.dart](../../lib/features/municipal/screens/municipal_verification_screen.dart) | GlassCard |
+
+## Shared sheets
+
+Every actual native modal-bottom-sheet launch found in `lib` uses showCivicBottomSheet. The only direct showModalBottomSheet call is inside its implementation; comment references are not consumers. The helper retains the shared surface, native barrier/Back/drag, 200/100ms motion and reduced-motion handling. This source fact does not establish physical feel, keyboard or dismissal acceptance.
+
+| Consumer | Launches | Preserved responsibility |
+| --- | --- | --- |
+| Citizen dashboard | 1 | Nearby results and confirmation |
+| Citizen Create Report | 1 | Duplicate decision; drag disabled; result/session guards |
+| Maintenance Update Progress | 1 | Photo source selection |
+| Municipal Active Reports | 1 | Sort result |
+| Municipal Report Progress | 1 | Send-back reason form |
+| Ministry Report Insights | 3 | Date range, category, status |
+| Shared Ministry region picker | 1 | Region selection |
+| Shared profile name editor | 1 | Opaque form, drag disabled, save/discard guard |
+
+## Remaining work
+
+- [ ] Render/compare the direct-form exceptions first: Maintenance Update Progress, Citizen Create Report and generic auth/About compositions. Compare intended grouping with history and accepted references before changing it.
+- [ ] Continue all-role visual/state comparisons for the mapped cards, including long content, narrow/large text, light/dark, loading/failure and keyboard. Keep each confirmed defect scoped to its screen; do not infer a global redesign from this map.
+- [ ] Device-check sheet selection/results, barrier/Back/drag, form keyboard, save/discard, reduced motion and restored search/scroll. Preserve existing accepted collapsing search and Flutter-only chip motion.
+- [ ] Retain the previously recorded Admin Profile failed-save uncertainty wording issue for its own repair; do not mark it fixed here.
+- [ ] Supported password last-character reveal investigation follows the card/sheet work. Existing secure input/autofill/Show-Hide remain; no OS-setting change or insecure replacement is authorized by this inventory.
+
+Maintenance/real push and Francis-owned success/Activity Detail remain open. See web docs/CURRENT_STATUS.md and LATIF_PROGRESS.md for current runtime/install/owner checks. Automated source discovery and prior test totals are separate from current owner acceptance.
