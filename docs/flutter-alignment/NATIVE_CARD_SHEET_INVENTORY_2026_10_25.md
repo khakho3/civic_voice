@@ -1,5 +1,16 @@
 # Card and shared-sheet inventory - 25 October 2026
 
+## First rendered slice and final password card repair
+
+Native runtime **6f7ea7f** adds the existing grouped AuthScreenLayout option to SetNewPasswordScreen. The Forgotten Password phone/OTP steps were already grouped, but the final password step still left its heading/message outside the card. This now groups heading, message, fields, action and footer for forgot/change/first-login purposes; brand stays outside. The first-login warning and absence of Back remain; other purpose callbacks, secure input/autofill/Show-Hide, validation, failure input retention and save behavior are unchanged. Web already uses this grouping; no web runtime change.
+
+**1,463 native tests and analyzer pass.** Twenty-four new cases cover three purposes, four widths (320/390/412/1440), both themes, 1.5x text and keyboard inset; they check grouping, Show, submission/failure input retention, reachable actions and purpose-appropriate Back. Eight private render cases exercised four actual screens (32 screen/theme/width/scale combinations, 64 top/bottom captures) at320/412, both themes and1x/1.5x text. Before/after password and representative narrow/high-text renders inspected. Maintenance Update Progress, Citizen Create Report and About retain their prior direct-form/editorial composition: no recent card removal was established from their compared source/history and rendered sample. This finding does not approve every possible workflow state.
+
+Actual Maintenance photo-source and shared Profile-name edit sheets were opened at320/412 in both themes with1.5x text. Twelve private captures cover photo source, profile idle and simulated keyboard300px. Cancel/barrier returned without writes; profile does not request the keyboard on open. Four consumer render checks plus11 existing shared-sheet selection/barrier/drag/reduced-motion checks pass (15 total). Native platform picker/GPS/maps/push/biometric/physical keyboard behavior was not exercised. The shared-profile failed-save wording should be reviewed alongside the already recorded Admin Profile uncertainty issue; it is not fixed by this layout change.
+
+DEV build/install status is recorded in LATIF_PROGRESS.md and web CURRENT_STATUS.md. Exact artifact/raster/device evidence stays private. The overall59-screen/all-state sweep and owner phone acceptance remain open.
+
+
 Scope: source discovery at native runtime 6f2fe41 (test-only follow-up c9db7e0). This lists all 59 current `lib/features/*/screens/*screen.dart` files and the 10 shared-sheet launches in eight consumer files. It is a source map, not a claim that every screen/state has been rendered or accepted on a phone. Shared widgets and routing still require their consumer checks. No runtime layout was changed by this inventory.
 
 The earlier repaired Admin identity/create/details/Settings/overview groups remain in source. Citizen report summaries/review/photos/location and Municipal/Ministry/Maintenance detail groups still delegate to their named cards. All five profile families use ProfileHeaderCard/ProfileSection. All five notification entries delegate to NotificationInboxPanel. Card names alone do not prove correct visual containment, spacing or state behavior.
@@ -89,7 +100,8 @@ Every actual native modal-bottom-sheet launch found in `lib` uses showCivicBotto
 
 ## Remaining work
 
-- [ ] Render/compare the direct-form exceptions first: Maintenance Update Progress, Citizen Create Report and generic auth/About compositions. Compare intended grouping with history and accepted references before changing it.
+- [x] Render the first direct-form slice: Maintenance Update Progress, Citizen Create Report, Set New Password and About. Final password grouping repaired in6f7ea7f; other sampled compositions preserved. Scope and automated evidence are above; physical acceptance remains separate.
+- [ ] Continue the remaining auth compositions and all-role card/state visuals; then the remaining sheet consumers. Compare intended grouping with history/accepted references before changing it.
 - [ ] Continue all-role visual/state comparisons for the mapped cards, including long content, narrow/large text, light/dark, loading/failure and keyboard. Keep each confirmed defect scoped to its screen; do not infer a global redesign from this map.
 - [ ] Device-check sheet selection/results, barrier/Back/drag, form keyboard, save/discard, reduced motion and restored search/scroll. Preserve existing accepted collapsing search and Flutter-only chip motion.
 - [ ] Retain the previously recorded Admin Profile failed-save uncertainty wording issue for its own repair; do not mark it fixed here.

@@ -1,5 +1,15 @@
 # Owner UI follow-ups - 24 October 2026
 
+## Current rendered card/sheet slice - 25 October 2026
+
+Native runtime **6f7ea7f** groups the final Set New Password step using the existing shared task card. Forgot Password's phone/OTP steps were grouped already; the final password screen was still using the older heading outside the card. Heading/message/fields/action/footer now stay together for forgot/change/first-login purposes, with the brand outside. Existing Back rules (including no first-login Back), warning, secure inputs, autofill, Show-Hide, validation, callbacks and failed-save input retention remain. Web runtime stays81f4ad0; API remainsd00b6c6.
+
+**1,463 native tests and analyzer pass.**24 new checks cover all three purposes at320/390/412/1440, both themes,1.5x text and keyboard300px. Four actual direct-form screens were rendered at320/412, both themes,1x/1.5x:32 screen combinations/64 top-bottom captures. Before/after password and representative extremes inspected. Maintenance Update Progress, Citizen Create Report and About keep their existing composition; this sample did not establish recent card loss there. Actual Maintenance photo-source/Profile-name sheets also passed four large-text render checks, including cancellation/no writes and simulated keyboard;11 existing shared-sheet tests pass. This is automated/fixture evidence, not physical acceptance or the complete59-screen sweep.
+
+DEV profile APK through6f7ea7f is verified, replace-installed and open, retaining app data. One runtime source copied explicitly;39 source hashes match review and14 protected DEV config hashes remain unchanged. Same DEV package/label/signing, compiled local API and DEV Firebase verified; production targets absent. Exact artifact/device evidence stays private. Original native integration/owner SVG and API process/source are untouched. No merge, promotion or production deployment. See native NATIVE_CARD_SHEET_INVENTORY_2026_10_25.md for checked scope and remaining comparisons.
+
+Next: remaining auth/all-role card/state visuals and other shared-sheet consumers, then supported password last-character masking investigation. Revisit shared-profile failed-save wording alongside the recorded Admin Profile uncertain-save wording issue separately. Other owner checks, Maintenance/real push and Francis-owned success/Activity Detail remain open.
+
 ## Current permission setup and source inventory - 25 October 2026
 
 Web runtime **81f4ad0** simplifies first-visit permission setup: two short, unboxed rows for relevant location/notifications, explicit Allow actions, brief granted/blocked/unavailable feedback and optional Done for now. The full inbox notification settings remain available. There is no certificate/configuration explanation or raw registration error in the compact prompt. Existing storage/account keys, role eligibility, explicit permission gestures, push ownership/cancellation and registration behavior remain. Trusted HTTPS removes insecure/certificate restrictions, not browser consent or production push configuration requirements.
