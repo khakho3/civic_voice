@@ -224,16 +224,18 @@ void main() {
         owner: () => 'fixture',
         credential: () async => 'fixture',
         fetch: (_) async {
-          if (stopped)
+          if (stopped) {
             throw const ApiException(statusCode: 0, message: 'fixture');
+          }
           return overviewFixture();
         },
         parse: AdminOverview.parse,
       );
       addTearDown(source.dispose);
       final health = healthDirectory((_) async {
-        if (stopped)
+        if (stopped) {
           throw const ApiException(statusCode: 0, message: 'fixture');
+        }
         return healthy();
       });
       await tester.pumpWidget(host(source, health));
