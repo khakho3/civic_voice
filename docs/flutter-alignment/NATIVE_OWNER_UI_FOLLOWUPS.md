@@ -1,6 +1,18 @@
 # Owner UI follow-ups - 24 October 2026
 
-## Current API halo reference follow-up - 24 October 2026
+## Current API outage-state repair - 25 October 2026
+
+Native runtime **6f2fe41** (outage UI 05bca09; typed failures 46fa7bf), web runtime **ab8745a** (outage UI a8b1c5f). Failed/unhealthy service checks now show a red **API: Offline** badge and a centred service-error state with **Retry**. Unreachable requests say **Cannot reach CivicVoice**; server failures say **Service unavailable**. This describes the service, not the phone/browser's internet connection. Authorization and unverified/malformed health remain distinct; no health snapshot or zero counts are fabricated.
+
+A confirmed outage hides cached dashboard cards. Retry reloads overview and health; only verified overview data restores the cards. A newer successful health check clears stale Offline even when the overview still needs Retry. Normal same-owner refresh preserves cards/scroll; existing owner/request guards, API halo, navigation and shared search remain. The native heading/badge also wraps safely at narrow widths with large text.
+
+Checks: **1,439 native tests**; **410 web tests**, lint/build clean (208 PWA entries). Native analyzer clean; test-only style correction c9db7e0 also passes its 8 focused checks. A real closed loopback HTTP listener verifies overview/health connection-refusal classification. Other regressions cover outage/recovery ordering, cached-card removal, paired Retry, unauthorized/malformed/negative health and narrow/large-text layouts. Actual native 320/412 light/dark and web 390px service-error renders were inspected. Automated/fixture checks do not establish owner phone acceptance.
+
+DEV profile APK through 6f2fe41 is verified, replace-installed and open, with app data retained. Five outage runtime files and then four recovery updates were copied explicitly; 38 review-source hashes match and 14 protected DEV config hashes remain unchanged. DEV package/label/signing, compiled local API and DEV Firebase are verified; production targets are absent. Exact evidence stays private. API source remains d00b6c6; no API process was started/stopped by this repair. Its last read-only readiness check succeeded. Original native integration and owner SVG remain untouched. No merge, promotion or production deployment.
+
+Owner check pending: stop API -> red Offline/service-error -> restart API and Retry -> verified overview/Online, both clients. Other halo/route/card/device checks remain pending. Next independent work remains the all-screen card/shared-sheet inventory, then supported password last-character masking investigation. Maintenance/real push and Francis-owned ordinary-success/Activity Detail stay open.
+
+## Previous API halo reference follow-up - 24 October 2026
 
 Owner prefers web's contained expanding halo over Flutter's changing glow. Web pulse appearance is the accepted reference; its source remains unchanged at46eb9aa. Native **dcf06f4** now matches: steady10px core,18px halo scaling0.65–1.2 with0.12–0.30 opacity over1.8seconds, and only the same small fixed core shadow. The core does not grow or bloom. Offline/unavailable/sample states do not breathe; reduced motion keeps a static halo. Health sources/polling, header layout, navigation and accepted tap/search behaviour are unchanged.
 
