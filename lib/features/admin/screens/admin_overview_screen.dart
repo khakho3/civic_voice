@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../widgets/busy_indicator.dart';
+import '../../../widgets/app_state_message.dart';
+import '../services/admin_read_failure.dart';
 import '../../../core/widgets/ghana_refresh_indicator.dart';
 import '../models/admin_overview.dart';
 import '../services/admin_overview_directory.dart';
@@ -15,6 +17,7 @@ class AdminOverviewScreen extends StatefulWidget {
   const AdminOverviewScreen({
     super.key,
     this.directory,
+    this.healthDirectory,
     required this.onUsers,
     required this.onTeams,
     required this.onActivity,
@@ -26,6 +29,7 @@ class AdminOverviewScreen extends StatefulWidget {
     this.superAdmin,
   });
   final AdminResource<AdminOverview>? directory;
+  final AdminSystemActivityDirectory? healthDirectory;
   final VoidCallback onUsers,
       onTeams,
       onActivity,
@@ -42,22 +46,32 @@ class AdminOverviewScreen extends StatefulWidget {
 class _AdminOverviewScreenState extends State<AdminOverviewScreen>
     with WidgetsBindingObserver {
   Timer? _healthTimer;
+  bool _requested = false;
+  AdminSystemActivityDirectory get _health =>
+      widget.healthDirectory ?? AdminSystemActivityDirectory.instance;
+  bool get _superAdmin => widget.superAdmin ?? verifiedSuperAdmin;
+  bool get _canCheckHealth =>
+      _superAdmin &&
+      (widget.directory == null || widget.healthDirectory != null);
   AdminResource<AdminOverview> get _source =>
       widget.directory ?? AdminOverviewDirectory.instance;
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    if (widget.directory == null && verifiedSuperAdmin) {
-      unawaited(AdminSystemActivityDirectory.instance.refreshHealth());
+    if (_canCheckHealth) {
+      unawaited(_health.refreshHealth());
       _healthTimer = Timer.periodic(const Duration(seconds: 30), (_) {
-        if (verifiedSuperAdmin) {
-          unawaited(AdminSystemActivityDirectory.instance.refreshHealth());
+        if (_canCheckHealth) {
+          unawaited(_health.refreshHealth());
         }
       });
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) unawaited(_source.load());
+      if (mounted) {
+        _requested = true;
+        unawaited(_source.load());
+      }
     });
   }
 
@@ -70,7 +84,103 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) unawaited(_source.load());
+    if (state == AppLifecycleState.resumed) unawaited(_refresh());
+  }
+
+  Future<void> _refresh() async {
+    await Future.wait([
+      _source.load(),
+      if (_canCheckHealth) _health.refreshHealth(),
+    ]);
+  }
+
+  Widget _heading(BuildContext context, bool superAdmin) => LayoutBuilder(
+    builder: (context, constraints) => Row(
+      children: [
+        Expanded(
+          child: Text(
+            superAdmin ? 'Platform Overview' : 'Assembly Overview',
+            style: Theme.of(context).textTheme.headlineSmall,
+          ),
+        ),
+        if (superAdmin) ...[
+          const SizedBox(width: AppSpacing.sm),
+          ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: constraints.maxWidth / 2),
+            child: AdminApiStatusBadge(
+              stats: _health.hasLiveHealthSnapshot
+                  ? _health.health.value
+                  : null,
+              offline:
+                  adminServiceOffline(_health.healthFailure.value) ||
+                  _source.failure == AdminReadFailure.unreachable,
+              onTap: widget.onActivity,
+            ),
+          ),
+        ],
+      ],
+    ),
+  );
+
+  Widget _failureScreen(
+    BuildContext context,
+    bool superAdmin,
+    EdgeInsets inset,
+    AdminReadFailure failure,
+  ) {
+    final title = switch (failure) {
+      AdminReadFailure.unreachable => 'Cannot reach CivicVoice',
+      AdminReadFailure.service => 'Service unavailable',
+      AdminReadFailure.unauthorized => 'Administrative access required',
+      AdminReadFailure.unverified => 'Unable to load dashboard',
+    };
+    final message = switch (failure) {
+      AdminReadFailure.unreachable =>
+        "We couldn't reach the CivicVoice service. Check your connection or try again shortly.",
+      AdminReadFailure.service =>
+        'The CivicVoice service could not load the dashboard. Please try again shortly.',
+      AdminReadFailure.unauthorized =>
+        'Your account needs administrative access and a configured jurisdiction.',
+      AdminReadFailure.unverified =>
+        'The dashboard data could not be verified. Please try again.',
+    };
+    return GhanaRefreshIndicator(
+      topOffset: inset.top,
+      onRefresh: _refresh,
+      child: CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        slivers: [
+          SliverPadding(
+            padding: EdgeInsets.fromLTRB(
+              AppSpacing.md,
+              inset.top + AppSpacing.lg,
+              AppSpacing.md,
+              0,
+            ),
+            sliver: SliverToBoxAdapter(child: _heading(context, superAdmin)),
+          ),
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: Padding(
+              padding: EdgeInsets.only(bottom: inset.bottom),
+              child: Semantics(
+                liveRegion: true,
+                child: AppStateMessage(
+                  icon: failure == AdminReadFailure.unauthorized
+                      ? AppIcons.permissionDenied
+                      : AppIcons.warning,
+                  badgeColor: AppColors.error,
+                  title: title,
+                  message: message,
+                  primaryActionLabel: 'Retry',
+                  onPrimaryAction: _refresh,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _management(
@@ -109,13 +219,34 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen>
       }
     },
     body: AnimatedBuilder(
-      animation: _source,
+      animation: Listenable.merge([
+        _source,
+        _health.health,
+        _health.healthFailure,
+      ]),
       builder: (context, _) {
         final data = _source.data,
             superAdmin = widget.superAdmin ?? verifiedSuperAdmin;
         final inset = AdminScaffold.contentPadding(context);
+        final verifiedHealth = _health.hasLiveHealthSnapshot
+            ? _health.health.value
+            : null;
+        final healthFailed =
+            adminServiceOffline(_health.healthFailure.value) ||
+            verifiedHealth != null &&
+                (!verifiedHealth.apiOnline || !verifiedHealth.databaseOnline);
+        if (_source.error != null ||
+            healthFailed ||
+            _requested && data == null && !_source.loading) {
+          final failure = _source.failure == AdminReadFailure.unauthorized
+              ? AdminReadFailure.unauthorized
+              : healthFailed
+              ? (_health.healthFailure.value ?? AdminReadFailure.service)
+              : _source.failure ?? AdminReadFailure.unverified;
+          return _failureScreen(context, superAdmin, inset, failure);
+        }
         return GhanaRefreshIndicator(
-          onRefresh: _source.load,
+          onRefresh: _refresh,
           topOffset: inset.top,
           child: ListView(
             physics: const AlwaysScrollableScrollPhysics(),
@@ -126,52 +257,16 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen>
               inset.bottom + AppSpacing.lg,
             ),
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      superAdmin ? 'Platform Overview' : 'Assembly Overview',
-                      style: Theme.of(context).textTheme.headlineSmall,
-                    ),
-                  ),
-                  if (superAdmin) ...[
-                    const SizedBox(width: AppSpacing.sm),
-                    ValueListenableBuilder(
-                      valueListenable:
-                          AdminSystemActivityDirectory.instance.health,
-                      builder: (context, health, _) => AdminApiStatusBadge(
-                        stats:
-                            AdminSystemActivityDirectory
-                                .instance
-                                .hasLiveHealthSnapshot
-                            ? health
-                            : null,
-                        onTap: widget.onActivity,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
+              _heading(context, superAdmin),
               const SizedBox(height: AppSpacing.lg),
               // Pull/resume refresh already has its own feedback. Only a cold
               // load needs this row; adding it above verified cards shifts them.
-              if (_source.loading && data == null)
+              if ((_source.loading || !_requested) && data == null)
                 const Center(
                   child: BusyIndicator(
                     semanticsLabel: 'Loading, please wait...',
                   ),
                 ),
-              if (_source.error != null ||
-                  data == null && !_source.loading) ...[
-                Text(
-                  _source.error ??
-                      'A verified administrator session is required.',
-                ),
-                TextButton(
-                  onPressed: _source.loading ? null : _source.load,
-                  child: const Text('Refresh overview'),
-                ),
-              ],
               if (data != null) ...[
                 _DashboardCard(
                   key: const ValueKey('admin-overview-stats'),

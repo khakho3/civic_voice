@@ -80,7 +80,7 @@ void main() {
         pending.completeError(StateError('fixture failure'));
         await switched;
         await tester.pumpAndSettle();
-        expect(find.text('Refresh overview'), findsOneWidget);
+        expect(find.text('Retry'), findsOneWidget);
         expect(find.text('1234'), findsNothing);
         expect(rect.width, 380);
         expect(tester.takeException(), isNull);

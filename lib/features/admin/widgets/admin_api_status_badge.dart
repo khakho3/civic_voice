@@ -9,11 +9,13 @@ class AdminApiStatusBadge extends StatefulWidget {
     super.key,
     required this.stats,
     this.sample = false,
+    this.offline = false,
     this.onTap,
   });
 
   final SystemHealthStats? stats;
   final bool sample;
+  final bool offline;
   final VoidCallback? onTap;
 
   @override
@@ -31,6 +33,7 @@ class _AdminApiStatusBadgeState extends State<AdminApiStatusBadge>
     final reduced = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
     final online =
         !widget.sample &&
+        !widget.offline &&
         widget.stats?.apiOnline == true &&
         widget.stats?.databaseOnline == true;
     if (online && !reduced) {
@@ -62,8 +65,11 @@ class _AdminApiStatusBadgeState extends State<AdminApiStatusBadge>
   Widget build(BuildContext context) {
     final stats = widget.stats;
     final live = !widget.sample;
-    final online = stats?.apiOnline == true && stats?.databaseOnline == true;
-    final unavailable = stats == null;
+    final online =
+        !widget.offline &&
+        stats?.apiOnline == true &&
+        stats?.databaseOnline == true;
+    final unavailable = stats == null && !widget.offline;
     final color = unavailable || !live
         ? Theme.of(context).colorScheme.onSurfaceVariant
         : online
@@ -144,17 +150,19 @@ class _AdminApiStatusBadgeState extends State<AdminApiStatusBadge>
                 },
               ),
               const SizedBox(width: AppSpacing.xs),
-              Text(
-                'API: ${unavailable
-                    ? 'Unavailable'
-                    : !live
-                    ? 'Sample'
-                    : online
-                    ? 'Online'
-                    : 'Offline'}',
-                style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color: color,
-                  fontWeight: AppFontWeight.semiBold,
+              Flexible(
+                child: Text(
+                  'API: ${unavailable
+                      ? 'Unavailable'
+                      : !live
+                      ? 'Sample'
+                      : online
+                      ? 'Online'
+                      : 'Offline'}',
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: color,
+                    fontWeight: AppFontWeight.semiBold,
+                  ),
                 ),
               ),
             ],

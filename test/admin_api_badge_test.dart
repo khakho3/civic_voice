@@ -74,12 +74,20 @@ void main() {
           final badge = tester.getRect(find.byType(AdminApiStatusBadge));
           expect(badge.left, greaterThanOrEqualTo(heading.right));
           expect(badge.right, lessThanOrEqualTo(width - 16));
-          expect(
-            tester
-                .getSize(find.byKey(const ValueKey('admin-overview-stats')))
-                .width,
-            width - 32,
-          );
+          if (status == 'Offline') {
+            expect(
+              find.byKey(const ValueKey('admin-overview-stats')),
+              findsNothing,
+            );
+            expect(find.text('Service unavailable'), findsOneWidget);
+          } else {
+            expect(
+              tester
+                  .getSize(find.byKey(const ValueKey('admin-overview-stats')))
+                  .width,
+              width - 32,
+            );
+          }
           await tester.tap(find.text('API: $status'));
           await tester.pump();
           expect(activity, 1);
