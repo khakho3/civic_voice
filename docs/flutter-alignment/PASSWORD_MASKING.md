@@ -67,8 +67,9 @@ DEV. Preserve app data and the phone's system settings.
 other auth-flow/IME/password-manager/device checks separate. Web536ddf1 now adds
 a local dot-only font to real password inputs, retaining native semantics and
 Show/Hide; see web docs/WEB_PASSWORD_MASKING.md. Desktop Chromium/font checks
-pass; direct mobile-browser echo remains pending after automatic approval review
-blocked the Android Chrome test command without a detailed reason. Native iOS
+pass. Owner also confirms the web hidden-typing symptom is fixed (exact browser
+and device unspecified); automated Android Chrome testing remains unperformed
+after approval review blocked that test command without a detailed reason. Native iOS
 embedding suppression remains unimplemented/unverified.
 
 References: [Flutter preference](https://api.flutter.dev/flutter/dart-ui/PlatformDispatcher/brieflyShowPassword.html),
