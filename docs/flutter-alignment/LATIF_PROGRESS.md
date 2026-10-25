@@ -1,5 +1,15 @@
 # Latif progress
 
+## Open Alerts list card/state slice - 25 October 2026
+
+Native runtime **af5754b** addresses this list only. Existing populated cards already use solid surfaces/zero elevation and are retained. The empty result now uses that same card, matching web grouping. The fixed24px count/updating slot clipped larger text; it now measures actual width/text scale and reserves both labels so same-owner filtering does not move matching cards. Normal short1x summaries retain24px. Search/collapse, chip motion, cursor continuation, request/session guards, refresh/error wording and the separate alert review/detail remain unchanged.
+
+**1,529 native tests and analyzer pass.**24 new cases cover320/390/412/1440, both themes,1x/1.5x/2x with loading, long content/counts, quiet filtering, empty/error/refresh/recovery.35 focused alert checks pass. Eight actual-font visual cases cover320/412, both themes,1.5x/2x and five states/top-bottom:80 before and80 after captures; representative before/after/extreme renders inspected. The320px/1.5x baseline count needed72px but received24px. This is automated/fixture evidence, not owner phone acceptance.
+
+The isolated DEV profile APK throughaf5754b is built and artifact-verified: one explicit runtime source copied,42 source hashes match review and all14 protected DEV configuration hashes remain unchanged, including the accepted Android masking Application hook. DEV package/label/signature/local API/Firebase and compiled new summary are verified; production targets are absent. **Installation is pending: ADB currently sees no connected phone or mDNS service. Installed DEV remains last-confirmed26c3278.** A reconnect question is pending; do not claim this build is installed. API is stopped and remains stopped; configured server DEV Firebase/local database were checked, but no actual runtime or live read is claimed. Exact evidence remains private.
+
+Next one-screen slice: **Open Alerts review/detail**, including note/history, loading/failure and narrow/large-text/keyboard states. The remaining all-role card/state sweep, C01/P04 live rating/standing and other feature/device/Maintenance/push/Francis-owned work remain open. Owner-confirmed Android/web masking is preserved. Web runtime536ddf1 (last423 tests/lint/build), API d00b6c6 and original native6ace645/owner SVG are unchanged. Web untracked output/ is preserved. No API process changes, real account/report mutations, merge, promotion or production deployment.
+
 ## Web password masking follow-up and Flutter confirmation - 25 October 2026
 
 Owner confirms Flutter and web hidden passwords now fully hide (25 October 2026). Web confirmation is human acceptance of the reported symptom; the exact browser/device was not specified. Native runtime26c3278/installed DEV are unchanged this round; this confirms the reported typing issue, not every reset/registration/password-manager/device check or native iOS suppression.

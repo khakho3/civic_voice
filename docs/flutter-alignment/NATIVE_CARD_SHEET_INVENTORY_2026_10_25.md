@@ -1,5 +1,30 @@
 # Card and shared-sheet inventory - 25 October 2026
 
+## Open Alerts list slice - 25 October 2026
+
+Native af5754b checks the first mapped list only. Existing alert cards already
+use an opaque surface with zero elevation and keep their accepted appearance.
+The empty result now uses that same card, matching the web grouping. A fixed
+24px result-summary slot clipped larger text; it now measures the actual width,
+font/text scale, direction and locale, reserving both count and updating labels
+so a same-owner preview does not shift during filtering. Normal short summaries
+at 1x retain 24px. Alert review/detail, search, filters, data/ownership guards,
+continuation, loading/refresh and error wording were not redesigned.
+
+All 1,529 native tests and analyzer pass. Twenty-four new width/theme/text-scale
+cases cover 320/390/412/1440, light/dark, 1x/1.5x/2x; initial loading, long title
+and count, quiet filtering, grouped empty results, failure/refresh and recovery.
+Thirty-five focused alert layout/filter/navigation checks pass. Separate actual
+font renders cover eight 320/412 light/dark 1.5x/2x combinations and five states,
+top/bottom: 80 before and 80 after captures. The baseline 320px/1.5x count needed
+72px but received 24px; after renders show it fully. These are fixture checks;
+owner phone acceptance remains pending.
+
+Next one-screen slice: Open Alerts review/detail, including note/history,
+loading/failure and narrow/large-text/keyboard states. The remainder of this map,
+all-role card sweep and C01/P04 standing integration remain open. Current DEV
+artifact/install status is recorded in CURRENT_STATUS.md and the private checklist.
+
 ## Current auth/sheet visual follow-up and open feature debt - 25 October 2026
 
 Native runtime **b7f58eb** includes three scoped repairs: **4b68b56** groups Forgot Password's code screen using the existing recovery card; **4b2dcc8** measures the Municipal detail header's two text lines at the actual text scale and gives all six consumers the same body inset; **b7f58eb** retains shared typography on onboarding's Guest action. The normal-scale header height, Back/menu behavior, default registration-code layout, OTP timing/verification/resend, Guest final-page gating, accepted hero layouts, and shared search/filter behavior remain. Correction to the previous note: only Forgot Password's phone step and Change Password's OTP step were grouped at the preceding checkpoint; Forgot Password's own OTP step was still using the default layout and is fixed now.
@@ -38,7 +63,7 @@ All rows below mean **source located; full visual/state/device check still pendi
 
 | Feature / screen | Named surface or composition |
 | --- | --- |
-| [admin/screens/admin_alerts_screen.dart](../../lib/features/admin/screens/admin_alerts_screen.dart) | Card, _AlertCard |
+| [admin/screens/admin_alerts_screen.dart](../../lib/features/admin/screens/admin_alerts_screen.dart) | List slice checked above; review/detail still pending. Card, _AlertCard |
 | [admin/screens/admin_create_user_screen.dart](../../lib/features/admin/screens/admin_create_user_screen.dart) | FormSectionCard, _Section |
 | [admin/screens/admin_dashboard_screen.dart](../../lib/features/admin/screens/admin_dashboard_screen.dart) | GlassCard |
 | [admin/screens/admin_maintenance_teams_screen.dart](../../lib/features/admin/screens/admin_maintenance_teams_screen.dart) | GlassCard, _Section, _TeamCard |
@@ -117,10 +142,12 @@ Every actual native modal-bottom-sheet launch found in `lib` uses showCivicBotto
 
 - [x] Render the first direct-form slice: Maintenance Update Progress, Citizen Create Report, Set New Password and About. Final password grouping repaired in6f7ea7f; other sampled compositions preserved. Scope and automated evidence are above; physical acceptance remains separate.
 - [x] Render representative remaining auth compositions/states and all remaining shared-sheet surfaces. Scoped evidence above; physical and exhaustive workflow checks remain pending.
+- [x] Open Alerts list fixture slice: opaque populated/empty cards, larger count/updating text, loading/failure/recovery. Owner phone acceptance remains pending.
+- [ ] Open Alerts review/detail is next; inspect this screen before moving to later mapped screens.
 - [ ] Continue all-role card/data-state comparisons; the C01/P04 rating/standing feature remains explicitly unfinished.
 - [ ] Continue all-role visual/state comparisons for the mapped cards, including long content, narrow/large text, light/dark, loading/failure and keyboard. Keep each confirmed defect scoped to its screen; do not infer a global redesign from this map.
 - [ ] Device-check sheet selection/results, barrier/Back/drag, form keyboard, save/discard, reduced motion and restored search/scroll. Preserve existing accepted collapsing search and Flutter-only chip motion.
 - [ ] Retain the previously recorded Admin Profile failed-save uncertainty wording issue for its own repair; do not mark it fixed here.
-- [ ] Supported password last-character reveal investigation follows the card/sheet work. Existing secure input/autofill/Show-Hide remain; no OS-setting change or insecure replacement is authorized by this inventory.
+- [ ] Broader password/device/IME/autofill and native iOS checks remain open. Owner moved masking ahead of cards and confirmed Android/web hidden typing; do not repeat the old masking queue or infer every platform/flow is complete.
 
 Maintenance/real push and Francis-owned success/Activity Detail remain open. See web docs/CURRENT_STATUS.md and LATIF_PROGRESS.md for current runtime/install/owner checks. Automated source discovery and prior test totals are separate from current owner acceptance.
