@@ -2,8 +2,9 @@
 
 Owner prioritised this work on 25 October 2026. The Android app suppresses
 Flutter's brief last-character reveal while a password field is hidden. Explicit
-Show/Hide remains available. This is not a claim of iOS/web suppression or owner
-phone acceptance.
+Show/Hide remains available. Owner confirms Android hidden typing is fixed;
+other auth-flow/IME/password-manager checks and native iOS suppression remain
+separate. The later web implementation is described under Remaining platform limits.
 
 ## Implementation and scope
 
@@ -62,11 +63,13 @@ DEV. Preserve app data and the phone's system settings.
 
 ## Remaining platform limits
 
-Web keeps its native type=password input, password-manager/autofill support and
-explicit Show/Hide. Browser/OS brief echo has no standard cross-browser per-field
-suppression control; the new web contracts do not claim to verify mobile-browser
-echo. iOS embedding suppression is unimplemented/unverified. Keep these and
-physical Android acceptance open in the backlog.
+25 October owner update: Flutter Android hidden typing is confirmed fixed. Keep
+other auth-flow/IME/password-manager/device checks separate. Web536ddf1 now adds
+a local dot-only font to real password inputs, retaining native semantics and
+Show/Hide; see web docs/WEB_PASSWORD_MASKING.md. Desktop Chromium/font checks
+pass; direct mobile-browser echo remains pending after automatic approval review
+blocked the Android Chrome test command without a detailed reason. Native iOS
+embedding suppression remains unimplemented/unverified.
 
 References: [Flutter preference](https://api.flutter.dev/flutter/dart-ui/PlatformDispatcher/brieflyShowPassword.html),
 [FlutterJNI](https://api.flutter.dev/javadoc/io/flutter/embedding/engine/FlutterJNI.html),

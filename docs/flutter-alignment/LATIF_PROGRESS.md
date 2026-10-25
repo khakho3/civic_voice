@@ -1,5 +1,15 @@
 # Latif progress
 
+## Web password masking follow-up and Flutter confirmation - 25 October 2026
+
+Owner confirms Flutter hidden passwords now fully hide. Native runtime26c3278/installed DEV are unchanged this round; this confirms the reported typing issue, not every reset/registration/password-manager/device check or native iOS suppression.
+
+Web runtime **536ddf1** now supplements the real secure password input with a local dot-only font while hidden. A browser-echoed glyph therefore draws as a dot; real values, native editing/autofill hints and explicit Show/Hide remain. Show and placeholders use the normal app font. The compatible5,348-byte font is embedded with no external font request, and its OFL license ships with the website. Hidden ink stays transparent until the font is loaded; if fonts are blocked, Show remains available but hidden typing has no visible dots. No duplicate input, password copy/overlay or browser/OS setting change. See docs/WEB_PASSWORD_MASKING.md (web repo).
+
+**423 web tests, lint/build pass** (208 PWA entries). Actual shared-component Chromium fixtures pass320/390/412/1440 in both themes and320px at150% root text, preserving placeholders, values and Show/Hide without horizontal overflow. Delayed/failed font guards pass. All13 representative character types render identical dot pixels; font audit confirms all2,049 glyphs including notdef have one identical outline across1,111,998 mapped Unicode scalars. These are desktop Chromium/fixture checks. **Direct mobile browser echo, real IME/password-manager and other-browser acceptance remain pending.** Automatic approval review blocked the Android Chrome test command without a detailed reason; exact evidence is private. The dedicated temporary AVD was stopped/removed; owner devices/AVDs were not changed.
+
+Next: owner web-browser masking confirmation, then remaining all-role card/data-state comparisons. C01/P04 live rating/standing, remaining feature/device/Maintenance/push and Francis-owned work stay open. No merge, promotion, API/configuration change or production deployment. Earlier test-only web masking/platform-limit notes below are historical and superseded by this implementation; native iOS suppression remains open.
+
 ## Current password masking checkpoint - 25 October 2026
 
 Owner moved password masking ahead of the remaining card sweep. Native runtime **26c3278** suppresses the brief last-character reveal on **Android**, using an app-local Flutter settings-message filter. The five existing secure inputs retain real values, autofill hints, validation, paste/edit behavior and explicit Show/Hide. Shared padlock icons were already present. The phone's global password setting, Activity/plugin lifecycle, other engine settings and accepted search/filter/card behavior remain. Recheck the factory hook on Flutter upgrades or new spawned UI engines. See native docs/flutter-alignment/PASSWORD_MASKING.md.
