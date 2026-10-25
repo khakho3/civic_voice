@@ -1,5 +1,15 @@
 # Latif progress
 
+## Citizen Home rating-to-actions spacing follow-up - 25 October 2026
+
+Owner reported excess space between the new Home standing card and quick actions. Native **ce622ea** removes only the nested action GridView's automatic safe-area padding (`padding: EdgeInsets.zero`); the outer Home list already owns screen insets. The existing 32px section gap remains. Rating data/refresh/tap behavior, action cards, report search/filters and deferred bottom-navigation design are unchanged.
+
+The regression reproduces **96px instead of 32px** with a 64px phone top inset, in empty/populated Home and both themes; all four now measure 32px. **All 1,583 Flutter tests pass; analyzer clean.** Actual-font 412px dark renders with top/bottom phone insets cover fractional/low/highest/guest/malformed data on Home and Profile (10 captures); Home inspected. Automated fixtures are separate from owner phone acceptance.
+
+Isolated DEV through ce622ea is artifact-verified, replace-installed and launched with data retained; installed APK digest matches. One scoped Home source copied; 49 source hashes match review and all 14 protected DEV configuration hashes remain unchanged. DEV package/signing/local API/Firebase verified; production targets absent. The current local API process was checked read-only; no process/configuration change. Exact evidence remains private. **Owner spacing confirmation and broader rating freshness/live acceptance remain pending.**
+
+Next independent item stays Open Alerts review/detail. Owner-deferred long-text/nav overflow, confidence/trust-engine review, AI categorization/review/analytics advisory, remaining card/profile work and required three-repo pre-production dead-code/obsolete-file smoke review all remain open. Web/API runtime and original native/owner assets are unchanged. No merge, promotion or production deployment.
+
 ## Current Citizen rating/standing integration - 25 October 2026
 
 Owner moved C01/P04 ahead of the queued Alert review/card sweep. Native runtime **9b4948d** (data/model **431fceb**) now consumes the existing auth-sync `trustRating`, binds it to the active registered Citizen account, and supplies compact Home and live detailed Profile. Arbitrary fractional stars, server labels/milestones and server low-standing flags are preserved. Missing/malformed/guest/staff standing stays hidden; raw trustScore is not used. Home opens Profile accessibly. Entry/resume and existing Home pull-to-refresh refresh standing without a new button/blocking loader. Request/session guards prevent late responses crossing accounts, logout or newer refreshes; name edits retain newer standing. Scoring and officer review are unchanged.
