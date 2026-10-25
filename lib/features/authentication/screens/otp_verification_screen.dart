@@ -151,7 +151,9 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
             : AppSemanticColors.light);
 
     return AuthScreenLayout(
-      groupHeadingWithForm: widget.groupHeadingWithForm,
+      groupHeadingWithForm:
+          widget.groupHeadingWithForm ||
+          widget.purpose == OtpPurpose.forgotPassword,
       onBack: widget.onBack,
       title: _title,
       supportingText: 'We sent a code to ${widget.phoneNumber}.',
