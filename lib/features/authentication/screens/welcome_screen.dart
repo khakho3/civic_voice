@@ -434,7 +434,7 @@ class _OnboardingActions extends StatelessWidget {
                         onPressed: _isFinalPage ? onContinueAsGuest : null,
                         style: TextButton.styleFrom(
                           foregroundColor: colorScheme.onSurface,
-                          textStyle: const TextStyle(
+                          textStyle: theme.textTheme.labelLarge?.copyWith(
                             fontWeight: AppFontWeight.semiBold,
                           ),
                         ),
