@@ -94,6 +94,10 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen>
     ]);
   }
 
+  bool get _overviewUnreachable =>
+      _source.failure == AdminReadFailure.unreachable &&
+      _source.failureSequence > _health.healthReadSequence;
+
   Widget _heading(BuildContext context, bool superAdmin) => LayoutBuilder(
     builder: (context, constraints) => Row(
       children: [
@@ -113,7 +117,7 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen>
                   : null,
               offline:
                   adminServiceOffline(_health.healthFailure.value) ||
-                  _source.failure == AdminReadFailure.unreachable,
+                  _overviewUnreachable,
               onTap: widget.onActivity,
             ),
           ),
@@ -242,6 +246,9 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen>
               ? AdminReadFailure.unauthorized
               : healthFailed
               ? (_health.healthFailure.value ?? AdminReadFailure.service)
+              : _source.failure == AdminReadFailure.unreachable &&
+                    !_overviewUnreachable
+              ? AdminReadFailure.unverified
               : _source.failure ?? AdminReadFailure.unverified;
           return _failureScreen(context, superAdmin, inset, failure);
         }

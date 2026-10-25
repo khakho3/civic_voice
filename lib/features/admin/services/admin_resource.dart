@@ -39,6 +39,7 @@ class AdminResource<T> extends ChangeNotifier {
       _disposed = false;
   String? _error;
   AdminReadFailure? _failure;
+  int _failureSequence = 0;
   bool get _current => !_disposed && _key != null && owner() == _key;
   T? get data => _current ? _data : null;
   bool get loading => _current && _loading;
@@ -46,6 +47,7 @@ class AdminResource<T> extends ChangeNotifier {
   bool get uncertain => _current && _uncertain;
   String? get error => _current ? _error : null;
   AdminReadFailure? get failure => _current ? _failure : null;
+  int get failureSequence => _current ? _failureSequence : 0;
   bool _owns(String key, int revision) =>
       _current && _key == key && _revision == revision;
   void clearSession() {
@@ -57,6 +59,7 @@ class AdminResource<T> extends ChangeNotifier {
     _uncertain = false;
     _error = null;
     _failure = null;
+    _failureSequence = 0;
     if (!_disposed) notifyListeners();
   }
 
@@ -83,6 +86,7 @@ class AdminResource<T> extends ChangeNotifier {
     _loading = true;
     _error = null;
     _failure = null;
+    _failureSequence = 0;
     notifyListeners();
     var fetching = false;
     try {
@@ -102,6 +106,7 @@ class AdminResource<T> extends ChangeNotifier {
       _failure ??= fetching
           ? classifyAdminReadFailure(exception)
           : AdminReadFailure.unverified;
+      _failureSequence = nextAdminReadSequence();
       _data = null;
       _error =
           'This information could not be verified. Please refresh and try again.';
@@ -124,6 +129,7 @@ class AdminResource<T> extends ChangeNotifier {
     _writing = true;
     _error = null;
     _failure = null;
+    _failureSequence = 0;
     notifyListeners();
     try {
       final token = await credential();

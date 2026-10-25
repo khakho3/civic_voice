@@ -27,3 +27,7 @@ AdminReadFailure classifyAdminReadFailure(Object error) {
 bool adminServiceOffline(AdminReadFailure? failure) =>
     failure == AdminReadFailure.unreachable ||
     failure == AdminReadFailure.service;
+
+// Local completion ordering, not backend data or a persisted health snapshot.
+int _readSequence = 0;
+int nextAdminReadSequence() => ++_readSequence;

@@ -70,6 +70,7 @@ class AdminSystemActivityDirectory {
   final ValueNotifier<bool> loading = ValueNotifier(false);
   final ValueNotifier<String?> error = ValueNotifier(null);
   final healthFailure = ValueNotifier<AdminReadFailure?>(null);
+  int healthReadSequence = 0;
   bool hasLiveSnapshot = false;
   bool hasLiveHealthSnapshot = false;
 
@@ -104,6 +105,7 @@ class AdminSystemActivityDirectory {
     ++_healthRefreshRevision;
     hasLiveSnapshot = false;
     hasLiveHealthSnapshot = false;
+    healthReadSequence = 0;
     healthFailure.value = null;
     loading.value = false;
     error.value = null;
@@ -203,11 +205,13 @@ class AdminSystemActivityDirectory {
       if (!_isCurrentHealthRefresh(healthRevision)) return;
       final verified = SystemHealthStats.fromApi(response);
       hasLiveHealthSnapshot = true;
+      healthReadSequence = nextAdminReadSequence();
       healthFailure.value = null;
       health.value = verified;
     } catch (exception) {
       if (_isCurrentHealthRefresh(healthRevision)) {
         hasLiveHealthSnapshot = false;
+        healthReadSequence = nextAdminReadSequence();
         healthFailure.value = fetching
             ? classifyAdminReadFailure(exception)
             : AdminReadFailure.unverified;

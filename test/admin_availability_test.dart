@@ -216,4 +216,40 @@ void main() {
       },
     );
   }
+  testWidgets(
+    'newer successful health clears stale Offline without inventing overview data',
+    (tester) async {
+      var stopped = true;
+      final source = AdminResource<AdminOverview>(
+        owner: () => 'fixture',
+        credential: () async => 'fixture',
+        fetch: (_) async {
+          if (stopped)
+            throw const ApiException(statusCode: 0, message: 'fixture');
+          return overviewFixture();
+        },
+        parse: AdminOverview.parse,
+      );
+      addTearDown(source.dispose);
+      final health = healthDirectory((_) async {
+        if (stopped)
+          throw const ApiException(statusCode: 0, message: 'fixture');
+        return healthy();
+      });
+      await tester.pumpWidget(host(source, health));
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(find.text('API: Offline'), findsOneWidget);
+      stopped = false;
+      await health.refreshHealth();
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.text('API: Online'), findsOneWidget);
+      expect(find.text('Unable to load dashboard'), findsOneWidget);
+      expect(find.text('Cannot reach CivicVoice'), findsNothing);
+      expect(find.byKey(const ValueKey('admin-overview-stats')), findsNothing);
+      await tester.tap(find.text('Retry'));
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(find.text('1234'), findsOneWidget);
+      expect(find.byType(AppStateMessage), findsNothing);
+    },
+  );
 }
