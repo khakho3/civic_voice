@@ -1126,6 +1126,16 @@ Future<void> _selectSyncedRole(
       phone: user.phone ?? 'Phone unavailable',
     );
   }
+  // Hide mounted audit reads before publishing a changed verified scope.
+  // The request key also fences any credential/read already in flight.
+  if (auth.getCurrentRole() != role ||
+      auth.getCurrentAdminTier() != tier ||
+      auth.getCurrentRegion() != (tier == AdminTier.admin ? region : null) ||
+      auth.getCurrentAssembly() !=
+          (tier == AdminTier.admin ? assembly : null) ||
+      auth.mustChangePasswordOnFirstLogin() != user.mustChangePassword) {
+    AdminActivityRepository.invalidateSession();
+  }
   await auth.selectRole(
     role,
     adminTier: tier,

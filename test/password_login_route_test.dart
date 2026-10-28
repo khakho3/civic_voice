@@ -11,10 +11,13 @@ import 'package:civic_voice/services/idle_session_timer.dart';
 import 'package:civic_voice/services/mock_auth_service.dart';
 import 'package:civic_voice/services/notification_directory.dart';
 import 'package:civic_voice/services/password_session_service.dart';
+import 'package:civic_voice/features/admin/services/admin_activity_repository.dart';
+import 'package:civic_voice/features/admin/models/admin_role_management_data.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'password_session_test.dart' show account;
+import 'admin_activity_contract_test.dart' show auditFixture;
 
 void main() {
   setUp(() async {
@@ -29,6 +32,49 @@ void main() {
       ApiClient.baseUrl = previous;
       IdleSessionTimer.instance.cancel();
     });
+  });
+  testWidgets('verified login invalidates the previous mounted audit scope', (
+    tester,
+  ) async {
+    await MockAuthService().selectRole(
+      AppRole.systemAdministrator,
+      adminTier: AdminTier.superAdmin,
+    );
+    final previous = AdminActivityRepository(
+      owner: () => 'old-admin',
+      credential: () async => 'fixture',
+      read: (_, _) async => {'activity': auditFixture()},
+    ).detail('event-one');
+    addTearDown(previous.dispose);
+    await previous.load();
+    expect(previous.data?.event?.id, 'event-one');
+    final service = PasswordSessionService(
+      passwordLogin: (_, _) async => 'handoff',
+      exchange: (_) async =>
+          const PasswordIdentity(uid: 'verified-uid', idToken: 'id-token'),
+      sync: (_) async => account(role: 'CITIZEN'),
+    );
+    await tester.pumpWidget(
+      CivicVoiceApp(initialRoute: AppRoutes.login, passwordSessions: service),
+    );
+    await tester.pumpAndSettle();
+    tester.widget<LoginScreen>(find.byType(LoginScreen)).onSignIn!(
+      '0200000000',
+      'test-password',
+      true,
+    );
+    for (
+      var frame = 0;
+      frame < 12 && find.byType(LoginScreen).evaluate().isNotEmpty;
+      frame++
+    ) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(MockAuthService().getCurrentRole(), AppRole.citizen);
+    expect(previous.data, isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+    expect(tester.takeException(), isNull);
   });
   for (final role in {
     'CITIZEN': AppRole.citizen,
