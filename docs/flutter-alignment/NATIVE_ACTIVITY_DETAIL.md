@@ -1,8 +1,8 @@
 # Flutter Admin Activity Detail - 28 October 2026
 
 Queue item 01 (I04/A05/B01) is implemented in 389487f, with verified-scope
-invalidation in 578ab59, in the review checkout. Live DEV and
-owner phone acceptance remain pending. This is the general audit detail; the
+invalidation in 578ab59, in the review checkout. The isolated DEV profile build
+is USB-installed and launched; owner phone acceptance remains pending. This is the general audit detail; the
 Open Alerts original-event snapshot and its review actions remain separate.
 
 ## Integrated behavior
@@ -61,23 +61,31 @@ Open Alerts original-event snapshot and its review actions remain separate.
 
 ## Remaining item 01 gate
 
-No new DEV source copy, APK build/install or phone interaction occurred. The
-previous installed checkpoint remains ce622ea in the private ledger; its current
-device state was not reverified. No listener on local API port 4000 was observed
-during this continuation; no owner process was started or stopped.
+On 28 October the owner authorized USB installation. Seven reviewed runtime
+deltas were copied to the isolated DEV checkout; 53 source hashes match review
+and all 14 protected configuration hashes remain unchanged. The profile APK
+through 578ab59 was built, artifact-verified, replace-installed and launched on
+the Pixel 9 Pro XL with data retained. The installed digest matches the artifact.
+DEV package/label/signing, compiled API, Dart/native DEV Firebase and preserved
+Android masking hooks pass verification; production targets are absent. Maps
+provider and package/certificate restriction checks pass. The existing API
+process targets DEV Firebase/local civic_voice; no process/config change occurred.
 
-Before a DEV build/install, follow the web `docs/BUILD_ENVIRONMENT_CHECKLIST.md`
-and private protected-config/source ledger. Reverify effective client and actual
-server targets; copy only explicit reviewed runtime files, preserve DEV identity
-and app data. Then owner-check Super/Assembly detail, real missing/forbidden
-events, filters/paging/PTR, keyboard/Back/scroll and both themes. Never manufacture
+The build command explicitly uses `--dart-define=API_BASE_URL=http://127.0.0.1:4000`.
+USB `adb reverse tcp:4000 tcp:4000` and a phone-side read-only health request
+verify connectivity; API readiness passes. Keep the cable attached/API running
+and restore the reverse after reconnect. Future Wi-Fi runs must explicitly use
+the current LAN define. Exact evidence is private in the web
+`.tmp/dev-activity-usb-preflight.json`; the earlier source-only and ce622ea
+installation ledgers remain historical. No new full suite was run for this
+installation; the source validation above is unchanged.
+
+Owner-check Super/Assembly detail, real missing/forbidden events, filters/paging/
+PTR, keyboard/Back/scroll and both themes. These remain pending; installation,
+launch and connectivity do not confirm user-visible behavior. Never manufacture
 real audit/account/report events or change audit settings just for QA.
 
-The source-only private `dev-activity-detail-preflight.json` records seven
-runtime deltas and their before/new hashes. Existing DEV source matches the
-pre-feature review after normalizing CRLF/LF only; all 14 protected configuration
-hashes match exactly. This ledger is explicitly unbuilt/uninstalled and does
-not replace the last installed ce622ea ledger. Runtime files for later review:
+The seven runtime deltas recorded in the private ledgers are:
 `admin_audit.dart`, `admin_activity_repository.dart`,
 `admin_activity_detail_screen.dart`, `admin_system_activity_screen.dart`,
 `lib/main.dart`, `lib/services/api_client.dart` and
