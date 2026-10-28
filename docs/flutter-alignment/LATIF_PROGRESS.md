@@ -1,5 +1,11 @@
 # Latif progress
 
+## Current owner continuation - 28 October 2026
+
+Canonical entry: `C:/Projects/www/civic-voice-web/docs/CURRENT_STATUS.md`; read `NEW_CHAT_HANDOFF_2026_10_28.md` and `PRIORITY_QUEUE_2026_10_28.md` there before work. Owner now prioritizes **01 Flutter general Admin Activity Detail** (not the Open Alerts original-event snapshot). Follow the 40-item ordered queue; older “next Open Alerts/card sweep” and contributor allocation paragraphs are historical. Scope/authorization/workflow, auth/notifications, confidence review, UI, AI/public and final cleanup/release gates remain distinct; no blanket completion is claimed.
+
+Standing Home/Profile integration is built; ce622ea Home spacing is owner-confirmed, broader live/device acceptance pending. Confidence/AI and three-repo dead-code/obsolete-file/full smoke review remain open; long-text/nav overflow is owner-deferred. This is documentation only; no runtime/process/configuration/build/install/test rerun or production change. Use last validated baselines in the canonical handoff, reverify repo/upstream/DEV targets before changing code. GitHub connectivity was intermittent on 28 October; verify remote freshness/publication before work. Preserve owner/private assets and existing accepted search/filter/Back/notification behavior. No merge, promotion or deployment without instruction.
+
 ## Citizen Home rating-to-actions spacing follow-up - 25 October 2026
 
 Owner reported excess space between the new Home standing card and quick actions. Native **ce622ea** removes only the nested action GridView's automatic safe-area padding (`padding: EdgeInsets.zero`); the outer Home list already owns screen insets. The existing 32px section gap remains. Rating data/refresh/tap behavior, action cards, report search/filters and deferred bottom-navigation design are unchanged.

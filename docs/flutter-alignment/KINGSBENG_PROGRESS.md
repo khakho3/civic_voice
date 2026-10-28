@@ -1,5 +1,11 @@
 # Kingsbeng repair progress — 14 October 2026
 
+## Current owner continuation - 28 October 2026
+
+Canonical entry: `C:/Projects/www/civic-voice-web/docs/CURRENT_STATUS.md`; read `NEW_CHAT_HANDOFF_2026_10_28.md` and `PRIORITY_QUEUE_2026_10_28.md` there before work. Owner now prioritizes **01 Flutter general Admin Activity Detail** (not the Open Alerts original-event snapshot). Follow the 40-item ordered queue; older “next Open Alerts/card sweep” and contributor allocation paragraphs are historical. Scope/authorization/workflow, auth/notifications, confidence review, UI, AI/public and final cleanup/release gates remain distinct; no blanket completion is claimed.
+
+Standing Home/Profile integration is built; ce622ea Home spacing is owner-confirmed, broader live/device acceptance pending. Confidence/AI and three-repo dead-code/obsolete-file/full smoke review remain open; long-text/nav overflow is owner-deferred. This is documentation only; no runtime/process/configuration/build/install/test rerun or production change. Use last validated baselines in the canonical handoff, reverify repo/upstream/DEV targets before changing code. GitHub connectivity was intermittent on 28 October; verify remote freshness/publication before work. Preserve owner/private assets and existing accepted search/filter/Back/notification behavior. No merge, promotion or deployment without instruction.
+
 ## Integration published — 15 October 2026
 
 Owner authorized promotion and Latif preparation. Accepted repair commits through a498f15 were fast-forwarded into codex/flutter-web-alignment. GitHub PR #19 is MERGED (15 October 2026, 13:34 UTC). Fresh fetch proved the old Latif branch contained no unique contributor commits; it was safely recreated from integration and both branches published atomically by ordinary fast-forward, with upstreams. Shared guide publication checkpoint c097f6f includes docs/flutter-team/LATIF_AGENT.md. Latif may now start; this supersedes all older waiting/uncommitted/integration-pending notes. Main remains 75e43b3; production configuration unchanged.

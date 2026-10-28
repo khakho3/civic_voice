@@ -1,5 +1,11 @@
 # Card and shared-sheet inventory - 25 October 2026
 
+## Current owner continuation - 28 October 2026
+
+Canonical entry: `C:/Projects/www/civic-voice-web/docs/CURRENT_STATUS.md`; read `NEW_CHAT_HANDOFF_2026_10_28.md` and `PRIORITY_QUEUE_2026_10_28.md` there before work. Owner now prioritizes **01 Flutter general Admin Activity Detail** (not the Open Alerts original-event snapshot). Follow the 40-item ordered queue; older “next Open Alerts/card sweep” and contributor allocation paragraphs are historical. Scope/authorization/workflow, auth/notifications, confidence review, UI, AI/public and final cleanup/release gates remain distinct; no blanket completion is claimed.
+
+Standing Home/Profile integration is built; ce622ea Home spacing is owner-confirmed, broader live/device acceptance pending. Confidence/AI and three-repo dead-code/obsolete-file/full smoke review remain open; long-text/nav overflow is owner-deferred. This is documentation only; no runtime/process/configuration/build/install/test rerun or production change. Use last validated baselines in the canonical handoff, reverify repo/upstream/DEV targets before changing code. GitHub connectivity was intermittent on 28 October; verify remote freshness/publication before work. Preserve owner/private assets and existing accepted search/filter/Back/notification behavior. No merge, promotion or deployment without instruction.
+
 ## Owner-reported Citizen Reports history cards - 25 October 2026
 
 Native af4992c matches the web history-card override in ReportsPage.css: opaque
@@ -174,10 +180,10 @@ Every actual native modal-bottom-sheet launch found in `lib` uses showCivicBotto
 - [x] Render the first direct-form slice: Maintenance Update Progress, Citizen Create Report, Set New Password and About. Final password grouping repaired in6f7ea7f; other sampled compositions preserved. Scope and automated evidence are above; physical acceptance remains separate.
 - [x] Render representative remaining auth compositions/states and all remaining shared-sheet surfaces. Scoped evidence above; physical and exhaustive workflow checks remain pending.
 - [x] Open Alerts list fixture slice: opaque populated/empty cards, larger count/updating text, loading/failure/recovery. Owner phone acceptance remains pending.
-- [x] Citizen Reports history-card surface corrected against web; scoped pixel/search/fixture checks above. Owner phone acceptance pending.
+- [x] Citizen Reports history-card surface corrected against web; scoped pixel/search/fixture checks above. Owner confirmed Citizen history-card appearance; this is not complete all-screen acceptance.
 - [ ] DEFERRED by owner: Citizen bottom-navigation/long-text overflow at412px/1.5x (1px). Owner has a larger idea; retain repro and await that design before changing sizing/wrapping.
-- [ ] Open Alerts review/detail is next; inspect this screen before moving to later mapped screens.
-- [ ] Continue all-role card/data-state comparisons; the C01/P04 rating/standing feature remains explicitly unfinished.
+- [ ] Open Alerts review/detail remains open, now queue item 22; Activity Detail is first under the 28 October owner order.
+- [ ] Continue all-role card/data-state comparisons. C01/P04 standing code is integrated; broader live/device acceptance remains pending (not an engine review).
 - [ ] Continue all-role visual/state comparisons for the mapped cards, including long content, narrow/large text, light/dark, loading/failure and keyboard. Keep each confirmed defect scoped to its screen; do not infer a global redesign from this map.
 - [ ] Device-check sheet selection/results, barrier/Back/drag, form keyboard, save/discard, reduced motion and restored search/scroll. Preserve existing accepted collapsing search and Flutter-only chip motion.
 - [ ] Retain the previously recorded Admin Profile failed-save uncertainty wording issue for its own repair; do not mark it fixed here.
