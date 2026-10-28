@@ -29,6 +29,8 @@ import 'features/admin/screens/admin_maintenance_teams_screen.dart';
 import 'features/admin/screens/admin_profile_screen.dart' as admin;
 import 'features/admin/screens/admin_role_management_screen.dart';
 import 'features/admin/screens/admin_system_activity_screen.dart';
+import 'features/admin/screens/admin_activity_detail_screen.dart';
+import 'features/admin/services/admin_activity_repository.dart';
 import 'features/admin/screens/admin_notifications_screen.dart';
 import 'features/admin/screens/admin_system_settings_screen.dart';
 import 'features/admin/screens/admin_user_details_screen.dart';
@@ -467,6 +469,7 @@ abstract final class AppRoutes {
   static const adminMaintenanceTeamForm = '/admin/maintenance-team-form';
   static const adminRoleManagement = '/admin/role-management';
   static const adminSystemActivity = '/admin/system-activity';
+  static const adminActivityDetail = AdminActivityDetailScreen.routeName;
   static const adminNotifications = '/admin/notifications';
   static const adminSystemSettings = '/admin/system-settings';
   static const adminProfile = '/admin/profile';
@@ -765,6 +768,10 @@ class _CivicVoiceAppState extends State<CivicVoiceApp>
               AppRoutes.adminUserManagement: _adminUserManagement,
               AppRoutes.adminRoleManagement: _adminRoleManagement,
               AppRoutes.adminSystemActivity: _adminSystemActivity,
+              AppRoutes.adminActivityDetail: (context) =>
+                  AdminActivityDetailScreen.fromSettings(
+                    ModalRoute.of(context)?.settings,
+                  ),
               AppRoutes.adminNotifications: _adminNotifications,
               AppRoutes.adminSystemSettings: _adminSystemSettings,
               AppRoutes.adminProfile: _adminProfile,
@@ -868,6 +875,13 @@ class _CivicVoiceAppState extends State<CivicVoiceApp>
             },
             onGenerateRoute: (settings) {
               final uri = Uri.tryParse(settings.name ?? '');
+              if (uri?.path == AppRoutes.adminActivityDetail) {
+                return MaterialPageRoute<void>(
+                  settings: settings,
+                  builder: (_) =>
+                      AdminActivityDetailScreen.fromSettings(settings),
+                );
+              }
               if (uri?.path == AppRoutes.adminUserDetails) {
                 return MaterialPageRoute<void>(
                   settings: settings,
@@ -2003,6 +2017,7 @@ Widget _adminSystemActivity(BuildContext context) {
     builder: (context, _) {
       final directory = AdminSystemActivityDirectory.instance;
       return AdminSystemActivityScreen(
+        repository: AdminActivityRepository(),
         initialState: directory.hasLiveSnapshot
             ? directory.items.value.isEmpty
                   ? AdminSystemActivityViewState.empty

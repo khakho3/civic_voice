@@ -1,4 +1,5 @@
 import '../features/admin/services/admin_overview_directory.dart';
+import '../features/admin/services/admin_activity_repository.dart';
 import '../features/admin/services/admin_maintenance_team_directory.dart';
 import '../features/admin/services/admin_system_activity_directory.dart';
 import '../features/admin/services/admin_system_settings_directory.dart';
@@ -38,5 +39,6 @@ abstract final class SessionDataService {
 
     NotificationDirectory.instance.clearSession();
     AppCacheService.instance.clearSession();
+    AdminActivityRepository.invalidateSession();
   }
 }

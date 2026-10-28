@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../../widgets/civic_filter_chip.dart';
 import '../../../widgets/search_filter_list.dart';
@@ -9,6 +10,11 @@ import '../../../widgets/app_dropdown_field.dart';
 import '../../../widgets/app_state_message.dart';
 import '../../../widgets/glass_card.dart';
 import '../models/admin_system_activity_data.dart';
+import '../models/admin_audit.dart';
+import '../services/admin_activity_repository.dart';
+import '../services/admin_read_failure.dart';
+import '../services/admin_resource.dart';
+import 'admin_activity_detail_screen.dart';
 import '../services/admin_session.dart';
 import '../services/admin_system_activity_directory.dart';
 import '../services/admin_system_settings_directory.dart';
@@ -122,6 +128,7 @@ class AdminSystemActivityScreen extends StatefulWidget {
     this.onRefresh,
     this.activitySnapshotAvailable,
     this.healthSnapshotVerified,
+    this.repository,
   });
 
   final AdminSystemActivityViewState initialState;
@@ -150,6 +157,7 @@ class AdminSystemActivityScreen extends StatefulWidget {
   /// Health supplied for an isolated fixture is labelled Sample unless the
   /// caller can verify it came from the approved health contract.
   final bool? healthSnapshotVerified;
+  final AdminActivityRepository? repository;
 
   @override
   State<AdminSystemActivityScreen> createState() =>
@@ -210,7 +218,7 @@ class _AdminSystemActivityScreenState extends State<AdminSystemActivityScreen> {
   @override
   void initState() {
     super.initState();
-    if (_canRetry &&
+    if (widget.repository == null && _canRetry &&
         widget.initialState == AdminSystemActivityViewState.loaded) {
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         try {
@@ -327,7 +335,13 @@ class _AdminSystemActivityScreenState extends State<AdminSystemActivityScreen> {
       onOpenRoleManagement: widget.onNavigateToRoles,
       onOpenMaintenanceTeams: widget.onNavigateToMaintenanceTeams,
       onOpenProfile: widget.onOpenProfile,
-      body: directoryLoading && !_hasActivitySnapshot
+      body: widget.repository != null
+          ? _LiveActivityBody(
+              repository: widget.repository!,
+              healthStats: _healthStats,
+              healthPresentation: _healthPresentation,
+            )
+          : directoryLoading && !_hasActivitySnapshot
           ? const _LoadingSkeleton()
           : directoryUnavailable &&
                 !_canRetry &&
@@ -485,6 +499,477 @@ class _AdminSystemActivityScreenState extends State<AdminSystemActivityScreen> {
 // ---------------------------------------------------------------------------
 // Filter chrome — filter chips, time-range dropdown
 // ---------------------------------------------------------------------------
+
+/// The live path uses the server's filters, scoped counts and cursor pages.
+/// Fixture/preview callers above retain their explicit, Firebase-free snapshots.
+class _LiveActivityBody extends StatefulWidget {
+  const _LiveActivityBody({
+    required this.repository,
+    required this.healthStats,
+    required this.healthPresentation,
+  });
+  final AdminActivityRepository repository;
+  final SystemHealthStats? healthStats;
+  final _HealthPresentation healthPresentation;
+  @override
+  State<_LiveActivityBody> createState() => _LiveActivityBodyState();
+}
+
+class _LiveActivityBodyState extends State<_LiveActivityBody> {
+  late final _repo = widget.repository;
+  late final _initialOwner = _repo.owner();
+  late AdminResource<AuditPage> _source;
+  final _scroll = ScrollController();
+  final _refinements = <String, TextEditingController>{
+    for (final key in ['action', 'actorId', 'subjectType', 'subjectId'])
+      key: TextEditingController(),
+  };
+  final _query = <String, String>{};
+  List<String?> _cursors = [null];
+  ActivityTimeRange _range = ActivityTimeRange.last24Hours;
+  String _search = '', _category = '', _severity = '', _outcome = '';
+  String? _inputError;
+  AuditPage? _verified;
+  String? _verifiedOwner;
+  bool _opening = false;
+  @override
+  void initState() {
+    super.initState();
+    _setWindow();
+    _create();
+    if (_repo.owner() != null) {
+      unawaited(AdminSystemActivityDirectory.instance.refreshHealth());
+    }
+  }
+
+  void _setWindow() {
+    _query.remove('from');
+    _query.remove('to');
+    if (_range.window != null) {
+      _query['from'] = DateTime.now()
+          .toUtc()
+          .subtract(_range.window!)
+          .toIso8601String();
+    }
+  }
+
+  Future<void> _create() {
+    _source = _repo.page({
+      ..._query,
+      if (_cursors.last != null) 'cursor': _cursors.last!,
+    });
+    return _source.load();
+  }
+
+  void _change(VoidCallback change, {bool page = false}) {
+    setState(() {
+      _source.dispose();
+      change();
+      if (!page) _cursors = [null];
+      _verified = null;
+      _verifiedOwner = null;
+      _create();
+    });
+  }
+
+  void _filter(String key, String value) {
+    if (key == 'q' && value.trim().length > 200) {
+      setState(() {
+        _search = value;
+        _inputError =
+            'Search supports up to 200 characters. Results use the last valid search.';
+      });
+      return;
+    }
+    _change(() {
+      if (key == 'q') _inputError = null;
+      if (value.trim().isEmpty) {
+        _query.remove(key);
+      } else {
+        _query[key] = value.trim();
+      }
+      if (key == 'q') _search = value.trim();
+      if (key == 'category') _category = value;
+      if (key == 'severity') _severity = value;
+      if (key == 'outcome') _outcome = value;
+    });
+  }
+
+  Future<void> _refresh() async {
+    late Future<void> read;
+    setState(() {
+      _source.dispose();
+      if (_range.window != null) _setWindow();
+      read = _create();
+    });
+    await Future.wait([
+      read,
+      AdminSystemActivityDirectory.instance.refreshHealth(),
+    ]);
+  }
+
+  Future<void> _open(AuditEvent event) async {
+    if (_opening || _repo.owner() == null) return;
+    _opening = true;
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        settings: RouteSettings(
+          name: AdminActivityDetailScreen.routeName,
+          arguments: AuditDetailArguments(event.id),
+        ),
+        builder: (_) => AdminActivityDetailScreen(
+          id: event.id,
+          repository: _repo,
+          fromActivity: true,
+        ),
+      ),
+    );
+    _opening = false;
+  }
+
+  Future<void> _customDates() async {
+    final dates = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2000),
+      lastDate: DateTime.now().add(const Duration(days: 1)),
+    );
+    if (!mounted || dates == null) return;
+    _change(() {
+      _range = ActivityTimeRange.allTime;
+      _query['from'] = DateTime.utc(
+        dates.start.year,
+        dates.start.month,
+        dates.start.day,
+      ).toIso8601String();
+      _query['to'] = DateTime.utc(
+        dates.end.year,
+        dates.end.month,
+        dates.end.day,
+      ).add(const Duration(days: 1)).toIso8601String();
+    });
+  }
+
+  @override
+  void dispose() {
+    _source.dispose();
+    _scroll.dispose();
+    for (final controller in _refinements.values) {
+      controller.dispose();
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: Listenable.merge([
+      _source,
+      AdminActivityRepository.sessionChanges,
+    ]),
+    builder: (context, _) {
+      final owner = _repo.owner();
+      final denied =
+          owner == null ||
+          owner != _initialOwner ||
+          _source.failure == AdminReadFailure.unauthorized;
+      final fresh = _source.data;
+      if (fresh != null) {
+        _verified = fresh;
+        _verifiedOwner = owner;
+      }
+      final page = denied
+          ? null
+          : fresh ?? (_verifiedOwner == owner ? _verified : null);
+      return Column(
+        children: [
+          SizedBox(height: AdminScaffold.contentPadding(context).top),
+          Expanded(
+            child: denied
+                ? const _ActivityAccessRequired()
+                : SearchFilterList.builder(
+                    headerBuilder: (compact) => SearchFilterHeader(
+                      screenKey: 'admin-activity',
+                      hintText: 'Search activity',
+                      query: _search,
+                      compact: compact,
+                      onQueryChanged: (q) => _filter('q', q),
+                      results: (term) => [
+                        for (final event in page?.events ?? <AuditEvent>[])
+                          if ('${event.item.title} ${event.item.description} ${event.fields['actorName'] ?? ''} ${event.item.tag}'
+                              .toLowerCase()
+                              .contains(term.toLowerCase()))
+                            FocusedSearchResult(
+                              title: event.item.title,
+                              subtitle: auditTimestamp(event.item.timestamp),
+                              onSelected: () => _open(event),
+                            ),
+                      ],
+                      filters: SizedBox(
+                        height: 48,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: auditCategories.length,
+                          separatorBuilder: (_, _) =>
+                              const SizedBox(width: AppSpacing.xs),
+                          itemBuilder: (context, index) {
+                            final category = auditCategories.entries.elementAt(
+                              index,
+                            );
+                            return CivicFilterChip(
+                              label: category.value,
+                              selected: _category == category.key,
+                              onTap: () => _filter('category', category.key),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                    child: GhanaRefreshIndicator(
+                      topOffset: 0,
+                      onRefresh: _refresh,
+                      child: ListView(
+                        controller: _scroll,
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: EdgeInsets.fromLTRB(
+                          AppSpacing.md,
+                          AppSpacing.sm,
+                          AppSpacing.md,
+                          AdminScaffold.contentPadding(context).bottom +
+                              AppSpacing.xl,
+                        ),
+                        children: [
+                          SizedBox(
+                            child: _inputError == null
+                                ? null
+                                : Text(_inputError!),
+                          ),
+                          _TimeRangeDropdown(
+                            value: _range,
+                            enabled: true,
+                            onChanged: (range) => _change(() {
+                              _range = range;
+                              _setWindow();
+                            }),
+                          ),
+                          TextButton(
+                            onPressed: _customDates,
+                            child: const Text('Custom dates (UTC)'),
+                          ),
+                          SizedBox(
+                            child: _query.containsKey('to')
+                                ? Text(
+                                    '${_query['from']} to ${_query['to']} (end exclusive)',
+                                  )
+                                : null,
+                          ),
+                          ExpansionTile(
+                            title: const Text('Refine activity'),
+                            tilePadding: EdgeInsets.zero,
+                            children: [
+                              AppDropdownField<String>(
+                                hint: 'Severity',
+                                value: _severity,
+                                items: [
+                                  for (final v in [
+                                    '',
+                                    'INFO',
+                                    'STANDARD',
+                                    'ALERT',
+                                    'CRITICAL',
+                                  ])
+                                    AppDropdownItem(
+                                      value: v,
+                                      label: v.isEmpty ? 'All severities' : v,
+                                    ),
+                                ],
+                                onChanged: (v) {
+                                  if (v != null) _filter('severity', v);
+                                },
+                              ),
+                              const SizedBox(height: AppSpacing.sm),
+                              AppDropdownField<String>(
+                                hint: 'Outcome',
+                                value: _outcome,
+                                items: [
+                                  for (final v in [
+                                    '',
+                                    'SUCCESS',
+                                    'FAILED',
+                                    'DENIED',
+                                    'UNKNOWN',
+                                  ])
+                                    AppDropdownItem(
+                                      value: v,
+                                      label: v.isEmpty ? 'All outcomes' : v,
+                                    ),
+                                ],
+                                onChanged: (v) {
+                                  if (v != null) _filter('outcome', v);
+                                },
+                              ),
+                              for (final entry in _refinements.entries)
+                                Padding(
+                                  padding: const EdgeInsets.only(
+                                    top: AppSpacing.sm,
+                                  ),
+                                  child: TextField(
+                                    controller: entry.value,
+                                    maxLength: 100,
+                                    decoration: InputDecoration(
+                                      labelText: const {
+                                        'action': 'Action',
+                                        'actorId': 'Actor ID',
+                                        'subjectType': 'Target type',
+                                        'subjectId': 'Target reference',
+                                      }[entry.key],
+                                    ),
+                                    onSubmitted: (value) =>
+                                        _filter(entry.key, value),
+                                  ),
+                                ),
+                              TextButton(
+                                onPressed: () => _change(() {
+                                  _query.clear();
+                                  _inputError = null;
+                                  _search = '';
+                                  _category = '';
+                                  _severity = '';
+                                  _outcome = '';
+                                  for (final controller
+                                      in _refinements.values) {
+                                    controller.clear();
+                                  }
+                                  _range = ActivityTimeRange.last24Hours;
+                                  _setWindow();
+                                }),
+                                child: const Text('Reset filters'),
+                              ),
+                            ],
+                          ),
+                          if (AdminSession.instance.isSuperAdmin) ...[
+                            if (widget.healthStats != null)
+                              _HealthStatsRow(
+                                stats: widget.healthStats!,
+                                presentation: widget.healthPresentation,
+                              )
+                            else
+                              const _HealthUnavailableNotice(),
+                            const SizedBox(height: AppSpacing.md),
+                          ],
+                          if (_source.loading && page == null)
+                            const SizedBox(
+                              height: 180,
+                              child: GhanaLoadingIndicator(
+                                label: 'Loading activity',
+                              ),
+                            ),
+                          if (_source.loading && page != null)
+                            const Text('Updating activity…'),
+                          if (_source.error != null) ...[
+                            Text(
+                              page == null
+                                  ? 'Activity could not be verified.'
+                                  : 'The latest activity could not be refreshed. Showing the last authorized snapshot.',
+                            ),
+                            TextButton(
+                              onPressed: _source.load,
+                              child: const Text('Retry'),
+                            ),
+                          ],
+                          if (page != null) ...[
+                            if (!page.collectionEnabled)
+                              const Padding(
+                                padding: EdgeInsets.symmetric(
+                                  vertical: AppSpacing.sm,
+                                ),
+                                child: Text(
+                                  'Audit collection is off. Existing history remains available; ordinary new events are not recorded.',
+                                ),
+                              ),
+                            Text(
+                              'Audit history',
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                            Text(
+                              '${page.total} events · ${page.alertCount} alert events',
+                            ),
+                            const Text(
+                              'Alert events are recorded warnings, not a count of unresolved incidents.',
+                            ),
+                            if (page.events.isEmpty)
+                              const Padding(
+                                padding: EdgeInsets.symmetric(
+                                  vertical: AppSpacing.md,
+                                ),
+                                child: Text(
+                                  'No activity matches your search and filters.',
+                                ),
+                              ),
+                            for (final event in page.events)
+                              Padding(
+                                key: ValueKey('audit-event-${event.id}'),
+                                padding: const EdgeInsets.only(
+                                  top: AppSpacing.sm,
+                                ),
+                                child: _ActivityCard(
+                                  key: ValueKey(event.id),
+                                  item: event.item,
+                                  fullTimestamp: true,
+                                  onOpen: () => _open(event),
+                                ),
+                              ),
+                            Wrap(
+                              spacing: AppSpacing.sm,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: [
+                                TextButton(
+                                  onPressed:
+                                      _source.loading || _cursors.length < 2
+                                      ? null
+                                      : () => _change(() {
+                                          _cursors.removeLast();
+                                        }, page: true),
+                                  child: const Text('Previous'),
+                                ),
+                                Text('Page ${_cursors.length}'),
+                                TextButton(
+                                  onPressed:
+                                      _source.loading ||
+                                          page.nextCursor == null ||
+                                          _cursors.contains(page.nextCursor)
+                                      ? null
+                                      : () => _change(() {
+                                          _cursors.add(page.nextCursor);
+                                        }, page: true),
+                                  child: const Text('Next'),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+          ),
+        ],
+      );
+    },
+  );
+}
+
+class _ActivityAccessRequired extends StatelessWidget {
+  const _ActivityAccessRequired();
+  @override
+  Widget build(BuildContext context) => const SingleChildScrollView(
+    padding: EdgeInsets.all(AppSpacing.md),
+    child: AppStateMessage(
+      icon: AppIcons.permissionDenied,
+      badgeColor: AppColors.error,
+      title: 'Administrative access required',
+      message:
+          'Sign in with an active administrator account to view audit activity.',
+    ),
+  );
+}
 
 class _NoopListenable implements Listenable {
   const _NoopListenable();
@@ -932,9 +1417,16 @@ class _InlineEmptyHint extends StatelessWidget {
 }
 
 class _ActivityCard extends StatelessWidget {
-  const _ActivityCard({required this.item});
+  const _ActivityCard({
+    super.key,
+    required this.item,
+    this.onOpen,
+    this.fullTimestamp = false,
+  });
 
   final ActivityItem item;
+  final VoidCallback? onOpen;
+  final bool fullTimestamp;
 
   @override
   Widget build(BuildContext context) {
@@ -943,6 +1435,7 @@ class _ActivityCard extends StatelessWidget {
     final critical = item.severity == ActivitySeverity.critical;
 
     return GlassCard(
+      onTap: onOpen,
       border: critical
           ? Border.all(color: AppColors.error.withValues(alpha: 0.4))
           : null,
@@ -967,26 +1460,41 @@ class _ActivityCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        item.title,
-                        style: textTheme.titleSmall?.copyWith(
-                          color: critical ? AppColors.error : null,
+                if (fullTimestamp) ...[
+                  Text(
+                    item.title,
+                    style: textTheme.titleSmall?.copyWith(
+                      color: critical ? AppColors.error : null,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    auditTimestamp(item.timestamp),
+                    style: textTheme.labelSmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ] else
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          item.title,
+                          style: textTheme.titleSmall?.copyWith(
+                            color: critical ? AppColors.error : null,
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: AppSpacing.xs),
-                    Text(
-                      _formatActivityTimestamp(item.timestamp),
-                      style: textTheme.labelSmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
+                      const SizedBox(width: AppSpacing.xs),
+                      Text(
+                        _formatActivityTimestamp(item.timestamp),
+                        style: textTheme.labelSmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
                 const SizedBox(height: AppSpacing.xs),
                 Text(item.description, style: textTheme.bodyMedium),
                 const SizedBox(height: AppSpacing.sm),

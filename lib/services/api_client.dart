@@ -715,6 +715,20 @@ class ApiClient {
     return (result['activity'] as List).cast<Map<String, dynamic>>();
   }
 
+  Future<Map<String, dynamic>> adminActivityPage({
+    required String idToken,
+    required Map<String, String> query,
+  }) => _get(
+    '/api/admin/activity?${Uri(queryParameters: {...query, 'limit': '50'}).query}',
+    idToken: idToken,
+  );
+
+  Future<Map<String, dynamic>> adminActivityDetail(
+    String id, {
+    required String idToken,
+  }) =>
+      _get('/api/admin/activity/${Uri.encodeComponent(id)}', idToken: idToken);
+
   Future<Map<String, dynamic>> getAdminHealth({required String idToken}) async {
     return _get('/api/admin/health', idToken: idToken);
   }
