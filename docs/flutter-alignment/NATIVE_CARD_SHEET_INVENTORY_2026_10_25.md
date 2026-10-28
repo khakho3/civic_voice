@@ -1,5 +1,15 @@
 # Card and shared-sheet inventory - 25 October 2026
 
+## Item 01 - Flutter Admin Activity Detail - 28 October 2026
+
+Native runtime **578ab59** (feature **389487f**) implements the general protected audit detail and integrates server-filtered 50-row history pages/counts. Full UTC timestamps, honest UNKNOWN outcomes, recorded actor/target snapshots and event-specific safe context are shown. Missing/forbidden/error/loading states, session fencing and Back/query/filter/page/scroll/focus restoration are covered. History stays readable with collection off; audit-event warnings are not unresolved incidents. Existing Ghana loaders/PTR, shared search, animated native pills, card feedback and Super-only health remain.
+
+**Automated validation:** 1,627 regression cases passed in the final full run. Its one new login-scope test had a mismatched fixture UID; after correcting only that fixture, the complete login-route file passes all 16 checks (including the new scope case). The full suite was not repeated after that test-only correction. All 45 added cases are now verified across the full/focused runs; 33 dedicated Activity widget checks and the final analyzer pass. Fourteen unchanged API audit contract/HTTP checks pass. Actual-font layout matrices and 32 ignored list/detail captures cover 320/412px in both themes through 2x text; representative normal/extreme renders were inspected. Fixtures and automated checks are not live/device acceptance.
+
+**Item 01 remains Built / Verify.** No new DEV source copy, APK build/install or phone interaction occurred. All 14 protected DEV configuration hashes match the existing private ledger; original native/owner SVG and web output/ are preserved. The prior installed checkpoint remains ce622ea in the ledger; current device state is unverified. No listener on local API port 4000 was observed; no owner process was started/stopped. Reverify actual server/client targets under BUILD_ENVIRONMENT_CHECKLIST.md before any DEV build/install, then obtain owner Super/Assembly detail, real scope/missing, paging/filter/PTR and Back/scroll confirmation. Do not manufacture audit events or change real accounts/reports/settings for QA.
+
+All three expected branches/upstreams were refreshed/checked at continuation start. The pending web 95c9bed handoff commit was published and its remote SHA verified. Web/API runtime remain 536ddf1/d00b6c6; their broader old baselines were not rerun. Item 02 Maintenance was not started; general audit reliability remains item 09. No merge, promotion, migration or deployment. Detailed native contract: C:/Projects/mobile/civic_voice_latif_review/docs/flutter-alignment/NATIVE_ACTIVITY_DETAIL.md.
+
 ## Current owner continuation - 28 October 2026
 
 Canonical entry: `C:/Projects/www/civic-voice-web/docs/CURRENT_STATUS.md`; read `NEW_CHAT_HANDOFF_2026_10_28.md` and `PRIORITY_QUEUE_2026_10_28.md` there before work. Owner now prioritizes **01 Flutter general Admin Activity Detail** (not the Open Alerts original-event snapshot). Follow the 40-item ordered queue; older “next Open Alerts/card sweep” and contributor allocation paragraphs are historical. Scope/authorization/workflow, auth/notifications, confidence review, UI, AI/public and final cleanup/release gates remain distinct; no blanket completion is claimed.
@@ -100,6 +110,7 @@ All rows below mean **source located; full visual/state/device check still pendi
 
 | Feature / screen | Named surface or composition |
 | --- | --- |
+| [admin/screens/admin_activity_detail_screen.dart](../../lib/features/admin/screens/admin_activity_detail_screen.dart) | New queue-01 general audit detail; opaque FormSectionCard groups, actual-font automated renders; live/device acceptance pending. |
 | [admin/screens/admin_alerts_screen.dart](../../lib/features/admin/screens/admin_alerts_screen.dart) | List slice checked above; review/detail still pending. Card, _AlertCard |
 | [admin/screens/admin_create_user_screen.dart](../../lib/features/admin/screens/admin_create_user_screen.dart) | FormSectionCard, _Section |
 | [admin/screens/admin_dashboard_screen.dart](../../lib/features/admin/screens/admin_dashboard_screen.dart) | GlassCard |
