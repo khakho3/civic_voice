@@ -1,5 +1,19 @@
 # Kingsbeng repair progress — 14 October 2026
 
+## New assignment issued - 31 October 2026
+
+Owner assigned Kingsben all three client slices: queue 02 Maintenance, queue 03
+Municipal and queue 23's layout/state review limited to those modules. Status:
+**assigned, not started**. Read [the current agent guide](../flutter-team/KINGSBENG_AGENT.md)
+and [one-page brief](../../output/pdf/kingsben-flutter-assignment.pdf).
+
+Task branch: `codex/flutter-kingsbeng-maintenance-municipal`; starting base and
+eventual PR target: `codex/flutter-latif-review-fixes`. This supersedes the older
+branch/start allocation below for this assignment. API/backend work is excluded;
+web is read-only reference. Preserve accepted behavior and DEV/production
+isolation. Record each slice, tests, device evidence and blockers here. No work
+or acceptance is claimed yet; Francis reviews and decides whether to merge.
+
 ## Current owner continuation - 28 October 2026
 
 Canonical entry: `C:/Projects/www/civic-voice-web/docs/CURRENT_STATUS.md`; read `NEW_CHAT_HANDOFF_2026_10_28.md` and `PRIORITY_QUEUE_2026_10_28.md` there before work. Owner now prioritizes **01 Flutter general Admin Activity Detail** (not the Open Alerts original-event snapshot). Follow the 40-item ordered queue; older “next Open Alerts/card sweep” and contributor allocation paragraphs are historical. Scope/authorization/workflow, auth/notifications, confidence review, UI, AI/public and final cleanup/release gates remain distinct; no blanket completion is claimed.

@@ -1,5 +1,20 @@
 # Latif progress
 
+## PR cleanup and Kingsben handoff - 31 October 2026
+
+Owner authorized closing original PR #20 without merging; GitHub confirms CLOSED
+with no merge and its branch retained. Its head is already in our current
+`codex/flutter-latif-review-fixes` working branch with the later repairs.
+Integration/main were not promoted. See [the branch checkpoint](../flutter-team/WORKING_BRANCH_CHECKPOINT_2026_10_31.md).
+
+Kingsben is assigned queue 02 Maintenance, queue 03 Municipal and queue 23's
+layout/state subset for those modules, on
+`codex/flutter-kingsbeng-maintenance-municipal`, targeting our current working
+branch. [Agent guide](../flutter-team/KINGSBENG_AGENT.md) and
+[one-page brief](../../output/pdf/kingsben-flutter-assignment.pdf) are the current
+handoff. API/backend work is excluded; web remains strictly read-only. Work has
+not started, and pending owner/device acceptance is unchanged.
+
 ## Wireless DEV reinstall - 31 October 2026
 
 At the owner's request, unchanged runtime **578ab59** was rebuilt as an Android
