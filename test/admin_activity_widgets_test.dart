@@ -49,6 +49,176 @@ void main() {
   });
 
   testWidgets(
+    'custom dates is a Time menu option and cancellation keeps the current query',
+    (tester) async {
+      final queries = <Map<String, String>>[];
+      final repo = AdminActivityRepository(
+        owner: () => 'admin',
+        credential: () async => 'fixture',
+        list: (_, query) async {
+          queries.add(Map.of(query));
+          return auditPageFixture();
+        },
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: AdminSystemActivityScreen(repository: repo),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Custom dates (UTC)'), findsNothing);
+      final time = find.byKey(const ValueKey('activity-time-range'));
+      expect(time, findsOneWidget);
+      expect(
+        tester.getTopLeft(find.text('Refine activity')).dy -
+            tester.getBottomLeft(time).dy,
+        lessThan(35),
+      );
+      final initial = Map.of(queries.single);
+      await tester.tap(time);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Custom dates (UTC)'));
+      await tester.pumpAndSettle();
+      expect(find.byType(DateRangePickerDialog), findsOneWidget);
+      expect(queries.length, 1);
+      await tester.tap(find.byTooltip('Close'));
+      await tester.pumpAndSettle();
+      expect(queries.single, initial);
+      expect(find.text('Last 24 Hours'), findsOneWidget);
+      expect(find.text('Custom dates (UTC)'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'custom Time selection preserves inclusive UTC dates, supports editing and clears on presets',
+    (tester) async {
+      final queries = <Map<String, String>>[];
+      final repo = AdminActivityRepository(
+        owner: () => 'admin',
+        credential: () async => 'fixture',
+        list: (_, query) async {
+          queries.add(Map.of(query));
+          return auditPageFixture(cursor: 'next-page');
+        },
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: AdminSystemActivityScreen(repository: repo),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('System Updates'));
+      await tester.pumpAndSettle();
+      await showItem(tester, find.text('Next'));
+      await tester.tap(find.text('Next'));
+      await tester.pumpAndSettle();
+      expect(queries.last['cursor'], 'next-page');
+      final time = find.byKey(const ValueKey('activity-time-range'));
+      tester
+          .state<ScrollableState>(
+            find
+                .byWidgetPredicate(
+                  (w) =>
+                      w is Scrollable && w.axisDirection == AxisDirection.down,
+                )
+                .last,
+          )
+          .position
+          .jumpTo(0);
+      await tester.pumpAndSettle();
+      await tester.tap(time);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Custom dates (UTC)'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Switch to input'));
+      await tester.pumpAndSettle();
+      final fields = find.descendant(
+        of: find.byType(DateRangePickerDialog),
+        matching: find.byType(TextField),
+      );
+      await tester.enterText(fields.at(0), '05/02/2024');
+      await tester.enterText(fields.at(1), '05/04/2024');
+      await tester.tap(find.text('OK').last);
+      await tester.pumpAndSettle();
+      expect(queries.last['from'], '2024-05-02T00:00:00.000Z');
+      expect(queries.last['to'], '2024-05-05T00:00:00.000Z');
+      expect(queries.last['category'], 'SYSTEM_UPDATE');
+      expect(queries.last.containsKey('cursor'), false);
+      expect(
+        find.widgetWithText(TextButton, 'Custom dates (UTC)'),
+        findsNothing,
+      );
+      expect(find.text('Custom dates (UTC)'), findsOneWidget);
+      await tester.tap(time);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Custom dates (UTC)').last);
+      await tester.pumpAndSettle();
+      final picker = tester.widget<DateRangePickerDialog>(
+        find.byType(DateRangePickerDialog),
+      );
+      expect(
+        picker.initialDateRange,
+        DateTimeRange(start: DateTime(2024, 5, 2), end: DateTime(2024, 5, 4)),
+      );
+      final count = queries.length;
+      await tester.tap(find.byTooltip('Close'));
+      await tester.pumpAndSettle();
+      expect(queries.length, count);
+      expect(queries.last['to'], '2024-05-05T00:00:00.000Z');
+      await tester.tap(time);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('All Time').last);
+      await tester.pumpAndSettle();
+      expect(queries.last.containsKey('from'), false);
+      expect(queries.last.containsKey('to'), false);
+      await tester.tap(time);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Last 7 Days').last);
+      await tester.pumpAndSettle();
+      expect(queries.last['from'], endsWith('Z'));
+      expect(queries.last.containsKey('to'), false);
+    },
+  );
+
+  for (final width in [320.0, 412.0]) {
+    for (final dark in [false, true]) {
+      testWidgets(
+        'Time menu includes custom dates at $width dark=$dark and 2x text',
+        (tester) async {
+          tester.view.physicalSize = Size(width, 900);
+          tester.view.devicePixelRatio = 1;
+          addTearDown(tester.view.resetPhysicalSize);
+          addTearDown(tester.view.resetDevicePixelRatio);
+          final repo = AdminActivityRepository(
+            owner: () => 'admin',
+            credential: () async => 'fixture',
+            list: (_, _) async => auditPageFixture(),
+          );
+          await tester.pumpWidget(
+            MaterialApp(
+              theme: dark ? AppTheme.dark : AppTheme.light,
+              builder: (context, child) => MediaQuery(
+                data: MediaQuery.of(
+                  context,
+                ).copyWith(textScaler: const TextScaler.linear(2)),
+                child: child!,
+              ),
+              home: AdminSystemActivityScreen(repository: repo),
+            ),
+          );
+          await tester.pumpAndSettle();
+          await tester.tap(find.byKey(const ValueKey('activity-time-range')));
+          await tester.pumpAndSettle();
+          expect(find.text('Custom dates (UTC)'), findsOneWidget);
+          expect(tester.takeException(), isNull);
+        },
+      );
+    }
+  }
+
+  testWidgets(
     'list uses server filters/counts, pages beyond 500, and returns to the same scroll',
     (tester) async {
       final queries = <Map<String, String>>[];

@@ -628,10 +628,19 @@ class _LiveActivityBodyState extends State<_LiveActivityBody> {
   }
 
   Future<void> _customDates() async {
+    final from = DateTime.tryParse(_query['from'] ?? '');
+    final to = DateTime.tryParse(_query['to'] ?? '');
+    final lastDay = to?.subtract(const Duration(days: 1));
     final dates = await showDateRangePicker(
       context: context,
       firstDate: DateTime(2000),
       lastDate: DateTime.now().add(const Duration(days: 1)),
+      initialDateRange: from != null && lastDay != null
+          ? DateTimeRange(
+              start: DateTime(from.year, from.month, from.day),
+              end: DateTime(lastDay.year, lastDay.month, lastDay.day),
+            )
+          : null,
     );
     if (!mounted || dates == null) return;
     _change(() {
@@ -745,14 +754,12 @@ class _LiveActivityBodyState extends State<_LiveActivityBody> {
                           _TimeRangeDropdown(
                             value: _range,
                             enabled: true,
+                            customSelected: _query.containsKey('to'),
+                            onCustomDates: _customDates,
                             onChanged: (range) => _change(() {
                               _range = range;
                               _setWindow();
                             }),
-                          ),
-                          TextButton(
-                            onPressed: _customDates,
-                            child: const Text('Custom dates (UTC)'),
                           ),
                           SizedBox(
                             child: _query.containsKey('to')
@@ -1217,14 +1224,45 @@ class _TimeRangeDropdown extends StatelessWidget {
     required this.value,
     required this.enabled,
     this.onChanged,
+    this.onCustomDates,
+    this.customSelected = false,
   });
 
   final ActivityTimeRange value;
   final bool enabled;
   final ValueChanged<ActivityTimeRange>? onChanged;
+  final VoidCallback? onCustomDates;
+  final bool customSelected;
+  static const _customDatesValue = 'custom-dates';
 
   @override
   Widget build(BuildContext context) {
+    if (onCustomDates != null) {
+      return AppDropdownField<Object>(
+        key: const ValueKey('activity-time-range'),
+        hint: '',
+        value: customSelected ? _customDatesValue : value,
+        leadingIcon: AppIcons.calendar,
+        glass: true,
+        items: [
+          for (final range in ActivityTimeRange.values)
+            AppDropdownItem<Object>(value: range, label: range.label),
+          const AppDropdownItem<Object>(
+            value: _customDatesValue,
+            label: 'Custom dates (UTC)',
+          ),
+        ],
+        onChanged: enabled
+            ? (selected) {
+                if (selected == _customDatesValue) {
+                  onCustomDates!();
+                } else if (selected is ActivityTimeRange) {
+                  onChanged?.call(selected);
+                }
+              }
+            : null,
+      );
+    }
     return AppDropdownField<ActivityTimeRange>(
       hint: '',
       value: value,
