@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:civic_voice/core/theme/app_theme.dart';
 
@@ -13,6 +14,7 @@ import '../../../widgets/profile_section.dart';
 import '../../../widgets/profile_session_section.dart';
 import '../../../widgets/profile_status_banner.dart';
 import '../../../widgets/theme_preference_row.dart';
+import '../../../core/widgets/ghana_refresh_indicator.dart';
 import '../../admin/services/admin_maintenance_team_directory.dart';
 import '../models/maintenance_profile.dart';
 import '../services/maintenance_session.dart';
@@ -38,6 +40,7 @@ class ProfileScreen extends StatefulWidget {
     this.onAbout,
     this.onLogOut,
     this.onSaveProfile,
+    this.onRefresh,
     this.initialState = AppScreenState.success,
   });
 
@@ -54,6 +57,7 @@ class ProfileScreen extends StatefulWidget {
   /// Fired after the log-out confirmation dialog is accepted.
   final VoidCallback? onLogOut;
   final Future<bool> Function(String fullName)? onSaveProfile;
+  final Future<void> Function()? onRefresh;
 
   /// Screen state, for previews and tests of the non-default states.
   final AppScreenState initialState;
@@ -62,9 +66,51 @@ class ProfileScreen extends StatefulWidget {
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> {
+class _ProfileScreenState extends State<ProfileScreen>
+    with WidgetsBindingObserver {
   late AppScreenState _state = widget.initialState;
   bool _changesSaved = false;
+  bool _refreshFailed = false;
+  Future<void>? _refreshFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _state == AppScreenState.success) unawaited(_refresh());
+    });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed &&
+        _state == AppScreenState.success) {
+      unawaited(_refresh());
+    }
+  }
+
+  Future<void> _refresh() {
+    if (widget.onRefresh == null) return Future.value();
+    return _refreshFuture ??= _readProfile();
+  }
+
+  Future<void> _readProfile() async {
+    if (_refreshFailed) setState(() => _refreshFailed = false);
+    try {
+      await widget.onRefresh!();
+    } catch (_) {
+      if (mounted) setState(() => _refreshFailed = true);
+    } finally {
+      _refreshFuture = null;
+    }
+  }
 
   Future<void> _startEditing(MaintenanceProfile profile) async {
     final saved = await showProfileNameEditSheet(
@@ -132,17 +178,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildProfile(BuildContext context, {bool disabled = false}) {
-    return ValueListenableBuilder<MaintenanceProfile>(
-      valueListenable: MaintenanceSession.instance.profile,
-      builder: (context, profile, _) => _ProfileContent(
-        profile: profile,
+    final content = AnimatedBuilder(
+      animation: Listenable.merge([
+        MaintenanceSession.instance.profile,
+        MaintenanceTeamDirectory.instance.teams,
+      ]),
+      builder: (context, _) => _ProfileContent(
+        profile: MaintenanceSession.instance.profile.value,
         disabled: disabled,
         changesSaved: _changesSaved,
-        onEdit: disabled ? null : () => _startEditing(profile),
+        refreshFailed: _refreshFailed,
+        onEdit: disabled
+            ? null
+            : () => _startEditing(MaintenanceSession.instance.profile.value),
         onChangePassword: disabled ? null : widget.onChangePassword,
         onAbout: disabled ? null : widget.onAbout,
         onLogOut: disabled ? null : _confirmLogOut,
       ),
+    );
+    if (widget.onRefresh == null || disabled) return content;
+    return GhanaRefreshIndicator(
+      topOffset: MaintenanceScaffold.contentPadding(context).top,
+      onRefresh: _refresh,
+      child: content,
     );
   }
 }
@@ -152,6 +210,7 @@ class _ProfileContent extends StatelessWidget {
     required this.profile,
     required this.disabled,
     required this.changesSaved,
+    required this.refreshFailed,
     required this.onEdit,
     required this.onChangePassword,
     required this.onAbout,
@@ -161,6 +220,7 @@ class _ProfileContent extends StatelessWidget {
   final MaintenanceProfile profile;
   final bool disabled;
   final bool changesSaved;
+  final bool refreshFailed;
   final VoidCallback? onEdit;
   final VoidCallback? onChangePassword;
   final VoidCallback? onAbout;
@@ -172,22 +232,34 @@ class _ProfileContent extends StatelessWidget {
   bool get _isCurrentLead {
     final teamId = profile.teamId;
     if (teamId == null || profile.publicId.isEmpty) return false;
-    final leadUserId =
-        MaintenanceTeamDirectory.instance.teamById(teamId)?.leadUserId ??
-        profile.teamLeadUserId;
+    // A verified sync is the Maintenance user's own current read. An Admin
+    // directory snapshot can predate that read and must not override it.
+    if (MaintenanceSession.instance.verifiedOwner != null) {
+      return profile.teamLeadUserId == profile.publicId;
+    }
+    final currentTeam = MaintenanceTeamDirectory.instance.teamById(teamId);
+    final leadUserId = currentTeam == null
+        ? profile.teamLeadUserId
+        : currentTeam.leadUserId;
     return leadUserId != null && leadUserId == profile.publicId;
   }
 
   @override
   Widget build(BuildContext context) {
     final chromeInset = MaintenanceScaffold.contentPadding(context);
-    final teamName = profile.teamName;
+    final teamName = profile.teamId == null
+        ? null
+        : MaintenanceSession.instance.verifiedOwner != null
+        ? profile.teamName
+        : MaintenanceTeamDirectory.instance.teamById(profile.teamId!)?.name ??
+              profile.teamName;
 
     return Opacity(
       opacity: disabled ? 0.5 : 1.0,
       child: IgnorePointer(
         ignoring: disabled,
         child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
           padding: EdgeInsets.fromLTRB(
             AppSpacing.md,
             chromeInset.top + AppSpacing.md,
@@ -195,6 +267,15 @@ class _ProfileContent extends StatelessWidget {
             chromeInset.bottom + AppSpacing.md,
           ),
           children: [
+            if (refreshFailed) ...[
+              const ProfileStatusBanner(
+                tone: ProfileBannerTone.warning,
+                title: 'Unable to refresh team details',
+                message:
+                    'Your last available profile is shown. Pull down to retry.',
+              ),
+              const SizedBox(height: AppSpacing.md),
+            ],
             if (changesSaved) ...[
               const ProfileStatusBanner(
                 tone: ProfileBannerTone.success,

@@ -6,7 +6,36 @@ import '../../../services/api_client.dart';
 import '../models/maintenance_profile.dart';
 
 class MaintenanceSession {
-  MaintenanceSession._();
+  MaintenanceSession._({
+    bool Function()? available,
+    String? Function()? owner,
+    Future<SyncedUser> Function()? read,
+  }) : _available = available ?? (() => Firebase.apps.isNotEmpty),
+       _owner =
+           owner ??
+           (() => Firebase.apps.isEmpty
+               ? null
+               : FirebaseAuth.instance.currentUser?.uid),
+       _read = read ?? _readCurrent;
+
+  @visibleForTesting
+  factory MaintenanceSession.forTesting({
+    required String? Function() owner,
+    required Future<SyncedUser> Function() read,
+  }) => MaintenanceSession._(available: () => true, owner: owner, read: read);
+
+  final bool Function() _available;
+  final String? Function() _owner;
+  final Future<SyncedUser> Function() _read;
+  int _generation = 0, _refreshRequest = 0, _nameRevision = 0;
+  String? _verifiedOwner;
+  String? get verifiedOwner => _verifiedOwner;
+
+  static Future<SyncedUser> _readCurrent() async {
+    final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+    if (token == null) throw StateError('A signed-in technician is required');
+    return ApiClient.instance.syncUser(idToken: token);
+  }
 
   static final MaintenanceSession instance = MaintenanceSession._();
 
@@ -33,6 +62,9 @@ class MaintenanceSession {
     String? teamName,
     String? teamLeadUserId,
   }) {
+    ++_generation;
+    ++_refreshRequest;
+    _verifiedOwner = _owner();
     authenticated = true;
     profile.value = MaintenanceProfile(
       publicId: publicId,
@@ -47,20 +79,42 @@ class MaintenanceSession {
   }
 
   Future<void> refresh() async {
-    if (Firebase.apps.isEmpty) return;
-    final identity = FirebaseAuth.instance.currentUser;
-    final token = await identity?.getIdToken();
-    if (identity == null || token == null) {
+    if (!_available()) return;
+    final owner = _owner();
+    final generation = _generation, request = ++_refreshRequest;
+    final nameRevision = _nameRevision;
+    bool owns() => generation == _generation && owner == _owner();
+    if (owner == null) {
+      clearSession();
       throw StateError('A signed-in technician is required');
     }
-    final user = await ApiClient.instance.syncUser(idToken: token);
-    if (FirebaseAuth.instance.currentUser?.uid != identity.uid ||
-        user.role != 'MAINTENANCE') {
-      throw StateError('Your session changed');
+    late SyncedUser user;
+    try {
+      user = await _read();
+    } on ApiException catch (error) {
+      if (owns() &&
+          request == _refreshRequest &&
+          (error.statusCode == 401 || error.statusCode == 403)) {
+        clearSession();
+      }
+      rethrow;
     }
-    setAuthenticatedUser(
+    if (!owns()) throw StateError('Your session changed');
+    if (request != _refreshRequest) return;
+    if (user.firebaseUid != owner) {
+      throw StateError('Profile identity could not be verified');
+    }
+    if (user.role != 'MAINTENANCE' || !user.active || user.isGuest) {
+      clearSession();
+      throw StateError('Your Maintenance access changed');
+    }
+    authenticated = true;
+    _verifiedOwner = owner;
+    profile.value = MaintenanceProfile(
       publicId: user.publicId,
-      fullName: user.fullName,
+      fullName: nameRevision == _nameRevision
+          ? user.fullName
+          : profile.value.fullName,
       phone: user.phone ?? '',
       region: user.region ?? '',
       assembly: user.assembly ?? '',
@@ -71,10 +125,14 @@ class MaintenanceSession {
   }
 
   void updateProfile({required String fullName}) {
+    ++_nameRevision;
     profile.value = profile.value.copyWith(fullName: fullName);
   }
 
   void clearSession() {
+    ++_generation;
+    ++_refreshRequest;
+    _verifiedOwner = null;
     authenticated = false;
     profile.value = const MaintenanceProfile(
       publicId: '',
@@ -83,5 +141,11 @@ class MaintenanceSession {
       region: '',
       assembly: '',
     );
+  }
+
+  @visibleForTesting
+  void dispose() {
+    ++_generation;
+    profile.dispose();
   }
 }

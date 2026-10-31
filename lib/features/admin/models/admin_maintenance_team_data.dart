@@ -24,12 +24,9 @@ class MaintenanceTeam {
   final List<String> memberUserIds;
   final DateTime createdAt;
 
-  /// The one member (an [AdminUserItem.userId]) allowed to submit
-  /// completion evidence on this team's tasks — `null` means no lead is
-  /// set, in which case any member can submit. A Municipal Officer assigns
-  /// a whole team to a task (not individual members), so without a lead
-  /// every member would otherwise be equally able to submit, which is fine
-  /// for a 1-person team but ambiguous once a team has several.
+  /// Current lead's public account identifier, or null when none is appointed.
+  /// Any authorized team member may submit completion evidence; Municipal
+  /// confirmation, not lead-only submission, provides the approval gate.
   final String? leadUserId;
 
   /// Denormalized display fields for [leadUserId] — sourced fresh from the

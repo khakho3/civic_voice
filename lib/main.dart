@@ -2776,6 +2776,7 @@ Widget _maintenanceTaskCompleted(BuildContext context, MaintenanceTask? task) {
 
 Widget _maintenanceProfile(BuildContext context) {
   return maintenance_profile.ProfileScreen(
+    onRefresh: MaintenanceSession.instance.refresh,
     onNavigateToDashboard: () =>
         _replaceWith(context, AppRoutes.maintenanceDashboard),
     onNavigateToTasks: () =>

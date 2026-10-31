@@ -16,16 +16,65 @@ import 'maintenance_update_service.dart';
 /// writes through here on save, so Dashboard/Assigned Tasks/Task Completed
 /// all see the same status change immediately.
 class MaintenanceTaskDirectory {
-  MaintenanceTaskDirectory._();
+  MaintenanceTaskDirectory._({
+    MaintenanceSession? session,
+    bool Function()? live,
+    String? Function()? owner,
+    Future<List<Map<String, dynamic>>> Function()? fetch,
+  }) : _session = session ?? MaintenanceSession.instance,
+       _live = live ?? (() => Firebase.apps.isNotEmpty),
+       _owner = owner ?? (() => FirebaseAuth.instance.currentUser?.uid),
+       _fetch = fetch ?? _fetchCurrent {
+    _session.profile.addListener(_observeScope);
+    _observeScope();
+  }
+
+  @visibleForTesting
+  factory MaintenanceTaskDirectory.forTesting({
+    required MaintenanceSession session,
+    required String? Function() owner,
+    required Future<List<Map<String, dynamic>>> Function() fetch,
+  }) => MaintenanceTaskDirectory._(
+    session: session,
+    live: () => true,
+    owner: owner,
+    fetch: fetch,
+  );
+
+  final MaintenanceSession _session;
+  final bool Function() _live;
+  final String? Function() _owner;
+  final Future<List<Map<String, dynamic>>> Function() _fetch;
+  int _scopeRevision = 0;
+  (String?, String, String, String, String?)? _observedScope;
+
+  static Future<List<Map<String, dynamic>>> _fetchCurrent() async {
+    final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+    if (token == null) throw StateError('A signed-in technician is required');
+    return ApiClient.instance.listReports(idToken: token);
+  }
+
+  void _observeScope() {
+    if (!_live()) return;
+    final profile = _session.profile.value;
+    final scope = (
+      _owner(),
+      profile.publicId,
+      profile.region,
+      profile.assembly,
+      profile.teamId,
+    );
+    if (_observedScope == scope) return;
+    _observedScope = scope;
+    ++_scopeRevision;
+    tasks.value = const [];
+    hasLiveSnapshot = false;
+    error.value = null;
+  }
 
   static final MaintenanceTaskDirectory instance = MaintenanceTaskDirectory._();
 
-  /// The signed-in technician's own account — the same real Admin-
-  /// provisioned Maintenance Team record (Yaw Asare, already a member of
-  /// `TEAM-0001` "Kumasi Central Crew" in [MaintenanceTeamDirectory]) that
-  /// Profile now displays, rather than an unrelated made-up name with no
-  /// backing account. This is what "my team" and the evidence-upload lead
-  /// check below are actually computed against.
+  /// The signed-in technician's public account identifier.
   static String get currentUserId =>
       MaintenanceSession.instance.profile.value.publicId;
 
@@ -45,29 +94,45 @@ class MaintenanceTaskDirectory {
     loading.value = false;
     error.value = null;
     hasLiveSnapshot = false;
+    ++_scopeRevision;
+    _observedScope = null;
   }
 
   Future<void> refresh() async {
-    if (Firebase.apps.isEmpty) return;
+    if (!_live()) return;
+    _observeScope();
     final revision = _sessionRevision, refresh = ++_refreshRevision;
+    final owner = _owner();
+    int? readScope;
     loading.value = true;
     error.value = null;
     try {
-      await MaintenanceSession.instance.refresh();
-      if (revision != _sessionRevision) return;
-      final identity = FirebaseAuth.instance.currentUser;
-      final token = await identity?.getIdToken();
-      if (token == null) throw StateError('A signed-in technician is required');
-      final response = await ApiClient.instance.listReports(idToken: token);
+      await _session.refresh();
       if (revision != _sessionRevision ||
           refresh != _refreshRevision ||
-          identity?.uid != FirebaseAuth.instance.currentUser?.uid) {
+          owner != _owner()) {
+        return;
+      }
+      final scope = readScope = _scopeRevision;
+      if (_session.profile.value.teamId == null) {
+        tasks.value = const [];
+        hasLiveSnapshot = true;
+        return;
+      }
+      final response = await _fetch();
+      if (revision != _sessionRevision ||
+          refresh != _refreshRevision ||
+          scope != _scopeRevision ||
+          owner != _owner()) {
         return;
       }
       tasks.value = response.map(MaintenanceTask.fromApi).toList();
       hasLiveSnapshot = true;
     } catch (exception) {
-      if (revision == _sessionRevision && refresh == _refreshRevision) {
+      if (revision == _sessionRevision &&
+          refresh == _refreshRevision &&
+          owner == _owner() &&
+          (readScope == null || readScope == _scopeRevision)) {
         error.value = exception.toString();
       }
       rethrow;
@@ -99,6 +164,7 @@ class MaintenanceTaskDirectory {
     List<String> evidencePhotoPaths = const [],
   }) async {
     final revision = _sessionRevision;
+    final scope = _scopeRevision;
     if (!task.needsEvidence) throw StateError('This task is read-only');
     if (!canSubmitEvidence(task)) throw StateError('Task is outside your team');
     if (status == MaintenanceTaskStatus.pendingApproval) {
@@ -111,7 +177,9 @@ class MaintenanceTaskDirectory {
       photos: evidencePhotoPaths,
       checkFiles: Firebase.apps.isNotEmpty,
     );
-    if (revision != _sessionRevision) throw StateError('Your session changed');
+    if (revision != _sessionRevision || scope != _scopeRevision) {
+      throw StateError('Your session changed');
+    }
     if (Firebase.apps.isEmpty) {
       final updated = task.copyWith(
         status: submitting
@@ -134,6 +202,7 @@ class MaintenanceTaskDirectory {
     if (token == null) throw StateError('A signed-in technician is required');
     void checkOwnership() {
       if (revision != _sessionRevision ||
+          scope != _scopeRevision ||
           identity != FirebaseAuth.instance.currentUser?.uid ||
           !canSubmitEvidence(taskById(task.id) ?? task)) {
         throw StateError('Your session or task access changed. Refresh Tasks.');
@@ -169,7 +238,19 @@ class MaintenanceTaskDirectory {
   /// Server-side authorization remains authoritative for real requests.
   bool canSubmitEvidence(MaintenanceTask task) {
     if (!task.needsEvidence) return false;
-    if (Firebase.apps.isEmpty) return true;
-    return MaintenanceSession.instance.profile.value.teamId == task.teamId;
+    if (!_live()) return true;
+    return _session.authenticated &&
+        _session.verifiedOwner != null &&
+        _session.verifiedOwner == _owner() &&
+        _session.profile.value.teamId == task.teamId;
+  }
+
+  @visibleForTesting
+  void dispose() {
+    clearSession();
+    _session.profile.removeListener(_observeScope);
+    tasks.dispose();
+    loading.dispose();
+    error.dispose();
   }
 }
