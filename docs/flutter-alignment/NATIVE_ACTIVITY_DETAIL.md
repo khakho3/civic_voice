@@ -1,5 +1,21 @@
 # Flutter Admin Activity Detail - 28 October 2026
 
+## Current loading/DEV checkpoint - 31 October 2026
+
+Runtime **408e630** keeps only the top animated PTR; standalone page status is
+static throughout Flutter. Two bars before/one after were reproduced in
+actual-font light/dark automated renders. All **1,644 full tests/analyzer pass**;
+see [loading policy](NATIVE_LOADING_FEEDBACK.md).
+
+Verified isolated DEV through this runtime, including Time -> Custom dates
+**7979be6**, is wirelessly replace-installed and launched with data retained and
+matching installed digest. All 60 source hashes and 14 protected DEV configuration
+hashes verified. After completed app changes, DEV installation is already owner
+authorized. Owner initial load/PTR/date/Back/filter/page/scroll/theme and existing
+detail/scope confirmation remains pending. Exact evidence is private; see
+LATIF_PROGRESS.md and canonical web CURRENT_STATUS.md. Older installs below are
+historical; no merge/promotion/deployment occurred.
+
 ## Time menu adjustment - 31 October 2026
 
 Native `7979be6` moves **Custom dates (UTC)** into the existing Time dropdown and

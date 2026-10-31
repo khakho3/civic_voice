@@ -6,6 +6,13 @@ older Kingsbeng branch/start/ownership instructions for this assignment only.
 
 ## Start here
 
+**Shared loading policy, 31 October:** Preserve the owner/integrator fix
+`408e630` when integrating with the working branch. Standalone page/sheet
+loading feedback is static; animated refresh feedback stays at the top and
+control busy indicators stay inside their controls. The fix includes small
+loading-only edits in Maintenance Profile/photo placeholders and Municipal
+dashboard. See [the policy and checks](../flutter-alignment/NATIVE_LOADING_FEEDBACK.md).
+
 | Item | Agreed value |
 | --- | --- |
 | Editable repository | `https://github.com/khakho3/civic_voice` |

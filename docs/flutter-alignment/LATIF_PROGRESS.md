@@ -1,5 +1,31 @@
 # Latif progress
 
+## Static page loading and verified DEV install - 31 October 2026
+
+Runtime **408e630** removes animated standalone page/sheet loading feedback
+across Flutter. The Activity overlap reproduced two bars before, one top PTR
+bar after in automated actual-font light/dark renders. Static labels/star,
+top PTR and control busy/progress behavior follow
+[the shared policy](NATIVE_LOADING_FEEDBACK.md).
+**1,644 full tests pass; analyzer clean**. Ten added cases, 60 focused checks
+and two additional inspected render cases are automated evidence.
+
+Isolated DEV through **408e630**, including Time menu change **7979be6**, is
+artifact-verified, wirelessly replace-installed and launched on the Pixel 9 Pro
+XL with data retained and matching installed digest. Thirteen source files
+copied; all 60 source hashes and 14 protected DEV configurations verified.
+DEV package/signing/API/Firebase, running API DEV/local database, phone-to-LAN
+health/readiness and Maps restrictions pass. Exact evidence remains private in
+web `.tmp/dev-static-loading-preflight.json` and `.tmp/device-checks-pending.md`.
+
+The owner authorizes verified DEV install after completed app changes without
+another question. **Owner confirmation remains pending** for Activity loading,
+PTR, Time dates, Back/filter/page/scroll and themes; prior detail/scope and
+item 04 live/version-policy gates remain open. Kingsben's branch/allocation is
+unchanged; preserve our loading-only Maintenance Profile/photo and Municipal
+dashboard edits when integrating his work. Web/API runtime unchanged; no live
+records, API restart, merge, promotion or deployment. Older sections are historical.
+
 ## Item 04 checks and Activity Time menu - 31 October 2026
 
 Native `7979be6` puts Custom dates (UTC) inside Time and removes its separate
