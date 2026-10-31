@@ -59,7 +59,7 @@ class _AssignedTasksScreenState extends State<AssignedTasksScreen> {
         if (tab == MaintenanceTab.profile) widget.onNavigateToProfile?.call();
       },
       body: GhanaRefreshIndicator(
-        onRefresh: MaintenanceTaskDirectory.instance.refresh,
+        onRefresh: _reload,
         // The header paints on top of this body (a later sibling in
         // MaintenanceScaffold's own Stack), so without this the pull
         // indicator would grow in from behind it.
@@ -478,10 +478,12 @@ class _TaskCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: AppSpacing.sm),
-              TintedBadge(
-                label: task.status.label,
-                color: task.status.color,
-                textColor: task.status.badgeTextColor(brightness),
+              Flexible(
+                child: TintedBadge(
+                  label: task.status.label,
+                  color: task.status.color,
+                  textColor: task.status.badgeTextColor(brightness),
+                ),
               ),
             ],
           ),
@@ -564,35 +566,49 @@ class _EmptyView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              AppIcons.task,
-              size: AppIconSize.xl,
-              color: colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(height: AppSpacing.md),
-            Text(
-              'No assigned tasks',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              'Assigned maintenance tasks will appear here.',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: colorScheme.onSurfaceVariant,
+    final inset = MaintenanceScaffold.contentPadding(context);
+    return CustomScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      slivers: [
+        SliverPadding(
+          padding: EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            inset.top + AppSpacing.lg,
+            AppSpacing.lg,
+            inset.bottom + AppSpacing.lg,
+          ),
+          sliver: SliverFillRemaining(
+            hasScrollBody: false,
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    AppIcons.task,
+                    size: AppIconSize.xl,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  Text(
+                    'No assigned tasks',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    'Assigned maintenance tasks will appear here.',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  AsyncActionButton(onPressed: onRetry, label: 'Retry'),
+                ],
               ),
             ),
-            const SizedBox(height: AppSpacing.lg),
-            AsyncActionButton(onPressed: onRetry, label: 'Retry'),
-          ],
+          ),
         ),
-      ),
+      ],
     );
   }
 }

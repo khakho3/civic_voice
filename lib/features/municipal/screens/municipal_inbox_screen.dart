@@ -496,11 +496,12 @@ class _ReportCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.xs,
             children: [
               ReportStatusBadge(status: report.status),
-              const Spacer(),
               Text(report.timeAgo, style: textTheme.bodySmall),
             ],
           ),
@@ -535,7 +536,7 @@ class _ReportCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: AppSpacing.sm),
-              _CategoryTag(category: report.category),
+              Flexible(child: _CategoryTag(category: report.category)),
             ],
           ),
         ],

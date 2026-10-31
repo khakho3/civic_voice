@@ -105,9 +105,15 @@ class MunicipalScaffold extends StatelessWidget {
           viewPadding.bottom +
           (viewInsets.bottom > 0
               ? viewInsets.bottom
-              : AppDimensions.bottomNavHeight),
+              : bottomNavHeight(context)),
     );
   }
+
+  static double bottomNavHeight(BuildContext context) =>
+      AppDimensions.bottomNavHeight *
+      (MediaQuery.textScalerOf(context).scale(AppFontSize.caption) /
+              AppFontSize.caption)
+          .clamp(1.0, double.infinity);
 
   @override
   Widget build(BuildContext context) {
@@ -306,7 +312,7 @@ class _BottomNav extends StatelessWidget {
       child: SafeArea(
         top: false,
         child: SizedBox(
-          height: AppDimensions.bottomNavHeight,
+          height: MunicipalScaffold.bottomNavHeight(context),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
             child: Row(
@@ -384,6 +390,8 @@ class _NavItem extends StatelessWidget {
             const SizedBox(height: AppSpacing.xs),
             Text(
               tab.label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: textTheme.labelMedium?.copyWith(
                 color: foreground,
                 fontWeight: isSelected

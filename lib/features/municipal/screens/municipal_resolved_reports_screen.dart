@@ -565,9 +565,11 @@ class _ResolvedReportCard extends StatelessWidget {
                 color: colorScheme.onSurfaceVariant,
               ),
               const SizedBox(width: 4),
-              Text(
-                formatResolvedDate(report.resolvedDate),
-                style: textTheme.bodySmall,
+              Flexible(
+                child: Text(
+                  formatResolvedDate(report.resolvedDate),
+                  style: textTheme.bodySmall,
+                ),
               ),
             ],
           ),
@@ -590,10 +592,12 @@ class _ResolvedReportCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              Text(
-                'View Details',
-                style: textTheme.labelLarge?.copyWith(
-                  color: AppSemanticColors.of(context).actionText,
+              Flexible(
+                child: Text(
+                  'View Details',
+                  style: textTheme.labelLarge?.copyWith(
+                    color: AppSemanticColors.of(context).actionText,
+                  ),
                 ),
               ),
               Icon(

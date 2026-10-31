@@ -55,7 +55,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         if (tab == MaintenanceTab.profile) widget.onNavigateToProfile?.call();
       },
       body: GhanaRefreshIndicator(
-        onRefresh: MaintenanceTaskDirectory.instance.refresh,
+        onRefresh: _reload,
         // The header paints on top of this body (a later sibling in
         // MaintenanceScaffold's own Stack), so without this the pull
         // indicator would grow in from behind it.
@@ -190,11 +190,17 @@ class _DashboardContent extends StatelessWidget {
               GridView(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 2,
                   crossAxisSpacing: AppSpacing.sm,
                   mainAxisSpacing: AppSpacing.sm,
-                  mainAxisExtent: 132,
+                  mainAxisExtent:
+                      132 *
+                      (MediaQuery.textScalerOf(
+                                context,
+                              ).scale(AppFontSize.bodySmall) /
+                              AppFontSize.bodySmall)
+                          .clamp(1.0, double.infinity),
                 ),
                 children: [
                   _StatCard(
@@ -411,7 +417,12 @@ class _DiscoveryBars extends StatelessWidget {
     );
 
     return SizedBox(
-      height: height,
+      height:
+          height +
+          (MediaQuery.textScalerOf(context).scale(AppFontSize.bodySmall) -
+                      AppFontSize.bodySmall)
+                  .clamp(0.0, double.infinity) *
+              2,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: List.generate(_labels.length, (index) {
@@ -497,10 +508,12 @@ class _TaskListTile extends StatelessWidget {
             ),
           ),
           const SizedBox(width: AppSpacing.sm),
-          TintedBadge(
-            label: task.status.label,
-            color: task.status.color,
-            textColor: task.status.badgeTextColor(brightness),
+          Flexible(
+            child: TintedBadge(
+              label: task.status.label,
+              color: task.status.color,
+              textColor: task.status.badgeTextColor(brightness),
+            ),
           ),
         ],
       ),

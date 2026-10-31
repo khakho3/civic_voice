@@ -54,10 +54,11 @@ class _UpdateProgressScreenState extends State<UpdateProgressScreen> {
   final FocusNode _notesFocus = FocusNode();
   final _evidenceAttention = GlobalKey();
   bool _pickingPhoto = false;
-  late MaintenanceTaskStatus _selectedStatus =
+  late MaintenanceTaskStatus _baselineStatus =
       widget.task.status == MaintenanceTaskStatus.assigned
       ? MaintenanceTaskStatus.inProgress
       : widget.task.status;
+  late MaintenanceTaskStatus _selectedStatus = _baselineStatus;
   final TextEditingController _notesController = TextEditingController();
   String? _validationError;
   String? _evidenceError;
@@ -67,6 +68,13 @@ class _UpdateProgressScreenState extends State<UpdateProgressScreen> {
   bool _submitting = false;
   bool _accessUnavailable = false;
   bool _requiresRefresh = false;
+  bool _allowPop = false;
+  bool _confirmingExit = false;
+  bool get _hasUnsavedChanges =>
+      !_saved &&
+      (_selectedStatus != _baselineStatus ||
+          _notesController.text.isNotEmpty ||
+          _evidencePhotos.isNotEmpty);
   MaintenanceTask get _task =>
       MaintenanceTaskDirectory.instance.taskById(widget.task.id) ?? widget.task;
 
@@ -249,6 +257,7 @@ class _UpdateProgressScreenState extends State<UpdateProgressScreen> {
         _validationError = null;
         _evidenceError = null;
         _saved = true;
+        _baselineStatus = _selectedStatus;
         _submitting = false;
       });
     } catch (error) {
@@ -300,15 +309,13 @@ class _UpdateProgressScreenState extends State<UpdateProgressScreen> {
 
   Future<void> _handleDiscard() async {
     if (_submitting) return;
-    final hasContent =
-        _notesController.text.trim().isNotEmpty || _evidencePhotos.isNotEmpty;
-    if (hasContent) {
+    if (_hasUnsavedChanges) {
       final confirmed = await showConfirmDialog(
         context,
         title: 'Discard draft?',
         message:
-            'Your work notes and any captured evidence photos for this '
-            'update will be lost.',
+            'Your status selection, work notes and captured evidence photos '
+            'for this update will be lost.',
         confirmLabel: 'Discard',
         destructive: true,
       );
@@ -316,12 +323,45 @@ class _UpdateProgressScreenState extends State<UpdateProgressScreen> {
     }
     if (!mounted) return;
     setState(() {
+      _selectedStatus = _baselineStatus;
       _notesController.clear();
       _validationError = null;
       _evidenceError = null;
       _evidencePhotos.clear();
       _saved = false;
     });
+  }
+
+  Future<void> _handleBack() async {
+    if (_submitting || _confirmingExit) return;
+    if (_hasUnsavedChanges) {
+      _confirmingExit = true;
+      final confirmed = await showConfirmDialog(
+        context,
+        title: 'Discard draft?',
+        message:
+            'Your status selection, work notes and captured evidence photos for this update will be lost.',
+        confirmLabel: 'Discard',
+        destructive: true,
+      );
+      _confirmingExit = false;
+      if (!mounted || !confirmed) return;
+    }
+    if (!mounted) return;
+    setState(() => _allowPop = true);
+    await WidgetsBinding.instance.endOfFrame;
+    if (!mounted) return;
+    try {
+      if (widget.onBack != null) {
+        widget.onBack!();
+      } else {
+        await Navigator.of(context).maybePop();
+      }
+    } finally {
+      // A host callback may keep this route open. Permission applies only
+      // to this navigation attempt, not to later edits or Back presses.
+      if (mounted) setState(() => _allowPop = false);
+    }
   }
 
   @override
@@ -334,77 +374,81 @@ class _UpdateProgressScreenState extends State<UpdateProgressScreen> {
         _accessUnavailable ||
         _requiresRefresh;
 
-    return Scaffold(
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: _UpdateProgressForm(
-              evidenceAttention: _evidenceAttention,
-              task: task,
-              disabled: readOnly,
-              selectedStatus: _selectedStatus,
-              notesController: _notesController,
-              minNotesLength: _minNotesLength,
-              validationError: _validationError,
-              saved: _saved,
-              submitting: _submitting,
-              notesFocus: _notesFocus,
-              onRemoveEvidence: (index) {
-                if (_submitting || readOnly) return;
-                setState(() {
-                  _evidencePhotos.removeAt(index);
-                  _saved = false;
-                  _evidenceError = null;
-                });
-              },
-              onStatusChanged: readOnly || _submitting
-                  ? null
-                  : (status) {
-                      AppHaptics.activate();
-                      setState(() {
-                        _selectedStatus = status;
-                        _validationError = null;
-                        _evidenceError = null;
-                        _saved = false;
-                      });
-                    },
-              onNotesChanged: readOnly || _submitting
-                  ? null
-                  : (_) {
-                      if (_saved || _validationError != null) {
+    return PopScope(
+      canPop: !_submitting && (_allowPop || !_hasUnsavedChanges),
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _handleBack();
+      },
+      child: Scaffold(
+        body: Stack(
+          children: [
+            Positioned.fill(
+              child: _UpdateProgressForm(
+                evidenceAttention: _evidenceAttention,
+                task: task,
+                disabled: readOnly,
+                selectedStatus: _selectedStatus,
+                notesController: _notesController,
+                minNotesLength: _minNotesLength,
+                validationError: _validationError,
+                saved: _saved,
+                submitting: _submitting,
+                notesFocus: _notesFocus,
+                onRemoveEvidence: (index) {
+                  if (_submitting || readOnly) return;
+                  setState(() {
+                    _evidencePhotos.removeAt(index);
+                    _saved = false;
+                    _evidenceError = null;
+                  });
+                },
+                onStatusChanged: readOnly || _submitting
+                    ? null
+                    : (status) {
+                        AppHaptics.activate();
+                        setState(() {
+                          _selectedStatus = status;
+                          _validationError = null;
+                          _evidenceError = null;
+                          _saved = false;
+                        });
+                      },
+                onNotesChanged: readOnly || _submitting
+                    ? null
+                    : (_) {
                         setState(() {
                           _saved = false;
                           _validationError = null;
                           _evidenceError = null;
                         });
-                      }
-                    },
-              evidencePhotos: _evidencePhotos,
-              requiredEvidencePhotos: _requiredEvidencePhotos,
-              evidenceError: _evidenceError,
-              onAttachEvidence: readOnly || _submitting
-                  ? null
-                  : _captureEvidencePhoto,
-              onSave: readOnly ? null : _handleSave,
-              onRefresh: _refreshTask,
-              onDiscard: readOnly || _submitting ? null : _handleDiscard,
+                      },
+                evidencePhotos: _evidencePhotos,
+                requiredEvidencePhotos: _requiredEvidencePhotos,
+                evidenceError: _evidenceError,
+                onAttachEvidence: readOnly || _submitting
+                    ? null
+                    : _captureEvidencePhoto,
+                onSave: readOnly ? null : _handleSave,
+                onRefresh: _refreshTask,
+                onDiscard: readOnly || _submitting ? null : _handleDiscard,
+              ),
             ),
-          ),
-          Align(
-            alignment: Alignment.topCenter,
-            child: DetailHeader(
-              title: 'Update Progress',
-              onBack: widget.onBack,
-              trailing: Chip(
-                label: Text(
-                  '#${task.id}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+            Align(
+              alignment: Alignment.topCenter,
+              child: DetailHeader(
+                title: 'Update Progress',
+                onBack: _handleBack,
+                trailing: Chip(
+                  label: Text(
+                    '#${task.id}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

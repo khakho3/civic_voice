@@ -389,15 +389,25 @@ class _StatsGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final isTablet = constraints.maxWidth >= 720;
+        final textScale =
+            (MediaQuery.textScalerOf(context).scale(AppFontSize.bodySmall) /
+                    AppFontSize.bodySmall)
+                .clamp(1.0, double.infinity);
+        final isTablet = constraints.maxWidth / textScale >= 720;
         final isNarrow = constraints.maxWidth < 360;
         return GridView.count(
-          crossAxisCount: isTablet ? 4 : 2,
+          crossAxisCount: isTablet
+              ? 4
+              : textScale > 1 &&
+                    constraints.maxWidth / textScale <
+                        AppBreakpoints.smallMobile
+              ? 1
+              : 2,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           mainAxisSpacing: AppSpacing.sm,
           crossAxisSpacing: AppSpacing.sm,
-          mainAxisExtent: isNarrow ? 144 : 132,
+          mainAxisExtent: (isNarrow ? 144 : 132) * textScale,
           children: [
             _StatCard(
               label: 'New Reports',
@@ -586,7 +596,7 @@ class _RecentReportRow extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: AppSpacing.sm),
-                      ReportStatusBadge(status: report.status),
+                      Flexible(child: ReportStatusBadge(status: report.status)),
                     ],
                   ),
                   const SizedBox(height: AppSpacing.xs),
@@ -720,10 +730,12 @@ class _AssignmentSummaryCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  item.teamName,
-                  style: textTheme.bodyMedium?.copyWith(
-                    fontWeight: AppFontWeight.medium,
+                Expanded(
+                  child: Text(
+                    item.teamName,
+                    style: textTheme.bodyMedium?.copyWith(
+                      fontWeight: AppFontWeight.medium,
+                    ),
                   ),
                 ),
                 Text(

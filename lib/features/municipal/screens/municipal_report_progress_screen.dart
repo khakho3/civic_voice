@@ -66,6 +66,7 @@ class _MunicipalReportProgressScreenState
   bool _sentBack = false;
   bool _missing = false;
   String? _actionError;
+  String _sendBackReason = '';
   IncomingReportItem? get _report =>
       MunicipalReportDirectory.instance.byReferenceId(widget.referenceId);
   late int _evidenceCount;
@@ -91,7 +92,7 @@ class _MunicipalReportProgressScreenState
   final _timelineKey = GlobalKey();
 
   Future<void> _approve() async {
-    if (!_hasCompletionEvidence) return;
+    if (!_hasCompletionEvidence || _actionError != null) return;
     if (_submitting ||
         _decisionOpen ||
         _report?.status != ReportStatus.pendingApproval) {
@@ -111,7 +112,8 @@ class _MunicipalReportProgressScreenState
   }
 
   Future<void> _sendBack() async {
-    if (_submitting ||
+    if (_actionError != null ||
+        _submitting ||
         _decisionOpen ||
         _report?.status != ReportStatus.pendingApproval) {
       return;
@@ -121,10 +123,11 @@ class _MunicipalReportProgressScreenState
       context: context,
       isScrollControlled: true,
       form: true,
-      builder: (context) => const _SendBackForm(),
+      builder: (context) => _SendBackForm(initialReason: _sendBackReason),
     );
     _decisionOpen = false;
     if (!mounted || reason == null) return;
+    _sendBackReason = reason;
     await _submitCompletion(approve: false, reason: reason);
   }
 
@@ -153,6 +156,7 @@ class _MunicipalReportProgressScreenState
         _data = ReportProgressData.fromReport(_report!);
         _submitting = false;
         _sentBack = !approve;
+        _sendBackReason = '';
         if (approve) _state = MunicipalReportProgressViewState.success;
       });
     } catch (_) {
@@ -175,6 +179,7 @@ class _MunicipalReportProgressScreenState
       setState(() {
         if (_report != null) _data = ReportProgressData.fromReport(_report!);
         _missing = _report == null;
+        _actionError = null;
         _state = MunicipalReportProgressViewState.loaded;
       });
     } catch (_) {
@@ -351,7 +356,9 @@ class _MunicipalReportProgressScreenState
                               width: double.infinity,
                               child: FilledButton(
                                 onPressed:
-                                    _submitting || !_hasCompletionEvidence
+                                    _submitting ||
+                                        _actionError != null ||
+                                        !_hasCompletionEvidence
                                     ? null
                                     : _approve,
                                 child: BusyLabel(
@@ -362,7 +369,9 @@ class _MunicipalReportProgressScreenState
                               ),
                             ),
                             TextButton(
-                              onPressed: _submitting ? null : _sendBack,
+                              onPressed: _submitting || _actionError != null
+                                  ? null
+                                  : _sendBack,
                               child: const Text('Send Back'),
                             ),
                           ],
@@ -591,10 +600,11 @@ class _SummaryCard extends StatelessWidget {
             ),
           ],
           const SizedBox(height: AppSpacing.md),
-          Row(
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            spacing: AppSpacing.sm,
             children: [
               Text('Completion', style: textTheme.labelSmall),
-              const Spacer(),
               Text('${data.completionPercent}%', style: textTheme.titleSmall),
             ],
           ),
@@ -1042,13 +1052,14 @@ class _LabeledValue extends StatelessWidget {
 }
 
 class _SendBackForm extends StatefulWidget {
-  const _SendBackForm();
+  const _SendBackForm({required this.initialReason});
+  final String initialReason;
   @override
   State<_SendBackForm> createState() => _SendBackFormState();
 }
 
 class _SendBackFormState extends State<_SendBackForm> {
-  final _reason = TextEditingController();
+  late final _reason = TextEditingController(text: widget.initialReason);
   String? _error;
   @override
   void dispose() {
