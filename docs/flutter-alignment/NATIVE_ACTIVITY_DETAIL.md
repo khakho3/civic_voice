@@ -1,5 +1,20 @@
 # Flutter Admin Activity Detail - 28 October 2026
 
+## Time menu adjustment - 31 October 2026
+
+Native `7979be6` moves **Custom dates (UTC)** into the existing Time dropdown and
+removes its separate button row. Reopening restores the chosen range; cancel
+retains the query/page; presets clear custom bounds. Confirmed ranges still use
+UTC midnight through midnight after the selected final day and compose with
+other filters. Legacy preview presets and shared controls remain unchanged.
+
+All **1,634 native tests pass**, analyzer clean; six added menu/date cases and
+231 focused Admin checks pass. Four ignored actual-font cases produced eight
+list/menu captures; representative normal and extreme renders were inspected.
+No new DEV source copy/build/install or owner confirmation occurred. Last
+installed runtime remains `578ab59`; reverify protected DEV configuration before
+the next install. The deferred info-button idea remains recorded for later.
+
 ## Wireless DEV reinstall - 31 October 2026
 
 At the owner's request, unchanged runtime **578ab59** was rebuilt as an Android

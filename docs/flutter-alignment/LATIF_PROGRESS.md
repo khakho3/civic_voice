@@ -1,5 +1,24 @@
 # Latif progress
 
+## Item 04 checks and Activity Time menu - 31 October 2026
+
+Native `7979be6` puts Custom dates (UTC) inside Time and removes its separate
+button row; inclusive UTC boundaries, cancellation, editing and preset/query
+behavior are covered. **1,634 full tests pass; analyzer clean**. Six new Activity
+cases, all 231 focused Admin checks, and four additional visual cases/eight
+captures pass; representative renders inspected. [Activity contract](NATIVE_ACTIVITY_DETAIL.md).
+
+Owner/integrator item 04 also fixes API completion safety (`6387150`, 192 full
+tests) and web completion start/receipt handling (`4c3f42e`, 431 full tests,
+lint/build). Canonical web report: `docs/ITEM04_COMPLETION_VERIFICATION_2026_10_31.md`.
+The owner clarified that web read-only applies to Kingsben, not owner/integrator
+work. No assigned Maintenance/Municipal Flutter file or Kingsben branch changed.
+
+No new DEV copy/build/install or phone acceptance; installed runtime remains
+`578ab59`. Live workflow acceptance and client-rendered review-version policy
+remain open. No live records, process restart, migration, merge/promotion or
+deployment was performed by this work.
+
 ## PR cleanup and Kingsben handoff - 31 October 2026
 
 Owner authorized closing original PR #20 without merging; GitHub confirms CLOSED
