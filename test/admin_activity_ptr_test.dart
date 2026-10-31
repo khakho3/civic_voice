@@ -73,6 +73,7 @@ void main() {
         expect(controller.isLoading, true);
         expect(activityStars(), findsNothing);
         expect(find.byType(GhanaLoadingIndicator), findsOneWidget);
+        expect(find.text('Loading activity'), findsNothing);
         expect(activityProgressBars(), findsOneWidget);
         expect(
           tester.getTopLeft(activityProgressBars()).dy,
@@ -84,6 +85,7 @@ void main() {
         first.complete(auditPageFixture(id: 'stale-first'));
         await tester.pump();
         expect(activityProgressBars(), findsOneWidget);
+        expect(find.text('Loading activity'), findsNothing);
         refresh.complete(auditPageFixture(id: 'fresh'));
         await tester.pumpAndSettle();
         expect(activityProgressBars(), findsNothing);
@@ -119,6 +121,49 @@ void main() {
         first.complete(auditPageFixture());
         await tester.pumpAndSettle();
         expect(find.byType(GhanaLoadingIndicator), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'fast initial Activity PTR never flashes page-loading text dark=$dark',
+      (tester) async {
+        final initial = Completer<Map<String, dynamic>>();
+        var calls = 0;
+        final repo = AdminActivityRepository(
+          owner: () => 'admin',
+          credential: () async => 'fixture',
+          list: (_, _) =>
+              ++calls == 1 ? initial.future : Future.value(auditPageFixture()),
+        );
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: dark ? AppTheme.dark : AppTheme.light,
+            home: AdminSystemActivityScreen(repository: repo),
+          ),
+        );
+        await tester.pump();
+        expect(find.text('Loading activity'), findsOneWidget);
+        final state = tester.state<CustomRefreshIndicatorState>(
+          find.byType(CustomRefreshIndicator),
+        );
+        unawaited(
+          state.refresh(draggingDuration: const Duration(milliseconds: 120)),
+        );
+        for (var frame = 0; frame < 75; frame++) {
+          await tester.pump(const Duration(milliseconds: 16));
+          expect(
+            find.text('Loading activity'),
+            findsNothing,
+            reason: 'frame $frame',
+          );
+          expect(find.text('Updating activity…'), findsNothing);
+        }
+        expect(calls, 2);
+        expect(find.text('Account access updated'), findsOneWidget);
+        initial.complete(auditPageFixture(id: 'discarded'));
+        await tester.pumpAndSettle();
+        expect(find.text('Loading activity'), findsNothing);
+        expect(tester.takeException(), isNull);
       },
     );
 

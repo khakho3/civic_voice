@@ -120,7 +120,7 @@ class GhanaRefreshIndicator extends StatelessWidget {
               controller: controller,
               indicatorHeight: indicatorHeight,
               showBar: showBar,
-              child: child,
+              child: _GhanaRefreshScope(controller: controller, child: child),
             ),
 
             // Phase C: The linear progress indicator — shown through loading,
@@ -212,24 +212,47 @@ class _RefreshContentState extends State<_RefreshContent>
   }
 }
 
+class _GhanaRefreshScope extends InheritedWidget {
+  const _GhanaRefreshScope({required this.controller, required super.child});
+
+  final IndicatorController controller;
+
+  @override
+  bool updateShouldNotify(_GhanaRefreshScope oldWidget) =>
+      controller != oldWidget.controller;
+}
+
 /// Plain page-loading text, with no central star or animated decoration.
 /// The Ghana star and flag belong only to top [GhanaRefreshIndicator] feedback.
+/// While a pull is active, its top indicator replaces this page message.
 class GhanaLoadingIndicator extends StatelessWidget {
   const GhanaLoadingIndicator({super.key, this.label = 'Loading'});
   final String label;
   @override
-  Widget build(BuildContext context) => Center(
-    child: Semantics(
-      liveRegion: true,
-      label: label,
-      child: ExcludeSemantics(
-        child: SizedBox(
-          width: 240,
-          child: Text(label, textAlign: TextAlign.center),
+  Widget build(BuildContext context) {
+    final controller = context
+        .dependOnInheritedWidgetOfExactType<_GhanaRefreshScope>()
+        ?.controller;
+    final status = Center(
+      child: Semantics(
+        liveRegion: true,
+        label: label,
+        child: ExcludeSemantics(
+          child: SizedBox(
+            width: 240,
+            child: Text(label, textAlign: TextAlign.center),
+          ),
         ),
       ),
-    ),
-  );
+    );
+    if (controller == null) return status;
+    return AnimatedBuilder(
+      animation: controller,
+      child: status,
+      builder: (context, child) =>
+          controller.isIdle ? child! : const SizedBox.shrink(),
+    );
+  }
 }
 
 class _GhanaLinearProgress extends StatefulWidget {
