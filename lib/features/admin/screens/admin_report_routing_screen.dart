@@ -5,7 +5,7 @@ import '../../../models/region.dart';
 import '../../../models/ghana_assemblies_data.dart';
 import '../../../services/api_client.dart';
 import '../../../widgets/app_dropdown_field.dart';
-import '../../../widgets/busy_indicator.dart';
+import '../../../core/widgets/ghana_refresh_indicator.dart';
 import '../../../widgets/confirm_dialog.dart';
 import '../../../widgets/evidence_image_viewer.dart';
 import '../../../widgets/focused_search.dart';
@@ -114,10 +114,8 @@ class _AdminReportRoutingScreenState extends State<AdminReportRoutingScreen> {
               if (_source.loading)
                 _changing
                     ? const Text('Updating reports…')
-                    : const Center(
-                        child: BusyIndicator(
-                          semanticsLabel: 'Loading report routing',
-                        ),
+                    : const GhanaLoadingIndicator(
+                        label: 'Loading report routing',
                       ),
               if (_source.error != null) Text(_source.error!),
               if (page != null) ...[
@@ -342,11 +340,7 @@ class _AdminReportRoutingDetailScreenState
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       if (_source.loading && report == null)
-                        const Center(
-                          child: BusyIndicator(
-                            semanticsLabel: 'Loading report',
-                          ),
-                        ),
+                        const GhanaLoadingIndicator(label: 'Loading report'),
                       if (_source.error != null)
                         Semantics(
                           liveRegion: true,

@@ -311,15 +311,6 @@ class _LoadingIndicatorRow extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
     return Row(
       children: [
-        SizedBox(
-          width: AppIconSize.sm,
-          height: AppIconSize.sm,
-          child: CircularProgressIndicator(
-            strokeWidth: 2,
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
-        ),
-        const SizedBox(width: AppSpacing.sm),
         Text('Loading dashboard data', style: textTheme.bodySmall),
       ],
     );

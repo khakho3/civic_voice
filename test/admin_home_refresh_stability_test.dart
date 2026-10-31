@@ -76,7 +76,8 @@ void main() {
         final switched = source.load();
         await tester.pump();
         expect(find.text('1234'), findsNothing);
-        expect(find.byType(BusyIndicator), findsOneWidget);
+        expect(find.byType(BusyIndicator), findsNothing);
+        expect(find.text('Loading overview'), findsOneWidget);
         pending.completeError(StateError('fixture failure'));
         await switched;
         await tester.pumpAndSettle();

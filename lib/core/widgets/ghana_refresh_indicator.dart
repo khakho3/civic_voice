@@ -212,8 +212,8 @@ class _RefreshContentState extends State<_RefreshContent>
   }
 }
 
-/// Shared native page loading, retaining the Ghana flag/star identity.
-/// Busy controls use BusyIndicator; pages never borrow the web orb.
+/// Static native page-loading status, retaining the Ghana star identity.
+/// Animated refresh feedback belongs at the top in [GhanaRefreshIndicator].
 class GhanaLoadingIndicator extends StatelessWidget {
   const GhanaLoadingIndicator({super.key, this.label = 'Loading'});
   final String label;
@@ -238,8 +238,6 @@ class GhanaLoadingIndicator extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(height: AppSpacing.md),
-              const _GhanaLinearProgress(),
               const SizedBox(height: AppSpacing.md),
               Text(label, textAlign: TextAlign.center),
             ],

@@ -460,11 +460,9 @@ class _ReportPhotoTile extends StatelessWidget {
             loadingBuilder: (context, child, progress) => progress == null
                 ? child
                 : Center(
-                    child: CircularProgressIndicator(
-                      value: progress.expectedTotalBytes == null
-                          ? null
-                          : progress.cumulativeBytesLoaded /
-                                progress.expectedTotalBytes!,
+                    child: Icon(
+                      Icons.image_outlined,
+                      color: colorScheme.onSurfaceVariant,
                     ),
                   ),
             errorBuilder: (_, _, _) => Center(

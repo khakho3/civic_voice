@@ -7,7 +7,6 @@ import '../models/notification_inbox.dart';
 import '../services/notification_inbox_directory.dart';
 import '../services/notification_navigation.dart';
 import 'notification_list_view.dart' show NotificationDeviceSettings;
-import 'busy_indicator.dart';
 import 'confirm_dialog.dart';
 
 /// All five live roles use the same verified inbox, independent of push permission.
@@ -142,11 +141,7 @@ class _NotificationInboxPanelState extends State<NotificationInboxPanel>
                     _inbox.status == InboxStatus.idle))
               const Padding(
                 padding: EdgeInsets.all(AppSpacing.xl),
-                child: Center(
-                  child: BusyIndicator(
-                    semanticsLabel: 'Loading notifications, please wait...',
-                  ),
-                ),
+                child: GhanaLoadingIndicator(label: 'Loading notifications'),
               )
             else if (!ready) ...[
               const _InboxState(
@@ -164,8 +159,9 @@ class _NotificationInboxPanelState extends State<NotificationInboxPanel>
                   style: Theme.of(context).textTheme.labelSmall,
                 ),
               if (_inbox.writing || _opening)
-                const BusyIndicator(
-                  semanticsLabel: 'Updating notifications, please wait...',
+                Semantics(
+                  liveRegion: true,
+                  child: const Text('Updating notifications…'),
                 ),
               if (page.rows.isNotEmpty)
                 Wrap(

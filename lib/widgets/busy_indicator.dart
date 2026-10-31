@@ -11,8 +11,8 @@ import '../core/theme/app_theme.dart';
 /// other in-place work. It is the native equivalent of the web inline
 /// `LoadingOrb` (the `thinking-orbs` npm package has no Flutter port).
 ///
-/// Page loading keeps the existing native Ghana loaders; this is only for
-/// a control or row that is busy.
+/// Page loading uses static Ghana status; animation is reserved for top
+/// pull-to-refresh and a control or field that is busy.
 ///
 /// * Inside buttons, ink and track contrast against the actual button fill,
 ///   including its disabled state. Outside buttons, ink follows IconTheme.

@@ -283,8 +283,6 @@ class _LoadingView extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const CircularProgressIndicator(),
-          const SizedBox(height: AppSpacing.md),
           Text(
             'Loading profile',
             style: Theme.of(context).textTheme.titleMedium,

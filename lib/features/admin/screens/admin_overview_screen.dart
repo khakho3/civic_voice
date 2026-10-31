@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../widgets/busy_indicator.dart';
 import '../../../widgets/app_state_message.dart';
 import '../services/admin_read_failure.dart';
 import '../../../core/widgets/ghana_refresh_indicator.dart';
@@ -269,11 +268,7 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen>
               // Pull/resume refresh already has its own feedback. Only a cold
               // load needs this row; adding it above verified cards shifts them.
               if ((_source.loading || !_requested) && data == null)
-                const Center(
-                  child: BusyIndicator(
-                    semanticsLabel: 'Loading, please wait...',
-                  ),
-                ),
+                const GhanaLoadingIndicator(label: 'Loading overview'),
               if (data != null) ...[
                 _DashboardCard(
                   key: const ValueKey('admin-overview-stats'),

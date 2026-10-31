@@ -642,7 +642,7 @@ class _CivicVoiceAppState extends State<CivicVoiceApp>
             darkTheme: AppTheme.dark,
             themeMode: themeMode,
             home: const Scaffold(
-              body: Center(child: CircularProgressIndicator()),
+              body: Center(child: Text('Restoring session…')),
             ),
           );
         }

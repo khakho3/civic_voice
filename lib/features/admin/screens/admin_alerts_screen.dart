@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../services/api_client.dart';
 import '../../../models/region.dart';
+import '../../../core/widgets/ghana_refresh_indicator.dart';
 import '../../../widgets/busy_indicator.dart';
 import '../../../widgets/confirm_dialog.dart';
 import '../../../widgets/focused_search.dart';
@@ -291,11 +292,7 @@ class _AdminAlertsScreenState extends State<AdminAlertsScreen> {
                 ),
                 const SizedBox(height: 16),
                 if (_source.loading && !updating)
-                  const Center(
-                    child: BusyIndicator(
-                      semanticsLabel: 'Loading, please wait...',
-                    ),
-                  ),
+                  const GhanaLoadingIndicator(label: 'Loading alerts'),
                 if (_source.error != null || page == null && !_source.loading)
                   Text(
                     _source.error ??
@@ -516,11 +513,7 @@ class _AdminAlertReviewScreenState extends State<AdminAlertReviewScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               if (_source.loading)
-                const Center(
-                  child: BusyIndicator(
-                    semanticsLabel: 'Loading, please wait...',
-                  ),
-                ),
+                const GhanaLoadingIndicator(label: 'Loading alert'),
               if (_source.error != null || detail == null && !_source.loading)
                 Semantics(
                   liveRegion: true,

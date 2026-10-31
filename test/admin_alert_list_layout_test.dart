@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:civic_voice/core/theme/app_theme.dart';
+import 'package:civic_voice/core/widgets/ghana_refresh_indicator.dart';
 import 'package:civic_voice/features/admin/models/admin_overview.dart';
 import 'package:civic_voice/features/admin/screens/admin_alerts_screen.dart';
 import 'package:civic_voice/features/admin/services/admin_resource.dart';
@@ -109,7 +110,8 @@ void main() {
             ),
           );
           await tester.pump();
-          expect(find.byType(BusyIndicator), findsOneWidget);
+          expect(find.byType(BusyIndicator), findsNothing);
+          expect(find.byType(GhanaLoadingIndicator), findsOneWidget);
           expect(find.text('No alerts match these filters.'), findsNothing);
           pending.complete(verifiedPage());
           await tester.pumpAndSettle();

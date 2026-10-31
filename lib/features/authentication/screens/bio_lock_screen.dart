@@ -167,7 +167,7 @@ class _LockContent extends StatelessWidget {
 
     return switch (phase) {
       _LockPhase.checkingAvailability => const Center(
-        child: CircularProgressIndicator(),
+        child: Text('Checking app lock…'),
       ),
       _LockPhase.unavailable => Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

@@ -6,7 +6,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../services/api_client.dart';
 import '../../../widgets/async_action_button.dart';
-import '../../../widgets/busy_indicator.dart';
+import '../../../core/widgets/ghana_refresh_indicator.dart';
 import 'civic_glass_card.dart';
 import 'nearby_seconding_card.dart';
 
@@ -122,15 +122,7 @@ class _NearbyReportsSheetState extends State<NearbyReportsSheet> {
               ),
               const SizedBox(height: AppSpacing.md),
               if (_loading)
-                const Center(
-                  child: Column(
-                    children: [
-                      BusyIndicator(),
-                      SizedBox(height: AppSpacing.sm),
-                      Text('Checking nearby reports…'),
-                    ],
-                  ),
-                ),
+                const GhanaLoadingIndicator(label: 'Checking nearby reports…'),
               if (!_loading && _error != null) ...[
                 Text(_error!, semanticsLabel: _error),
                 AsyncActionButton(label: 'Retry nearby', onPressed: _load),

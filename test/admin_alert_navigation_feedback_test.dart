@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:civic_voice/core/theme/app_theme.dart';
+import 'package:civic_voice/core/widgets/ghana_refresh_indicator.dart';
 import 'package:civic_voice/features/admin/models/admin_overview.dart';
 import 'package:civic_voice/features/admin/models/admin_role_management_data.dart';
 import 'package:civic_voice/features/admin/screens/admin_alerts_screen.dart';
@@ -127,7 +128,9 @@ void main() {
         pending = Completer<Map<String, dynamic>>();
         await tester.tap(find.text('Refresh alerts'));
         await tester.pump();
-        expect(find.byType(BusyIndicator), findsOneWidget);
+        expect(find.byType(BusyIndicator), findsNothing);
+        expect(find.byType(GhanaLoadingIndicator), findsOneWidget);
+        expect(find.text('Loading alerts'), findsOneWidget);
         expect(find.text('Updating alerts…'), findsNothing);
         pending.complete(page());
         await tester.pumpAndSettle();
