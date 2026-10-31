@@ -1,5 +1,30 @@
 # Latif progress
 
+## Owner PTR closeout; next 05 - 31 October 2026
+
+Native **c00a80c** includes **0298bc8** (no page stars/180px Activity loading box)
+and **1a88c36** (no page-loading text through active PTR). A stable refresh-content
+key now preserves the list when star/bar siblings switch and lets the retained
+80px pull offset return to zero during loading, matching the intended Home behavior.
+[Policy/reproduction](NATIVE_LOADING_FEEDBACK.md). **1,650 full tests/analyzer pass**,
+20 focused checks and six actual-font cases/ten captures pass. Geometry traces
+at 8ms show zero added body gap and zero settled pull offset in Home/Activity.
+
+Isolated DEV through c00a80c is artifact-verified, wirelessly replace-installed
+and launched with data retained and matching installed digest. All 60 source/
+14 protected configuration hashes match; DEV package/signing/API/Firebase,
+running API DEV/local database, phone LAN/readiness and Maps restrictions verified.
+Evidence remains private in web `.tmp/dev-ptr-container-preflight.json`.
+
+**Owner confirms text/star gone** on 1a88c36. The possible remaining middle gap
+is **owner-deferred as minimal impact**, with explicit instruction to close this
+UI follow-up and move on; do not investigate it further unless reopened.
+Broader Activity Detail/Time/Back/scope and item04 workflow/version-policy gates
+are not cleared. **Next independent work: 05 Teams, leads and scope.**
+Kingsben's branch/allocation and web/API runtime remain unchanged. No live
+records, API restart, merge, promotion or deployment. DEV install after completed
+app changes remains authorized. Older checkpoints below are historical.
+
 ## Static page loading and verified DEV install - 31 October 2026
 
 Runtime **408e630** removes animated standalone page/sheet loading feedback

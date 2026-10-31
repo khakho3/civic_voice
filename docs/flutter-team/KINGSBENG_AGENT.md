@@ -7,11 +7,15 @@ older Kingsbeng branch/start/ownership instructions for this assignment only.
 ## Start here
 
 **Shared loading policy, 31 October:** Preserve the owner/integrator fix
-`408e630` when integrating with the working branch. Standalone page/sheet
-loading feedback is static; animated refresh feedback stays at the top and
+`c00a80c` (including `1a88c36`/`0298bc8`/`408e630`) when integrating with the working branch.
+Standalone page/sheet loading feedback is plain text with no star and is hidden
+throughout active PTR. Ghana refresh feedback stays at the top and
 control busy indicators stay inside their controls. The fix includes small
 loading-only edits in Maintenance Profile/photo placeholders and Municipal
 dashboard. See [the policy and checks](../flutter-alignment/NATIVE_LOADING_FEEDBACK.md).
+
+Keep the shared refresh content keyed: its state must survive switching between
+the top star and loading bar, so the list stays mounted and pull space retracts.
 
 | Item | Agreed value |
 | --- | --- |

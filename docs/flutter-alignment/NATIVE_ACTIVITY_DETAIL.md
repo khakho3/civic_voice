@@ -1,5 +1,16 @@
 # Flutter Admin Activity Detail - 28 October 2026
 
+## Owner PTR closeout - 31 October 2026
+
+Current runtime **c00a80c** is verified/installed with retained data. It removes
+page stars/180px loading box, suppresses page text during PTR and preserves
+refresh-content state so the persistent 80px pull gap retracts. **1,650 full
+tests/analyzer pass**; see [loading policy](NATIVE_LOADING_FEEDBACK.md).
+Owner confirms text/star gone, then explicitly closes this UI follow-up and
+defers the possible minimal middle gap. Other detail/Time/filter/Back/scope
+acceptance remains pending. Next independent work is 05 Teams/leads/scope.
+See LATIF_PROGRESS.md and canonical web CURRENT_STATUS.md for current DEV evidence.
+
 ## Current loading/DEV checkpoint - 31 October 2026
 
 Runtime **408e630** keeps only the top animated PTR; standalone page status is
