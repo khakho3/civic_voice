@@ -111,6 +111,13 @@ The seven runtime deltas recorded in the private ledgers are:
 `lib/main.dart`, `lib/services/api_client.dart` and
 `lib/services/session_data_service.dart`.
 
+## Deferred presentation follow-up - 31 October 2026
+
+Owner requested that this Audit Detail screen be included when revisiting the
+idea of placing long information behind info buttons. Await the owner's design
+for that later UI pass; this note does not clear device acceptance. The canonical
+list is web docs/OWNER_UI_FOLLOWUPS_2026_10_24.md.
+
 Queue item 09 audit reliability/policy remains open. Item 02 Maintenance is the
 next queue item after this slice's gate is recorded; it was not started here.
 No merge, promotion, production build, migration or deployment is authorized.
