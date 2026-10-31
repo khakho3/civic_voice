@@ -74,6 +74,7 @@ void main() {
         expect(activityStars(), findsNothing);
         expect(find.byType(GhanaLoadingIndicator), findsOneWidget);
         expect(find.text('Loading activity'), findsNothing);
+        expect(tester.getSize(find.byType(GhanaLoadingIndicator)).height, 0);
         expect(activityProgressBars(), findsOneWidget);
         expect(
           tester.getTopLeft(activityProgressBars()).dy,
@@ -211,6 +212,55 @@ void main() {
         pending.complete(auditPageFixture());
         await tester.pumpAndSettle();
         expect(find.text('Audit history'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      },
+    );
+
+    testWidgets(
+      'drag-to-loading keeps Activity mounted and releases pull space dark=$dark',
+      (tester) async {
+        final refresh = Completer<Map<String, dynamic>>();
+        var calls = 0;
+        final repo = AdminActivityRepository(
+          owner: () => 'admin',
+          credential: () async => 'fixture',
+          list: (_, _) =>
+              ++calls == 1 ? Future.value(auditPageFixture()) : refresh.future,
+        );
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: dark ? AppTheme.dark : AppTheme.light,
+            home: AdminSystemActivityScreen(repository: repo),
+          ),
+        );
+        await tester.pumpAndSettle();
+        final card = find.text('Account access updated');
+        final element = tester.element(card);
+        final cardRect = tester.getRect(card);
+        final indicator = tester.state<CustomRefreshIndicatorState>(
+          find.byType(CustomRefreshIndicator),
+        );
+        unawaited(
+          indicator.refresh(
+            draggingDuration: const Duration(milliseconds: 120),
+          ),
+        );
+        for (var frame = 0; frame < 90; frame++) {
+          await tester.pump(const Duration(milliseconds: 8));
+          expect(
+            tester.element(card),
+            same(element),
+            reason: 'frame $frame remounted content',
+          );
+          expect(find.text('Loading activity'), findsNothing);
+          expect(find.text('Updating activity…'), findsNothing);
+        }
+        expect(indicator.controller.isLoading, isTrue);
+        expect(activityProgressBars(), findsOneWidget);
+        expect(tester.getRect(card), cardRect);
+        refresh.complete(auditPageFixture());
+        await tester.pumpAndSettle();
+        expect(tester.getRect(card), cardRect);
         expect(tester.takeException(), isNull);
       },
     );

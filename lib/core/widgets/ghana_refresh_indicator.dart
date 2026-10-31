@@ -117,6 +117,8 @@ class GhanaRefreshIndicator extends StatelessWidget {
             // dragging/settling, then eased back up to 0 exactly once when
             // loading starts, so it hugs the top divider while the bar runs.
             _RefreshContent(
+              // Preserve the snap animation when the star/bar siblings change.
+              key: const ValueKey('ghana-refresh-content'),
               controller: controller,
               indicatorHeight: indicatorHeight,
               showBar: showBar,
@@ -157,6 +159,7 @@ class GhanaRefreshIndicator extends StatelessWidget {
 /// one-shot transition, triggered exactly once on the `showBar` flip.
 class _RefreshContent extends StatefulWidget {
   const _RefreshContent({
+    super.key,
     required this.controller,
     required this.indicatorHeight,
     required this.showBar,
