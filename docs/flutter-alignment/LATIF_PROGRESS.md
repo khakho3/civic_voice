@@ -1,5 +1,25 @@
 # Latif progress
 
+## Wireless DEV reinstall - 31 October 2026
+
+At the owner's request, unchanged runtime **578ab59** was rebuilt as an Android
+arm64 profile APK with `API_BASE_URL=http://192.168.100.8:4000`, verified,
+wirelessly replace-installed and launched on the Pixel 9 Pro XL with data
+retained. The installed APK digest matches. DEV package/label/signing and
+compiled Dart/native Firebase/API pass verification; production targets are
+absent. All 53 source hashes and 14 protected configuration hashes match the
+previous checkpoint; no source or configuration was copied. The running API's
+DEV Firebase/local database, phone-to-LAN health/readiness and Maps provider/
+package/certificate restrictions were rechecked successfully.
+
+**Current transport is direct Wi-Fi LAN**, superseding the earlier USB-only
+installation below; this build needs no USB cable or ADB reverse for API access.
+Exact evidence remains private in `.tmp/dev-activity-wireless-preflight.json`
+and `.tmp/device-checks-pending.md`. Owner Activity Detail acceptance remains
+pending; no full suite was rerun for this environment-only rebuild. Item 02 was
+not started. No account/report/settings, API process, merge, promotion or
+deployment change occurred.
+
 ## Item 01 - Flutter Admin Activity Detail - 28 October 2026
 
 Native runtime **578ab59** (feature **389487f**) implements the general protected audit detail and integrates server-filtered 50-row history pages/counts. Full UTC timestamps, honest UNKNOWN outcomes, recorded actor/target snapshots and event-specific safe context are shown. Missing/forbidden/error/loading states, session fencing and Back/query/filter/page/scroll/focus restoration are covered. History stays readable with collection off; audit-event warnings are not unresolved incidents. Existing Ghana loaders/PTR, shared search, animated native pills, card feedback and Super-only health remain.
