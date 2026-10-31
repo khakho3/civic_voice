@@ -28,6 +28,13 @@ void main() {
           await tester.pumpAndSettle();
           expect(find.text('Loading audit event'), findsOneWidget);
           expect(find.bySemanticsLabel('Loading audit event'), findsOneWidget);
+          expect(
+            find.descendant(
+              of: find.byType(GhanaLoadingIndicator),
+              matching: find.byType(CustomPaint),
+            ),
+            findsNothing,
+          );
           // A pending page status must not keep scheduling animation frames.
           await tester.pump(const Duration(seconds: 1));
           expect(tester.binding.hasScheduledFrame, isFalse);

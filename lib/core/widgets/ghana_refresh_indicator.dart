@@ -212,8 +212,8 @@ class _RefreshContentState extends State<_RefreshContent>
   }
 }
 
-/// Static native page-loading status, retaining the Ghana star identity.
-/// Animated refresh feedback belongs at the top in [GhanaRefreshIndicator].
+/// Plain page-loading text, with no central star or animated decoration.
+/// The Ghana star and flag belong only to top [GhanaRefreshIndicator] feedback.
 class GhanaLoadingIndicator extends StatelessWidget {
   const GhanaLoadingIndicator({super.key, this.label = 'Loading'});
   final String label;
@@ -225,23 +225,7 @@ class GhanaLoadingIndicator extends StatelessWidget {
       child: ExcludeSemantics(
         child: SizedBox(
           width: 240,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SizedBox.square(
-                dimension: AppIconSize.xl,
-                child: CustomPaint(
-                  painter: _StarPainter(
-                    color: Theme.of(context).brightness == Brightness.dark
-                        ? AppColors.ghanaGold
-                        : AppColors.scrimStrong,
-                  ),
-                ),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              Text(label, textAlign: TextAlign.center),
-            ],
-          ),
+          child: Text(label, textAlign: TextAlign.center),
         ),
       ),
     ),

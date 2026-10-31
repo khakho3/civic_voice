@@ -863,14 +863,9 @@ class _LiveActivityBodyState extends State<_LiveActivityBody> {
                             const SizedBox(height: AppSpacing.md),
                           ],
                           if (_source.loading && page == null)
-                            const SizedBox(
-                              height: 180,
-                              child: GhanaLoadingIndicator(
-                                label: 'Loading activity',
-                              ),
+                            const GhanaLoadingIndicator(
+                              label: 'Loading activity',
                             ),
-                          if (_source.loading && page != null)
-                            const Text('Updating activity…'),
                           if (_source.error != null) ...[
                             Text(
                               page == null

@@ -10,10 +10,17 @@ import 'package:civic_voice/features/admin/services/admin_activity_repository.da
 import 'package:civic_voice/services/api_client.dart';
 import 'package:civic_voice/services/app_cache_service.dart';
 import 'package:civic_voice/widgets/search_filter_list.dart';
+import 'package:civic_voice/widgets/civic_filter_chip.dart';
 import 'admin_activity_contract_test.dart' show auditPageFixture;
 
 Finder activityProgressBars() => find.byWidgetPredicate(
   (widget) => widget.runtimeType.toString() == '_GhanaLinearProgress',
+);
+
+Finder activityStars() => find.byWidgetPredicate(
+  (widget) =>
+      widget is CustomPaint &&
+      widget.painter.runtimeType.toString() == '_StarPainter',
 );
 
 Future<void> pullActivity(WidgetTester tester) async {
@@ -51,6 +58,11 @@ void main() {
         );
         await tester.pump();
         expect(find.byType(GhanaLoadingIndicator), findsOneWidget);
+        expect(activityStars(), findsNothing);
+        expect(
+          tester.getSize(find.byType(GhanaLoadingIndicator)).height,
+          lessThan(60),
+        );
         await pullActivity(tester);
         expect(calls, 2);
         final controller = tester
@@ -59,6 +71,7 @@ void main() {
             )
             .controller;
         expect(controller.isLoading, true);
+        expect(activityStars(), findsNothing);
         expect(find.byType(GhanaLoadingIndicator), findsOneWidget);
         expect(activityProgressBars(), findsOneWidget);
         expect(
@@ -74,6 +87,7 @@ void main() {
         refresh.complete(auditPageFixture(id: 'fresh'));
         await tester.pumpAndSettle();
         expect(activityProgressBars(), findsNothing);
+        expect(activityStars(), findsNothing);
         expect(find.text('Account access updated'), findsOneWidget);
         expect(tester.takeException(), isNull);
       },
@@ -109,6 +123,54 @@ void main() {
     );
 
     testWidgets(
+      'Activity filter loading and retry never insert a page star dark=$dark',
+      (tester) async {
+        var pending = Completer<Map<String, dynamic>>();
+        var calls = 0;
+        final repo = AdminActivityRepository(
+          owner: () => 'admin',
+          credential: () async => 'fixture',
+          list: (_, _) =>
+              ++calls == 1 ? Future.value(auditPageFixture()) : pending.future,
+        );
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: dark ? AppTheme.dark : AppTheme.light,
+            home: AdminSystemActivityScreen(repository: repo),
+          ),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(
+          find.widgetWithText(CivicFilterChip, 'System Updates'),
+        );
+        await tester.pumpAndSettle();
+        expect(calls, 2);
+        expect(activityStars(), findsNothing);
+        expect(activityProgressBars(), findsNothing);
+        expect(find.text('Loading activity'), findsOneWidget);
+        // A different query must not claim the previous query's count or cards.
+        expect(find.text('Audit history'), findsNothing);
+        expect(find.text('Account access updated'), findsNothing);
+        pending.completeError(
+          const ApiException(statusCode: 503, message: 'fixture outage'),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('Activity could not be verified.'), findsOneWidget);
+        pending = Completer<Map<String, dynamic>>();
+        await tester.tap(find.text('Retry'));
+        await tester.pumpAndSettle();
+        expect(calls, 3);
+        expect(activityStars(), findsNothing);
+        expect(activityProgressBars(), findsNothing);
+        expect(find.text('Loading activity'), findsOneWidget);
+        pending.complete(auditPageFixture());
+        await tester.pumpAndSettle();
+        expect(find.text('Audit history'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      },
+    );
+
+    testWidgets(
       'repeated Activity PTR lifecycle retains cards and one top bar on failure dark=$dark',
       (tester) async {
         var pending = Completer<Map<String, dynamic>>();
@@ -128,11 +190,15 @@ void main() {
         await tester.pumpAndSettle();
         final rail = tester.element(find.byType(SearchFilterList));
         final card = tester.element(find.text('Account access updated'));
+        final cardRect = tester.getRect(find.text('Account access updated'));
         for (var i = 0; i < 2; i++) {
           pending = Completer<Map<String, dynamic>>();
           await pullActivity(tester);
           expect(activityProgressBars(), findsOneWidget);
           expect(find.byType(GhanaLoadingIndicator), findsNothing);
+          expect(activityStars(), findsNothing);
+          expect(find.text('Updating activity…'), findsNothing);
+          expect(tester.getRect(find.text('Account access updated')), cardRect);
           expect(tester.element(find.byType(SearchFilterList)), same(rail));
           expect(
             tester.element(find.text('Account access updated')),
