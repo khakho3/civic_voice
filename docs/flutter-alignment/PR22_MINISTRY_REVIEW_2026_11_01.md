@@ -37,22 +37,22 @@ ownership checks remain unchanged.
 
 ## Validation
 
-The contributor reported100 failures on his environment. The combined candidate
-here passed all29 recovery/shared-filter checks before integrator changes; those
+The contributor reported 100 failures on his environment. The combined candidate
+here passed all 29 recovery/shared-filter checks before integrator changes; those
 100 failures were not independently reproduced here. The lazy lifecycle hazard
 was still corrected directly. The four new real-route regressions were red before
-the route repair, then passed. All35 focused route/recovery/lifecycle/shared-filter
+the route repair, then passed. All 35 focused route/recovery/lifecycle/shared-filter
 checks pass.
 
 Final exact source: **2,354 full Flutter tests pass**, analyzer reports no issues,
-and git whitespace check passes. This includes all298 contributor cases, the
-current2,050-test working baseline and six integrator regressions. The first full
-integration run had2,353 passes/one outdated route assertion failure; the final
+and git whitespace check passes. This includes all 298 contributor cases, the
+current 2,050-test working baseline and six integrator regressions. The first full
+integration run had 2,353 passes/one outdated route assertion failure; the final
 full run was repeated after correcting that expectation and passed completely.
 No test was skipped, removed or weakened to hide an exception.
 
-Contributor matrix: six populated screens at320/390/412/768px, both themes and
-1x/1.5x/2x text;120 loading/empty/error cases;24 search/keyboard cases; five
+Contributor matrix: six populated screens at 320/390/412/768px, both themes and
+1x/1.5x/2x text; 120 loading/empty/error cases; 24 search/keyboard cases; five
 simulated contact failures/blank-phone checks and five recovery sequences. These
 are labelled isolated fixtures, not screenshots or live provider/device proof.
 
@@ -61,3 +61,18 @@ installation occurred. Phone availability remains unconfirmed. Pending DEV2d142c
 contains session13 but not this Ministry integration; build/verify/install the
 current merged native source only after resuming and confirming availability.
 No main merge, promotion, migration or deployment is authorized by this review.
+
+## Verified merge and stop
+
+Owner explicitly authorized integration. PR22 was squash-merged at22:02 UTC as
+218e418d8c5c87afac845088ae5bcb3d5514932e, with parent
+ee979bc18e40b1621626d02b4566fddcda60a347. The complete merged tree is identical to
+the reviewed published candidate fb685ce7ee373e8c18c97dc997c5699276eeda62; validation
+applies to the exact merged source. No remote CI checks were configured/reported;
+the passing checks above are local automated evidence. The task branch is deleted
+both locally and remotely. The main working checkout is fast-forwarded to the
+squash; the isolated review checkout is clean and detached at that squash.
+
+This final checkpoint is documentation only. Owner requested the break after
+this integration; no further work, build or install is started. Resume only on
+owner instruction and keep physical/owner acceptance separate.

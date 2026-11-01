@@ -1,5 +1,34 @@
 # Latif progress
 
+## PR22 merged; owner-requested break - 1 November 2026
+
+**STOPPED after the authorized Ministry review/merge.** PR22 was repaired and
+squash-merged as **218e418d8c5c87afac845088ae5bcb3d5514932e** into
+`codex/flutter-latif-review-fixes` at22:02 UTC. The task branch
+`codex/flutter-kingsben-ministry-review` is deleted locally and remotely. The
+merged tree exactly matches reviewed candidate fb685ce; no main promotion or
+deployment. **2,354 full Flutter tests, analyzer and whitespace checks pass.**
+
+Kingsben supplied scoped Ministry layout/contact/recovery repairs and298 fixture
+cases. Integrator followups wire four real routes to confirmed directory state/
+refresh and make shared-header lifecycle initialization safe. Four new route
+regressions were red before repair; all35 focused integration checks pass. The
+reported100 contributor failures did not reproduce in the29-case pre-repair
+recovery/shared-filter check here. Physical/owner acceptance remains pending.
+
+Phone availability is unconfirmed: no input/capture/launch/install, wake helper
+stopped. Installed runtime remains45318ef. The verified pending DEV2d142ca predates
+this Ministry merge: **build/verify the current merged source before the next
+installation**, after resume and confirmed phone availability. Existing session13
+policy/provider/platform and previous owner gates remain recorded.
+
+Item14 is checkpointed separately: web3f64067 has495 full tests/lint/build and is
+committed locally, not pushed;61 native inbox checks pass with no inbox source
+change. SQL candidate remains private/unverified, fixture stopped, API unchanged.
+No further list item is started. Resume only on owner instruction.
+See CHECKPOINT_2026_11_01_PR22_BREAK.md and native PR22_MINISTRY_REVIEW_2026_11_01.md.
+Older checkpoints are historical.
+
 ## Item 13 native repairs verified; DEV ready, phone install deferred - 1 November 2026
 
 Native **cb4dad5 / 4b4663d / 2d142ca** orders SDK login/Guest/renewal/logout and

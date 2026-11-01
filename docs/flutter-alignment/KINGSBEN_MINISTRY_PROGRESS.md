@@ -1,6 +1,14 @@
 #
 ## Integrator review verified - 1 November 2026
 
+## Merge complete - integrator checkpoint
+
+PR22 squash218e418 is verified on the working branch. The task branch is deleted
+locally/remotely. Final2,354 full Flutter tests/analyzer/whitespace pass; reviewed
+and merged trees match exactly. Owner requested a break after integration; work
+is stopped. Current-source DEV build/device/owner acceptance remains pending.
+Older local-only/publication and failure checkpoints below are historical.
+
 Owner requested review, repair and squash merge of PR22 before the break.
 Combined source871ca62 on current working baselineee979bc passes2,354 full Flutter
 tests, analyzer and whitespace checks. Four real-route regressions were red before
