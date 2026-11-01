@@ -21,8 +21,15 @@ const String _loginRoute = '/login';
 /// the exact same teardown (idle timer, Firebase, MockAuthService,
 /// keepSignedIn) instead of two copies drifting apart.
 Future<void> signOut(BuildContext context) async {
-  await endSession();
-  if (!context.mounted) return;
+  final transitions = AuthTransitions.instance;
+  final closing = endSession();
+  final revision = transitions.revision;
+  await closing;
+  if (!context.mounted ||
+      transitions.revision != revision ||
+      transitions.isBusy) {
+    return;
+  }
   // A device that's already had an account signed in on it should never
   // see the onboarding carousel again on sign-out.
   Navigator.of(context).pushNamedAndRemoveUntil(_loginRoute, (_) => false);

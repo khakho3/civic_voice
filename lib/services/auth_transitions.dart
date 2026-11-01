@@ -124,3 +124,24 @@ class AuthTransitionLease {
     }
   }
 }
+
+/// Binds non-SDK auth forms to the session which opened them, including a
+/// subsequent sign-in to the same UID. No credentials are stored here.
+class AuthSessionFence {
+  AuthSessionFence.capture({
+    required String? Function() currentUid,
+    AuthTransitions? transitions,
+  }) : _currentUid = currentUid,
+       _transitions = transitions ?? AuthTransitions.instance {
+    _uid = currentUid();
+    _revision = _transitions.revision;
+  }
+  final String? Function() _currentUid;
+  final AuthTransitions _transitions;
+  late final String? _uid;
+  late final int _revision;
+  bool get isCurrent =>
+      !_transitions.isBusy &&
+      _transitions.revision == _revision &&
+      _currentUid() == _uid;
+}

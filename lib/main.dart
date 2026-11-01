@@ -114,6 +114,7 @@ import 'models/ghana_assemblies_data.dart';
 import 'models/region.dart';
 import 'services/api_client.dart';
 import 'services/password_session_service.dart';
+import 'services/password_change_session.dart';
 import 'services/auth_transitions.dart';
 import 'services/app_cache_service.dart';
 import 'services/idle_session_timer.dart';
@@ -758,12 +759,16 @@ class _CivicVoiceAppState extends State<CivicVoiceApp>
               AppRoutes.forgotPassword: (context) =>
                   const _ForgotPasswordRoute(),
               AppRoutes.biometricLock: _biometricLock,
-              AppRoutes.changePassword: (context) => ChangePasswordScreen(
-                onBack: Navigator.canPop(context)
-                    ? () => Navigator.of(context).maybePop()
-                    : null,
-                onSaved: () => _finishChangePassword(context),
-              ),
+              AppRoutes.changePassword: (context) {
+                final session = PasswordChangeSession();
+                return ChangePasswordScreen(
+                  session: session,
+                  onBack: Navigator.canPop(context)
+                      ? () => Navigator.of(context).maybePop()
+                      : null,
+                  onSaved: () => _finishChangePassword(context, session),
+                );
+              },
               AppRoutes.about: (context) => AboutScreen(
                 onBack: Navigator.canPop(context)
                     ? () => Navigator.of(context).maybePop()
@@ -1605,7 +1610,9 @@ void _startForgotPasswordOtp(
   BuildContext context,
   String phoneNumber,
   DateTime? expiresAt,
+  PasswordChangeSession session,
 ) {
+  if (!context.mounted || !session.isCurrent) return;
   Navigator.of(context).push(
     MaterialPageRoute<void>(
       builder: (context) => OtpVerificationScreen(
@@ -1613,41 +1620,47 @@ void _startForgotPasswordOtp(
         purpose: OtpPurpose.forgotPassword,
         expiresAt: expiresAt,
         onBack: () => Navigator.of(context).maybePop(),
-        onResend: () => ApiClient.instance.sendForgotPasswordOtp(phoneNumber),
+        onResend: () async {
+          session.check();
+          final expiry = await ApiClient.instance.sendForgotPasswordOtp(
+            phoneNumber,
+          );
+          session.check();
+          return expiry;
+        },
         onVerify: (code) async {
           late final String resetToken;
           try {
+            session.check();
             resetToken = await ApiClient.instance.verifyPasswordResetOtp(
               phone: phoneNumber,
               otp: code,
             );
+            session.check();
           } on ApiException catch (error) {
-            if (error.statusCode == 400 || error.statusCode == 401) {
-              return false;
-            }
+            if (error.statusCode == 400) return false;
             rethrow;
           }
-          if (!context.mounted) return false;
+          if (!context.mounted || !session.isCurrent) return false;
           Navigator.of(context).pushReplacement(
             MaterialPageRoute<void>(
               builder: (passwordContext) => SetNewPasswordScreen(
                 purpose: SetNewPasswordPurpose.forgotPassword,
                 onBack: () => Navigator.of(passwordContext).maybePop(),
                 onSaved: (newPassword) async {
-                  final navigator = Navigator.of(passwordContext);
-                  try {
-                    await ApiClient.instance.resetPassword(
-                      phone: phoneNumber,
-                      resetToken: resetToken,
-                      newPassword: newPassword,
-                    );
-                  } on ApiException {
-                    rethrow;
-                  }
-                  navigator.pushNamedAndRemoveUntil(
-                    AppRoutes.login,
-                    (_) => false,
+                  final ownsCompletion = await session.savePassword(
+                    phone: phoneNumber,
+                    resetToken: resetToken,
+                    newPassword: newPassword,
                   );
+                  if (!ownsCompletion ||
+                      !passwordContext.mounted ||
+                      !session.isCurrent) {
+                    return true;
+                  }
+                  Navigator.of(
+                    passwordContext,
+                  ).pushNamedAndRemoveUntil(AppRoutes.login, (_) => false);
                   return true;
                 },
               ),
@@ -1672,14 +1685,17 @@ class _ForgotPasswordRouteState extends State<_ForgotPasswordRoute> {
   String? _errorMessage;
 
   Future<void> _send(String phone) async {
+    final session = PasswordChangeSession();
     setState(() {
       _state = ForgotPasswordViewState.loading;
       _errorMessage = null;
     });
     try {
+      session.check();
       final expiresAt = await ApiClient.instance.sendForgotPasswordOtp(phone);
+      session.check();
       if (!mounted) return;
-      _startForgotPasswordOtp(context, phone, expiresAt);
+      _startForgotPasswordOtp(context, phone, expiresAt, session);
       setState(() => _state = ForgotPasswordViewState.ready);
     } on ApiException catch (error) {
       if (!mounted) return;
@@ -1863,21 +1879,34 @@ Future<void> _continueAsGuest(BuildContext context) async {
             : AppRoutes.citizenDashboard,
       );
     }, onFailure: clearFailedAuthTransition);
-  } catch (_) {
+  } catch (error) {
     if (!context.mounted || transition?.isLatest == false) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
+      SnackBar(
         content: Text(
-          'Could not continue as guest. Check your connection and try again.',
+          error is AuthTransitionBusy
+              ? 'A session change is in progress. Please wait.'
+              : 'Could not continue as guest. Please try again.',
         ),
       ),
     );
   }
 }
 
-Future<void> _finishChangePassword(BuildContext context) async {
-  await endSession();
-  if (!context.mounted) return;
+Future<void> _finishChangePassword(
+  BuildContext context,
+  PasswordChangeSession session,
+) async {
+  if (!context.mounted || !session.isCurrent) return;
+  final transitions = AuthTransitions.instance;
+  final closing = endSession();
+  final revision = transitions.revision;
+  await closing;
+  if (!context.mounted ||
+      transitions.revision != revision ||
+      transitions.isBusy) {
+    return;
+  }
   Navigator.of(context).pushNamedAndRemoveUntil(AppRoutes.login, (_) => false);
 }
 
