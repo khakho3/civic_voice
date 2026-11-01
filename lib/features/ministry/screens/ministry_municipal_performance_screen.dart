@@ -87,15 +87,19 @@ class _MinistryMunicipalPerformanceScreenState
   /// Null means every region.
   Region? _region;
 
+  @override
+  void didUpdateWidget(covariant MinistryMunicipalPerformanceScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialState != widget.initialState) {
+      _state = widget.initialState;
+    }
+  }
+
   Future<void> _retry() async {
     final refresh = widget.onRefresh;
     if (refresh == null) return;
-    setState(() => _state = MinistryMunicipalPerformanceViewState.loading);
     try {
       await refresh();
-      if (mounted) {
-        setState(() => _state = MinistryMunicipalPerformanceViewState.loaded);
-      }
     } catch (_) {
       if (mounted) {
         setState(() => _state = MinistryMunicipalPerformanceViewState.error);
@@ -126,7 +130,8 @@ class _MinistryMunicipalPerformanceScreenState
     // Unauthorized go a step further and disable the chrome entirely, same
     // as before.
     final data = widget.data;
-    final viewState = _state == MinistryMunicipalPerformanceViewState.loaded &&
+    final viewState =
+        _state == MinistryMunicipalPerformanceViewState.loaded &&
             (data == null || !data.hasReportData)
         ? MinistryMunicipalPerformanceViewState.empty
         : _state;
@@ -198,76 +203,99 @@ class _MinistryMunicipalPerformanceScreenState
               onRegionTap: chromeEnabled ? _pickRegion : null,
             ),
             Expanded(
-              child: switch (viewState) {
-                MinistryMunicipalPerformanceViewState.loading ||
-                MinistryMunicipalPerformanceViewState.loaded =>
-                  const SizedBox.shrink(),
-                MinistryMunicipalPerformanceViewState.empty => Padding(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  child: AppStateMessage(
-                    icon: AppIcons.noDataFile,
-                    badgeColor: AppColors.primary,
-                    title: 'No Performance Data',
-                    message:
-                        'Municipality performance metrics will appear '
-                        'once aggregated reports are available.',
-                    primaryActionLabel: 'Refresh',
-                    onPrimaryAction: widget.onRefresh == null ? null : _retry,
+              child: Padding(
+                padding: EdgeInsets.only(
+                  bottom: MinistryScaffold.contentPadding(context).bottom,
+                ),
+                child: LayoutBuilder(
+                  builder: (context, constraints) => SingleChildScrollView(
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minHeight: constraints.maxHeight,
+                      ),
+                      child: switch (viewState) {
+                        MinistryMunicipalPerformanceViewState.loading ||
+                        MinistryMunicipalPerformanceViewState.loaded =>
+                          const SizedBox.shrink(),
+                        MinistryMunicipalPerformanceViewState.empty => Padding(
+                          padding: const EdgeInsets.all(AppSpacing.md),
+                          child: AppStateMessage(
+                            icon: AppIcons.noDataFile,
+                            badgeColor: AppColors.primary,
+                            title: 'No Performance Data',
+                            message:
+                                'Municipality performance metrics will appear '
+                                'once aggregated reports are available.',
+                            primaryActionLabel: 'Refresh',
+                            onPrimaryAction: widget.onRefresh == null
+                                ? null
+                                : _retry,
+                          ),
+                        ),
+                        MinistryMunicipalPerformanceViewState.noResults =>
+                          Padding(
+                            padding: const EdgeInsets.all(AppSpacing.md),
+                            child: AppStateMessage(
+                              icon: AppIcons.noFilterMatch,
+                              badgeColor: AppColors.primary,
+                              title: 'No Results',
+                              message:
+                                  'No municipality performance records match the '
+                                  'selected filters.',
+                              primaryActionLabel: 'Clear Filters',
+                              onPrimaryAction: _clearFilters,
+                            ),
+                          ),
+                        MinistryMunicipalPerformanceViewState.offline =>
+                          Padding(
+                            padding: const EdgeInsets.all(AppSpacing.md),
+                            child: AppStateMessage(
+                              icon: AppIcons.offline,
+                              badgeColor: AppColors.error,
+                              title: 'You\'re offline',
+                              message:
+                                  'Check your connection and retry loading '
+                                  'performance metrics.',
+                              primaryActionLabel: 'Retry connection',
+                              onPrimaryAction: widget.onRefresh == null
+                                  ? null
+                                  : _retry,
+                              primaryActionColor: AppColors.error,
+                            ),
+                          ),
+                        MinistryMunicipalPerformanceViewState.error => Padding(
+                          padding: const EdgeInsets.all(AppSpacing.md),
+                          child: AppStateMessage(
+                            icon: AppIcons.warning,
+                            badgeColor: AppColors.error,
+                            title: 'Unable to Load Performance',
+                            message:
+                                'The performance service could not return '
+                                'aggregated metrics right now.',
+                            primaryActionLabel: 'Try again',
+                            onPrimaryAction: widget.onRefresh == null
+                                ? null
+                                : _retry,
+                            primaryActionColor: AppColors.error,
+                          ),
+                        ),
+                        MinistryMunicipalPerformanceViewState.unauthorized =>
+                          Padding(
+                            padding: const EdgeInsets.all(AppSpacing.md),
+                            child: const AppStateMessage(
+                              icon: AppIcons.permissionDenied,
+                              badgeColor: AppColors.error,
+                              title: 'Unauthorized Access',
+                              message:
+                                  'This read-only ministry performance screen '
+                                  'requires supervisor permissions.',
+                            ),
+                          ),
+                      },
+                    ),
                   ),
                 ),
-                MinistryMunicipalPerformanceViewState.noResults => Padding(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  child: AppStateMessage(
-                    icon: AppIcons.noFilterMatch,
-                    badgeColor: AppColors.primary,
-                    title: 'No Results',
-                    message:
-                        'No municipality performance records match the '
-                        'selected filters.',
-                    primaryActionLabel: 'Clear Filters',
-                    onPrimaryAction: _clearFilters,
-                  ),
-                ),
-                MinistryMunicipalPerformanceViewState.offline => Padding(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  child: AppStateMessage(
-                    icon: AppIcons.offline,
-                    badgeColor: AppColors.error,
-                    title: 'You\'re offline',
-                    message:
-                        'Check your connection and retry loading '
-                        'performance metrics.',
-                    primaryActionLabel: 'Retry connection',
-                    onPrimaryAction: widget.onRefresh == null ? null : _retry,
-                    primaryActionColor: AppColors.error,
-                  ),
-                ),
-                MinistryMunicipalPerformanceViewState.error => Padding(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  child: AppStateMessage(
-                    icon: AppIcons.warning,
-                    badgeColor: AppColors.error,
-                    title: 'Unable to Load Performance',
-                    message:
-                        'The performance service could not return '
-                        'aggregated metrics right now.',
-                    primaryActionLabel: 'Try again',
-                    onPrimaryAction: widget.onRefresh == null ? null : _retry,
-                    primaryActionColor: AppColors.error,
-                  ),
-                ),
-                MinistryMunicipalPerformanceViewState.unauthorized => Padding(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  child: const AppStateMessage(
-                    icon: AppIcons.permissionDenied,
-                    badgeColor: AppColors.error,
-                    title: 'Unauthorized Access',
-                    message:
-                        'This read-only ministry performance screen '
-                        'requires supervisor permissions.',
-                  ),
-                ),
-              },
+              ),
             ),
           ],
         ),
@@ -361,33 +389,32 @@ class _FilterControls extends StatelessWidget {
       child: SizedBox(
         height: 48,
         child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              // Region picker first — it's the primary narrowing dimension
-              // ("which of the 16 regions"), the scope chips after it just
-              // refine within whatever region is currently in effect.
-              itemCount: PerformanceFilter.values.length + 1,
-              separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.xs),
-              itemBuilder: (context, index) {
-                if (index == 0) {
-                  return RegionPickerChip(
-                    label: region?.label ?? 'All Regions',
-                    active: region != null,
-                    onTap: onRegionTap,
-                  );
-                }
-                final option = PerformanceFilter.values[index - 1];
-                return CivicFilterChip(
-                  label: option.label,
-                  selected: option == filter,
-                  onTap: enabled ? () => onFilterSelected?.call(option) : null,
-                );
-              },
-            ),
+          scrollDirection: Axis.horizontal,
+          // Region picker first — it's the primary narrowing dimension
+          // ("which of the 16 regions"), the scope chips after it just
+          // refine within whatever region is currently in effect.
+          itemCount: PerformanceFilter.values.length + 1,
+          separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.xs),
+          itemBuilder: (context, index) {
+            if (index == 0) {
+              return RegionPickerChip(
+                label: region?.label ?? 'All Regions',
+                active: region != null,
+                onTap: onRegionTap,
+              );
+            }
+            final option = PerformanceFilter.values[index - 1];
+            return CivicFilterChip(
+              label: option.label,
+              selected: option == filter,
+              onTap: enabled ? () => onFilterSelected?.call(option) : null,
+            );
+          },
+        ),
       ),
     );
   }
 }
-
 
 // ---------------------------------------------------------------------------
 // Loaded content
@@ -813,14 +840,13 @@ class _LoadingSkeletonState extends State<_LoadingSkeleton>
         const SizedBox(height: AppSpacing.sm),
         block(height: 32),
         const SizedBox(height: AppSpacing.md),
-        Row(
+        Wrap(
+          spacing: AppSpacing.xs,
+          runSpacing: AppSpacing.xs,
           children: [
             block(width: 72, height: 32, radius: 20),
-            const SizedBox(width: AppSpacing.xs),
             block(width: 72, height: 32, radius: 20),
-            const SizedBox(width: AppSpacing.xs),
             block(width: 72, height: 32, radius: 20),
-            const SizedBox(width: AppSpacing.xs),
             block(width: 88, height: 32, radius: 20),
           ],
         ),

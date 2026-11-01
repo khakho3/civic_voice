@@ -645,7 +645,7 @@ void main() {
     await advanceRoute();
 
     expect(find.text('Analytics Dashboard'), findsOneWidget);
-    expect(find.text('No Analytics Available'), findsOneWidget);
+    expect(find.text('Unable to Load Analytics'), findsOneWidget);
     expect(find.text('Trend Insights'), findsNothing);
 
     await tester.tap(find.byIcon(AppIcons.municipality).last);
@@ -655,12 +655,13 @@ void main() {
     // The app route has no injected, confirmed Ministry snapshot. It must
     // remain honest instead of manufacturing a municipality row to make this
     // route test navigable. Fixture-backed detail navigation is covered below.
-    expect(find.text('No Performance Data'), findsOneWidget);
+    expect(find.text('Unable to Load Performance'), findsOneWidget);
 
     await tester.tap(find.text('Reports'));
     await advanceRoute();
 
     expect(find.text('Reports Overview'), findsOneWidget);
+    expect(find.text('Unable to Load Reports'), findsOneWidget);
 
     await tester.tap(find.byTooltip('Account options'));
     await tester.pumpAndSettle();
