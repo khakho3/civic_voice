@@ -1,5 +1,28 @@
 # Latif progress
 
+## Item 13 web SDK repair verified; continue native review - 1 November 2026
+
+Web **9141a19** serializes SDK sign-in/sign-out, deduplicates logout and blocks
+competing Guest/login/renewal work during a transition. Delayed readiness/handoff,
+route disposal and changed SDK owners cannot publish old sessions or globally
+clear a newer one, including a new SDK session for the same UID. Forced-password
+and name edits verify their displayed SDK owner; auth-busy/session-change feedback
+preserves inputs without wrong-password or phone-conflict claims.
+
+**491 full web tests/lint/build/whitespace pass**, including 59 focused auth/Welcome
+cases and two installed-Firebase-SDK protocol checks against a loopback provider
+fixture. Browser smoke did not complete because of tool timeouts; its owned session
+is closed. No real credentials, Firebase accounts, passwords, roles or reports were
+changed. Native/API unchanged: prior 2,011 Flutter/analyzer and 272 API/eight Guest
+SQL checks remain applicable. Verified DEV45318ef stays installed; no new APK.
+
+**13 remains in progress**: native SDK/logout/restoration and wider scope/idle/
+platform acceptance are next. Idle/keep-signed-in policy and prior owner/device
+boundaries stay unchanged. The old private WIP patch is now implemented; do not
+reapply it. See ITEM13_SESSION_CORRECTNESS_2026_11_01.md. Phone wake helper41856
+continues safely after owner resume. No merge, promotion, migration or deployment.
+Older checkpoints below are historical.
+
 ## Item 13 API boundary verified; continue client session review - 1 November 2026
 
 API **da73a67** enforces Firebase revocation/disabled-user checks on required and
