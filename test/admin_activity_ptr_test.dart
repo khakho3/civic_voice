@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:civic_voice/core/theme/app_theme.dart';
 import 'package:civic_voice/core/widgets/ghana_refresh_indicator.dart';
 import 'package:civic_voice/features/admin/screens/admin_system_activity_screen.dart';
+import 'package:civic_voice/features/admin/widgets/admin_scaffold.dart';
 import 'package:civic_voice/features/admin/services/admin_activity_repository.dart';
 import 'package:civic_voice/services/api_client.dart';
 import 'package:civic_voice/services/app_cache_service.dart';
@@ -39,6 +40,61 @@ void main() {
     await AppCacheService.instance.initialize(accountId: 'activity-ptr');
   });
   for (final dark in [false, true]) {
+    for (final width in [320.0, 412.0]) {
+      testWidgets(
+        'Activity PTR stays under app bar and above search filters width=$width dark=$dark',
+        (tester) async {
+          tester.view.physicalSize = Size(width, 900);
+          tester.view.devicePixelRatio = 1;
+          tester.view.padding = const FakeViewPadding(top: 24, bottom: 24);
+          addTearDown(tester.view.resetPhysicalSize);
+          addTearDown(tester.view.resetDevicePixelRatio);
+          addTearDown(tester.view.resetPadding);
+          final pending = Completer<Map<String, dynamic>>();
+          var calls = 0;
+          final repo = AdminActivityRepository(
+            owner: () => 'admin',
+            credential: () async => 'fixture',
+            list: (_, _) => ++calls == 1
+                ? Future.value(auditPageFixture())
+                : pending.future,
+          );
+          await tester.pumpWidget(
+            MaterialApp(
+              theme: dark ? AppTheme.dark : AppTheme.light,
+              home: AdminSystemActivityScreen(repository: repo),
+            ),
+          );
+          await tester.pumpAndSettle();
+          final rail = find.byType(SearchFilterList);
+          final railElement = tester.element(rail);
+          final card = tester.element(find.text('Account access updated'));
+          final restingRail = tester.getRect(rail);
+          final appBarBottom = AdminScaffold.contentPadding(
+            tester.element(find.byType(AdminScaffold)),
+          ).top;
+          expect(restingRail.top, appBarBottom);
+          await pullActivity(tester);
+          expect(activityProgressBars(), findsOneWidget);
+          expect(
+            tester.getTopLeft(activityProgressBars()).dy,
+            closeTo(appBarBottom, 0.1),
+            reason: 'PTR belongs before search/filter chrome, as on Admin Home',
+          );
+          expect(tester.getRect(rail), restingRail);
+          expect(tester.element(rail), same(railElement));
+          expect(
+            tester.element(find.text('Account access updated')),
+            same(card),
+          );
+          pending.complete(auditPageFixture());
+          await tester.pumpAndSettle();
+          expect(tester.getRect(rail), restingRail);
+          expect(activityProgressBars(), findsNothing);
+          expect(tester.takeException(), isNull);
+        },
+      );
+    }
     testWidgets(
       'slow initial Activity pull has only the top indicator dark=$dark',
       (tester) async {
@@ -79,7 +135,9 @@ void main() {
         expect(
           tester.getTopLeft(activityProgressBars()).dy,
           closeTo(
-            tester.getTopLeft(find.byType(GhanaRefreshIndicator)).dy,
+            AdminScaffold.contentPadding(
+              tester.element(find.byType(AdminScaffold)),
+            ).top,
             0.1,
           ),
         );

@@ -688,7 +688,7 @@ class _LiveActivityBodyState extends State<_LiveActivityBody> {
       final page = denied
           ? null
           : fresh ?? (_verifiedOwner == owner ? _verified : null);
-      return Column(
+      final content = Column(
         children: [
           SizedBox(height: AdminScaffold.contentPadding(context).top),
           Expanded(
@@ -732,10 +732,7 @@ class _LiveActivityBodyState extends State<_LiveActivityBody> {
                         ),
                       ),
                     ),
-                    child: GhanaRefreshIndicator(
-                      topOffset: 0,
-                      onRefresh: _refresh,
-                      child: ListView(
+                    child: ListView(
                         controller: _scroll,
                         physics: const AlwaysScrollableScrollPhysics(),
                         padding: EdgeInsets.fromLTRB(
@@ -948,11 +945,18 @@ class _LiveActivityBodyState extends State<_LiveActivityBody> {
                             ),
                           ],
                         ],
-                      ),
                     ),
                   ),
           ),
         ],
+      );
+      if (denied) return content;
+      // Match Admin Home: the shared PTR owns the whole body, including
+      // search/filter chrome, and anchors feedback just below the app bar.
+      return GhanaRefreshIndicator(
+        topOffset: AdminScaffold.contentPadding(context).top,
+        onRefresh: _refresh,
+        child: content,
       );
     },
   );
