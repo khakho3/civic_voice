@@ -1,16 +1,18 @@
 # Flutter Admin Activity Detail - 28 October 2026
 
-## Audit locality repaired - 1 November 2026
+## Audit locality and initial Last24 repaired - 1 November 2026
 
-Native a6c9f66 separates Actor from Event jurisdiction; web fc50be7 matches.
-1,979 full Flutter tests/analyzer, 435 web tests/lint/build and six API contract
-checks pass. Verified DEV installed/data retained; new phone/owner acceptance
-pending. See AUDIT_LOCALITY_2026_11_01.md and canonical web CURRENT_STATUS.
-Autonomous sequential work is owner-authorized across all three repos; two
-approved mutable DEV accounts stay private and the protected Super Admin role
-must never change. No merge/promotion/deployment. Next: initial Last24 failure,
-local staff mutation, then queue06. Accepted PTR and Kingsben's separate Ministry
-assignment remain unchanged. Older checkpoints below are historical.
+Native a6c9f66 separates Actor/Event jurisdiction; 6534c50 fixes rolling date ISO
+precision without widening the period. 1,980 full Flutter tests/analyzer, 52 focused
+checks and six API contract checks pass; prior web fc50be7 has 435 tests/lint/build.
+Verified DEV installed/data retained. Agent phone first Last24 (67 events), re-entry,
+pull refresh, seven-day view and historical detail separation pass. Owner acceptance
+of these new repairs remains pending; existing PTR placement stays accepted.
+See ACTIVITY_INITIAL_TIME_WINDOW_2026_11_01.md, AUDIT_LOCALITY_2026_11_01.md and
+canonical web CURRENT_STATUS. Autonomous sequential work is authorized across
+three repos/two private mutable DEV accounts; protected Super Admin role frozen.
+Next: local staff mutation, then 06. Kingsben's Ministry work stays independent.
+No merge/promotion/deployment. Older checkpoints below are historical.
 
 ## Activity PTR owner-accepted; next is audit correctness - 1 November 2026
 

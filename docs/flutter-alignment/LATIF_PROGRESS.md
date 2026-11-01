@@ -1,16 +1,18 @@
 # Latif progress
 
-## Audit locality repaired - 1 November 2026
+## Audit locality and initial Last24 repaired - 1 November 2026
 
-Native a6c9f66 separates Actor from Event jurisdiction; web fc50be7 matches.
-1,979 full Flutter tests/analyzer, 435 web tests/lint/build and six API contract
-checks pass. Verified DEV installed/data retained; new phone/owner acceptance
-pending. See AUDIT_LOCALITY_2026_11_01.md and canonical web CURRENT_STATUS.
-Autonomous sequential work is owner-authorized across all three repos; two
-approved mutable DEV accounts stay private and the protected Super Admin role
-must never change. No merge/promotion/deployment. Next: initial Last24 failure,
-local staff mutation, then queue06. Accepted PTR and Kingsben's separate Ministry
-assignment remain unchanged. Older checkpoints below are historical.
+Native a6c9f66 separates Actor/Event jurisdiction; 6534c50 fixes rolling date ISO
+precision without widening the period. 1,980 full Flutter tests/analyzer, 52 focused
+checks and six API contract checks pass; prior web fc50be7 has 435 tests/lint/build.
+Verified DEV installed/data retained. Agent phone first Last24 (67 events), re-entry,
+pull refresh, seven-day view and historical detail separation pass. Owner acceptance
+of these new repairs remains pending; existing PTR placement stays accepted.
+See ACTIVITY_INITIAL_TIME_WINDOW_2026_11_01.md, AUDIT_LOCALITY_2026_11_01.md and
+canonical web CURRENT_STATUS. Autonomous sequential work is authorized across
+three repos/two private mutable DEV accounts; protected Super Admin role frozen.
+Next: local staff mutation, then 06. Kingsben's Ministry work stays independent.
+No merge/promotion/deployment. Older checkpoints below are historical.
 
 ## Activity PTR owner-accepted; next is audit correctness - 1 November 2026
 
@@ -343,7 +345,7 @@ Next recorded screen remains **Open Alerts review/detail**; retain the new Citiz
 
 Native runtime **af5754b** addresses this list only. Existing populated cards already use solid surfaces/zero elevation and are retained. The empty result now uses that same card, matching web grouping. The fixed24px count/updating slot clipped larger text; it now measures actual width/text scale and reserves both labels so same-owner filtering does not move matching cards. Normal short1x summaries retain24px. Search/collapse, chip motion, cursor continuation, request/session guards, refresh/error wording and the separate alert review/detail remain unchanged.
 
-**1,529 native tests and analyzer pass.**24 new cases cover320/390/412/1440, both themes,1x/1.5x/2x with loading, long content/counts, quiet filtering, empty/error/refresh/recovery.35 focused alert checks pass. Eight actual-font visual cases cover320/412, both themes,1.5x/2x and five states/top-bottom:80 before and80 after captures; representative before/after/extreme renders inspected. The320px/1.5x baseline count needed72px but received24px. This is automated/fixture evidence, not owner phone acceptance.
+**1, 529 native tests and analyzer pass.**24 new cases cover320/390/412/1440, both themes,1x/1.5x/2x with loading, long content/counts, quiet filtering, empty/error/refresh/recovery.35 focused alert checks pass. Eight actual-font visual cases cover320/412, both themes,1.5x/2x and five states/top-bottom:80 before and80 after captures; representative before/after/extreme renders inspected. The320px/1.5x baseline count needed72px but received24px. This is automated/fixture evidence, not owner phone acceptance.
 
 The isolated DEV profile APK throughaf5754b is built and artifact-verified: one explicit runtime source copied,42 source hashes match review and all14 protected DEV configuration hashes remain unchanged, including the accepted Android masking Application hook. DEV package/label/signature/local API/Firebase and compiled new summary are verified; production targets are absent. **Replace-installed and launched after the owner reconnected the phone; app data retained.** The installed APK digest matches the verified artifact. Owner phone acceptance of this Open Alerts list repair remains pending; installation is not visual confirmation. API is stopped and remains stopped; configured server DEV Firebase/local database were checked, but no actual runtime or live read is claimed. Exact evidence remains private.
 
