@@ -60,13 +60,20 @@ class _CollapsibleListHeaderState extends State<CollapsibleListHeader>
   double _openFraction = 1;
   double _accumulated = 0;
   AnimationController? _animController;
-  late final AnimationController _railOverlay = AnimationController(
-    vsync: this,
-  );
-  late final CurvedAnimation _railOverlayCurve = CurvedAnimation(
-    parent: _railOverlay,
-    curve: AppMotionCurve.decelerate,
-  );
+  late final AnimationController _railOverlay;
+  late final CurvedAnimation _railOverlayCurve;
+
+  @override
+  void initState() {
+    super.initState();
+    // Even ordinary headers dispose these fields. Create their ticker while
+    // the context is active rather than lazily on the first dispose read.
+    _railOverlay = AnimationController(vsync: this);
+    _railOverlayCurve = CurvedAnimation(
+      parent: _railOverlay,
+      curve: AppMotionCurve.decelerate,
+    );
+  }
 
   @override
   void dispose() {
