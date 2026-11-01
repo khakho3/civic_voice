@@ -24,7 +24,39 @@ class ReportSubmissionStore {
     final raw = prefs.getString(_key(owner));
     if (raw == null) return null;
     // A damaged receipt is a blocking recovery problem, not a fresh intent.
-    final draft = ReportDraft.fromMap(jsonDecode(raw) as Map<String, dynamic>);
+    final decoded = jsonDecode(raw);
+    if (decoded is! Map<String, dynamic>) {
+      throw const FormatException('Saved submission needs recovery.');
+    }
+    final paths = decoded['photoPaths'];
+    final sources = decoded['photoIsFromCamera'];
+    // Editable drafts tolerate incomplete input. A frozen receipt must not
+    // silently lose a path/source or default a missing issue field on retry.
+    if ([
+          'title',
+          'description',
+          'category',
+          'location',
+          'community',
+        ].any((field) => decoded[field] is! String) ||
+        ['latitude', 'longitude'].any(
+          (field) =>
+              !decoded.containsKey(field) ||
+              (decoded[field] != null &&
+                  (decoded[field] is! num ||
+                      !(decoded[field] as num).isFinite)),
+        ) ||
+        paths is! List ||
+        paths.any((path) => path is! String || path.trim().isEmpty) ||
+        (decoded.containsKey('photoCount') &&
+            decoded['photoCount'] != paths.length) ||
+        (sources != null &&
+            (sources is! List ||
+                sources.any((source) => source is! bool) ||
+                sources.length > paths.length))) {
+      throw const FormatException('Saved submission needs recovery.');
+    }
+    final draft = ReportDraft.fromMap(decoded);
     if (draft.submissionKey == null ||
         !RegExp(r'^[a-zA-Z0-9_-]{16,128}$').hasMatch(draft.submissionKey!)) {
       throw const FormatException('Saved submission needs recovery.');
