@@ -1,5 +1,15 @@
 # Latif progress
 
+## Item 10 auth automated repairs / next 11 - 1 November 2026
+
+API 1b69c6e provider privacy/unconfirmed failures plus 81e11cb reset-grant CAS:
+261 full passes/two optional SQL skips; 15 provider/eight unit/four real grant-SQL
+checks pass. No real SMS/password/account change. Web test-only f0139d2 has 448 full
+checks/lint and 38 auth checks; 51 current native auth checks pass. Installed native
+e2e8e9d/prior 1,994 full tests/analyzer unchanged. Live provider/recovery/device/owner
+gates remain. Continue 11 Guest continuity; canonical ITEM10_AUTHENTICATION_RECOVERY_2026_11_01.md.
+No merge, production migration, promotion or deploy. Older notes historical.
+
 ## Item 10 reset authorization slice - 1 November 2026
 
 API 81e11cb fixes stale/new-grant and concurrent-consumption races while retaining
