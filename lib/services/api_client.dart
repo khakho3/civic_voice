@@ -465,20 +465,22 @@ class ApiClient {
     required double accuracy,
     required DateTime capturedAt,
   }) async {
-    final result = await _post(
-      '/api/reports/${Uri.encodeComponent(reportId)}/second',
-      {
-        'latitude': latitude,
-        'longitude': longitude,
-        'accuracy': accuracy,
-        'capturedAt': _positionTimestamp(capturedAt),
-      },
-      idToken: idToken,
-    );
-    if (result['secondedByMe'] != true) {
+    final result =
+        await _post('/api/reports/${Uri.encodeComponent(reportId)}/second', {
+          'latitude': latitude,
+          'longitude': longitude,
+          'accuracy': accuracy,
+          'capturedAt': _positionTimestamp(capturedAt),
+        }, idToken: idToken);
+    final count = result['seconderCount'];
+    if (result['secondedByMe'] != true ||
+        count is! int ||
+        count < 1 ||
+        count > 5) {
       throw const ApiException(
         statusCode: 502,
-        message: 'Could not verify this confirmation. Refresh Nearby Reports before trying again.',
+        message:
+            'Could not verify this confirmation. Refresh Nearby Reports before trying again.',
       );
     }
   }

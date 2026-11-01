@@ -85,7 +85,14 @@ class NearbyReportsService {
     _validatePosition(position);
     final raw = await _discover(token, position);
     _checkAccount(account);
-    return raw.map(NearbySecondingReport.fromApi).toList();
+    if (raw.length > 5) {
+      throw const FormatException('Nearby report list could not be verified.');
+    }
+    final reports = raw.map(NearbySecondingReport.fromDiscovery).toList();
+    if (reports.map((report) => report.id).toSet().length != reports.length) {
+      throw const FormatException('Nearby report list could not be verified.');
+    }
+    return reports;
   }
 
   Future<void> confirm(NearbySecondingReport report) async {
