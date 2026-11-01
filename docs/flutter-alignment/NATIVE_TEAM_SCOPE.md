@@ -28,14 +28,16 @@ service/widget cases cover identity/scope/read races, removal, lead changes,
 entry/resume/PTR, error/retry and mounted Profile updates. Fifty-one focused cases
 also pass. Test fixtures are not real account/role/report mutations.
 
-The isolated DEV profile APK is built and artifact-verified from this runtime:
-63 source hashes match, all 14 protected DEV configurations are unchanged,
-DEV package/signing/Firebase and explicit LAN API4000 are verified, with no
-compiled production target. It is **not installed**. Installation and owner
-confirmation must be recorded separately in canonical web
-`docs/CURRENT_STATUS.md` and the private device checklist. The previous confirmed
-installation is `c00a80c`; ADB is currently disconnected and API4000 unavailable.
-No merge, promotion or deployment. Do not reopen the owner-deferred Activity gap.
+The isolated DEV profile APK through 732ef9d is artifact-verified, wirelessly
+replace-installed and launched on the Pixel 9 Pro XL, retaining data and matching
+installed digest. All 63 source/14 protected configuration hashes match; DEV
+package/signing/Firebase, compiled LAN API4000 and no production targets verified.
+The owner restored the API; fresh actual-process DEV/local-database, readiness,
+phone LAN and Maps identity/restriction checks pass. No agent API restart.
+Owner confirmation remains pending: test item05 first, then review PR21, then the
+agreed merge and possible further client tasks. No PR review/merge in this step.
+Evidence stays in canonical web CURRENT_STATUS.md and ignored private ledger.
+Do not reopen the owner-deferred Activity gap.
 
 Kingsben's branch has independently advanced to `12c483c`; it was fetched for
 coordination only. Its Maintenance/Municipal scope and PR target are unchanged.

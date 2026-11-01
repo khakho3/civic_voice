@@ -8,15 +8,18 @@ Owner blocks moves while assigned, in-progress or pending-approval work remains
 until reassigned or closed. Existing report transitions remain; no active-work
 reassignment UI is introduced. **226 API / 1,669 Flutter / 433 web tests pass**;
 analyzer/lint/build pass. Thirty-four API cases use isolated real PostgreSQL;
-the test cluster is stopped. No real record/role/database migration/API restart.
+the test cluster is stopped. No QA account/team/report/role mutations, database
+migration or agent API restart.
 
-Isolated DEV profile APK is **built and artifact-verified, not installed**:
-63 source hashes match; 14 protected configurations unchanged; DEV package/signing/
-Firebase and explicit LAN API4000 verified, with no compiled production targets.
-ADB unreachable and API4000 down; owner reconnect/usual DEV startup was requested.
-Last confirmed install: c00a80c. Resume fresh isolation/connectivity checks, then
-replace-install with retained data and verify installed digest/launch. Stay on 05
-until installation and owner checks are resolved. Physical acceptance is pending.
+Isolated DEV through **732ef9d is artifact-verified, wirelessly replace-installed
+and launched** on the connected Pixel 9 Pro XL; data retained and installed digest
+matches. All 63 source hashes and 14 protected DEV configurations match. DEV
+package/signing/Firebase, compiled LAN API4000 and absence of production targets
+are verified. The owner restored the API; its actual DEV Firebase/local database,
+readiness, phone-to-LAN access and Maps restrictions now pass fresh checks.
+The agent did not restart the API. **Owner/device acceptance remains pending.**
+Owner order: test item05 first, then review Kingsben PR #21, then the agreed merge
+and further client assignments. No PR review/merge performed in this install step.
 Canonical details: web docs/CURRENT_STATUS.md and ITEM05_TEAMS_LEADS_SCOPE_2026_10_31.md;
 private evidence: .tmp/dev-item05-preflight.json and device checklist.
 
