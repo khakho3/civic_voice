@@ -1,5 +1,67 @@
 # Flutter Admin Activity Detail - 28 October 2026
 
+## Audit locality and initial Last24 repaired - 1 November 2026
+
+Native a6c9f66 separates Actor/Event jurisdiction; 6534c50 fixes rolling date ISO
+precision without widening the period. 1,980 full Flutter tests/analyzer, 52 focused
+checks and six API contract checks pass; prior web fc50be7 has 435 tests/lint/build.
+Verified DEV installed/data retained. Agent phone first Last24 (67 events), re-entry,
+pull refresh, seven-day view and historical detail separation pass. Owner acceptance
+of these new repairs remains pending; existing PTR placement stays accepted.
+See ACTIVITY_INITIAL_TIME_WINDOW_2026_11_01.md, AUDIT_LOCALITY_2026_11_01.md and
+canonical web CURRENT_STATUS. Autonomous sequential work is authorized across
+three repos/two private mutable DEV accounts; protected Super Admin role frozen.
+Next: local staff mutation, then 06. Kingsben's Ministry work stays independent.
+No merge/promotion/deployment. Older checkpoints below are historical.
+
+## Activity PTR owner-accepted; next is audit correctness - 1 November 2026
+
+Owner explicitly confirms DEV e29b4b9's Activity PTR is now in the correct place,
+immediately below the app bar and above search/filter pills. Mark that placement
+accepted and close the PTR position follow-up. This is owner evidence, separate
+from the previously passing 1,977 tests/analyzer; no checks were rerun or new app
+installed for this documentation-only update.
+
+New owner report **ACTIVITY-INITIAL-TIME-WINDOW**: every entry to Activity shows
+"Last 24 Hours" but no events until the owner changes the time scope, despite
+expected recent events. Logged for investigation, not yet reproduced or diagnosed.
+Preserve the 24-hour intent; do not mask it by defaulting to All time or widening
+the query. Inspect first-entry request/state, returned rows, UTC boundaries and
+re-entry behavior alongside the next audit task. Full report: canonical web
+`docs/OWNER_ADMIN_FOLLOWUPS_2026_11_01.md`.
+
+Next major task: audit correctness, beginning with **ADMIN-AUDIT-LOCALITY**, then
+this initial time-window issue. After that: **ADMIN-SCOPE-MUTATION**, then queue06
+submission reliability. Work one reproduced issue at a time. Kingsben's Ministry
+assignment/branch is unchanged. No runtime/API/permission change, live-record
+mutation, API restart, merge, promotion or deployment in this logging update.
+Older checkpoints below are historical.
+
+## Activity PTR position repaired and DEV installed - 1 November 2026
+
+Native runtime **e29b4b9** moves the live Activity shared PTR outside its search/
+filter/list body and anchors it to the app-bar inset, matching Admin Home. No
+shared-component/API/query/permission changes. Four new checks reproduced the
+bar 120px below the correct edge before repair and pass after repair. **1,977 full
+Flutter tests/analyzer pass**; 57 focused checks and four private actual-font/icon
+Home/Activity cases/eight captures pass. At 24px safe inset both loading bars sit
+at y88; stable list/card state and retract behavior are retained. Automated evidence
+is not owner phone acceptance. See native ACTIVITY_PTR_POSITION_2026_11_01.md.
+
+Isolated DEV through e29b4b9 is artifact-verified, wirelessly replace-installed
+and launched on the connected Pixel, with data retained and matching installed
+digest. All 73 source hashes and 14 protected DEV configuration hashes match;
+DEV package/signing/Firebase, compiled LAN API4000 and no production targets,
+actual API DEV/local database, phone readiness and Maps restrictions pass.
+Private evidence: `.tmp/dev-activity-ptr-position-preflight.json` and the device
+checklist. **Owner confirmation of this new position remains pending**: pull
+Activity and confirm feedback directly below the app bar, above search/filter
+pills. Earlier requested phone checks remain owner-confirmed. Next reserved work:
+ADMIN-AUDIT-LOCALITY, ADMIN-SCOPE-MUTATION, then queue06 submission reliability.
+Kingsben's Ministry branch remains independent and untouched. No API/web runtime,
+real-record QA mutation, API restart, merge, promotion or deployment in this slice.
+Older checkpoints below are historical.
+
 ## New owner Admin reports and phone confirmation - 1 November 2026
 
 Owner confirms the latest requested phone checklist and clarifies that refresh

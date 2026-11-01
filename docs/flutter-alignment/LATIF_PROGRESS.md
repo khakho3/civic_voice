@@ -1,5 +1,285 @@
 # Latif progress
 
+## Item 13 native repairs verified; DEV ready, phone install deferred - 1 November 2026
+
+Native **cb4dad5 / 4b4663d / 2d142ca** orders SDK login/Guest/renewal/logout and
+guards restoration, password/OTP, profile editing, app-lock and sign-out/idle
+navigation against changed sessions. Same-UID reactivation also invalidates old
+actions. Failed Guest reuse retains its credential and UID-owned durable drafts;
+known password-save acknowledgement remains truthful after session changes.
+
+**2,050 full Flutter tests / analyzer / whitespace pass**, including 25 focused
+scope/transport/profile/app-lock checks. Web9141a19 remains491 full/lint/build/two
+installed-SDK loopback cases; API da73a67 remains272 full/eight Guest SQL cases.
+These are automated checks, not live provider or physical-device acceptance.
+
+DEV **2d142ca** is built and artifact-verified:84 reviewed source hashes,14 protected
+configurations, DEV package/signing/Firebase/local API, Android masking and prior
+accepted Activity/notification resources verified. The owner API remains healthy
+on4000 with verified DEV targets. **No install or phone interaction:** owner away,
+wake helper41856 stopped, installed runtime remains45318ef. Install/agent phone/
+owner checks await confirmed availability; no OS/account settings were changed.
+
+**13 remains open for policy/live gates:** authoritative idle contract, broader
+periodic displayed-scope refresh, real revocation/SMS/provider recovery, browser,
+iOS and owner acceptance. Existing idle/keep-signed-in semantics are preserved.
+Continue independent **14: notification inbox** while these gates remain recorded.
+Kingsben Ministry branch78e12e0 awaits separate later review. No merge, promotion,
+migration or deployment. See ITEM13_SESSION_CORRECTNESS_2026_11_01.md.
+Older checkpoints are historical.
+
+## Item 13 web SDK repair verified; continue native review - 1 November 2026
+
+Web **9141a19** serializes SDK sign-in/sign-out, deduplicates logout and blocks
+competing Guest/login/renewal work during a transition. Delayed readiness/handoff,
+route disposal and changed SDK owners cannot publish old sessions or globally
+clear a newer one, including a new SDK session for the same UID. Forced-password
+and name edits verify their displayed SDK owner; auth-busy/session-change feedback
+preserves inputs without wrong-password or phone-conflict claims.
+
+**491 full web tests/lint/build/whitespace pass**, including 59 focused auth/Welcome
+cases and two installed-Firebase-SDK protocol checks against a loopback provider
+fixture. Browser smoke did not complete because of tool timeouts; its owned session
+is closed. No real credentials, Firebase accounts, passwords, roles or reports were
+changed. Native/API unchanged: prior 2,011 Flutter/analyzer and 272 API/eight Guest
+SQL checks remain applicable. Verified DEV45318ef stays installed; no new APK.
+
+**13 remains in progress**: native SDK/logout/restoration and wider scope/idle/
+platform acceptance are next. Idle/keep-signed-in policy and prior owner/device
+boundaries stay unchanged. The old private WIP patch is now implemented; do not
+reapply it. See ITEM13_SESSION_CORRECTNESS_2026_11_01.md. Phone wake helper41856
+continues safely after owner resume. No merge, promotion, migration or deployment.
+Older checkpoints below are historical.
+
+## Item 13 API boundary verified; continue client session review - 1 November 2026
+
+API **da73a67** enforces Firebase revocation/disabled-user checks on required and
+optional credentials. Explicit expired/invalid credentials cannot become fresh
+public registrations; absent credentials still can. Provider outages return safe
+503 rather than expired-session guidance. Existing active/role/scope gates remain.
+**272 full API passes/three optional SQL skips**, 34 focused checks and eight
+separate Guest SQL cases pass; fixture cluster stopped. Live DEV valid Super reads
+200, protected/registration invalid-token 401 and approved access preservation pass.
+No real token revocation, password reset, account/role/report mutation or outage.
+
+Clients unchanged: installed DEV 45318ef digest/source79/config14 still match;
+prior 2,011 Flutter/analyzer and 468 web/lint/build apply. No new APK or owner
+acceptance. **13 remains in progress**: SDK, logout, restoration and displayed-scope
+races are next. Existing local idle/keep-signed-in semantics remain; a server idle
+contract is still a policy gate. See ITEM13_SESSION_CORRECTNESS_2026_11_01.md.
+Phone wake helper continues (16:02 verified); current foreground/prior gates remain
+preserved. No merge, promotion, production migration or deployment.
+Older checkpoints below are historical.
+
+## Item 12 verified and DEV installed; next 13 - 1 November 2026
+
+Native **45318ef** keeps notification setup behind newly opened blocked-location
+guidance and treats undetermined status as unavailable without blocking explicit
+position acquisition. Web **ad9e3ff** checks actual geolocation capability and
+rechecks a denied request, preserving explicit actions where permission queries
+are unsupported. Existing role eligibility, storage keys and scopes remain.
+
+**2,011 Flutter / 468 web tests pass**, analyzer/lint/build/whitespace clean;
+41 native and 18 web focused checks pass. No API change or repeat API suite;
+prior 264 API passes/eight Guest SQL checks remain applicable. Read-only phone
+snapshot: notifications granted, fine/coarse location not granted; no OS changes.
+Physical first-install/denied/restricted/restored/owner and iOS gates stay open.
+See ITEM12_PERMISSION_ONBOARDING_2026_11_01.md. Prior gates remain.
+
+DEV 45318ef is verified and wirelessly replace-installed/digest-matched with fresh
+current draft/intent hashes preserved (79 sources/14 protected configs). The
+existing foreground is preserved; actual launch/setup device checks stay pending.
+DEV targets/phone LAN health/Maps restrictions pass. Continue independent **13:
+session correctness**. No merge, promotion, production migration or deployment.
+Older checkpoints below are historical.
+
+## Item 11 verified and DEV installed; next 12 - 1 November 2026
+
+Native **2e84672**, web **2cb2916**, API **66a0ed0** preserve verified Guest
+identity/report ownership, reject stale registration contexts, verify receipts and
+bind sign-in to the registered UID. Web draft/files/frozen receipts now survive
+same-identity registration; account/access changes and logout clear them. Delayed
+GPS cannot submit under a changed account; verification pauses abort pending writes
+and preserve uncertain receipts. Browser drafts remain memory-only.
+
+**2,001 Flutter / 464 web / 264 API tests pass**, analyzer/lint/build/whitespace
+clean; three optional SQL skips in full API, eight separate real Guest SQL checks
+pass. The fixture cluster is stopped. No real SMS/OTP/password/Guest registration
+or owner report/account mutation. Live provider/upgrade/restoration and owner gates
+remain; broader SDK races stay in 13. See ITEM11_GUEST_CONTINUITY_2026_11_01.md.
+
+DEV 2e84672 is artifact-verified and wirelessly replace-installed/digest-matched
+with fresh draft/intent values retained (78 reviewed sources/14 protected configs).
+Existing foreground was left alone; launch/Guest upgrade phone checks are pending.
+DEV API/local DB/Firebase, phone LAN health and Maps restrictions pass. Accepted
+Activity PTR and prior pending owner/staff/audit/platform gates are preserved.
+Continue independent **12: permission onboarding**. No merge, promotion, production
+migration or deployment. Older checkpoints below are historical.
+
+## Item 10 auth automated repairs / next 11 - 1 November 2026
+
+API 1b69c6e provider privacy/unconfirmed failures plus 81e11cb reset-grant CAS:
+261 full passes/two optional SQL skips; 15 provider/eight unit/four real grant-SQL
+checks pass. No real SMS/password/account change. Web test-only f0139d2 has 448 full
+checks/lint and 38 auth checks; 51 current native auth checks pass. Installed native
+e2e8e9d/prior 1,994 full tests/analyzer unchanged. Live provider/recovery/device/owner
+gates remain. Continue 11 Guest continuity; canonical ITEM10_AUTHENTICATION_RECOVERY_2026_11_01.md.
+No merge, production migration, promotion or deploy. Older notes historical.
+
+## Item 10 reset authorization slice - 1 November 2026
+
+API 81e11cb fixes stale/new-grant and concurrent-consumption races while retaining
+phone binding/digest-only storage/lifetime. Eight focused/four real SQL checks and
+246 full API passes (two optional SQL skips); fixture cluster stopped. No real
+SMS/password/account change. Installed DEV e2e8e9d and prior client tests remain
+current. Continue 10 provider-error privacy; broader 09 policy and prior device/
+owner gates remain. Canonical ITEM10_AUTHENTICATION_RECOVERY_2026_11_01.md.
+No merge, promotion, migration or deployment. Older checkpoints historical.
+
+## Item 09 auth-boundary repair / wider review gates - 1 November 2026
+
+API abb245b removes raw auth diagnostics and prevents partial identity/false 401
+when account lookup fails; safe 503 keeps access closed. Eight new regressions,
+40 focused/238 full API checks pass (one optional SQL skip); live DEV Admin read
+and invalid-token redaction verified. No Flutter/web runtime or real records
+changed; installed DEV e2e8e9d/previous 1,994 native/446 web checks remain current.
+Denied-event coverage, durable delivery/critical-event and retention contracts
+remain open. See canonical ITEM09_AUDIT_RELIABILITY_2026_11_01.md. Continue 10
+independently; no merge, promotion, migration or deploy. Older notes historical.
+
+## Item 08 nearby safety checkpoint - 1 November 2026
+
+Native e2e8e9d / web 48d9015 validate nearby discovery and bounded confirmation
+receipts; duplicate suggestions are preserved. API 5836900 repairs full limiter
+expiry recovery without changing quotas/GPS/scoring. 1,994 native/446 web/230 API
+checks, analyzer/lint/build pass. Verified DEV installed/launched/API Online;
+78 source/14 protected config and current device draft hashes match. Nearby first-entry/refresh are agent phone-verified as empty; positive/denial/error
+phone and owner gates remain. B restored, A/Super unchanged, original phone session
+and draft hashes preserved. Routing empty-queue pull is agent-checked only.
+See canonical ITEM08_NEARBY_SAFETY_2026_11_01.md. Continue 09; no merge/deploy.
+Older checkpoints below are historical.
+
+## Item 07 verification / next 08 - 1 November 2026
+
+Native 1b56778 routing queue/detail now use shared top PTR; 1,991 full native
+checks/analyzer pass. API a833f05 adds six real SQL routing/claim/rollback cases;
+18 routing/geography and 229 other API checks pass. Verified DEV installed with
+retained drafts; launch/agent phone/owner checks pending because phone is in use.
+Boundary ground-truth/no-backfill gate remains. No API runtime or real-report
+change. Continue 08; canonical ITEM07_REPORT_ROUTING_2026_11_01.md has evidence.
+No merge, promotion or deployment. Older notes below are historical.
+
+## Notification mark: owner-confirmed function, enlarged DEV installed - 1 November 2026
+
+Original unused SVG preserved verbatim in working branch 6c09f9b; original checkout
+file untouched. Installed Android vector ic_stat_civic_voice.xml is now 6% larger
+in 82384fb, with exact accepted path/tint retained. AAPT2/six renders/APK compiled
+scale/launcher preservation pass; 76 sources/14 protected configs match. Verified
+DEV installed/launched/data retained, installed digest/current draft hashes match.
+Owner accepts prior function; **new size awaits owner confirmation**. Existing 1,985
+Flutter tests/analyzer cover unchanged Dart; no suite rerun solely for this resource
+change. See native NOTIFICATION_MARK_2026_11_01.md. Resume 07; item 06 has real agent
+phone recovery proof but owner acceptance pending. No merge/promotion/deployment.
+
+## Item 06 phone recovery verified; notification size next - 1 November 2026
+
+Native 7362976 / web 1806b85/1dd51df pass full checks and actual phone after-commit
+interruption/restart/same-reference recovery: one report, one inbox event, exact
+intent cleanup and tracking. Native 4d62211 truthful saved-state copy has 1,985 tests/
+analyzer pass and verified DEV installed; final copy is artifact-verified, while
+phone workflow ran on 7362976. Approved account access restored; other draft and
+protected Super Admin role unchanged; exact test report/media cleaned up. Owner
+acceptance remains pending. Canonical web ITEM06_SUBMISSION_RELIABILITY_2026_11_01.md.
+Latest owner says notification status-bar mark works and asks tiny enlargement.
+Do that bounded vector/source-artwork change next, then 07; new size acceptance
+separate. No merge/promotion/deployment. Earlier notes below are historical.
+
+## Item 06 client repairs and verification - 1 November 2026
+
+Native 7362976 rejects damaged frozen receipt content; web 1806b85/1dd51df retain
+uncertain HTTP/receipt states and prevent frozen-draft discard/navigation escape.
+Full 1,985 native / 440 web / 229 API checks, analyzer/lint/build and isolated SQL proof
+pass. Verified DEV installed; phone submission/restart checks in progress and owner
+acceptance pending. Preserve approved A's existing draft; B is temporarily Citizen
+for QA and must be restored. Protected Super Admin role unchanged. Scope policy
+remains undecided; no permission widening. See canonical web
+ITEM06_SUBMISSION_RELIABILITY_2026_11_01.md. No merge/promotion/deployment.
+
+## Staff permission investigation; continue 06 - 1 November 2026
+
+No creator-based rule found. Existing Super-only access changes explain local
+staff read-only controls; API allows a local name-only PATCH. 11 isolated policy
+checks and approved live DEV/phone checks pass; no access policy/code change.
+Approved account names/identities/roles/status/locality stay at baseline; normal
+unchanged-name QA writes/audit events occurred. Protected Super Admin role unchanged.
+Owner's intended local actions remain an open decision. Canonical web review:
+ADMIN_SCOPE_MUTATION_REVIEW_2026_11_01.md. Continue independent queue 06. Current
+DEV 6534c50 and Activity test/device evidence below remain valid; new owner acceptance
+pending. Exact Super-to-Assembly audit phone scenario also confirmed. No merge/
+promotion/deployment; Kingsben's Ministry assignment stays independent.
+
+## Audit locality and initial Last24 repaired - 1 November 2026
+
+Native a6c9f66 separates Actor/Event jurisdiction; 6534c50 fixes rolling date ISO
+precision without widening the period. 1,980 full Flutter tests/analyzer, 52 focused
+checks and six API contract checks pass; prior web fc50be7 has 435 tests/lint/build.
+Verified DEV installed/data retained. Agent phone first Last24 (67 events), re-entry,
+pull refresh, seven-day view and historical detail separation pass. Owner acceptance
+of these new repairs remains pending; existing PTR placement stays accepted.
+See ACTIVITY_INITIAL_TIME_WINDOW_2026_11_01.md, AUDIT_LOCALITY_2026_11_01.md and
+canonical web CURRENT_STATUS. Autonomous sequential work is authorized across
+three repos/two private mutable DEV accounts; protected Super Admin role frozen.
+Next: local staff mutation, then 06. Kingsben's Ministry work stays independent.
+No merge/promotion/deployment. Older checkpoints below are historical.
+
+## Activity PTR owner-accepted; next is audit correctness - 1 November 2026
+
+Owner explicitly confirms DEV e29b4b9's Activity PTR is now in the correct place,
+immediately below the app bar and above search/filter pills. Mark that placement
+accepted and close the PTR position follow-up. This is owner evidence, separate
+from the previously passing 1,977 tests/analyzer; no checks were rerun or new app
+installed for this documentation-only update.
+
+New owner report **ACTIVITY-INITIAL-TIME-WINDOW**: every entry to Activity shows
+"Last 24 Hours" but no events until the owner changes the time scope, despite
+expected recent events. Logged for investigation, not yet reproduced or diagnosed.
+Preserve the 24-hour intent; do not mask it by defaulting to All time or widening
+the query. Inspect first-entry request/state, returned rows, UTC boundaries and
+re-entry behavior alongside the next audit task. Full report: canonical web
+`docs/OWNER_ADMIN_FOLLOWUPS_2026_11_01.md`.
+
+Next major task: audit correctness, beginning with **ADMIN-AUDIT-LOCALITY**, then
+this initial time-window issue. After that: **ADMIN-SCOPE-MUTATION**, then queue06
+submission reliability. Work one reproduced issue at a time. Kingsben's Ministry
+assignment/branch is unchanged. No runtime/API/permission change, live-record
+mutation, API restart, merge, promotion or deployment in this logging update.
+Older checkpoints below are historical.
+
+## Activity PTR position repaired and DEV installed - 1 November 2026
+
+Native runtime **e29b4b9** moves the live Activity shared PTR outside its search/
+filter/list body and anchors it to the app-bar inset, matching Admin Home. No
+shared-component/API/query/permission changes. Four new checks reproduced the
+bar 120px below the correct edge before repair and pass after repair. **1,977 full
+Flutter tests/analyzer pass**; 57 focused checks and four private actual-font/icon
+Home/Activity cases/eight captures pass. At 24px safe inset both loading bars sit
+at y88; stable list/card state and retract behavior are retained. Automated evidence
+is not owner phone acceptance. See native ACTIVITY_PTR_POSITION_2026_11_01.md.
+
+Isolated DEV through e29b4b9 is artifact-verified, wirelessly replace-installed
+and launched on the connected Pixel, with data retained and matching installed
+digest. All 73 source hashes and 14 protected DEV configuration hashes match;
+DEV package/signing/Firebase, compiled LAN API4000 and no production targets,
+actual API DEV/local database, phone readiness and Maps restrictions pass.
+Private evidence: `.tmp/dev-activity-ptr-position-preflight.json` and the device
+checklist. **Owner confirmation of this new position remains pending**: pull
+Activity and confirm feedback directly below the app bar, above search/filter
+pills. Earlier requested phone checks remain owner-confirmed. Next reserved work:
+ADMIN-AUDIT-LOCALITY, ADMIN-SCOPE-MUTATION, then queue06 submission reliability.
+Kingsben's Ministry branch remains independent and untouched. No API/web runtime,
+real-record QA mutation, API restart, merge, promotion or deployment in this slice.
+Older checkpoints below are historical.
+
 ## Owner phone confirmation, Admin reports and Kingsben Ministry pack - 1 November 2026
 
 Owner confirms the latest requested DEV c89a8a4 phone checklist and says PTR/all
@@ -283,7 +563,7 @@ Next recorded screen remains **Open Alerts review/detail**; retain the new Citiz
 
 Native runtime **af5754b** addresses this list only. Existing populated cards already use solid surfaces/zero elevation and are retained. The empty result now uses that same card, matching web grouping. The fixed24px count/updating slot clipped larger text; it now measures actual width/text scale and reserves both labels so same-owner filtering does not move matching cards. Normal short1x summaries retain24px. Search/collapse, chip motion, cursor continuation, request/session guards, refresh/error wording and the separate alert review/detail remain unchanged.
 
-**1,529 native tests and analyzer pass.**24 new cases cover320/390/412/1440, both themes,1x/1.5x/2x with loading, long content/counts, quiet filtering, empty/error/refresh/recovery.35 focused alert checks pass. Eight actual-font visual cases cover320/412, both themes,1.5x/2x and five states/top-bottom:80 before and80 after captures; representative before/after/extreme renders inspected. The320px/1.5x baseline count needed72px but received24px. This is automated/fixture evidence, not owner phone acceptance.
+**1, 529 native tests and analyzer pass.**24 new cases cover320/390/412/1440, both themes,1x/1.5x/2x with loading, long content/counts, quiet filtering, empty/error/refresh/recovery.35 focused alert checks pass. Eight actual-font visual cases cover320/412, both themes,1.5x/2x and five states/top-bottom:80 before and80 after captures; representative before/after/extreme renders inspected. The320px/1.5x baseline count needed72px but received24px. This is automated/fixture evidence, not owner phone acceptance.
 
 The isolated DEV profile APK throughaf5754b is built and artifact-verified: one explicit runtime source copied,42 source hashes match review and all14 protected DEV configuration hashes remain unchanged, including the accepted Android masking Application hook. DEV package/label/signature/local API/Firebase and compiled new summary are verified; production targets are absent. **Replace-installed and launched after the owner reconnected the phone; app data retained.** The installed APK digest matches the verified artifact. Owner phone acceptance of this Open Alerts list repair remains pending; installation is not visual confirmation. API is stopped and remains stopped; configured server DEV Firebase/local database were checked, but no actual runtime or live read is claimed. Exact evidence remains private.
 

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -21,6 +23,7 @@ import 'package:civic_voice/models/ghana_assemblies_data.dart';
 import 'package:civic_voice/models/region.dart';
 import 'package:civic_voice/services/api_client.dart';
 import 'package:civic_voice/services/app_cache_service.dart';
+import 'package:civic_voice/services/auth_transitions.dart';
 import 'package:civic_voice/services/mock_auth_service.dart';
 import 'package:civic_voice/widgets/busy_indicator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -296,11 +299,31 @@ void main() {
 
     expect(find.byType(CitizenDashboardScreen), findsNothing);
     expect(
-      find.text(
-        'Could not continue as guest. Check your connection and try again.',
-      ),
+      find.text('Could not continue as guest. Please try again.'),
       findsOneWidget,
     );
+  });
+
+  testWidgets('Guest cannot overtake an existing session transition', (
+    tester,
+  ) async {
+    await reachFinalSlide(tester);
+    final release = Completer<void>();
+    final running = AuthTransitions.instance.run((_) => release.future);
+    await tapVisible(
+      tester,
+      find.widgetWithText(TextButton, 'Continue as Guest'),
+    );
+    await tester.pump();
+    expect(
+      find.text('A session change is in progress. Please wait.'),
+      findsOneWidget,
+    );
+    expect(find.byType(CitizenDashboardScreen), findsNothing);
+    expect(AuthTransitions.instance.isBusy, isTrue);
+    release.complete();
+    await running;
+    await tester.pumpWidget(const SizedBox());
   });
 
   testWidgets('completed onboarding opens directly on the action slide', (

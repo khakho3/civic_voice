@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:civic_voice/features/citizen/services/report_crud_service.dart';
@@ -94,6 +95,69 @@ void main() {
         throwsA(isA<FileSystemException>()),
       );
       expect(await store.pending('alice'), isNull);
+    },
+  );
+
+  for (final corruption in [
+    'photo path',
+    'missing title',
+    'missing coordinate',
+    'camera source',
+  ]) {
+    test(
+      'damaged frozen $corruption blocks recovery without dropping intent',
+      () async {
+        final saved = await store.prepare('alice', draft);
+        final prefs = await SharedPreferences.getInstance();
+        final key = 'report_submission_v1_alice';
+        final raw = jsonDecode(prefs.getString(key)!) as Map<String, dynamic>;
+        switch (corruption) {
+          case 'photo path':
+            raw['photoPaths'] = [
+              saved.photoPaths.first,
+              42,
+              saved.photoPaths.last,
+            ];
+            raw['photoCount'] = 3;
+          case 'missing title':
+            raw.remove('title');
+          case 'missing coordinate':
+            raw.remove('longitude');
+          case 'camera source':
+            raw['photoIsFromCamera'] = [true, 'not-a-source', false];
+        }
+        final damaged = jsonEncode(raw);
+        await prefs.setString(key, damaged);
+        var sends = 0;
+        final service = ReportCrudService.forTesting(
+          account: () => 'alice',
+          token: () async => 'token',
+          store: store,
+          send: (_) async {
+            sends++;
+            return report();
+          },
+        );
+        await expectLater(service.createReport(draft), throwsFormatException);
+        expect(sends, 0);
+        expect(prefs.getString(key), damaged);
+      },
+    );
+  }
+
+  test(
+    'legacy frozen receipt without source flags retains evidence as unknown camera provenance',
+    () async {
+      final saved = await store.prepare('alice', draft);
+      final prefs = await SharedPreferences.getInstance();
+      const key = 'report_submission_v1_alice';
+      final raw = jsonDecode(prefs.getString(key)!) as Map<String, dynamic>;
+      raw.remove('photoIsFromCamera');
+      await prefs.setString(key, jsonEncode(raw));
+      final recovered = await store.pending('alice');
+      expect(recovered!.submissionKey, saved.submissionKey);
+      expect(recovered.photoPaths, saved.photoPaths);
+      expect(recovered.photoIsFromCamera, [false, false]);
     },
   );
 

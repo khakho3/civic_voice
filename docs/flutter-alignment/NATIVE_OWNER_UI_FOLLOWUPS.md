@@ -1,5 +1,40 @@
 # Owner UI follow-ups - 24 October 2026
 
+## Activity PTR owner-accepted; next is audit correctness - 1 November 2026
+
+Owner explicitly confirms DEV e29b4b9's Activity PTR is now in the correct place,
+immediately below the app bar and above search/filter pills. Mark that placement
+accepted and close the PTR position follow-up. This is owner evidence, separate
+from the previously passing 1,977 tests/analyzer; no checks were rerun or new app
+installed for this documentation-only update.
+
+New owner report **ACTIVITY-INITIAL-TIME-WINDOW**: every entry to Activity shows
+"Last 24 Hours" but no events until the owner changes the time scope, despite
+expected recent events. Logged for investigation, not yet reproduced or diagnosed.
+Preserve the 24-hour intent; do not mask it by defaulting to All time or widening
+the query. Inspect first-entry request/state, returned rows, UTC boundaries and
+re-entry behavior alongside the next audit task. Full report: canonical web
+`docs/OWNER_ADMIN_FOLLOWUPS_2026_11_01.md`.
+
+Next major task: audit correctness, beginning with **ADMIN-AUDIT-LOCALITY**, then
+this initial time-window issue. After that: **ADMIN-SCOPE-MUTATION**, then queue06
+submission reliability. Work one reproduced issue at a time. Kingsben's Ministry
+assignment/branch is unchanged. No runtime/API/permission change, live-record
+mutation, API restart, merge, promotion or deployment in this logging update.
+Older checkpoints below are historical.
+
+## Activity PTR repaired and installed - 1 November 2026
+
+Native e29b4b9 moves live Activity's existing shared refresh wrapper around its
+whole body, matching Admin Home's app-bar inset. 1,977 full Flutter tests/analyzer
+pass; 57 focused cases and four private Home/Activity render cases pass. Verified
+isolated DEV is replace-installed/launched with retained data and matching digest;
+73 source/14 protected configuration hashes match. Owner should confirm this new
+position directly below the app bar, above search/filter pills. Earlier accepted
+phone checks are preserved; no placement acceptance is inferred. Next reserved
+work: actor-locality audit, then Assembly Admin mutation, then queue06. See
+canonical CURRENT_STATUS.md and native ACTIVITY_PTR_POSITION_2026_11_01.md.
+
 ## New owner Admin reports and phone confirmation - 1 November 2026
 
 Owner confirms the latest requested phone checklist and clarifies that refresh

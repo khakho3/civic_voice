@@ -47,6 +47,18 @@ class _FakeLocationService extends LocationService {
   }) async => result.status;
 }
 
+class _DelayedPermissionService extends LocationService {
+  final decision = Completer<LocationAccessStatus>();
+  int calls = 0;
+  @override
+  Future<LocationAccessStatus> checkAccessStatus({
+    required bool requestPermission,
+  }) async {
+    if (calls++ == 0) return LocationAccessStatus.permissionDenied;
+    return decision.future;
+  }
+}
+
 Position _position(double latitude, double longitude) => Position(
   longitude: longitude,
   latitude: latitude,
@@ -149,6 +161,42 @@ Future<void> _waitForSubmittedRoute(WidgetTester tester) async {
 }
 
 void main() {
+  testWidgets(
+    'notification setup waits while an explicit location request opens blocked guidance',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      await AppCacheService.instance.initialize(
+        accountId: 'permission-order-fixture',
+      );
+      final location = _DelayedPermissionService();
+      var offered = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: CitizenDashboardScreen(
+            locationService: location,
+            nearbySecondingLoader: (_, _) async => [],
+            onLocationSetupFinished: () async {
+              offered++;
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Allow Location'), findsNWidgets(2));
+      expect(offered, 0);
+      await tester.tap(find.widgetWithText(FilledButton, 'Allow Location'));
+      await tester.pumpAndSettle();
+      location.decision.complete(LocationAccessStatus.permissionDeniedForever);
+      await tester.pumpAndSettle();
+      expect(find.text('Location Blocked'), findsOneWidget);
+      expect(offered, 0);
+      await tester.tap(find.text('Not Now'));
+      await tester.pumpAndSettle();
+      expect(offered, 1);
+    },
+  );
+
   testWidgets(
     'empty guest dashboard shows account notice and finishes location before notification offer',
     (tester) async {

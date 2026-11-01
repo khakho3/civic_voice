@@ -1,4 +1,7 @@
+import 'dart:async';
+import 'package:custom_refresh_indicator/custom_refresh_indicator.dart';
 import 'package:civic_voice/core/theme/app_theme.dart';
+import 'package:civic_voice/core/widgets/ghana_refresh_indicator.dart';
 import 'package:civic_voice/features/admin/screens/admin_report_routing_screen.dart';
 import 'package:civic_voice/features/admin/services/admin_routing_repository.dart';
 import 'package:civic_voice/models/region.dart';
@@ -45,6 +48,203 @@ void main() {
     await AppCacheService.instance.initialize(accountId: 'routing-widgets');
   });
   for (final dark in [false, true]) {
+    testWidgets(
+      'routing queue pull refresh stays below app bar and keeps the list dark=$dark',
+      (tester) async {
+        tester.view.physicalSize = Size(dark ? 320 : 412, 900);
+        tester.view.devicePixelRatio = 1;
+        tester.view.padding = const FakeViewPadding(top: 24, bottom: 24);
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        addTearDown(tester.view.resetPadding);
+        final pending = Completer<Map<String, dynamic>>();
+        var calls = 0;
+        final page = {
+          'reports': [uiReport()],
+          'total': 1,
+          'nextCursor': null,
+        };
+        final repo = AdminRoutingRepository(
+          owner: () => 'super-A',
+          credential: () async => 'fixture',
+          list: (_, _, _) => ++calls == 1 ? Future.value(page) : pending.future,
+        );
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: dark ? AppTheme.dark : AppTheme.light,
+            home: AdminReportRoutingScreen(repository: repo),
+          ),
+        );
+        await tester.pumpAndSettle();
+        final report = find.text('Broken road');
+        final element = tester.element(report);
+        final position = tester.getRect(report);
+        final barBottom = tester.getBottomLeft(find.byType(AppBar)).dy;
+        final list = tester.getRect(find.byType(ListView));
+        await tester.dragFrom(
+          Offset(list.left + 24, list.top + 40),
+          const Offset(0, 300),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 600));
+        await tester.pump(const Duration(milliseconds: 600));
+        expect(calls, 2);
+        final bar = find.byWidgetPredicate(
+          (w) => w.runtimeType.toString() == '_GhanaLinearProgress',
+        );
+        expect(bar, findsOneWidget);
+        expect(tester.getTopLeft(bar).dy, closeTo(barBottom, 0.1));
+        expect(tester.element(report), same(element));
+        expect(tester.getRect(report), position);
+        expect(find.byType(GhanaLoadingIndicator), findsNothing);
+        pending.complete(page);
+        await tester.pumpAndSettle();
+        expect(bar, findsNothing);
+        expect(tester.getRect(report), position);
+        expect(tester.takeException(), isNull);
+      },
+    );
+    testWidgets(
+      'routing detail refresh preserves unsaved reason and makes no write dark=$dark',
+      (tester) async {
+        tester.view.physicalSize = Size(dark ? 320 : 412, 900);
+        tester.view.devicePixelRatio = 1;
+        tester.view.padding = const FakeViewPadding(top: 24, bottom: 24);
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        addTearDown(tester.view.resetPadding);
+        var calls = 0, writes = 0;
+        final pending = Completer<Map<String, dynamic>>();
+        final repo = AdminRoutingRepository(
+          owner: () => 'super-A',
+          credential: () async => 'fixture',
+          read: (_, _) => ++calls == 1
+              ? Future.value({'report': uiReport()})
+              : pending.future,
+          write: (_, _, _) async {
+            writes++;
+            return routingAck();
+          },
+        );
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: dark ? AppTheme.dark : AppTheme.light,
+            home: AdminReportRoutingDetailScreen(
+              id: 'report-one',
+              repository: repo,
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        await chooseAssembly(tester);
+        final reason = tester
+            .widget<TextField>(find.byType(TextField))
+            .controller!
+            .text;
+        final scroll = tester
+            .state<ScrollableState>(find.byType(Scrollable).first)
+            .position;
+        scroll.jumpTo(0);
+        await tester.pumpAndSettle();
+        final state = tester.state<CustomRefreshIndicatorState>(
+          find.byType(CustomRefreshIndicator),
+        );
+        unawaited(state.refresh(draggingDuration: Duration.zero));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 600));
+        expect(calls, 2);
+        final bar = find.byWidgetPredicate(
+          (w) => w.runtimeType.toString() == '_GhanaLinearProgress',
+        );
+        expect(
+          tester.getTopLeft(bar).dy,
+          closeTo(tester.getBottomLeft(find.byType(AppBar)).dy, 0.1),
+        );
+        expect(find.text('Broken road'), findsOneWidget);
+        expect(
+          tester.widget<TextField>(find.byType(TextField)).controller!.text,
+          reason,
+        );
+        expect(
+          tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
+          isNull,
+        );
+        pending.complete({'report': uiReport()});
+        await tester.pumpAndSettle();
+        expect(
+          tester.widget<TextField>(find.byType(TextField)).controller!.text,
+          reason,
+        );
+        expect(
+          tester
+              .widget<AppDropdownField<String>>(
+                find.byType(AppDropdownField<String>),
+              )
+              .value,
+          'Ga Central',
+        );
+        expect(
+          tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
+          isNotNull,
+        );
+        expect(writes, 0);
+        expect(tester.takeException(), isNull);
+      },
+    );
+    testWidgets(
+      'slow initial routing pull suppresses page loading text dark=$dark',
+      (tester) async {
+        final first = Completer<Map<String, dynamic>>();
+        final refresh = Completer<Map<String, dynamic>>();
+        var calls = 0;
+        final repo = AdminRoutingRepository(
+          owner: () => 'super-A',
+          credential: () async => 'fixture',
+          list: (_, _, _) => ++calls == 1 ? first.future : refresh.future,
+        );
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: dark ? AppTheme.dark : AppTheme.light,
+            home: AdminReportRoutingScreen(repository: repo),
+          ),
+        );
+        await tester.pump();
+        expect(find.text('Loading report routing'), findsOneWidget);
+        final state = tester.state<CustomRefreshIndicatorState>(
+          find.byType(CustomRefreshIndicator),
+        );
+        unawaited(state.refresh(draggingDuration: Duration.zero));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 400));
+        expect(calls, 2);
+        expect(find.text('Loading report routing'), findsNothing);
+        expect(tester.getSize(find.byType(GhanaLoadingIndicator)).height, 0);
+        expect(
+          find.byWidgetPredicate(
+            (w) => w.runtimeType.toString() == '_GhanaLinearProgress',
+          ),
+          findsOneWidget,
+        );
+        first.complete({
+          'reports': [uiReport()],
+          'total': 1,
+          'nextCursor': null,
+        });
+        await tester.pump();
+        expect(find.text('Broken road'), findsNothing);
+        refresh.complete({
+          'reports': <Map<String, dynamic>>[],
+          'total': 0,
+          'nextCursor': null,
+        });
+        await tester.pumpAndSettle();
+        expect(
+          find.text('No reports are waiting for locality resolution.'),
+          findsOneWidget,
+        );
+        expect(tester.takeException(), isNull);
+      },
+    );
     for (final width in [320.0, 390.0, 412.0, 1440.0]) {
       testWidgets(
         'routing detail fits $width dark=$dark with dependent allowed geography',
@@ -310,7 +510,10 @@ void main() {
         },
       );
       await tester.pumpWidget(
-        MaterialApp(theme: AppTheme.light, home: AdminReportRoutingScreen(repository: repo)),
+        MaterialApp(
+          theme: AppTheme.light,
+          home: AdminReportRoutingScreen(repository: repo),
+        ),
       );
       await tester.pumpAndSettle();
       await tester.tap(find.text('Next page'));

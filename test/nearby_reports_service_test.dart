@@ -49,7 +49,70 @@ const report = NearbySecondingReport(
   longitude: -0.2,
 );
 
+Map<String, dynamic> nearbyFixture() => {
+  'id': 'report-1',
+  'publicReference': 'CV-1',
+  'title': 'Drain',
+  'category': 'Sanitation',
+  'latitude': 5.6,
+  'longitude': -0.2,
+  'distanceMeters': 10,
+  'seconderCount': 0,
+};
+
 void main() {
+  test(
+    'nearby projection rejects missing, imprecise and ineligible report fields',
+    () {
+      for (final patch in <Map<String, dynamic>>[
+        {'id': '../foreign'},
+        {'publicReference': ''},
+        {'title': null},
+        {'category': ''},
+        {'latitude': null},
+        {'longitude': 181},
+        {'latitude': double.nan},
+        {'distanceMeters': null},
+        {'distanceMeters': double.infinity},
+        {'distanceMeters': -1},
+        {'distanceMeters': 301},
+        {'seconderCount': null},
+        {'seconderCount': 0.5},
+        {'seconderCount': -1},
+        {'seconderCount': 5},
+      ]) {
+        expect(
+          () => NearbySecondingReport.fromDiscovery({
+            ...nearbyFixture(),
+            ...patch,
+          }),
+          throwsFormatException,
+          reason: patch.toString(),
+        );
+      }
+      final parsed = NearbySecondingReport.fromDiscovery({
+        ...nearbyFixture(),
+        'citizen': {'fullName': 'Private fixture'},
+      });
+      expect(parsed.id, report.id);
+      expect(parsed.distanceMeters, 10);
+    },
+  );
+  test('discovery rejects duplicate and oversized nearby pages', () async {
+    var rows = [nearbyFixture(), nearbyFixture()];
+    final service = NearbyReportsService(
+      locationService: located(fix()),
+      now: () => now,
+      account: () => 'one',
+      token: () async => 'token',
+      discover: (_, _) async => rows,
+    );
+    await expectLater(service.discover(), throwsFormatException);
+    rows = List.generate(6, (i) => {...nearbyFixture(), 'id': 'report-$i'});
+    await expectLater(service.discover(), throwsFormatException);
+    rows = [nearbyFixture()];
+    expect((await service.discover()).single.id, 'report-1');
+  });
   for (final p in [
     fix(age: 60001),
     fix(age: -10001),
@@ -255,7 +318,9 @@ void main() {
         } else {
           expect(request.uri.path, '/api/reports/report-1/second');
           expect(jsonDecode(await utf8.decoder.bind(request).join()), position);
-          request.response.write(calls == 2 ? '{"secondedByMe":true}' : '{}');
+          request.response.write(
+            calls == 2 ? '{"secondedByMe":true,"seconderCount":1}' : '{}',
+          );
         }
         await request.response.close();
       });
@@ -276,6 +341,45 @@ void main() {
       );
       await confirm();
       await expectLater(confirm(), throwsA(isA<ApiException>()));
+    },
+  );
+  test(
+    'confirmation receipt requires a bounded integer count, not only a true flag',
+    () async {
+      final previous = ApiClient.baseUrl;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      ApiClient.baseUrl = 'http://127.0.0.1:${server.port}';
+      addTearDown(() async {
+        ApiClient.baseUrl = previous;
+        await server.close(force: true);
+      });
+      Map<String, dynamic> receipt = {'secondedByMe': true};
+      server.listen((request) async {
+        await request.drain<void>();
+        request.response.headers.contentType = ContentType.json;
+        request.response.write(jsonEncode(receipt));
+        await request.response.close();
+      });
+      Future<void> confirm() => ApiClient.instance.secondReport(
+        'report-1',
+        idToken: 'token',
+        latitude: 5.6,
+        longitude: -0.2,
+        accuracy: 5,
+        capturedAt: now,
+      );
+      for (final count in [null, -1, 0, 1.5, 6, '1']) {
+        receipt = {'secondedByMe': true, 'seconderCount': ?count};
+        await expectLater(
+          confirm(),
+          throwsA(isA<ApiException>()),
+          reason: '$count',
+        );
+      }
+      for (final count in [1, 5]) {
+        receipt = {'secondedByMe': true, 'seconderCount': count};
+        await confirm();
+      }
     },
   );
 }

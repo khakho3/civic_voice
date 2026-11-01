@@ -1,5 +1,29 @@
 # Native report submission safeguards - 22 October 2026
 
+## Item 06 phone recovery verified; notification size next - 1 November 2026
+
+Native 7362976 / web 1806b85/1dd51df pass full checks and actual phone after-commit
+interruption/restart/same-reference recovery: one report, one inbox event, exact
+intent cleanup and tracking. Native 4d62211 truthful saved-state copy has 1,985 tests/
+analyzer pass and verified DEV installed; final copy is artifact-verified, while
+phone workflow ran on 7362976. Approved account access restored; other draft and
+protected Super Admin role unchanged; exact test report/media cleaned up. Owner
+acceptance remains pending. Canonical web ITEM06_SUBMISSION_RELIABILITY_2026_11_01.md.
+Latest owner says notification status-bar mark works and asks tiny enlargement.
+Do that bounded vector/source-artwork change next, then 07; new size acceptance
+separate. No merge/promotion/deployment. Earlier notes below are historical.
+
+## Item 06 client repairs and verification - 1 November 2026
+
+Native 7362976 rejects damaged frozen receipt content; web 1806b85/1dd51df retain
+uncertain HTTP/receipt states and prevent frozen-draft discard/navigation escape.
+Full 1,985 native / 440 web / 229 API checks, analyzer/lint/build and isolated SQL proof
+pass. Verified DEV installed; phone submission/restart checks in progress and owner
+acceptance pending. Preserve approved A's existing draft; B is temporarily Citizen
+for QA and must be restored. Protected Super Admin role unchanged. Scope policy
+remains undecided; no permission widening. See canonical web
+ITEM06_SUBMISSION_RELIABILITY_2026_11_01.md. No merge/promotion/deployment.
+
 Implemented on `codex/flutter-latif-review-fixes`: `074f27e` (durable receipt intent), `826f1fd` (recovery navigation), `4a7f4e6` (selected-pin duplicate suggestions). These adopt the existing API contracts; no API/database/Firebase/config change, deployment or promotion is included.
 
 ## Save and retry

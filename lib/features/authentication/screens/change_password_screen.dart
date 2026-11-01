@@ -1,6 +1,5 @@
 import 'package:civic_voice/widgets/validation_attention.dart';
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 import 'package:civic_voice/core/theme/app_theme.dart';
 import 'package:civic_voice/features/authentication/screens/otp_verification_screen.dart';
@@ -8,15 +7,22 @@ import 'package:civic_voice/features/authentication/widgets/auth_presentation.da
 import 'package:civic_voice/features/authentication/widgets/set_new_password_form.dart';
 import 'package:civic_voice/services/api_client.dart';
 import 'package:civic_voice/services/auth_failure_message.dart';
+import 'package:civic_voice/services/password_change_session.dart';
 
 enum _ChangePasswordStep { phone, otp, password }
 
 class ChangePasswordScreen extends StatefulWidget {
-  const ChangePasswordScreen({super.key, required this.onSaved, this.onBack});
+  const ChangePasswordScreen({
+    super.key,
+    required this.onSaved,
+    this.onBack,
+    this.session,
+  });
 
   /// Fires after the password has changed so the app can end the session.
   final Future<void> Function() onSaved;
   final VoidCallback? onBack;
+  final PasswordChangeSession? session;
 
   @override
   State<ChangePasswordScreen> createState() => _ChangePasswordScreenState();
@@ -31,6 +37,13 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   String? _resetToken;
   String? _phoneError;
   bool _sending = false;
+  late final PasswordChangeSession _session;
+
+  @override
+  void initState() {
+    super.initState();
+    _session = widget.session ?? PasswordChangeSession();
+  }
 
   @override
   void dispose() {
@@ -46,15 +59,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     });
     final phone = _phoneController.text.trim();
     try {
-      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
-      if (idToken == null) {
-        throw const ApiException(
-          statusCode: 401,
-          message: 'Your session has expired. Please sign in again.',
-        );
-      }
-      _otpExpiresAt = await ApiClient.instance
-          .sendAuthenticatedPasswordChangeOtp(idToken: idToken, phone: phone);
+      _otpExpiresAt = await _session.sendCode(phone);
     } on ApiException catch (error) {
       if (!mounted) return;
       setState(() {
@@ -84,12 +89,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
   Future<bool> _verifyCode(String code) async {
     try {
-      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
-      if (idToken == null) {
-        throw const ApiException(statusCode: 401, message: 'Sign in again.');
-      }
-      final token = await ApiClient.instance
-          .verifyAuthenticatedPasswordChangeOtp(idToken: idToken, otp: code);
+      final token = await _session.verifyCode(code);
       if (!mounted) return false;
       setState(() {
         _resetToken = token;
@@ -105,12 +105,12 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   Future<bool> _savePassword(String newPassword) async {
     final token = _resetToken;
     if (token == null) return false;
-    await ApiClient.instance.resetPassword(
+    final ownsCompletion = await _session.savePassword(
       phone: _phone,
       resetToken: token,
       newPassword: newPassword,
     );
-    await widget.onSaved();
+    if (ownsCompletion && mounted && _session.isCurrent) await widget.onSaved();
     return true;
   }
 
@@ -123,14 +123,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
         purpose: OtpPurpose.changePassword,
         expiresAt: _otpExpiresAt,
         onBack: () => setState(() => _step = _ChangePasswordStep.phone),
-        onResend: () async {
-          final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
-          if (idToken == null) return null;
-          return ApiClient.instance.sendAuthenticatedPasswordChangeOtp(
-            idToken: idToken,
-            phone: _phone,
-          );
-        },
+        onResend: () => _session.sendCode(_phone),
         onVerify: _verifyCode,
       );
     }

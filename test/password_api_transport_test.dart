@@ -106,4 +106,135 @@ void main() {
       await ApiClient.instance.reportSignOut(idToken: 'fixture-id-token');
     },
   );
+  test(
+    'Guest registration forwards its token and returns a verified same-UID account',
+    () async {
+      server.listen((request) async {
+        expect(request.uri.path, '/api/auth/citizen-register');
+        expect(request.headers.value('authorization'), 'Bearer guest-token');
+        expect(jsonDecode(await utf8.decoder.bind(request).join()), {
+          'fullName': 'Fixture Citizen',
+          'phone': '0200000000',
+          'password': 'fixture-password',
+          'otp': '1234',
+        });
+        request.response.headers.contentType = ContentType.json;
+        request.response.write(
+          jsonEncode({
+            'user': {
+              'id': 'guest-id',
+              'publicId': 'CIT-GUEST',
+              'firebaseUid': 'guest-owner',
+              'role': 'CITIZEN',
+              'fullName': 'Fixture Citizen',
+              'phone': '+233200000000',
+              'isGuest': false,
+              'active': true,
+              'mustChangePassword': false,
+            },
+          }),
+        );
+        await request.response.close();
+      });
+      final result = await ApiClient.instance.registerCitizen(
+        fullName: 'Fixture Citizen',
+        phone: '0200000000',
+        password: 'fixture-password',
+        otp: '1234',
+        guestIdToken: 'guest-token',
+        expectedUid: 'guest-owner',
+      );
+      expect(result.firebaseUid, 'guest-owner');
+      expect(result.id, 'guest-id');
+      expect(result.isGuest, false);
+    },
+  );
+  test(
+    'known Guest registration cannot silently fall back to an unauthenticated request',
+    () async {
+      var calls = 0;
+      server.listen((request) async {
+        calls++;
+        request.response.statusCode = 500;
+        await request.response.close();
+      });
+      await expectLater(
+        ApiClient.instance.registerCitizen(
+          fullName: 'Fixture Citizen',
+          phone: '0200000000',
+          password: 'fixture-password',
+          otp: '1234',
+          expectedUid: 'guest-owner',
+        ),
+        throwsA(
+          isA<ApiException>().having(
+            (e) => e.statusCode,
+            'session required',
+            401,
+          ),
+        ),
+      );
+      expect(calls, 0);
+    },
+  );
+  test(
+    'malformed or foreign registration receipts cannot authorize a handoff',
+    () async {
+      final valid = <String, dynamic>{
+        'id': 'guest-id',
+        'publicId': 'CIT-GUEST',
+        'firebaseUid': 'guest-owner',
+        'role': 'CITIZEN',
+        'fullName': 'Fixture Citizen',
+        'isGuest': false,
+        'active': true,
+        'mustChangePassword': false,
+      };
+      Map<String, dynamic> body = {};
+      server.listen((request) async {
+        await request.drain<void>();
+        request.response.headers.contentType = ContentType.json;
+        request.response.write(jsonEncode(body));
+        await request.response.close();
+      });
+      for (final patch in <Map<String, dynamic>>[
+        {'id': ''},
+        {'publicId': null},
+        {'firebaseUid': 'other'},
+        {'fullName': 'Other'},
+        {'role': 'ADMIN'},
+        {'isGuest': true},
+        {'active': false},
+        {'mustChangePassword': true},
+        {'phone': 42},
+      ]) {
+        body = {
+          'user': {...valid, ...patch},
+        };
+        await expectLater(
+          ApiClient.instance.registerCitizen(
+            fullName: 'Fixture Citizen',
+            phone: '0200000000',
+            password: 'fixture-password',
+            otp: '1234',
+            guestIdToken: 'guest-token',
+            expectedUid: 'guest-owner',
+          ),
+          throwsA(
+            isA<ApiException>().having((e) => e.statusCode, 'unverified', 502),
+          ),
+        );
+      }
+      body = {'email': 'unused@example.test'};
+      await expectLater(
+        ApiClient.instance.registerCitizen(
+          fullName: 'Fixture Citizen',
+          phone: '0200000000',
+          password: 'fixture-password',
+          otp: '1234',
+        ),
+        throwsA(isA<ApiException>()),
+      );
+    },
+  );
 }

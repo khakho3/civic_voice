@@ -9,6 +9,7 @@ import 'package:civic_voice/services/api_client.dart';
 import 'package:civic_voice/services/app_cache_service.dart';
 import 'package:civic_voice/widgets/app_dropdown_field.dart';
 import 'package:civic_voice/widgets/civic_filter_chip.dart';
+import 'package:civic_voice/widgets/form_section_card.dart';
 import 'package:civic_voice/widgets/search_filter_list.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -47,6 +48,85 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     await AppCacheService.instance.initialize(accountId: 'audit-fixture');
   });
+
+  testWidgets(
+    'recent Activity loads on first Last24 entry, refresh and preset changes with a microsecond clock',
+    (tester) async {
+      var now = DateTime.parse('2026-11-01T02:34:56.123456Z');
+      final queries = <Map<String, String>>[];
+      final repo = AdminActivityRepository(
+        now: () => now,
+        owner: () => 'admin',
+        credential: () async => 'fixture',
+        list: (_, query) async {
+          queries.add(Map.of(query));
+          // The API accepts timezone-qualified ISO instants with <=3 fraction digits.
+          final from = query['from'];
+          if (from != null &&
+              !RegExp(
+                r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$',
+              ).hasMatch(from)) {
+            throw const ApiException(
+              statusCode: 400,
+              message: 'Invalid from timestamp',
+            );
+          }
+          return {
+            ...auditPageFixture(),
+            'activity': [
+              {...auditFixture(), 'createdAt': '2026-11-01T02:30:00.000Z'},
+            ],
+          };
+        },
+      );
+      Future<void> enter(String key) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.light,
+            home: AdminSystemActivityScreen(
+              key: ValueKey(key),
+              repository: repo,
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+      }
+
+      await enter('first');
+      expect(find.text('Account access updated'), findsOneWidget);
+      expect(find.text('Last 24 Hours'), findsOneWidget);
+      expect(queries.last, {'from': '2026-10-31T02:34:56.123Z'});
+      now = now.add(const Duration(seconds: 12));
+      await tester
+          .widget<GhanaRefreshIndicator>(find.byType(GhanaRefreshIndicator))
+          .onRefresh();
+      await tester.pumpAndSettle();
+      expect(queries.last, {'from': '2026-10-31T02:35:08.123Z'});
+      expect(find.text('Account access updated'), findsOneWidget);
+      final time = find.byKey(const ValueKey('activity-time-range'));
+      final presetStarts = {
+        'Last 7 Days': '2026-10-25T02:35:08.123Z',
+        'Last 30 Days': '2026-10-02T02:35:08.123Z',
+        'All Time': null,
+        'Last 24 Hours': '2026-10-31T02:35:08.123Z',
+      };
+      for (final entry in presetStarts.entries) {
+        await tester.tap(time);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text(entry.key).last);
+        await tester.pumpAndSettle();
+        expect(find.text('Account access updated'), findsOneWidget);
+        expect(queries.last, {if (entry.value != null) 'from': entry.value!});
+      }
+      expect(queries.last['from'], '2026-10-31T02:35:08.123Z');
+      await tester.pumpWidget(const SizedBox());
+      now = now.add(const Duration(hours: 1));
+      await enter('reentry');
+      expect(find.text('Last 24 Hours'), findsOneWidget);
+      expect(find.text('Account access updated'), findsOneWidget);
+      expect(queries.last, {'from': '2026-10-31T03:35:08.123Z'});
+    },
+  );
 
   testWidgets(
     'custom dates is a Time menu option and cancellation keeps the current query',
@@ -514,6 +594,85 @@ void main() {
       expect(find.text('Event not found'), findsNothing);
     },
   );
+
+  for (final missingHistory in [false, true]) {
+    testWidgets(
+      'detail separates actor identity from event locality missing=$missingHistory',
+      (tester) async {
+        final repo = AdminActivityRepository(
+          owner: () => 'super-admin',
+          credential: () async => 'fixture',
+          read: (_, _) async => {
+            'activity': {
+              ...auditFixture(),
+              if (missingHistory) ...{
+                'actorName': null,
+                'actorPublicId': null,
+                'actorRole': null,
+                'region': null,
+                'assembly': null,
+              },
+            },
+          },
+        );
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.light,
+            home: AdminActivityDetailScreen(id: 'event-one', repository: repo),
+          ),
+        );
+        await tester.pumpAndSettle();
+        final actor = find.byWidgetPredicate(
+          (widget) => widget is FormSectionCard && widget.title == 'Actor',
+        );
+        expect(actor, findsOneWidget);
+        expect(
+          find.descendant(of: actor, matching: find.text('Assembly')),
+          findsNothing,
+        );
+        expect(
+          find.descendant(of: actor, matching: find.text('Region')),
+          findsNothing,
+        );
+        if (missingHistory) {
+          expect(
+            find.descendant(of: actor, matching: find.text('Not recorded')),
+            findsNWidgets(3),
+          );
+        } else {
+          expect(
+            find.descendant(
+              of: actor,
+              matching: find.text('Recorded administrator'),
+            ),
+            findsOneWidget,
+          );
+          expect(
+            find.descendant(of: actor, matching: find.text('CV-ADMIN-42')),
+            findsOneWidget,
+          );
+        }
+        final jurisdiction = find.byWidgetPredicate(
+          (widget) =>
+              widget is FormSectionCard && widget.title == 'Event jurisdiction',
+        );
+        await showItem(tester, jurisdiction);
+        expect(
+          find.descendant(
+            of: jurisdiction,
+            matching: find.text(missingHistory ? 'Not recorded' : 'Ga Central'),
+          ),
+          missingHistory ? findsNWidgets(2) : findsOneWidget,
+        );
+        expect(
+          find.text(
+            'This is the locality recorded for the event, not the actor’s own locality.',
+          ),
+          findsOneWidget,
+        );
+      },
+    );
+  }
 
   testWidgets(
     'session clear immediately removes a loaded detail from the visible route',

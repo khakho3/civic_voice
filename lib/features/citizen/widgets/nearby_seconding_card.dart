@@ -17,18 +17,55 @@ class NearbySecondingReport {
     this.longitude,
   });
 
-  factory NearbySecondingReport.fromApi(Map<String, dynamic> json) {
+  /// Discovery contains only reports still eligible for confirmation. Similar
+  /// report suggestions share this display model but may already be confirmed.
+  factory NearbySecondingReport.fromDiscovery(Map<String, dynamic> json) {
+    final id = json['id'];
+    final latitude = json['latitude'], longitude = json['longitude'];
+    final distance = json['distanceMeters'], count = json['seconderCount'];
+    if (id is! String ||
+        !RegExp(r'^[A-Za-z0-9_-]{1,100}$').hasMatch(id) ||
+        ['publicReference', 'title', 'category'].any(
+          (key) => json[key] is! String || (json[key] as String).trim().isEmpty,
+        ) ||
+        latitude is! num ||
+        !latitude.isFinite ||
+        latitude.abs() > 90 ||
+        longitude is! num ||
+        !longitude.isFinite ||
+        longitude.abs() > 180 ||
+        distance is! num ||
+        !distance.isFinite ||
+        distance < 0 ||
+        distance > 300 ||
+        count is! int ||
+        count < 0 ||
+        count >= 5) {
+      throw const FormatException('Nearby report could not be verified.');
+    }
     return NearbySecondingReport(
-      id: json['id'] as String,
-      latitude: (json['latitude'] as num?)?.toDouble(),
-      longitude: (json['longitude'] as num?)?.toDouble(),
-      reference: json['publicReference'] as String? ?? '',
-      title: json['title'] as String? ?? 'Community issue',
-      category: json['category'] as String? ?? 'General',
-      distanceMeters: (json['distanceMeters'] as num?)?.toDouble() ?? 0,
-      seconderCount: (json['seconderCount'] as num?)?.toInt() ?? 0,
+      id: id,
+      latitude: latitude.toDouble(),
+      longitude: longitude.toDouble(),
+      reference: json['publicReference'] as String,
+      title: json['title'] as String,
+      category: json['category'] as String,
+      distanceMeters: distance.toDouble(),
+      seconderCount: count,
     );
   }
+
+  factory NearbySecondingReport.fromApi(Map<String, dynamic> json) =>
+      NearbySecondingReport(
+        id: json['id'] as String,
+        latitude: (json['latitude'] as num?)?.toDouble(),
+        longitude: (json['longitude'] as num?)?.toDouble(),
+        reference: json['publicReference'] as String? ?? '',
+        title: json['title'] as String? ?? 'Community issue',
+        category: json['category'] as String? ?? 'General',
+        distanceMeters: (json['distanceMeters'] as num?)?.toDouble() ?? 0,
+        seconderCount: (json['seconderCount'] as num?)?.toInt() ?? 0,
+      );
 
   final String id;
   final String reference;

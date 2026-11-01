@@ -20,6 +20,91 @@ import 'password_session_test.dart' show account;
 import 'admin_activity_contract_test.dart' show auditFixture;
 
 void main() {
+  testWidgets(
+    'reduced-motion login retains its verified scope after replacing the route',
+    (tester) async {
+      tester.binding.platformDispatcher.accessibilityFeaturesTestValue =
+          const FakeAccessibilityFeatures(disableAnimations: true);
+      addTearDown(
+        tester.binding.platformDispatcher.clearAccessibilityFeaturesTestValue,
+      );
+      final service = PasswordSessionService(
+        passwordLogin: (_, _) async => 'synthetic-handoff',
+        exchange: (_) async =>
+            const PasswordIdentity(uid: 'verified-uid', idToken: 'fixture'),
+        sync: (_) async => account(),
+      );
+      await tester.pumpWidget(
+        CivicVoiceApp(initialRoute: AppRoutes.login, passwordSessions: service),
+      );
+      await tester.pumpAndSettle();
+      tester.widget<LoginScreen>(find.byType(LoginScreen)).onSignIn!(
+        '0240000000',
+        'synthetic-password',
+        true,
+      );
+      await tester.pumpAndSettle();
+      expect(MockAuthService().getCurrentRole(), AppRole.citizen);
+      expect(AppCacheService.instance.activeAccountId, 'verified-uid');
+      expect(AppCacheService.instance.keepSignedIn, true);
+      expect(find.byType(LoginScreen), findsNothing);
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+
+  for (final rejected in [false, true]) {
+    testWidgets(
+      'disposed login cannot clear a newer verified scope (rejected=$rejected)',
+      (tester) async {
+        final handoff = Completer<String>();
+        var exchanges = 0;
+        final service = PasswordSessionService(
+          passwordLogin: (_, _) => handoff.future,
+          exchange: (_) async {
+            exchanges++;
+            return const PasswordIdentity(
+              uid: 'old-fixture',
+              idToken: 'old-id',
+            );
+          },
+          sync: (_) async => account(),
+        );
+        await tester.pumpWidget(
+          CivicVoiceApp(
+            initialRoute: AppRoutes.login,
+            passwordSessions: service,
+          ),
+        );
+        await tester.pumpAndSettle();
+        tester.widget<LoginScreen>(find.byType(LoginScreen)).onSignIn!(
+          '0240000000',
+          'synthetic-password',
+          false,
+        );
+        await tester.pump();
+        await tester.pumpWidget(const SizedBox.shrink());
+        await MockAuthService().selectRole(AppRole.ministrySupervisor);
+        await AppCacheService.instance.activateAccount('newer-session-fixture');
+        await AppCacheService.instance.setKeepSignedIn(true);
+        if (rejected) {
+          handoff.completeError(
+            const ApiException(statusCode: 503, message: 'Synthetic outage'),
+          );
+        } else {
+          handoff.complete('synthetic-handoff');
+        }
+        await tester.pumpAndSettle();
+        expect(MockAuthService().getCurrentRole(), AppRole.ministrySupervisor);
+        expect(
+          AppCacheService.instance.activeAccountId,
+          'newer-session-fixture',
+        );
+        expect(AppCacheService.instance.keepSignedIn, true);
+        expect(exchanges, 0);
+      },
+    );
+  }
+
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
     await AppCacheService.instance.initialize();

@@ -14,6 +14,7 @@ import '../../../widgets/profile_section.dart';
 import '../../../widgets/profile_session_section.dart';
 import '../../../widgets/profile_status_banner.dart';
 import '../../../widgets/theme_preference_row.dart';
+import '../../../services/session_scope.dart';
 import '../../../core/widgets/ghana_refresh_indicator.dart';
 import '../../admin/services/admin_maintenance_team_directory.dart';
 import '../models/maintenance_profile.dart';
@@ -113,6 +114,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   Future<void> _startEditing(MaintenanceProfile profile) async {
+    final scope = SessionScope.capture();
     final saved = await showProfileNameEditSheet(
       context,
       initialName: profile.fullName,
@@ -120,8 +122,10 @@ class _ProfileScreenState extends State<ProfileScreen>
         final ok =
             await (widget.onSaveProfile?.call(name) ??
                 Future<bool>.value(true));
-        if (ok) MaintenanceSession.instance.updateProfile(fullName: name);
-        return ok;
+        if (ok && scope.isCurrent) {
+          MaintenanceSession.instance.updateProfile(fullName: name);
+        }
+        return ok && scope.isCurrent;
       },
     );
     if (!mounted || !saved) return;

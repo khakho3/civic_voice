@@ -114,6 +114,9 @@ import 'models/ghana_assemblies_data.dart';
 import 'models/region.dart';
 import 'services/api_client.dart';
 import 'services/password_session_service.dart';
+import 'services/password_change_session.dart';
+import 'services/auth_transitions.dart';
+import 'services/session_scope.dart';
 import 'services/app_cache_service.dart';
 import 'services/idle_session_timer.dart';
 import 'services/mock_auth_service.dart';
@@ -352,29 +355,68 @@ Future<void> _offerNotificationPermissionAfterLogin(
   }
 }
 
-Future<void> _restorePersistedSession() async {
-  final firebaseUser = FirebaseAuth.instance.currentUser;
-  final auth = MockAuthService();
-  if (firebaseUser == null) {
-    if (auth.getCurrentRole() != null) await auth.clearUser();
-    return;
+Future<void> _restorePersistedSession({bool Function()? isCurrent}) async {
+  final transitions = AuthTransitions.instance;
+  while (transitions.isBusy) {
+    await transitions.settled;
   }
-
+  if (isCurrent?.call() == false) return;
+  final firebaseUser = FirebaseAuth.instance.currentUser;
+  final uid = firebaseUser?.uid;
+  AuthTransitionLease? transition;
+  var missingIdentity = false;
   try {
-    final token = await firebaseUser.getIdToken();
-    if (token == null) return;
-    final syncedUser = await ApiClient.instance.syncUser(idToken: token);
-    final role = _appRoleForBackendRole(syncedUser.role);
-    if (role == null) return;
-    await _selectSyncedRole(auth, role, syncedUser);
-    _primeRoleIdentity(role, syncedUser);
-    unawaited(_refreshRoleData(role));
-  } on ApiException catch (error) {
-    if ([401, 403, 404].contains(error.statusCode)) {
+    await transitions.run<void>((lease) async {
+      transition = lease;
+      void check() {
+        if (isCurrent?.call() == false ||
+            FirebaseAuth.instance.currentUser?.uid != uid) {
+          lease.cancel();
+        }
+        lease.check();
+      }
+
+      check();
+      if (firebaseUser == null) {
+        missingIdentity = true;
+        return;
+      }
+      final token = await firebaseUser.getIdToken();
+      check();
+      if (token == null) return;
+      final synced = await ApiClient.instance.syncUser(idToken: token);
+      check();
+      final role = await _activateVerifiedSession(
+        uid!,
+        synced,
+        transition: lease,
+      );
+      check();
+      unawaited(_refreshRoleData(role));
+    });
+    if (missingIdentity &&
+        transition?.isLatest == true &&
+        isCurrent?.call() != false) {
       await endSession();
     }
-    // Network/timeouts preserve the last known local role so a temporary
-    // outage does not silently log out an otherwise valid account.
+  } catch (error) {
+    final denied =
+        error is ApiException && [401, 403, 404].contains(error.statusCode) ||
+        error is FirebaseAuthException &&
+            [
+              'user-disabled',
+              'user-token-expired',
+              'invalid-user-token',
+              'user-not-found',
+            ].contains(error.code);
+    if (denied &&
+        transition?.isLatest == true &&
+        isCurrent?.call() != false &&
+        FirebaseAuth.instance.currentUser?.uid == uid) {
+      await endSession();
+    }
+    // A transient provider/storage failure preserves the existing offline
+    // behavior; it never leaves startup waiting on an unhandled exception.
   }
 }
 
@@ -543,7 +585,7 @@ class _CivicVoiceAppState extends State<CivicVoiceApp>
   }
 
   Future<void> _finishSessionRestore() async {
-    await _restorePersistedSession();
+    await _restorePersistedSession(isCurrent: () => mounted);
     await _configurePushNotifications();
     if (!mounted) return;
     setState(() => _sessionRestoreComplete = true);
@@ -617,8 +659,15 @@ class _CivicVoiceAppState extends State<CivicVoiceApp>
   /// or already signed out) — there's no session to time out of.
   Future<void> _handleIdleTimeout() async {
     if (MockAuthService().getCurrentRole() == null) return;
-    await endSession();
-    if (!mounted) return;
+    final transitions = AuthTransitions.instance;
+    final closing = endSession();
+    final revision = transitions.revision;
+    await closing;
+    if (!mounted ||
+        transitions.revision != revision ||
+        transitions.isBusy) {
+      return;
+    }
     // Straight to Login, not the onboarding carousel — this device has
     // been used before, so re-showing onboarding (and letting them scroll
     // back through slides they've already seen) is exactly the confusing
@@ -718,12 +767,16 @@ class _CivicVoiceAppState extends State<CivicVoiceApp>
               AppRoutes.forgotPassword: (context) =>
                   const _ForgotPasswordRoute(),
               AppRoutes.biometricLock: _biometricLock,
-              AppRoutes.changePassword: (context) => ChangePasswordScreen(
-                onBack: Navigator.canPop(context)
-                    ? () => Navigator.of(context).maybePop()
-                    : null,
-                onSaved: () => _finishChangePassword(context),
-              ),
+              AppRoutes.changePassword: (context) {
+                final session = PasswordChangeSession();
+                return ChangePasswordScreen(
+                  session: session,
+                  onBack: Navigator.canPop(context)
+                      ? () => Navigator.of(context).maybePop()
+                      : null,
+                  onSaved: () => _finishChangePassword(context, session),
+                );
+              },
               AppRoutes.about: (context) => AboutScreen(
                 onBack: Navigator.canPop(context)
                     ? () => Navigator.of(context).maybePop()
@@ -1150,16 +1203,56 @@ Future<void> _selectSyncedRole(
 /// see the NOTE above the `routes` map. Kept as a private route widget
 /// (not inline in the route table) because it needs to hold its own
 /// [LoginViewState] across the async round trip.
-Future<AppRole> _activatePasswordSession(PasswordSession session) async {
-  final role = _appRoleForBackendRole(session.user.role);
-  if (role == null) {
+Future<AppRole> _activatePasswordSession(
+  PasswordSession session, {
+  AuthTransitionLease? transition,
+}) =>
+    _activateVerifiedSession(session.uid, session.user, transition: transition);
+
+Future<AppRole> _activateVerifiedSession(
+  String uid,
+  SyncedUser user, {
+  AuthTransitionLease? transition,
+}) async {
+  void check() {
+    transition?.check();
+    if (Firebase.apps.isNotEmpty &&
+        FirebaseAuth.instance.currentUser?.uid != uid) {
+      transition?.cancel();
+      throw const AuthTransitionInterrupted();
+    }
+  }
+
+  check();
+  final role = _appRoleForBackendRole(user.role);
+  if (role == null ||
+      !user.active ||
+      user.firebaseUid != uid ||
+      user.id.isEmpty ||
+      user.publicId.isEmpty) {
     throw const ApiException(statusCode: 403, message: 'Account unavailable.');
   }
-  await AppCacheService.instance.activateAccount(session.uid);
-  await NotificationDirectory.instance.activateAccount(session.uid);
-  await _selectSyncedRole(MockAuthService(), role, session.user);
-  _primeRoleIdentity(role, session.user);
+  transition?.requireCleanupFor(uid);
+  await AppCacheService.instance.activateAccount(uid);
+  check();
+  await NotificationDirectory.instance.activateAccount(uid);
+  check();
+  await _selectSyncedRole(MockAuthService(), role, user);
+  check();
+  _primeRoleIdentity(role, user);
   return role;
+}
+
+Future<bool> _endOwnedSessionForUi(AuthTransitionLease transition) async {
+  final transitions = AuthTransitions.instance;
+  if (!transition.isLatest) return false;
+  var revision = transitions.revision;
+  if (!transition.cleanedOwned) {
+    final closing = endSession();
+    revision = transitions.revision;
+    await closing;
+  }
+  return transitions.revision == revision && !transitions.isBusy;
 }
 
 LoginViewState _passwordLoginState(Object error) =>
@@ -1181,6 +1274,13 @@ class _LoginRoute extends StatefulWidget {
 
 class _LoginRouteState extends State<_LoginRoute> {
   LoginViewState _state = LoginViewState.ready;
+  AuthTransitionLease? _transition;
+
+  @override
+  void dispose() {
+    _transition?.cancel();
+    super.dispose();
+  }
 
   Future<void> _handleSignIn(
     BuildContext context,
@@ -1190,31 +1290,38 @@ class _LoginRouteState extends State<_LoginRoute> {
   ) async {
     if (_state == LoginViewState.loading) return;
     setState(() => _state = LoginViewState.loading);
+    _transition = null;
     try {
-      final session = await widget.sessions.signIn(
-        phone: phone,
-        password: password,
-      );
-      if (!mounted) {
-        await endSession();
-        return;
-      }
-      final appRole = await _activatePasswordSession(session);
-      if (!context.mounted) {
-        await endSession();
-        return;
-      }
-      await AppCacheService.instance.setKeepSignedIn(keepSignedIn);
-      if (!context.mounted) {
-        await endSession();
-        return;
-      }
-      _completeSignIn(context);
-      unawaited(_refreshRoleData(appRole));
-      unawaited(_finishPostLoginNotifications());
+      await AuthTransitions.instance.run<void>((transition) async {
+        _transition = transition;
+        void check() {
+          if (!mounted) transition.cancel();
+          transition.check();
+        }
+
+        final session = await widget.sessions.signIn(
+          phone: phone,
+          password: password,
+          isCurrent: () => mounted && transition.isCurrent,
+        );
+        check();
+        final appRole = await _activatePasswordSession(
+          session,
+          transition: transition,
+        );
+        check();
+        await AppCacheService.instance.setKeepSignedIn(keepSignedIn);
+        check();
+        if (!context.mounted) {
+          transition.cancel();
+          throw const AuthTransitionInterrupted();
+        }
+        _completeSignIn(context);
+        unawaited(_refreshRoleData(appRole));
+        unawaited(_finishPostLoginNotifications());
+      }, onFailure: clearFailedAuthTransition);
     } catch (error) {
-      await endSession();
-      if (!mounted) return;
+      if (!mounted || _transition?.isLatest == false) return;
       setState(() => _state = _passwordLoginState(error));
     }
   }
@@ -1237,7 +1344,7 @@ class _LoginRouteState extends State<_LoginRoute> {
 }
 
 /// Real Firebase + civic_voice_api Citizen self-registration. Form submit
-/// only sends a real SMS verification code — the account itself isn't
+/// only sends a real SMS verification code â€” the account itself isn't
 /// created until that code is confirmed on [_RegistrationOtpRoute], so a
 /// phone number never gets an account made against it without proving
 /// ownership first.
@@ -1338,46 +1445,107 @@ class _RegistrationOtpRoute extends StatefulWidget {
 
 class _RegistrationOtpRouteState extends State<_RegistrationOtpRoute> {
   bool _accountCreated = false;
+  String? _ownerUid, _registeredUid;
+  AuthTransitionLease? _transition;
+
+  @override
+  void initState() {
+    super.initState();
+    _ownerUid = FirebaseAuth.instance.currentUser?.uid;
+  }
+
+  @override
+  void dispose() {
+    _transition?.cancel();
+    super.dispose();
+  }
+
+  bool get _originCurrent =>
+      mounted &&
+      (_transition?.isCurrent ?? true) &&
+      FirebaseAuth.instance.currentUser?.uid == _ownerUid;
+  bool get _sameHandoffIdentity {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    return mounted &&
+        (uid == _ownerUid || _registeredUid != null && uid == _registeredUid);
+  }
+
+  bool get _handoffCurrent =>
+      _sameHandoffIdentity && (_transition?.isCurrent ?? true);
+  static const _sessionChanged = ApiException(
+    statusCode: 401,
+    message: 'Your registration session changed. Please sign in again.',
+  );
+
   Future<bool> _handleVerify(BuildContext context, String code) async {
+    _transition = null;
     try {
-      // If they got here via "Continue as Guest" and are still on that
-      // same Anonymous Auth session, pass its token along so the backend
-      // upgrades that account in place — same UID, so any reports they
-      // filed as a guest carry over automatically instead of needing a
-      // separate claim step.
-      final currentUser = FirebaseAuth.instance.currentUser;
-      final guestIdToken = (currentUser != null && currentUser.isAnonymous)
-          ? await currentUser.getIdToken()
-          : null;
-      await ApiClient.instance.registerCitizen(
-        fullName: widget.fullName,
-        phone: widget.phone,
-        password: widget.password,
-        otp: code,
-        guestIdToken: guestIdToken,
-      );
-      _accountCreated = true;
-      final session = await widget.sessions.signIn(
-        phone: widget.phone,
-        password: widget.password,
-      );
-      if (!mounted) {
-        await endSession();
+      return await AuthTransitions.instance.run<bool>((transition) async {
+        _transition = transition;
+        if (!_originCurrent) throw _sessionChanged;
+        final currentUser = FirebaseAuth.instance.currentUser;
+        final guestIdToken = await currentUser?.getIdToken();
+        if (!_originCurrent ||
+            _ownerUid != null &&
+                (guestIdToken == null || guestIdToken.isEmpty)) {
+          throw _sessionChanged;
+        }
+        final registered = await ApiClient.instance.registerCitizen(
+          fullName: widget.fullName,
+          phone: widget.phone,
+          password: widget.password,
+          otp: code,
+          guestIdToken: guestIdToken,
+          expectedUid: _ownerUid,
+        );
+        if (!_originCurrent) throw _sessionChanged;
+        _registeredUid = registered.firebaseUid;
+        if (_ownerUid != null && _registeredUid != _ownerUid) {
+          throw const ApiException(
+            statusCode: 502,
+            message:
+                'Guest registration identity could not be verified. Please sign in again.',
+          );
+        }
+        _accountCreated = true;
+        final session = await widget.sessions.signIn(
+          phone: widget.phone,
+          password: widget.password,
+          expectedUid: _registeredUid,
+          isCurrent: () => _handoffCurrent,
+        );
+        if (!_handoffCurrent) throw _sessionChanged;
+        final role = await _activatePasswordSession(
+          session,
+          transition: transition,
+        );
+        if (!_handoffCurrent) throw _sessionChanged;
+        await AppCacheService.instance.setKeepSignedIn(false);
+        if (!_handoffCurrent) throw _sessionChanged;
+        if (!context.mounted) {
+          transition.cancel();
+          throw const AuthTransitionInterrupted();
+        }
+        _completeSignIn(context);
+        unawaited(_refreshRoleData(role));
+        unawaited(_finishPostLoginNotifications());
         return true;
-      }
-      final appRole = await _activatePasswordSession(session);
-      await AppCacheService.instance.setKeepSignedIn(false);
-      if (!context.mounted) {
-        await endSession();
-        return true;
-      }
-      _completeSignIn(context);
-      unawaited(_refreshRoleData(appRole));
-      unawaited(_finishPostLoginNotifications());
-      return true;
+      }, onFailure: clearFailedAuthTransition);
     } catch (error) {
+      if (!mounted) return true;
+      final transition = _transition;
+      if (transition == null) {
+        throw const ApiException(
+          statusCode: 503,
+          message: 'A session change is in progress. Please wait.',
+        );
+      }
+      if (!transition.isLatest ||
+          !_sameHandoffIdentity && !transition.cleanedOwned) {
+        throw _sessionChanged;
+      }
       if (_accountCreated) {
-        await endSession();
+        if (!await _endOwnedSessionForUi(transition)) return true;
         if (context.mounted) {
           Navigator.of(
             context,
@@ -1392,11 +1560,6 @@ class _RegistrationOtpRouteState extends State<_RegistrationOtpRoute> {
       }
       if (error is! ApiException) rethrow;
       if (error.statusCode == 409) {
-        // The OTP itself was correct — this phone number already has an
-        // account (e.g. it was provisioned as staff, or registered
-        // earlier). No amount of retrying the code can ever succeed here,
-        // so send the user back to fix the phone number instead of
-        // leaving them stuck on a misleading "Incorrect Code" retry loop.
         if (context.mounted) {
           Navigator.of(context).pop();
           ScaffoldMessenger.of(
@@ -1405,13 +1568,17 @@ class _RegistrationOtpRouteState extends State<_RegistrationOtpRoute> {
         }
         return true;
       }
-      // Only an actual rejected/expired OTP is an Incorrect Code result.
-      if (error.statusCode != 400 && error.statusCode != 401) rethrow;
+      if (error.statusCode != 400) rethrow;
       return false;
     }
   }
 
   Future<DateTime?> _handleResend() {
+    if (!mounted ||
+        FirebaseAuth.instance.currentUser?.uid != _ownerUid ||
+        _transition?.isLatest == false) {
+      return Future.error(_sessionChanged);
+    }
     return ApiClient.instance.sendRegistrationOtp(widget.phone);
   }
 
@@ -1451,7 +1618,9 @@ void _startForgotPasswordOtp(
   BuildContext context,
   String phoneNumber,
   DateTime? expiresAt,
+  PasswordChangeSession session,
 ) {
+  if (!context.mounted || !session.isCurrent) return;
   Navigator.of(context).push(
     MaterialPageRoute<void>(
       builder: (context) => OtpVerificationScreen(
@@ -1459,41 +1628,47 @@ void _startForgotPasswordOtp(
         purpose: OtpPurpose.forgotPassword,
         expiresAt: expiresAt,
         onBack: () => Navigator.of(context).maybePop(),
-        onResend: () => ApiClient.instance.sendForgotPasswordOtp(phoneNumber),
+        onResend: () async {
+          session.check();
+          final expiry = await ApiClient.instance.sendForgotPasswordOtp(
+            phoneNumber,
+          );
+          session.check();
+          return expiry;
+        },
         onVerify: (code) async {
           late final String resetToken;
           try {
+            session.check();
             resetToken = await ApiClient.instance.verifyPasswordResetOtp(
               phone: phoneNumber,
               otp: code,
             );
+            session.check();
           } on ApiException catch (error) {
-            if (error.statusCode == 400 || error.statusCode == 401) {
-              return false;
-            }
+            if (error.statusCode == 400) return false;
             rethrow;
           }
-          if (!context.mounted) return false;
+          if (!context.mounted || !session.isCurrent) return false;
           Navigator.of(context).pushReplacement(
             MaterialPageRoute<void>(
               builder: (passwordContext) => SetNewPasswordScreen(
                 purpose: SetNewPasswordPurpose.forgotPassword,
                 onBack: () => Navigator.of(passwordContext).maybePop(),
                 onSaved: (newPassword) async {
-                  final navigator = Navigator.of(passwordContext);
-                  try {
-                    await ApiClient.instance.resetPassword(
-                      phone: phoneNumber,
-                      resetToken: resetToken,
-                      newPassword: newPassword,
-                    );
-                  } on ApiException {
-                    rethrow;
-                  }
-                  navigator.pushNamedAndRemoveUntil(
-                    AppRoutes.login,
-                    (_) => false,
+                  final ownsCompletion = await session.savePassword(
+                    phone: phoneNumber,
+                    resetToken: resetToken,
+                    newPassword: newPassword,
                   );
+                  if (!ownsCompletion ||
+                      !passwordContext.mounted ||
+                      !session.isCurrent) {
+                    return true;
+                  }
+                  Navigator.of(
+                    passwordContext,
+                  ).pushNamedAndRemoveUntil(AppRoutes.login, (_) => false);
                   return true;
                 },
               ),
@@ -1518,14 +1693,17 @@ class _ForgotPasswordRouteState extends State<_ForgotPasswordRoute> {
   String? _errorMessage;
 
   Future<void> _send(String phone) async {
+    final session = PasswordChangeSession();
     setState(() {
       _state = ForgotPasswordViewState.loading;
       _errorMessage = null;
     });
     try {
+      session.check();
       final expiresAt = await ApiClient.instance.sendForgotPasswordOtp(phone);
+      session.check();
       if (!mounted) return;
-      _startForgotPasswordOtp(context, phone, expiresAt);
+      _startForgotPasswordOtp(context, phone, expiresAt, session);
       setState(() => _state = ForgotPasswordViewState.ready);
     } on ApiException catch (error) {
       if (!mounted) return;
@@ -1560,46 +1738,71 @@ Widget _forcedPasswordReset(
   return SetNewPasswordScreen(
     purpose: SetNewPasswordPurpose.firstLogin,
     onSaved: (newPassword) async {
-      final firebaseUser = FirebaseAuth.instance.currentUser;
-      final idToken = await firebaseUser?.getIdToken();
-      if (firebaseUser == null || idToken == null) return false;
-      bool passwordSaved = false;
+      AuthTransitionLease? transition;
+      var passwordSaved = false;
       try {
-        final current = await ApiClient.instance.syncUser(idToken: idToken);
-        final phone = current.phone;
-        if (phone == null || phone.isEmpty) return false;
-        final renewed = await sessions.completeFirstLogin(
-          uid: firebaseUser.uid,
-          phone: phone,
-          idToken: idToken,
-          newPassword: newPassword,
-        );
-        passwordSaved = true;
-        if (!context.mounted) {
-          await endSession();
+        return await AuthTransitions.instance.run<bool>((lease) async {
+          transition = lease;
+          void check() {
+            if (!context.mounted) lease.cancel();
+            lease.check();
+          }
+
+          check();
+          final user = FirebaseAuth.instance.currentUser;
+          if (user == null) return false;
+          final token = await user.getIdToken();
+          check();
+          if (token == null) return false;
+          final current = await ApiClient.instance.syncUser(idToken: token);
+          check();
+          if (current.firebaseUid != user.uid ||
+              !current.active ||
+              current.isGuest ||
+              !current.mustChangePassword) {
+            throw const ApiException(
+              statusCode: 403,
+              message: 'Account verification changed. Please sign in again.',
+            );
+          }
+          final phone = current.phone;
+          if (phone == null || phone.isEmpty) return false;
+          late final PasswordSession renewed;
+          try {
+            renewed = await sessions.completeFirstLogin(
+              uid: user.uid,
+              phone: phone,
+              idToken: token,
+              newPassword: newPassword,
+              isCurrent: () =>
+                  context.mounted &&
+                  lease.isCurrent &&
+                  FirebaseAuth.instance.currentUser?.uid == user.uid,
+            );
+          } on PasswordChangedSignInRequired {
+            passwordSaved = true;
+            lease.requireCleanupFor(user.uid, endSdkSession: true);
+            rethrow;
+          }
+          passwordSaved = true;
+          lease.requireCleanupFor(user.uid, endSdkSession: true);
+          check();
+          await _activatePasswordSession(renewed, transition: lease);
+          check();
+          if (!context.mounted) {
+            lease.cancel();
+            throw const AuthTransitionInterrupted();
+          }
+          _completeSignIn(context);
           return true;
-        }
-        // The same account and persistence preference are retained.
-        await _activatePasswordSession(renewed);
-      } on PasswordChangedSignInRequired {
-        await endSession();
-        if (context.mounted) {
-          Navigator.of(
-            context,
-          ).pushNamedAndRemoveUntil(AppRoutes.login, (_) => false);
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Your password was changed. Sign in with the new password.',
-              ),
-            ),
-          );
-        }
-        return true;
+        }, onFailure: clearFailedAuthTransition);
       } catch (_) {
+        if (!context.mounted) return true;
+        final lease = transition;
+        if (lease == null) return false;
+        if (!lease.isLatest) return true;
         if (!passwordSaved) return false;
-        await endSession();
-        if (context.mounted) {
+        if (await _endOwnedSessionForUi(lease) && context.mounted) {
           Navigator.of(
             context,
           ).pushNamedAndRemoveUntil(AppRoutes.login, (_) => false);
@@ -1613,9 +1816,6 @@ Widget _forcedPasswordReset(
         }
         return true;
       }
-      if (!context.mounted) return true;
-      _completeSignIn(context);
-      return true;
     },
   );
 }
@@ -1636,33 +1836,85 @@ Widget _biometricLock(BuildContext context) {
 /// uses, and what makes /citizen-register's guest-upgrade path (same
 /// UID, same rows, reports carry over) possible later if they register.
 Future<void> _continueAsGuest(BuildContext context) async {
+  AuthTransitionLease? transition;
   try {
-    final credential = await FirebaseAuth.instance.signInAnonymously();
-    await AppCacheService.instance.activateAccount(credential.user?.uid);
-    await NotificationDirectory.instance.activateAccount(credential.user?.uid);
-    final idToken = await credential.user?.getIdToken();
-    if (idToken == null) throw Exception('No ID token after guest sign-in');
-    final syncedUser = await ApiClient.instance.syncUser(idToken: idToken);
-    ProfileCrudService.instance.loadSignedInUser(syncedUser);
-    await MockAuthService().selectRole(AppRole.citizen);
-    if (!context.mounted) return;
-    Navigator.of(context).pushNamed(AppRoutes.citizenDashboard);
-  } catch (_) {
-    await endSession();
-    if (!context.mounted) return;
+    await AuthTransitions.instance.run<void>((lease) async {
+      transition = lease;
+      void check() {
+        if (!context.mounted) lease.cancel();
+        lease.check();
+      }
+
+      check();
+      final originalUid = FirebaseAuth.instance.currentUser?.uid;
+      final credential = await FirebaseAuth.instance.signInAnonymously();
+      final user = credential.user;
+      if (user == null) {
+        throw const ApiException(
+          statusCode: 503,
+          message: 'Guest session could not be verified.',
+        );
+      }
+      if (user.uid != originalUid) lease.recordSdkUser(user.uid);
+      check();
+      final token = await user.getIdToken();
+      check();
+      if (token == null) {
+        throw const ApiException(
+          statusCode: 503,
+          message: 'Guest session could not be verified.',
+        );
+      }
+      final synced = await ApiClient.instance.syncUser(idToken: token);
+      check();
+      if (synced.firebaseUid != user.uid ||
+          synced.role != 'CITIZEN' ||
+          !synced.active) {
+        throw const ApiException(
+          statusCode: 403,
+          message: 'Guest account could not be verified.',
+        );
+      }
+      await _activateVerifiedSession(user.uid, synced, transition: lease);
+      check();
+      if (!context.mounted) {
+        lease.cancel();
+        throw const AuthTransitionInterrupted();
+      }
+      Navigator.of(context).pushNamed(
+        synced.mustChangePassword
+            ? AppRoutes.forcePasswordReset
+            : AppRoutes.citizenDashboard,
+      );
+    }, onFailure: clearFailedAuthTransition);
+  } catch (error) {
+    if (!context.mounted || transition?.isLatest == false) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
+      SnackBar(
         content: Text(
-          'Could not continue as guest. Check your connection and try again.',
+          error is AuthTransitionBusy
+              ? 'A session change is in progress. Please wait.'
+              : 'Could not continue as guest. Please try again.',
         ),
       ),
     );
   }
 }
 
-Future<void> _finishChangePassword(BuildContext context) async {
-  await endSession();
-  if (!context.mounted) return;
+Future<void> _finishChangePassword(
+  BuildContext context,
+  PasswordChangeSession session,
+) async {
+  if (!context.mounted || !session.isCurrent) return;
+  final transitions = AuthTransitions.instance;
+  final closing = endSession();
+  final revision = transitions.revision;
+  await closing;
+  if (!context.mounted ||
+      transitions.revision != revision ||
+      transitions.isBusy) {
+    return;
+  }
   Navigator.of(context).pushNamedAndRemoveUntil(AppRoutes.login, (_) => false);
 }
 
@@ -2119,15 +2371,19 @@ Widget _adminProfile(BuildContext context) {
             : admin.AdminProfileViewState.loading,
         onRetry: directory.refresh,
         onSaveProfile: (fullName) async {
+          final scope = SessionScope.capture();
           try {
+            scope.check();
             final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+            scope.check();
             if (token == null) return false;
             await ApiClient.instance.updateProfile(
               idToken: token,
               fullName: fullName,
             );
+            scope.check();
             await AdminUserDirectory.instance.refresh();
-            return true;
+            return scope.isCurrent;
           } catch (_) {
             return false;
           }
@@ -2325,13 +2581,17 @@ Widget _ministryProfile(BuildContext context) {
           Navigator.of(context).pushNamed(AppRoutes.ministryNotifications),
       onLogOut: () => signOut(context),
       onSaveProfile: (fullName) async {
+        final scope = SessionScope.capture();
         try {
+          scope.check();
           final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+          scope.check();
           if (token == null) return false;
           final json = await ApiClient.instance.updateProfile(
             idToken: token,
             fullName: fullName,
           );
+          scope.check();
           MinistrySession.instance.updateProfile(
             fullName: json['fullName'] as String? ?? fullName,
           );
@@ -2645,13 +2905,17 @@ Widget _municipalProfile(BuildContext context) {
     onAbout: () => Navigator.of(context).pushNamed(AppRoutes.about),
     onLogOut: () => signOut(context),
     onSaveProfile: (fullName) async {
+      final scope = SessionScope.capture();
       try {
+        scope.check();
         final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+        scope.check();
         if (token == null) return false;
         await ApiClient.instance.updateProfile(
           idToken: token,
           fullName: fullName,
         );
+        scope.check();
         MunicipalSession.instance.updateName(fullName);
         return true;
       } catch (_) {
@@ -2788,13 +3052,17 @@ Widget _maintenanceProfile(BuildContext context) {
     onAbout: () => Navigator.of(context).pushNamed(AppRoutes.about),
     onLogOut: () => signOut(context),
     onSaveProfile: (fullName) async {
+      final scope = SessionScope.capture();
       try {
+        scope.check();
         final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+        scope.check();
         if (token == null) return false;
         final json = await ApiClient.instance.updateProfile(
           idToken: token,
           fullName: fullName,
         );
+        scope.check();
         MaintenanceSession.instance.updateProfile(
           fullName: json['fullName'] as String? ?? fullName,
         );

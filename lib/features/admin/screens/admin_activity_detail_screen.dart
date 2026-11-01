@@ -161,18 +161,26 @@ class _AdminActivityDetailScreenState extends State<AdminActivityDetailScreen> {
                   'The outcome was not established. This record does not prove the action succeeded.',
                 ),
               _Fields(
-                title: 'Actor and scope',
+                title: 'Actor',
                 fields: {
                   'Actor': event.fields['actorName'],
                   'Actor ID':
                       event.fields['actorPublicId'] ?? event.fields['actorId'],
                   'Role at the time': event.fields['actorRole'],
+                },
+              ),
+              const Text(
+                'Actor details are recorded snapshots. A missing actor ID may mean the account was removed or no actor was established.',
+              ),
+              _Fields(
+                title: 'Event jurisdiction',
+                fields: {
                   'Region': event.fields['region'],
                   'Assembly': event.fields['assembly'],
                 },
               ),
               const Text(
-                'Actor details are recorded snapshots. A missing actor ID may mean the account was removed or no actor was established.',
+                'This is the locality recorded for the event, not the actor’s own locality.',
               ),
               _Fields(
                 title: 'Target',
