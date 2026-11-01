@@ -1,5 +1,16 @@
 # Owner UI follow-ups - 24 October 2026
 
+## Current integration and first next fix - 1 November 2026
+
+Kingsben PR21 is squash-merged as c89a8a4; merged DEV is verified/installed with
+retained data. 1,973 full Flutter tests/analyzer pass; owner acceptance remains
+separate. **First app fix on return:** Activity shared PTR immediately under the
+app bar, above search/filter pills, matching Admin Home/accepted consumers. Owner
+rejects its current placement; no placement fix was made during PR integration.
+The separate possible minimal middle gap remains owner-deferred. See canonical
+web CURRENT_STATUS.md and native PR21_REVIEW_2026_11_01.md. Older checkpoints are
+historical; no production promotion/deployment.
+
 ## Owner order: review PR21 now; Activity PTR first on return - 1 November 2026
 
 Owner reports Activity PTR currently appears below the search/filter pills. This

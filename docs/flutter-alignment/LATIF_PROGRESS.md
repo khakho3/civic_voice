@@ -1,5 +1,39 @@
 # Latif progress
 
+## PR21 squash-merged; first next fix is Activity PTR - 1 November 2026
+
+[PR #21](https://github.com/khakho3/civic_voice/pull/21) was reviewed with no blocking
+findings and **squash-merged as c89a8a4** into `codex/flutter-latif-review-fixes`.
+The merged source/tests match the isolated tested candidate: **1,973 full Flutter
+tests pass; analyzer clean**. Eight private Inter text-layout spot checks also
+pass. These are automated checks, not owner/device acceptance. Review evidence:
+native `docs/flutter-team/PR21_REVIEW_2026_11_01.md`.
+
+DEV through c89a8a4 is artifact-verified, wirelessly replace-installed and launched
+on the connected Pixel with data retained and matching installed digest. All
+**73 source hashes / 14 protected DEV configurations** match; DEV package/signing,
+Dart/native Firebase, compiled LAN API4000, no production targets, actual API
+DEV/local database, phone health/readiness and Maps restrictions are verified.
+Evidence is private in `.tmp/dev-pr21-preflight.json` and the device checklist.
+API/web runtime is unchanged; prior item05/Activity/item04 physical and version
+policy gates remain open. No production deployment/promotion or agent API restart.
+
+**First app fix on return:** Activity's shared PTR belongs immediately beneath
+the app bar, **above search/filter pills**. Owner reports the current placement is
+wrong; it is not accepted. Inspect Admin Home/other accepted consumers and shared
+inset ownership, then verify pull/loading/retract geometry and retained content.
+This merge/install does not implement or clear that fix. The separate possible
+minimal middle gap remains owner-deferred.
+
+Cleanup complete: PR21's task branch plus the retired remote task branches
+`codex/flutter-aziz-foundations`, `codex/flutter-kingsbeng-workflow` and
+`codex/flutter-latif-modules` were deleted. The three retired tips were verified
+ancestors with no open PR, and deletion was guarded against unexpected ref changes.
+Six obsolete local review/task aliases and our temporary review branch/worktree
+were removed. Main, test, original alignment/worktree and unique Speso work were
+preserved. Contributor allocation 02/03/23 is integrated, not physically accepted;
+no new assignment is issued in this step. Older checkpoints below are historical.
+
 ## Owner order: review PR21 now; Activity PTR first on return - 1 November 2026
 
 Owner reports Activity PTR currently appears below the search/filter pills. This

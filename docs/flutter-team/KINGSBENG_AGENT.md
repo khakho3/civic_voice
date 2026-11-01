@@ -1,5 +1,18 @@
 # Kingsben - Flutter Maintenance and Municipal work pack
 
+## Allocation integrated; task branch retired - 1 November 2026
+
+PR21 was squash-merged as `c89a8a4` into `codex/flutter-latif-review-fixes` after
+1,973 full Flutter tests/analyzer passed. Task branch
+`codex/flutter-kingsbeng-maintenance-municipal` is deleted per owner instruction.
+Do not resume/push/recreate that retired branch from this historical packet.
+The 02/03/23 client work is integrated; physical acceptance is still pending.
+Any further assignment needs a fresh standard `codex/` task branch from the
+current working branch and a new bounded packet. No new task is issued here.
+Web remains read-only for Kingsben; API excluded. Preserve item05 and shared
+loading changes. Owner's first next app fix is Activity PTR under the app bar,
+above search/filter chrome. Earlier issue/start/branch instructions are historical.
+
 ## Item 05 integration checkpoint - 1 November 2026
 
 The current assignment guide is native `docs/flutter-team/KINGSBENG_AGENT.md` on
