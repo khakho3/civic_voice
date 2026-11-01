@@ -1,5 +1,33 @@
 # Latif progress
 
+## Item 13 native repairs verified; DEV ready, phone install deferred - 1 November 2026
+
+Native **cb4dad5 / 4b4663d / 2d142ca** orders SDK login/Guest/renewal/logout and
+guards restoration, password/OTP, profile editing, app-lock and sign-out/idle
+navigation against changed sessions. Same-UID reactivation also invalidates old
+actions. Failed Guest reuse retains its credential and UID-owned durable drafts;
+known password-save acknowledgement remains truthful after session changes.
+
+**2,050 full Flutter tests / analyzer / whitespace pass**, including 25 focused
+scope/transport/profile/app-lock checks. Web9141a19 remains491 full/lint/build/two
+installed-SDK loopback cases; API da73a67 remains272 full/eight Guest SQL cases.
+These are automated checks, not live provider or physical-device acceptance.
+
+DEV **2d142ca** is built and artifact-verified:84 reviewed source hashes,14 protected
+configurations, DEV package/signing/Firebase/local API, Android masking and prior
+accepted Activity/notification resources verified. The owner API remains healthy
+on4000 with verified DEV targets. **No install or phone interaction:** owner away,
+wake helper41856 stopped, installed runtime remains45318ef. Install/agent phone/
+owner checks await confirmed availability; no OS/account settings were changed.
+
+**13 remains open for policy/live gates:** authoritative idle contract, broader
+periodic displayed-scope refresh, real revocation/SMS/provider recovery, browser,
+iOS and owner acceptance. Existing idle/keep-signed-in semantics are preserved.
+Continue independent **14: notification inbox** while these gates remain recorded.
+Kingsben Ministry branch78e12e0 awaits separate later review. No merge, promotion,
+migration or deployment. See ITEM13_SESSION_CORRECTNESS_2026_11_01.md.
+Older checkpoints are historical.
+
 ## Item 13 web SDK repair verified; continue native review - 1 November 2026
 
 Web **9141a19** serializes SDK sign-in/sign-out, deduplicates logout and blocks
