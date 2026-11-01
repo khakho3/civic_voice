@@ -1,5 +1,15 @@
 # Latif progress
 
+## Item 07 verification / next 08 - 1 November 2026
+
+Native 1b56778 routing queue/detail now use shared top PTR; 1,991 full native
+checks/analyzer pass. API a833f05 adds six real SQL routing/claim/rollback cases;
+18 routing/geography and 229 other API checks pass. Verified DEV installed with
+retained drafts; launch/agent phone/owner checks pending because phone is in use.
+Boundary ground-truth/no-backfill gate remains. No API runtime or real-report
+change. Continue 08; canonical ITEM07_REPORT_ROUTING_2026_11_01.md has evidence.
+No merge, promotion or deployment. Older notes below are historical.
+
 ## Notification mark: owner-confirmed function, enlarged DEV installed - 1 November 2026
 
 Original unused SVG preserved verbatim in working branch 6c09f9b; original checkout
