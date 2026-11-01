@@ -40,4 +40,9 @@ No merge, promotion or deployment. Do not reopen the owner-deferred Activity gap
 Kingsben's branch has independently advanced to `12c483c`; it was fetched for
 coordination only. Its Maintenance/Municipal scope and PR target are unchanged.
 Preserve these session/task-directory/Profile/main-route changes when reviewing
-his future PR. No contributor work was merged or overwritten.
+his open PR #21. No contributor work was merged or overwritten.
+
+Current PR inspection (1 November): [Kingsben PR #21](https://github.com/khakho3/civic_voice/pull/21)
+is open from `codex/flutter-kingsbeng-maintenance-municipal` to
+`codex/flutter-latif-review-fixes`. Head `12c483c`; target is correct. Awaiting
+separate review; no review acceptance or merge is claimed by item 05.

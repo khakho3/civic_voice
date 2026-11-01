@@ -21,7 +21,7 @@ Canonical details: web docs/CURRENT_STATUS.md and ITEM05_TEAMS_LEADS_SCOPE_2026_
 private evidence: .tmp/dev-item05-preflight.json and device checklist.
 
 Kingsben's branch independently advanced to **12c483c**, fetched only. Preserve
-our Profile/session/task-directory/main-route fixes when reviewing his future PR.
+our Profile/session/task-directory/main-route fixes when reviewing his open PR #21.
 No contributor work integrated/reviewed; no merge, promotion or deployment.
 Activity's possible middle gap remains owner-deferred; earlier device/item04
 workflow/version-policy gates remain open. Older checkpoints below are historical.
