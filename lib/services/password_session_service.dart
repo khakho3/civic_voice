@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 
 import 'api_client.dart';
+import 'auth_transitions.dart';
 
 enum PasswordLoginFailure {
   credentials,
@@ -126,13 +127,16 @@ class PasswordSessionService {
     required String phone,
     required String idToken,
     required String newPassword,
+    bool Function()? isCurrent,
   }) async {
+    if (isCurrent?.call() == false) throw _invalidSession;
     await _changePassword(idToken, newPassword);
     try {
       final renewed = await signIn(
         phone: phone,
         password: newPassword,
         expectedUid: uid,
+        isCurrent: isCurrent,
       );
       if (renewed.user.mustChangePassword) throw _invalidSession;
       return renewed;
@@ -155,8 +159,10 @@ class PasswordSessionService {
   static Future<void> _changeAccountPassword(String token, String password) =>
       ApiClient.instance.changePassword(idToken: token, newPassword: password);
   static Future<PasswordIdentity> _exchangeHandoff(String token) async {
+    final transition = AuthTransitions.instance.active;
     final credential = await FirebaseAuth.instance.signInWithCustomToken(token);
     final user = credential.user;
+    if (user != null) transition?.recordSdkUser(user.uid);
     if (user == null || user.isAnonymous) throw _invalidSession;
     final idToken = await user.getIdToken(true);
     if (idToken == null) throw _invalidSession;

@@ -4,6 +4,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 
 import 'app_cache_service.dart';
+import 'auth_transitions.dart';
 import 'idle_session_timer.dart';
 import 'api_client.dart';
 import 'mock_auth_service.dart';
@@ -27,8 +28,45 @@ Future<void> signOut(BuildContext context) async {
   Navigator.of(context).pushNamedAndRemoveUntil(_loginRoute, (_) => false);
 }
 
-Future<void> endSession() async {
-  await AppCacheService.instance.setKeepSignedIn(false);
+Future<void> endSession() => AuthTransitions.instance.close(_performEndSession);
+
+/// Called before an unsuccessful pipeline releases its exclusive ownership.
+Future<void> clearFailedAuthTransition(AuthTransitionLease lease) async {
+  final transitions = AuthTransitions.instance;
+  if (!transitions.owns(lease) ||
+      transitions.isClosing ||
+      lease.cleanupUid == null) {
+    return;
+  }
+  if (Firebase.apps.isEmpty) {
+    if (AppCacheService.instance.activeAccountId != lease.cleanupUid) return;
+  } else {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid != null && uid != lease.cleanupUid) return;
+  }
+  try {
+    if (lease.endSdkOnFailure) {
+      await _performEndSession();
+    } else if (AppCacheService.instance.activeAccountId == lease.cleanupUid) {
+      // Reusing a Guest must not destroy its only credential when local
+      // publication fails. Its persisted UID-owned drafts remain recoverable.
+      try {
+        await MockAuthService().clearUser();
+      } finally {
+        SessionDataService.clear();
+      }
+    }
+  } finally {
+    lease.cleanedOwned = true;
+  }
+}
+
+Future<void> _performEndSession() async {
+  try {
+    await AppCacheService.instance.setKeepSignedIn(false);
+  } catch (_) {
+    // Preference storage failure must not prevent local account teardown.
+  }
   IdleSessionTimer.instance.cancel();
   if (Firebase.apps.isNotEmpty) {
     try {
@@ -41,12 +79,14 @@ Future<void> endSession() async {
           // An unavailable audit service must never prevent local logout.
         }
       }
-      final pushToken = await FirebaseMessaging.instance.getToken();
-      if (idToken != null && pushToken != null) {
-        await ApiClient.instance.unregisterPushToken(
-          idToken: idToken,
-          token: pushToken,
-        );
+      if (idToken != null) {
+        final pushToken = await FirebaseMessaging.instance.getToken();
+        if (pushToken != null) {
+          await ApiClient.instance.unregisterPushToken(
+            idToken: idToken,
+            token: pushToken,
+          );
+        }
       }
     } catch (_) {
       // Logout must still complete when the device is offline.
@@ -57,6 +97,9 @@ Future<void> endSession() async {
       // Local teardown must not be blocked by a platform sign-out failure.
     }
   }
-  await MockAuthService().clearUser();
-  SessionDataService.clear();
+  try {
+    await MockAuthService().clearUser();
+  } finally {
+    SessionDataService.clear();
+  }
 }

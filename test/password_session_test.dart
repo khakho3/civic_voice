@@ -23,6 +23,49 @@ SyncedUser account({
 });
 
 void main() {
+  for (final phase in ['before', 'saved', 'handoff']) {
+    test(
+      'cancelled forced-password continuation does not start an old SDK exchange: $phase',
+      () async {
+        var current = phase != 'before', saves = 0, exchanges = 0, logins = 0;
+        final service = PasswordSessionService(
+          changePassword: (_, _) async {
+            saves++;
+            if (phase == 'saved') current = false;
+          },
+          passwordLogin: (_, _) async {
+            logins++;
+            if (phase == 'handoff') current = false;
+            return 'fixture';
+          },
+          exchange: (_) async {
+            exchanges++;
+            return const PasswordIdentity(
+              uid: 'verified-uid',
+              idToken: 'fixture',
+            );
+          },
+          sync: (_) async => account(),
+        );
+        await expectLater(
+          service.completeFirstLogin(
+            uid: 'verified-uid',
+            phone: '0240000000',
+            idToken: 'fixture',
+            newPassword: 'synthetic-password',
+            isCurrent: () => current,
+          ),
+          phase == 'before'
+              ? throwsA(isA<ApiException>())
+              : throwsA(isA<PasswordChangedSignInRequired>()),
+        );
+        expect(saves, phase == 'before' ? 0 : 1);
+        expect(logins, phase == 'handoff' ? 1 : 0);
+        expect(exchanges, 0);
+      },
+    );
+  }
+
   for (final phase in ['before', 'handoff', 'sync']) {
     test(
       'cancelled registration ownership at $phase cannot publish or exchange a late handoff',
