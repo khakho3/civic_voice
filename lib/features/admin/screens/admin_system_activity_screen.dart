@@ -546,10 +546,12 @@ class _LiveActivityBodyState extends State<_LiveActivityBody> {
     _query.remove('from');
     _query.remove('to');
     if (_range.window != null) {
-      _query['from'] = DateTime.now()
-          .toUtc()
-          .subtract(_range.window!)
-          .toIso8601String();
+      // The API's ISO contract accepts millisecond precision. Dart's default
+      // formatter can emit six fraction digits, which makes rolling reads 400.
+      _query['from'] = DateTime.fromMillisecondsSinceEpoch(
+        _repo.now().subtract(_range.window!).millisecondsSinceEpoch,
+        isUtc: true,
+      ).toIso8601String();
     }
   }
 

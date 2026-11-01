@@ -7,11 +7,13 @@ import 'admin_resource.dart';
 
 class AdminActivityRepository {
   AdminActivityRepository({
+    DateTime Function()? now,
     String? Function()? owner,
     Future<String?> Function()? credential,
     Future<Map<String, dynamic>> Function(String, Map<String, String>)? list,
     Future<Map<String, dynamic>> Function(String, String)? read,
-  }) : _owner = owner ?? adminRequestKey,
+  }) : now = now ?? DateTime.now,
+       _owner = owner ?? adminRequestKey,
        credential =
            credential ??
            (() async => FirebaseAuth.instance.currentUser?.getIdToken()),
@@ -29,6 +31,7 @@ class AdminActivityRepository {
   static final sessionChanges = ValueNotifier<int>(0);
   static void invalidateSession() => sessionChanges.value++;
   final String? Function() _owner;
+  final DateTime Function() now;
   final Future<String?> Function() credential;
   final Future<Map<String, dynamic>> Function(String, Map<String, String>) list;
   final Future<Map<String, dynamic>> Function(String, String) read;
