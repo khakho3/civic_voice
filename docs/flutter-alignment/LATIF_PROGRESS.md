@@ -1,5 +1,18 @@
 # Latif progress
 
+## Staff permission investigation; continue 06 - 1 November 2026
+
+No creator-based rule found. Existing Super-only access changes explain local
+staff read-only controls; API allows a local name-only PATCH. 11 isolated policy
+checks and approved live DEV/phone checks pass; no access policy/code change.
+Approved account names/identities/roles/status/locality stay at baseline; normal
+unchanged-name QA writes/audit events occurred. Protected Super Admin role unchanged.
+Owner's intended local actions remain an open decision. Canonical web review:
+ADMIN_SCOPE_MUTATION_REVIEW_2026_11_01.md. Continue independent queue 06. Current
+DEV 6534c50 and Activity test/device evidence below remain valid; new owner acceptance
+pending. Exact Super-to-Assembly audit phone scenario also confirmed. No merge/
+promotion/deployment; Kingsben's Ministry assignment stays independent.
+
 ## Audit locality and initial Last24 repaired - 1 November 2026
 
 Native a6c9f66 separates Actor/Event jurisdiction; 6534c50 fixes rolling date ISO
