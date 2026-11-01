@@ -1,5 +1,21 @@
 # Owner UI follow-ups - 24 October 2026
 
+## Owner order: review PR21 now; Activity PTR first on return - 1 November 2026
+
+Owner reports Activity PTR currently appears below the search/filter pills. This
+placement is **not accepted**. First fix when returning to app work: use the shared
+PTR immediately beneath the app bar, above search/filter chrome, matching Admin
+Home and the other accepted screens. Inspect those consumers and shared inset
+ownership before editing; verify initial pull/loading/retract geometry and retained
+content. Do not add a separate Activity loader or treat the prior middle-gap
+owner deferral as acceptance of this placement. No PTR implementation in this step.
+
+Owner now explicitly requests reviewing Kingsben PR21, squash-merging after review/
+checks and deleting its task branch. Then identify obsolete branches for careful
+cleanup; preserve active/unmerged work. This supersedes waiting for item05 phone
+acceptance before PR review. Item05 and earlier device gates remain pending unless
+specifically confirmed. No promotion or deployment is authorized.
+
 ## Current auth/sheet visual follow-up and open feature debt - 25 October 2026
 
 Native runtime **b7f58eb** includes three scoped repairs: **4b68b56** groups Forgot Password's code screen using the existing recovery card; **4b2dcc8** measures the Municipal detail header's two text lines at the actual text scale and gives all six consumers the same body inset; **b7f58eb** retains shared typography on onboarding's Guest action. The normal-scale header height, Back/menu behavior, default registration-code layout, OTP timing/verification/resend, Guest final-page gating, accepted hero layouts, and shared search/filter behavior remain. Correction to the previous note: only Forgot Password's phone step and Change Password's OTP step were grouped at the preceding checkpoint; Forgot Password's own OTP step was still using the default layout and is fixed now.

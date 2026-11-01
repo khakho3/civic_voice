@@ -1,5 +1,21 @@
 # Latif progress
 
+## Owner order: review PR21 now; Activity PTR first on return - 1 November 2026
+
+Owner reports Activity PTR currently appears below the search/filter pills. This
+placement is **not accepted**. First fix when returning to app work: use the shared
+PTR immediately beneath the app bar, above search/filter chrome, matching Admin
+Home and the other accepted screens. Inspect those consumers and shared inset
+ownership before editing; verify initial pull/loading/retract geometry and retained
+content. Do not add a separate Activity loader or treat the prior middle-gap
+owner deferral as acceptance of this placement. No PTR implementation in this step.
+
+Owner now explicitly requests reviewing Kingsben PR21, squash-merging after review/
+checks and deleting its task branch. Then identify obsolete branches for careful
+cleanup; preserve active/unmerged work. This supersedes waiting for item05 phone
+acceptance before PR review. Item05 and earlier device gates remain pending unless
+specifically confirmed. No promotion or deployment is authorized.
+
 ## Current item 05 checkpoint - 1 November 2026
 
 API **151131b**, native **732ef9d** and web **99ee17d** implement transactional
