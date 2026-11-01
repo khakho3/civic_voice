@@ -204,7 +204,7 @@ class _SuccessIntro extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.sm),
         Text(
-          'Your report has been received and forwarded to the appropriate authority. You will receive updates as your report progresses.',
+          'Your report is saved. You can track its recorded status in My Reports.',
           textAlign: TextAlign.center,
           style: theme.textTheme.bodyMedium,
         ),
