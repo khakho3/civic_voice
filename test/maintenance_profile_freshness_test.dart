@@ -6,6 +6,7 @@ import 'package:civic_voice/features/admin/services/admin_maintenance_team_direc
 import 'package:civic_voice/features/maintenance/models/maintenance_profile.dart';
 import 'package:civic_voice/features/maintenance/screens/profile_screen.dart';
 import 'package:civic_voice/features/maintenance/services/maintenance_session.dart';
+import 'package:civic_voice/services/app_cache_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -43,6 +44,7 @@ void main() {
   Future<void> show(
     WidgetTester tester, {
     Future<void> Function()? refresh,
+    Future<bool> Function(String)? save,
   }) async {
     tester.view.physicalSize = const Size(390, 2600);
     tester.view.devicePixelRatio = 1;
@@ -51,7 +53,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.light,
-        home: ProfileScreen(onRefresh: refresh),
+        home: ProfileScreen(onRefresh: refresh, onSaveProfile: save),
       ),
     );
     await tester.pumpAndSettle();
@@ -74,6 +76,34 @@ void main() {
       expect(find.text('Team Lead'), findsOneWidget);
     },
   );
+
+  testWidgets('late profile save cannot rename a later technician session', (
+    tester,
+  ) async {
+    final pending = Completer<bool>();
+    await show(tester, save: (_) => pending.future);
+    await tester.tap(find.byTooltip('Edit profile'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'Old edit');
+    await tester.tap(find.text('Save changes'));
+    await tester.pump();
+    await AppCacheService.instance.activateAccount('new-owner');
+    MaintenanceSession.instance.profile.value = const MaintenanceProfile(
+      publicId: 'MNT-NEW',
+      fullName: 'New technician',
+      phone: '',
+      region: '',
+      assembly: '',
+    );
+    pending.complete(true);
+    await tester.pumpAndSettle();
+    expect(MaintenanceSession.instance.profile.value.publicId, 'MNT-NEW');
+    expect(
+      MaintenanceSession.instance.profile.value.fullName,
+      'New technician',
+    );
+    await tester.pumpWidget(const SizedBox());
+  });
 
   testWidgets('entry and resume refresh quietly without overlapping reads', (
     tester,

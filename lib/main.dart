@@ -116,6 +116,7 @@ import 'services/api_client.dart';
 import 'services/password_session_service.dart';
 import 'services/password_change_session.dart';
 import 'services/auth_transitions.dart';
+import 'services/session_scope.dart';
 import 'services/app_cache_service.dart';
 import 'services/idle_session_timer.dart';
 import 'services/mock_auth_service.dart';
@@ -658,8 +659,15 @@ class _CivicVoiceAppState extends State<CivicVoiceApp>
   /// or already signed out) — there's no session to time out of.
   Future<void> _handleIdleTimeout() async {
     if (MockAuthService().getCurrentRole() == null) return;
-    await endSession();
-    if (!mounted) return;
+    final transitions = AuthTransitions.instance;
+    final closing = endSession();
+    final revision = transitions.revision;
+    await closing;
+    if (!mounted ||
+        transitions.revision != revision ||
+        transitions.isBusy) {
+      return;
+    }
     // Straight to Login, not the onboarding carousel — this device has
     // been used before, so re-showing onboarding (and letting them scroll
     // back through slides they've already seen) is exactly the confusing
@@ -2363,15 +2371,19 @@ Widget _adminProfile(BuildContext context) {
             : admin.AdminProfileViewState.loading,
         onRetry: directory.refresh,
         onSaveProfile: (fullName) async {
+          final scope = SessionScope.capture();
           try {
+            scope.check();
             final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+            scope.check();
             if (token == null) return false;
             await ApiClient.instance.updateProfile(
               idToken: token,
               fullName: fullName,
             );
+            scope.check();
             await AdminUserDirectory.instance.refresh();
-            return true;
+            return scope.isCurrent;
           } catch (_) {
             return false;
           }
@@ -2569,13 +2581,17 @@ Widget _ministryProfile(BuildContext context) {
           Navigator.of(context).pushNamed(AppRoutes.ministryNotifications),
       onLogOut: () => signOut(context),
       onSaveProfile: (fullName) async {
+        final scope = SessionScope.capture();
         try {
+          scope.check();
           final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+          scope.check();
           if (token == null) return false;
           final json = await ApiClient.instance.updateProfile(
             idToken: token,
             fullName: fullName,
           );
+          scope.check();
           MinistrySession.instance.updateProfile(
             fullName: json['fullName'] as String? ?? fullName,
           );
@@ -2889,13 +2905,17 @@ Widget _municipalProfile(BuildContext context) {
     onAbout: () => Navigator.of(context).pushNamed(AppRoutes.about),
     onLogOut: () => signOut(context),
     onSaveProfile: (fullName) async {
+      final scope = SessionScope.capture();
       try {
+        scope.check();
         final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+        scope.check();
         if (token == null) return false;
         await ApiClient.instance.updateProfile(
           idToken: token,
           fullName: fullName,
         );
+        scope.check();
         MunicipalSession.instance.updateName(fullName);
         return true;
       } catch (_) {
@@ -3032,13 +3052,17 @@ Widget _maintenanceProfile(BuildContext context) {
     onAbout: () => Navigator.of(context).pushNamed(AppRoutes.about),
     onLogOut: () => signOut(context),
     onSaveProfile: (fullName) async {
+      final scope = SessionScope.capture();
       try {
+        scope.check();
         final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+        scope.check();
         if (token == null) return false;
         final json = await ApiClient.instance.updateProfile(
           idToken: token,
           fullName: fullName,
         );
+        scope.check();
         MaintenanceSession.instance.updateProfile(
           fullName: json['fullName'] as String? ?? fullName,
         );

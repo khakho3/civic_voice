@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../services/app_cache_service.dart';
 import '../../../services/biometric_auth_service.dart';
+import '../../../services/session_scope.dart';
 import '../widgets/auth_presentation.dart';
 
 class BioLockScreen extends StatefulWidget {
@@ -10,6 +11,8 @@ class BioLockScreen extends StatefulWidget {
     super.key,
     required this.onAuthenticated,
     required this.onLogOut,
+    this.checkAvailability,
+    this.authenticate,
   });
 
   /// Fires on biometric success, or once the screen determines biometrics
@@ -19,6 +22,8 @@ class BioLockScreen extends StatefulWidget {
 
   /// Wired to the app's real shared sign-out path.
   final VoidCallback onLogOut;
+  final Future<BiometricAvailability> Function()? checkAvailability;
+  final Future<BiometricAuthResult> Function()? authenticate;
 
   @override
   State<BioLockScreen> createState() => _BioLockScreenState();
@@ -27,35 +32,41 @@ class BioLockScreen extends StatefulWidget {
 enum _LockPhase { checkingAvailability, unavailable, prompting, failed }
 
 class _BioLockScreenState extends State<BioLockScreen> {
+  late final SessionScope _scope;
   _LockPhase _phase = _LockPhase.checkingAvailability;
   BiometricAuthFailureReason _failureReason = BiometricAuthFailureReason.other;
 
   @override
   void initState() {
     super.initState();
+    _scope = SessionScope.capture();
     _checkAvailability();
   }
 
   Future<void> _checkAvailability() async {
-    final availability = await BiometricAuthService.instance
-        .checkAvailability();
-    if (!mounted) return;
+    final availability =
+        await (widget.checkAvailability ??
+            BiometricAuthService.instance.checkAvailability)();
+    if (!mounted || !_scope.isCurrent) return;
     if (availability != BiometricAvailability.available) {
       setState(() => _phase = _LockPhase.unavailable);
       return;
     }
     setState(() => _phase = _LockPhase.prompting);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _authenticate();
+      if (mounted && _scope.isCurrent) _authenticate();
     });
   }
 
   Future<void> _authenticate() async {
+    if (!_scope.isCurrent) return;
     if (_phase != _LockPhase.prompting) {
       setState(() => _phase = _LockPhase.prompting);
     }
-    final result = await BiometricAuthService.instance.authenticate();
-    if (!mounted) return;
+    final result =
+        await (widget.authenticate ??
+            BiometricAuthService.instance.authenticate)();
+    if (!mounted || !_scope.isCurrent) return;
     if (result.successful) {
       widget.onAuthenticated();
       return;
@@ -70,8 +81,9 @@ class _BioLockScreenState extends State<BioLockScreen> {
   }
 
   Future<void> _continueWithoutBiometrics() async {
+    if (!_scope.isCurrent) return;
     await AppCacheService.instance.setBiometricLockEnabled(false);
-    if (mounted) widget.onAuthenticated();
+    if (mounted && _scope.isCurrent) widget.onAuthenticated();
   }
 
   String get _failureMessage => switch (_failureReason) {
@@ -123,7 +135,9 @@ class _BioLockScreenState extends State<BioLockScreen> {
                           ),
                           const SizedBox(height: AppSpacing.lg),
                           OutlinedButton.icon(
-                            onPressed: widget.onLogOut,
+                            onPressed: () {
+                              if (_scope.isCurrent) widget.onLogOut();
+                            },
                             style: OutlinedButton.styleFrom(
                               foregroundColor: AppColors.error,
                               side: BorderSide(

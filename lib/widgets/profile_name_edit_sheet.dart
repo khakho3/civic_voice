@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../core/theme/app_theme.dart';
 import '../services/app_haptics.dart';
+import '../services/session_scope.dart';
 import 'civic_bottom_sheet.dart';
 import 'busy_indicator.dart';
 import 'confirm_dialog.dart';
@@ -28,6 +29,7 @@ Future<bool> showProfileNameEditSheet(
   bool confirmDiscard = false,
   bool showValidationOnOpen = false,
 }) async {
+  final scope = SessionScope.capture();
   final saved = await showCivicBottomSheet<bool>(
     context: context,
     isScrollControlled: true,
@@ -36,12 +38,16 @@ Future<bool> showProfileNameEditSheet(
     useSafeArea: true,
     builder: (_) => ProfileNameEditSheet(
       initialName: initialName,
-      onSave: onSave,
+      onSave: (name) async {
+        scope.check();
+        final saved = await onSave(name);
+        return scope.isCurrent && saved;
+      },
       confirmDiscard: confirmDiscard,
       showValidationOnOpen: showValidationOnOpen,
     ),
   );
-  return saved ?? false;
+  return scope.isCurrent && (saved ?? false);
 }
 
 class ProfileNameEditSheet extends StatefulWidget {
