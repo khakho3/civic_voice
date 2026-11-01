@@ -1,5 +1,27 @@
 # Latif progress
 
+## Item 12 verified and DEV installed; next 13 - 1 November 2026
+
+Native **45318ef** keeps notification setup behind newly opened blocked-location
+guidance and treats undetermined status as unavailable without blocking explicit
+position acquisition. Web **ad9e3ff** checks actual geolocation capability and
+rechecks a denied request, preserving explicit actions where permission queries
+are unsupported. Existing role eligibility, storage keys and scopes remain.
+
+**2,011 Flutter / 468 web tests pass**, analyzer/lint/build/whitespace clean;
+41 native and 18 web focused checks pass. No API change or repeat API suite;
+prior 264 API passes/eight Guest SQL checks remain applicable. Read-only phone
+snapshot: notifications granted, fine/coarse location not granted; no OS changes.
+Physical first-install/denied/restricted/restored/owner and iOS gates stay open.
+See ITEM12_PERMISSION_ONBOARDING_2026_11_01.md. Prior gates remain.
+
+DEV 45318ef is verified and wirelessly replace-installed/digest-matched with fresh
+current draft/intent hashes preserved (79 sources/14 protected configs). The
+existing foreground is preserved; actual launch/setup device checks stay pending.
+DEV targets/phone LAN health/Maps restrictions pass. Continue independent **13:
+session correctness**. No merge, promotion, production migration or deployment.
+Older checkpoints below are historical.
+
 ## Item 11 verified and DEV installed; next 12 - 1 November 2026
 
 Native **2e84672**, web **2cb2916**, API **66a0ed0** preserve verified Guest
