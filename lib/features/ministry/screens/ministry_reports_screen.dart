@@ -104,6 +104,14 @@ class _MinistryReportsScreenState extends State<MinistryReportsScreen> {
   Region? _region;
 
   @override
+  void didUpdateWidget(covariant MinistryReportsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialState != widget.initialState) {
+      _state = widget.initialState;
+    }
+  }
+
+  @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
@@ -112,10 +120,10 @@ class _MinistryReportsScreenState extends State<MinistryReportsScreen> {
   Future<void> _retry() async {
     final refresh = widget.onRefresh;
     if (refresh == null) return;
-    setState(() => _state = MinistryReportsViewState.loading);
     try {
       await refresh();
-      if (mounted) setState(() => _state = MinistryReportsViewState.loaded);
+      // The parent owns authoritative state/data. A completed refresh request
+      // is not evidence that a new confirmed snapshot is available yet.
     } catch (_) {
       if (mounted) setState(() => _state = MinistryReportsViewState.error);
     }
@@ -141,7 +149,13 @@ class _MinistryReportsScreenState extends State<MinistryReportsScreen> {
     final onRefresh = widget.onRefresh;
     if (onRefresh == null) return child;
     return GhanaRefreshIndicator(
-      onRefresh: onRefresh,
+      onRefresh: () async {
+        try {
+          await onRefresh();
+        } catch (_) {
+          if (mounted) setState(() => _state = MinistryReportsViewState.error);
+        }
+      },
       // The header paints on top of this content (a later sibling in
       // MinistryScaffold's own Stack), so without this the pull indicator
       // would grow in from behind it.
@@ -160,12 +174,15 @@ class _MinistryReportsScreenState extends State<MinistryReportsScreen> {
     // as before.
     final data = _data;
     final hasActiveFilters =
-        _query.isNotEmpty || _filter != ReportStatusFilter.all || _region != null;
-    final viewState = _state == MinistryReportsViewState.loaded &&
+        _query.isNotEmpty ||
+        _filter != ReportStatusFilter.all ||
+        _region != null;
+    final viewState =
+        _state == MinistryReportsViewState.loaded &&
             (data == null || data.reports.isEmpty)
         ? hasActiveFilters
-            ? MinistryReportsViewState.noResults
-            : MinistryReportsViewState.empty
+              ? MinistryReportsViewState.noResults
+              : MinistryReportsViewState.empty
         : _state;
     final chromeEnabled =
         viewState == MinistryReportsViewState.empty ||
@@ -217,8 +234,8 @@ class _MinistryReportsScreenState extends State<MinistryReportsScreen> {
                 region: _region,
                 onClearFilters: _clearFilters,
                 onViewReportInsights: widget.onViewReportInsights,
-                ),
               ),
+            ),
           ),
         ),
         _ => Column(
@@ -238,73 +255,95 @@ class _MinistryReportsScreenState extends State<MinistryReportsScreen> {
               onRegionTap: chromeEnabled ? _pickRegion : null,
             ),
             Expanded(
-              child: switch (viewState) {
-                MinistryReportsViewState.loading ||
-                MinistryReportsViewState.loaded => const SizedBox.shrink(),
-                MinistryReportsViewState.empty => Padding(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  child: AppStateMessage(
-                    icon: AppIcons.noDataFile,
-                    badgeColor: AppColors.primary,
-                    title: 'No Reports',
-                    message:
-                        'Aggregated reports will appear here once ministry '
-                        'report data is available.',
-                    primaryActionLabel: 'Refresh',
-                    onPrimaryAction: widget.onRefresh == null ? null : _retry,
+              child: Padding(
+                padding: EdgeInsets.only(
+                  bottom: MinistryScaffold.contentPadding(context).bottom,
+                ),
+                child: LayoutBuilder(
+                  builder: (context, constraints) => SingleChildScrollView(
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minHeight: constraints.maxHeight,
+                      ),
+                      child: switch (viewState) {
+                        MinistryReportsViewState.loading ||
+                        MinistryReportsViewState.loaded =>
+                          const SizedBox.shrink(),
+                        MinistryReportsViewState.empty => Padding(
+                          padding: const EdgeInsets.all(AppSpacing.md),
+                          child: AppStateMessage(
+                            icon: AppIcons.noDataFile,
+                            badgeColor: AppColors.primary,
+                            title: 'No Reports',
+                            message:
+                                'Aggregated reports will appear here once ministry '
+                                'report data is available.',
+                            primaryActionLabel: 'Refresh',
+                            onPrimaryAction: widget.onRefresh == null
+                                ? null
+                                : _retry,
+                          ),
+                        ),
+                        MinistryReportsViewState.noResults => Padding(
+                          padding: const EdgeInsets.all(AppSpacing.md),
+                          child: AppStateMessage(
+                            icon: AppIcons.noFilterMatch,
+                            badgeColor: AppColors.primary,
+                            title: 'No Results',
+                            message:
+                                'No aggregated reports match the current search '
+                                'or filters.',
+                            primaryActionLabel: 'Clear Filters',
+                            onPrimaryAction: _clearFilters,
+                          ),
+                        ),
+                        MinistryReportsViewState.offline => Padding(
+                          padding: const EdgeInsets.all(AppSpacing.md),
+                          child: AppStateMessage(
+                            icon: AppIcons.offline,
+                            badgeColor: AppColors.error,
+                            title: 'You\'re offline',
+                            message:
+                                'Check your connection and retry loading reports.',
+                            primaryActionLabel: 'Retry connection',
+                            onPrimaryAction: widget.onRefresh == null
+                                ? null
+                                : _retry,
+                            primaryActionColor: AppColors.error,
+                          ),
+                        ),
+                        MinistryReportsViewState.error => Padding(
+                          padding: const EdgeInsets.all(AppSpacing.md),
+                          child: AppStateMessage(
+                            icon: AppIcons.warning,
+                            badgeColor: AppColors.error,
+                            title: 'Unable to Load Reports',
+                            message:
+                                'The reports service could not return aggregated '
+                                'data right now.',
+                            primaryActionLabel: 'Try again',
+                            onPrimaryAction: widget.onRefresh == null
+                                ? null
+                                : _retry,
+                            primaryActionColor: AppColors.error,
+                          ),
+                        ),
+                        MinistryReportsViewState.unauthorized => Padding(
+                          padding: const EdgeInsets.all(AppSpacing.md),
+                          child: const AppStateMessage(
+                            icon: AppIcons.permissionDenied,
+                            badgeColor: AppColors.error,
+                            title: 'Unauthorized Access',
+                            message:
+                                'This read-only ministry reports overview requires '
+                                'supervisor permissions.',
+                          ),
+                        ),
+                      },
+                    ),
                   ),
                 ),
-                MinistryReportsViewState.noResults => Padding(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  child: AppStateMessage(
-                    icon: AppIcons.noFilterMatch,
-                    badgeColor: AppColors.primary,
-                    title: 'No Results',
-                    message:
-                        'No aggregated reports match the current search '
-                        'or filters.',
-                    primaryActionLabel: 'Clear Filters',
-                    onPrimaryAction: _clearFilters,
-                  ),
-                ),
-                MinistryReportsViewState.offline => Padding(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  child: AppStateMessage(
-                    icon: AppIcons.offline,
-                    badgeColor: AppColors.error,
-                    title: 'You\'re offline',
-                    message: 'Check your connection and retry loading reports.',
-                    primaryActionLabel: 'Retry connection',
-                    onPrimaryAction: widget.onRefresh == null ? null : _retry,
-                    primaryActionColor: AppColors.error,
-                  ),
-                ),
-                MinistryReportsViewState.error => Padding(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  child: AppStateMessage(
-                    icon: AppIcons.warning,
-                    badgeColor: AppColors.error,
-                    title: 'Unable to Load Reports',
-                    message:
-                        'The reports service could not return aggregated '
-                        'data right now.',
-                    primaryActionLabel: 'Try again',
-                    onPrimaryAction: widget.onRefresh == null ? null : _retry,
-                    primaryActionColor: AppColors.error,
-                  ),
-                ),
-                MinistryReportsViewState.unauthorized => Padding(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  child: const AppStateMessage(
-                    icon: AppIcons.permissionDenied,
-                    badgeColor: AppColors.error,
-                    title: 'Unauthorized Access',
-                    message:
-                        'This read-only ministry reports overview requires '
-                        'supervisor permissions.',
-                  ),
-                ),
-              },
+              ),
             ),
           ],
         ),
@@ -381,7 +420,6 @@ class _FilterChrome extends StatelessWidget {
     ),
   );
 }
-
 
 // ---------------------------------------------------------------------------
 // Loaded content
@@ -576,7 +614,7 @@ class _ReportCard extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: Theme.of(context).colorScheme.surfaceContainer,
                   borderRadius: AppRadius.allSm,
-            ),
+                ),
                 child: Icon(
                   item.status.icon,
                   size: AppIconSize.md,
@@ -596,7 +634,7 @@ class _ReportCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                  '${item.municipality} · ${item.category}',
+                      '${item.municipality} · ${item.category}',
                       style: textTheme.bodySmall,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -797,14 +835,13 @@ class _LoadingSkeletonState extends State<_LoadingSkeleton>
       children: [
         block(height: 48, radius: 12),
         const SizedBox(height: AppSpacing.sm),
-        Row(
+        Wrap(
+          spacing: AppSpacing.xs,
+          runSpacing: AppSpacing.xs,
           children: [
             block(width: 56, height: 32, radius: 20),
-            const SizedBox(width: AppSpacing.xs),
             block(width: 88, height: 32, radius: 20),
-            const SizedBox(width: AppSpacing.xs),
             block(width: 72, height: 32, radius: 20),
-            const SizedBox(width: AppSpacing.xs),
             block(width: 88, height: 32, radius: 20),
           ],
         ),

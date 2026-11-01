@@ -103,9 +103,13 @@ class _MinistryReportInsightsScreenState
     setState(() => _state = MinistryReportInsightsViewState.loading);
     try {
       await refresh();
-      if (mounted) setState(() => _state = MinistryReportInsightsViewState.loaded);
+      if (mounted) {
+        setState(() => _state = MinistryReportInsightsViewState.loaded);
+      }
     } catch (_) {
-      if (mounted) setState(() => _state = MinistryReportInsightsViewState.error);
+      if (mounted) {
+        setState(() => _state = MinistryReportInsightsViewState.error);
+      }
     }
   }
 
@@ -212,11 +216,12 @@ class _MinistryReportInsightsScreenState
         _dateRange != InsightsDateRange.last30Days ||
         _category != InsightsCategoryFilter.all ||
         _status != InsightsStatusFilter.all;
-    final viewState = _state == MinistryReportInsightsViewState.loaded &&
+    final viewState =
+        _state == MinistryReportInsightsViewState.loaded &&
             (data == null || data.totalReports == 0)
         ? hasActiveFilters
-            ? MinistryReportInsightsViewState.noResults
-            : MinistryReportInsightsViewState.empty
+              ? MinistryReportInsightsViewState.noResults
+              : MinistryReportInsightsViewState.empty
         : _state;
     final chromeEnabled =
         viewState == MinistryReportInsightsViewState.empty ||
@@ -241,9 +246,7 @@ class _MinistryReportInsightsScreenState
                     onCategoryTap: _pickCategory,
                     onStatusTap: _pickStatus,
                   ),
-                  child: _InsightsContent(
-                    data: data!,
-                  ),
+                  child: _InsightsContent(data: data!),
                 ),
               ),
               _ => Column(
@@ -259,79 +262,98 @@ class _MinistryReportInsightsScreenState
                     onStatusTap: chromeEnabled ? _pickStatus : null,
                   ),
                   Expanded(
-                    child: switch (viewState) {
-                      MinistryReportInsightsViewState.loading ||
-                      MinistryReportInsightsViewState.loaded =>
-                        const SizedBox.shrink(),
-                      MinistryReportInsightsViewState.empty => Padding(
-                        padding: const EdgeInsets.all(AppSpacing.md),
-                        child: AppStateMessage(
-                          icon: AppIcons.insight,
-                          badgeColor: AppColors.primary,
-                          title: 'No Insights',
-                          message:
-                              'Aggregated report insights will appear once '
-                              'enough reporting data is available.',
-                          primaryActionLabel: 'Refresh',
-                          onPrimaryAction:
-                              widget.onRefresh == null ? null : _retry,
+                    child: Padding(
+                      padding: EdgeInsets.only(
+                        bottom: MediaQuery.paddingOf(context).bottom,
+                      ),
+                      child: LayoutBuilder(
+                        builder: (context, constraints) => SingleChildScrollView(
+                          child: ConstrainedBox(
+                            constraints: BoxConstraints(
+                              minHeight: constraints.maxHeight,
+                            ),
+                            child: switch (viewState) {
+                              MinistryReportInsightsViewState.loading ||
+                              MinistryReportInsightsViewState.loaded =>
+                                const SizedBox.shrink(),
+                              MinistryReportInsightsViewState.empty => Padding(
+                                padding: const EdgeInsets.all(AppSpacing.md),
+                                child: AppStateMessage(
+                                  icon: AppIcons.insight,
+                                  badgeColor: AppColors.primary,
+                                  title: 'No Insights',
+                                  message:
+                                      'Aggregated report insights will appear once '
+                                      'enough reporting data is available.',
+                                  primaryActionLabel: 'Refresh',
+                                  onPrimaryAction: widget.onRefresh == null
+                                      ? null
+                                      : _retry,
+                                ),
+                              ),
+                              MinistryReportInsightsViewState.noResults =>
+                                Padding(
+                                  padding: const EdgeInsets.all(AppSpacing.md),
+                                  child: AppStateMessage(
+                                    icon: AppIcons.noFilterMatch,
+                                    badgeColor: AppColors.primary,
+                                    title: 'No Results',
+                                    message:
+                                        'No report insights match the selected '
+                                        'filters.',
+                                    primaryActionLabel: 'Clear Filters',
+                                    onPrimaryAction: _clearFilters,
+                                  ),
+                                ),
+                              MinistryReportInsightsViewState.offline => Padding(
+                                padding: const EdgeInsets.all(AppSpacing.md),
+                                child: AppStateMessage(
+                                  icon: AppIcons.offline,
+                                  badgeColor: AppColors.error,
+                                  title: 'You\'re offline',
+                                  message:
+                                      'Check your connection and retry loading '
+                                      'report insights.',
+                                  primaryActionLabel: 'Retry connection',
+                                  onPrimaryAction: widget.onRefresh == null
+                                      ? null
+                                      : _retry,
+                                  primaryActionColor: AppColors.error,
+                                ),
+                              ),
+                              MinistryReportInsightsViewState.error => Padding(
+                                padding: const EdgeInsets.all(AppSpacing.md),
+                                child: AppStateMessage(
+                                  icon: AppIcons.warning,
+                                  badgeColor: AppColors.error,
+                                  title: 'Unable to Load Insights',
+                                  message:
+                                      'The insights service could not return '
+                                      'aggregated analysis right now.',
+                                  primaryActionLabel: 'Try again',
+                                  onPrimaryAction: widget.onRefresh == null
+                                      ? null
+                                      : _retry,
+                                  primaryActionColor: AppColors.error,
+                                ),
+                              ),
+                              MinistryReportInsightsViewState.unauthorized =>
+                                Padding(
+                                  padding: const EdgeInsets.all(AppSpacing.md),
+                                  child: const AppStateMessage(
+                                    icon: AppIcons.permissionDenied,
+                                    badgeColor: AppColors.error,
+                                    title: 'Unauthorized Access',
+                                    message:
+                                        'This read-only ministry report insights '
+                                        'screen requires supervisor permissions.',
+                                  ),
+                                ),
+                            },
+                          ),
                         ),
                       ),
-                      MinistryReportInsightsViewState.noResults => Padding(
-                        padding: const EdgeInsets.all(AppSpacing.md),
-                        child: AppStateMessage(
-                          icon: AppIcons.noFilterMatch,
-                          badgeColor: AppColors.primary,
-                          title: 'No Results',
-                          message:
-                              'No report insights match the selected '
-                              'filters.',
-                          primaryActionLabel: 'Clear Filters',
-                          onPrimaryAction: _clearFilters,
-                        ),
-                      ),
-                      MinistryReportInsightsViewState.offline => Padding(
-                        padding: const EdgeInsets.all(AppSpacing.md),
-                        child: AppStateMessage(
-                          icon: AppIcons.offline,
-                          badgeColor: AppColors.error,
-                          title: 'You\'re offline',
-                          message:
-                              'Check your connection and retry loading '
-                              'report insights.',
-                          primaryActionLabel: 'Retry connection',
-                          onPrimaryAction:
-                              widget.onRefresh == null ? null : _retry,
-                          primaryActionColor: AppColors.error,
-                        ),
-                      ),
-                      MinistryReportInsightsViewState.error => Padding(
-                        padding: const EdgeInsets.all(AppSpacing.md),
-                        child: AppStateMessage(
-                          icon: AppIcons.warning,
-                          badgeColor: AppColors.error,
-                          title: 'Unable to Load Insights',
-                          message:
-                              'The insights service could not return '
-                              'aggregated analysis right now.',
-                          primaryActionLabel: 'Try again',
-                          onPrimaryAction:
-                              widget.onRefresh == null ? null : _retry,
-                          primaryActionColor: AppColors.error,
-                        ),
-                      ),
-                      MinistryReportInsightsViewState.unauthorized => Padding(
-                        padding: const EdgeInsets.all(AppSpacing.md),
-                        child: const AppStateMessage(
-                          icon: AppIcons.permissionDenied,
-                          badgeColor: AppColors.error,
-                          title: 'Unauthorized Access',
-                          message:
-                              'This read-only ministry report insights '
-                              'screen requires supervisor permissions.',
-                        ),
-                      ),
-                    },
+                    ),
                   ),
                 ],
               ),
@@ -413,7 +435,6 @@ class _FilterChrome extends StatelessWidget {
     );
   }
 }
-
 
 // ---------------------------------------------------------------------------
 // Loaded content

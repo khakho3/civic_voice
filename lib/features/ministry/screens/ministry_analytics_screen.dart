@@ -83,10 +83,22 @@ class _MinistryAnalyticsScreenState extends State<MinistryAnalyticsScreen> {
   AnalyticsDimension _dimension = AnalyticsDimension.category;
   AnalyticsDateRange _dateRange = AnalyticsDateRange.last30Days;
 
-  void _requestRefresh() {
+  @override
+  void didUpdateWidget(covariant MinistryAnalyticsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialState != widget.initialState) {
+      _state = widget.initialState;
+    }
+  }
+
+  Future<void> _requestRefresh() async {
     // The data directory owns success/failure state. Do not turn a retry into
     // a local success merely because a timer elapsed.
-    widget.onRefresh?.call();
+    try {
+      await widget.onRefresh?.call();
+    } catch (_) {
+      if (mounted) setState(() => _state = MinistryAnalyticsViewState.error);
+    }
   }
 
   void _clearFilters() {
@@ -173,81 +185,97 @@ class _MinistryAnalyticsScreenState extends State<MinistryAnalyticsScreen> {
                   : null,
             ),
             Expanded(
-              child: (switch (displayState) {
-                MinistryAnalyticsViewState.loading => const SizedBox.shrink(),
-                MinistryAnalyticsViewState.loaded => const SizedBox.shrink(),
-                MinistryAnalyticsViewState.empty => Padding(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  child: AppStateMessage(
-                    icon: AppIcons.noDataFile,
-                    badgeColor: AppColors.primary,
-                    title: 'No Analytics Available',
-                    message:
-                        'Aggregated analytics will appear here once '
-                        'reports are available.',
-                    primaryActionLabel: 'Refresh',
-                    onPrimaryAction: widget.onRefresh == null
-                        ? null
-                        : _requestRefresh,
+              child: Padding(
+                padding: EdgeInsets.only(
+                  bottom: MinistryScaffold.contentPadding(context).bottom,
+                ),
+                child: LayoutBuilder(
+                  builder: (context, constraints) => SingleChildScrollView(
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minHeight: constraints.maxHeight,
+                      ),
+                      child: (switch (displayState) {
+                        MinistryAnalyticsViewState.loading =>
+                          const SizedBox.shrink(),
+                        MinistryAnalyticsViewState.loaded =>
+                          const SizedBox.shrink(),
+                        MinistryAnalyticsViewState.empty => Padding(
+                          padding: const EdgeInsets.all(AppSpacing.md),
+                          child: AppStateMessage(
+                            icon: AppIcons.noDataFile,
+                            badgeColor: AppColors.primary,
+                            title: 'No Analytics Available',
+                            message:
+                                'Aggregated analytics will appear here once '
+                                'reports are available.',
+                            primaryActionLabel: 'Refresh',
+                            onPrimaryAction: widget.onRefresh == null
+                                ? null
+                                : _requestRefresh,
+                          ),
+                        ),
+                        MinistryAnalyticsViewState.noResults => Padding(
+                          padding: const EdgeInsets.all(AppSpacing.md),
+                          child: AppStateMessage(
+                            icon: AppIcons.noFilterMatch,
+                            badgeColor: AppColors.primary,
+                            title: 'No Results',
+                            message:
+                                'No aggregated analytics match the selected '
+                                'filters.',
+                            primaryActionLabel: 'Clear Filters',
+                            onPrimaryAction: _clearFilters,
+                          ),
+                        ),
+                        MinistryAnalyticsViewState.offline => Padding(
+                          padding: const EdgeInsets.all(AppSpacing.md),
+                          child: AppStateMessage(
+                            icon: AppIcons.offline,
+                            badgeColor: AppColors.error,
+                            title: 'You\'re offline',
+                            message:
+                                'Check your connection and retry loading '
+                                'analytics.',
+                            primaryActionLabel: 'Retry connection',
+                            onPrimaryAction: widget.onRefresh == null
+                                ? null
+                                : _requestRefresh,
+                            primaryActionColor: AppColors.error,
+                          ),
+                        ),
+                        MinistryAnalyticsViewState.error => Padding(
+                          padding: const EdgeInsets.all(AppSpacing.md),
+                          child: AppStateMessage(
+                            icon: AppIcons.warning,
+                            badgeColor: AppColors.error,
+                            title: 'Unable to Load Analytics',
+                            message:
+                                'The analytics service could not return '
+                                'aggregated data right now.',
+                            primaryActionLabel: 'Try again',
+                            onPrimaryAction: widget.onRefresh == null
+                                ? null
+                                : _requestRefresh,
+                            primaryActionColor: AppColors.error,
+                          ),
+                        ),
+                        MinistryAnalyticsViewState.unauthorized => Padding(
+                          padding: const EdgeInsets.all(AppSpacing.md),
+                          child: const AppStateMessage(
+                            icon: AppIcons.permissionDenied,
+                            badgeColor: AppColors.error,
+                            title: 'Unauthorized Access',
+                            message:
+                                'This read-only ministry analytics screen '
+                                'requires supervisor permissions.',
+                          ),
+                        ),
+                      }),
+                    ),
                   ),
                 ),
-                MinistryAnalyticsViewState.noResults => Padding(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  child: AppStateMessage(
-                    icon: AppIcons.noFilterMatch,
-                    badgeColor: AppColors.primary,
-                    title: 'No Results',
-                    message:
-                        'No aggregated analytics match the selected '
-                        'filters.',
-                    primaryActionLabel: 'Clear Filters',
-                    onPrimaryAction: _clearFilters,
-                  ),
-                ),
-                MinistryAnalyticsViewState.offline => Padding(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  child: AppStateMessage(
-                    icon: AppIcons.offline,
-                    badgeColor: AppColors.error,
-                    title: 'You\'re offline',
-                    message:
-                        'Check your connection and retry loading '
-                        'analytics.',
-                    primaryActionLabel: 'Retry connection',
-                    onPrimaryAction: widget.onRefresh == null
-                        ? null
-                        : _requestRefresh,
-                    primaryActionColor: AppColors.error,
-                  ),
-                ),
-                MinistryAnalyticsViewState.error => Padding(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  child: AppStateMessage(
-                    icon: AppIcons.warning,
-                    badgeColor: AppColors.error,
-                    title: 'Unable to Load Analytics',
-                    message:
-                        'The analytics service could not return '
-                        'aggregated data right now.',
-                    primaryActionLabel: 'Try again',
-                    onPrimaryAction: widget.onRefresh == null
-                        ? null
-                        : _requestRefresh,
-                    primaryActionColor: AppColors.error,
-                  ),
-                ),
-                MinistryAnalyticsViewState.unauthorized => Padding(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  child: const AppStateMessage(
-                    icon: AppIcons.permissionDenied,
-                    badgeColor: AppColors.error,
-                    title: 'Unauthorized Access',
-                    message:
-                        'This read-only ministry analytics screen '
-                        'requires supervisor permissions.',
-                  ),
-                ),
-              }),
+              ),
             ),
           ],
         ),
@@ -373,7 +401,6 @@ class _DimensionFilterRow extends StatelessWidget {
   }
 }
 
-
 // ---------------------------------------------------------------------------
 // Loaded content
 // ---------------------------------------------------------------------------
@@ -435,7 +462,9 @@ class _AnalyticsContent extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('Report Trends', style: textTheme.titleMedium),
+                  Expanded(
+                    child: Text('Report Trends', style: textTheme.titleMedium),
+                  ),
                   Icon(
                     AppIcons.trendUp,
                     size: AppIconSize.md,
@@ -446,15 +475,15 @@ class _AnalyticsContent extends StatelessWidget {
               const SizedBox(height: AppSpacing.md),
               SimpleBarChart(values: data.trendValues),
               const SizedBox(height: AppSpacing.sm),
-               Wrap(
-                 alignment: WrapAlignment.spaceBetween,
-                 runSpacing: AppSpacing.xs,
-                 children: [
-                   Text(data.trendStartLabel, style: textTheme.bodySmall),
-                   Text(data.trendMidLabel, style: textTheme.bodySmall),
-                   Text(data.trendEndLabel, style: textTheme.bodySmall),
-                 ],
-               ),
+              Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                runSpacing: AppSpacing.xs,
+                children: [
+                  Text(data.trendStartLabel, style: textTheme.bodySmall),
+                  Text(data.trendMidLabel, style: textTheme.bodySmall),
+                  Text(data.trendEndLabel, style: textTheme.bodySmall),
+                ],
+              ),
             ],
           ),
         ),
@@ -481,7 +510,9 @@ class _AnalyticsContent extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('Report Status', style: textTheme.titleMedium),
+                  Expanded(
+                    child: Text('Report Status', style: textTheme.titleMedium),
+                  ),
                   Icon(
                     AppIcons.chartBreakdown,
                     size: AppIconSize.md,

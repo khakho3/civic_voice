@@ -76,14 +76,12 @@ class MinistryMunicipalityDetailScreen extends StatelessWidget {
                 bottomInset + AppSpacing.xl,
               ),
               children: [
-                Row(
+                Wrap(
+                  spacing: AppSpacing.sm,
+                  runSpacing: AppSpacing.xs,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    Expanded(
-                      child: Text(
-                        municipality.region.label,
-                        style: textTheme.bodySmall,
-                      ),
-                    ),
+                    Text(municipality.region.label, style: textTheme.bodySmall),
                     if (municipality.needsAttention)
                       _AttentionBadge(color: municipality.rankColor),
                   ],
@@ -130,8 +128,12 @@ class MinistryMunicipalityDetailScreen extends StatelessWidget {
                     _OfficerContactCard(
                       officer: officers[index],
                       primary: index == 0,
-                      onCall: () => _call(context, officers[index].phone),
-                      onMessage: () => _message(context, officers[index].phone),
+                      onCall: officers[index].phone.trim().isEmpty
+                          ? null
+                          : () => _call(context, officers[index].phone),
+                      onMessage: officers[index].phone.trim().isEmpty
+                          ? null
+                          : () => _message(context, officers[index].phone),
                     ),
                     if (index < officers.length - 1)
                       const SizedBox(height: AppSpacing.sm),
@@ -233,8 +235,8 @@ class _OfficerContactCard extends StatelessWidget {
 
   final MinistryOfficerContact officer;
   final bool primary;
-  final VoidCallback onCall;
-  final VoidCallback onMessage;
+  final VoidCallback? onCall;
+  final VoidCallback? onMessage;
 
   @override
   Widget build(BuildContext context) {
@@ -271,7 +273,7 @@ class _OfficerContactCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                     Text(
-                      '${primary ? 'Primary contact' : 'Municipal Officer'} · ${officer.publicId}\n${officer.phone}',
+                      '${primary ? 'Primary contact' : 'Municipal Officer'} · ${officer.publicId}\n${officer.phone.trim().isEmpty ? 'Phone unavailable' : officer.phone}',
                       style: textTheme.bodySmall?.copyWith(
                         color: colorScheme.onSurfaceVariant,
                       ),
