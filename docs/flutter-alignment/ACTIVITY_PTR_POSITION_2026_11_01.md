@@ -32,17 +32,19 @@ possible minimal middle gap remains owner-deferred; no further gap work here.
 Verified isolated DEV through e29b4b9 is wirelessly replace-installed and launched
 with retained data and matching installed digest. All 73 source/14 protected
 configuration hashes match; DEV identity/signing/Firebase/LAN API, actual API
-DEV/local database, phone readiness and Maps restrictions pass. Owner acceptance
-of the new position is still pending. No reinstallation or acceptance of the
+DEV/local database, phone readiness and Maps restrictions pass. Owner explicitly accepts
+the new position on 1 November 2026. No reinstallation or acceptance of the
 independent Kingsben task is implied.
 
 The isolated DEV profile build/install is recorded in canonical web
 `docs/CURRENT_STATUS.md` and private `.tmp/dev-activity-ptr-position-preflight.json`.
-After a verified install, owner should pull Activity and confirm the feedback is
-under the app bar and above search/filter pills. Earlier requested phone checks
-remain owner-confirmed; this specific new position still needs owner confirmation.
+Owner confirms the feedback is in the right place under the app bar and above
+search/filter pills. Placement is accepted; earlier requested phone checks remain
+owner-confirmed. A new default Last24 empty-view report is logged separately as
+ACTIVITY-INITIAL-TIME-WINDOW; this acceptance does not close that data issue.
 
-Next reserved investigation: ADMIN-AUDIT-LOCALITY, then ADMIN-SCOPE-MUTATION,
+Next reserved investigation: ADMIN-AUDIT-LOCALITY and then
+ACTIVITY-INITIAL-TIME-WINDOW, followed by ADMIN-SCOPE-MUTATION,
 then queue06 submission reliability. Do not broaden permissions or infer creator
 ownership. Full reports are in canonical web
 `docs/OWNER_ADMIN_FOLLOWUPS_2026_11_01.md`. Kingsben's Ministry task remains separate;
