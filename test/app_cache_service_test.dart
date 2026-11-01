@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:civic_voice/core/theme/app_theme.dart';
 import 'package:civic_voice/features/citizen/models/report_draft.dart';
 import 'package:civic_voice/features/citizen/screens/create_report_screen.dart';
@@ -22,6 +24,44 @@ void main() {
 
     expect(AppCacheService.instance.onboardingComplete, isTrue);
   });
+
+  test(
+    'Guest UID continuity preserves its draft and photos without exposing them to another account',
+    () async {
+      final directory = await Directory.systemTemp.createTemp(
+        'guest-draft-fixture-',
+      );
+      addTearDown(() => directory.delete(recursive: true));
+      final photo = await File(
+        '${directory.path}/fixture.png',
+      ).writeAsBytes([1, 2, 3]);
+      final cache = AppCacheService.instance;
+      await cache.activateAccount('guest-fixture-uid');
+      await cache.saveReportDraft(
+        ReportDraft(
+          title: 'Guest draft fixture',
+          description: 'Retained during registration.',
+          category: 'Roads & Transport',
+          location: 'Synthetic junction',
+          community: 'Synthetic community',
+          photoPaths: [photo.path],
+          photoIsFromCamera: const [true],
+        ),
+      );
+      // Registration and session restoration activate the same Firebase UID.
+      await cache.activateAccount('guest-fixture-uid');
+      expect(cache.reportDraft?.title, 'Guest draft fixture');
+      expect(cache.reportDraft?.photoPaths, [photo.path]);
+      expect(cache.reportDraft?.photoIsFromCamera, [true]);
+      cache.clearSession();
+      expect(cache.reportDraft, isNull);
+      await cache.activateAccount('different-fixture-uid');
+      expect(cache.reportDraft, isNull);
+      await cache.activateAccount('guest-fixture-uid');
+      expect(cache.reportDraft?.title, 'Guest draft fixture');
+      expect(cache.reportDraft?.photoPaths, [photo.path]);
+    },
+  );
 
   test('persists the keep-signed-in preference on the device', () async {
     expect(AppCacheService.instance.keepSignedIn, isFalse);

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:civic_voice/services/api_client.dart';
 import 'package:civic_voice/services/password_session_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -22,6 +23,48 @@ SyncedUser account({
 });
 
 void main() {
+  for (final phase in ['before', 'handoff', 'sync']) {
+    test(
+      'cancelled registration ownership at $phase cannot publish or exchange a late handoff',
+      () async {
+        var current = phase != 'before', logins = 0, exchanges = 0;
+        final pending = Completer<String>();
+        final service = PasswordSessionService(
+          passwordLogin: (_, _) {
+            logins++;
+            return phase == 'handoff'
+                ? pending.future
+                : Future.value('handoff');
+          },
+          exchange: (_) async {
+            exchanges++;
+            return const PasswordIdentity(
+              uid: 'verified-uid',
+              idToken: 'id-token',
+            );
+          },
+          sync: (_) async {
+            if (phase == 'sync') current = false;
+            return account();
+          },
+        );
+        final result = service.signIn(
+          phone: '0200000000',
+          password: 'fixture-password',
+          expectedUid: 'verified-uid',
+          isCurrent: () => current,
+        );
+        final assertion = expectLater(result, throwsA(isA<ApiException>()));
+        if (phase == 'handoff') {
+          current = false;
+          pending.complete('handoff');
+        }
+        await assertion;
+        expect(logins, phase == 'before' ? 0 : 1);
+        if (phase != 'sync') expect(exchanges, 0);
+      },
+    );
+  }
   for (final role in [
     'CITIZEN',
     'MUNICIPAL',

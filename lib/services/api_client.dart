@@ -232,23 +232,57 @@ class ApiClient {
   /// immediately sign in through Firebase password authentication.
   ///
   /// Pass [guestIdToken] when the caller is currently signed in as an
-  /// Anonymous Auth guest (see [signInAsGuest]/[syncUser]) — the backend
+  /// existing Guest, including a partially linked provider — the backend
   /// upgrades that same account in place instead of creating a new one,
   /// so any reports filed while a guest carry over automatically.
-  Future<String> registerCitizen({
+  Future<SyncedUser> registerCitizen({
     required String fullName,
     required String phone,
     required String password,
     required String otp,
     String? guestIdToken,
+    String? expectedUid,
   }) async {
+    if (expectedUid != null &&
+        (guestIdToken == null || guestIdToken.trim().isEmpty)) {
+      throw const ApiException(
+        statusCode: 401,
+        message:
+            'Your registration session could not be verified. Please sign in again.',
+      );
+    }
     final result = await _post('/api/auth/citizen-register', {
       'fullName': fullName,
       'phone': phone,
       'password': password,
       'otp': otp,
     }, idToken: guestIdToken);
-    return result['email'] as String;
+    final raw = result['user'];
+    if (raw is! Map<String, dynamic> ||
+        ['id', 'publicId', 'firebaseUid', 'fullName'].any(
+          (key) => raw[key] is! String || (raw[key] as String).trim().isEmpty,
+        ) ||
+        raw['fullName'] != fullName.trim() ||
+        raw['role'] != 'CITIZEN' ||
+        raw['active'] != true ||
+        raw['isGuest'] != false ||
+        raw['mustChangePassword'] != false ||
+        expectedUid != null && raw['firebaseUid'] != expectedUid) {
+      throw const ApiException(
+        statusCode: 502,
+        message:
+            'Registration could not be verified. Please sign in or refresh your session.',
+      );
+    }
+    try {
+      return SyncedUser.fromJson(raw);
+    } catch (_) {
+      throw const ApiException(
+        statusCode: 502,
+        message:
+            'Registration could not be verified. Please sign in or refresh your session.',
+      );
+    }
   }
 
   /// The API verifies the password and returns a short-lived Firebase custom

@@ -79,10 +79,18 @@ class PasswordSessionService {
     required String phone,
     required String password,
     String? expectedUid,
+    bool Function()? isCurrent,
   }) async {
+    void checkCurrent() {
+      if (isCurrent?.call() == false) throw _invalidSession;
+    }
+
+    checkCurrent();
     final handoff = await _passwordLogin(phone, password);
+    checkCurrent();
     if (handoff.trim().isEmpty) throw _invalidSession;
     final identity = await _exchange(handoff);
+    checkCurrent();
     if (identity.uid.isEmpty ||
         identity.idToken.isEmpty ||
         (expectedUid != null && identity.uid != expectedUid)) {
@@ -91,6 +99,7 @@ class PasswordSessionService {
     late final SyncedUser user;
     try {
       user = await _sync(identity.idToken);
+      checkCurrent();
     } on ApiException catch (error) {
       // The password was already verified. A rejected session/sync must not
       // be presented as an invalid password.

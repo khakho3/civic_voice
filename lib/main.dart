@@ -1338,44 +1338,78 @@ class _RegistrationOtpRoute extends StatefulWidget {
 
 class _RegistrationOtpRouteState extends State<_RegistrationOtpRoute> {
   bool _accountCreated = false;
+  String? _ownerUid, _registeredUid;
+
+  @override
+  void initState() {
+    super.initState();
+    _ownerUid = FirebaseAuth.instance.currentUser?.uid;
+  }
+
+  bool get _originCurrent =>
+      mounted && FirebaseAuth.instance.currentUser?.uid == _ownerUid;
+
+  bool get _handoffCurrent {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    return mounted &&
+        (uid == _ownerUid || _registeredUid != null && uid == _registeredUid);
+  }
+
+  static const _sessionChanged = ApiException(
+    statusCode: 401,
+    message: 'Your registration session changed. Please sign in again.',
+  );
+
   Future<bool> _handleVerify(BuildContext context, String code) async {
     try {
-      // If they got here via "Continue as Guest" and are still on that
-      // same Anonymous Auth session, pass its token along so the backend
-      // upgrades that account in place — same UID, so any reports they
-      // filed as a guest carry over automatically instead of needing a
-      // separate claim step.
+      if (!_originCurrent) throw _sessionChanged;
+      // Preserve the verified UID even when a previous provider update has
+      // already linked credentials to a Guest whose registration is unfinished.
       final currentUser = FirebaseAuth.instance.currentUser;
-      final guestIdToken = (currentUser != null && currentUser.isAnonymous)
-          ? await currentUser.getIdToken()
-          : null;
-      await ApiClient.instance.registerCitizen(
+      final guestIdToken = await currentUser?.getIdToken();
+      if (!_originCurrent) throw _sessionChanged;
+      if (_ownerUid != null && (guestIdToken == null || guestIdToken.isEmpty)) {
+        throw _sessionChanged;
+      }
+      final registered = await ApiClient.instance.registerCitizen(
         fullName: widget.fullName,
         phone: widget.phone,
         password: widget.password,
         otp: code,
         guestIdToken: guestIdToken,
+        expectedUid: _ownerUid,
       );
+      if (!mounted) return true;
+      if (!_originCurrent) throw _sessionChanged;
+      _registeredUid = registered.firebaseUid;
+      if (_ownerUid != null && _registeredUid != _ownerUid) {
+        throw const ApiException(
+          statusCode: 502,
+          message:
+              'Guest registration identity could not be verified. Please sign in again.',
+        );
+      }
       _accountCreated = true;
       final session = await widget.sessions.signIn(
         phone: widget.phone,
         password: widget.password,
+        expectedUid: _registeredUid,
+        isCurrent: () => _handoffCurrent,
       );
-      if (!mounted) {
-        await endSession();
-        return true;
-      }
+      if (!mounted) return true;
+      if (!_handoffCurrent) throw _sessionChanged;
       final appRole = await _activatePasswordSession(session);
+      if (!_handoffCurrent) throw _sessionChanged;
       await AppCacheService.instance.setKeepSignedIn(false);
-      if (!context.mounted) {
-        await endSession();
-        return true;
-      }
+      if (!context.mounted) return true;
+      if (!_handoffCurrent) throw _sessionChanged;
       _completeSignIn(context);
       unawaited(_refreshRoleData(appRole));
       unawaited(_finishPostLoginNotifications());
       return true;
     } catch (error) {
+      if (!mounted) return true;
+      if (!_handoffCurrent) throw _sessionChanged;
       if (_accountCreated) {
         await endSession();
         if (context.mounted) {
@@ -1406,7 +1440,7 @@ class _RegistrationOtpRouteState extends State<_RegistrationOtpRoute> {
         return true;
       }
       // Only an actual rejected/expired OTP is an Incorrect Code result.
-      if (error.statusCode != 400 && error.statusCode != 401) rethrow;
+      if (error.statusCode != 400) rethrow;
       return false;
     }
   }
