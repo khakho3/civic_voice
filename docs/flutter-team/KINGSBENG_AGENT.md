@@ -1,5 +1,21 @@
 # Kingsben - Flutter Maintenance and Municipal work pack
 
+## Item 05 integration checkpoint - 1 November 2026
+
+The current assignment guide is native `docs/flutter-team/KINGSBENG_AGENT.md` on
+`codex/flutter-latif-review-fixes`. Task branch remains
+`codex/flutter-kingsbeng-maintenance-municipal`, PR target remains
+`codex/flutter-latif-review-fixes`; web is read-only reference and API excluded
+for Kingsben. Older branch/sequence paragraphs below are historical.
+
+Owner/integrator runtime `732ef9d` adds current Maintenance Profile refresh and
+identity/task scope fences in `maintenance_session.dart`,
+`maintenance_task_directory.dart`, `profile_screen.dart` and the main Profile route.
+Preserve these when integrating your work. Any eligible member can still submit;
+Municipal confirmation remains separate. Your branch was freshly observed at
+`12c483c`; this is coordination, not PR acceptance or integration. See canonical
+web CURRENT_STATUS.md and native `docs/flutter-alignment/NATIVE_TEAM_SCOPE.md`.
+
 Issued 31 October 2026. Owner: Kingsben (historical repository name: Kingsbeng).
 This is the current allocation for Kingsben and his assisting agent. It replaces
 older Kingsbeng branch/start/ownership instructions for this assignment only.

@@ -1,5 +1,31 @@
 # Native Admin reconciliation
 
+## Current item 05 checkpoint - 1 November 2026
+
+API **151131b**, native **732ef9d** and web **99ee17d** implement transactional
+team membership/lead/move/delete safety and current Maintenance Profile/task scope.
+Owner blocks moves while assigned, in-progress or pending-approval work remains
+until reassigned or closed. Existing report transitions remain; no active-work
+reassignment UI is introduced. **226 API / 1,669 Flutter / 433 web tests pass**;
+analyzer/lint/build pass. Thirty-four API cases use isolated real PostgreSQL;
+the test cluster is stopped. No real record/role/database migration/API restart.
+
+Isolated DEV profile APK is **built and artifact-verified, not installed**:
+63 source hashes match; 14 protected configurations unchanged; DEV package/signing/
+Firebase and explicit LAN API4000 verified, with no compiled production targets.
+ADB unreachable and API4000 down; owner reconnect/usual DEV startup was requested.
+Last confirmed install: c00a80c. Resume fresh isolation/connectivity checks, then
+replace-install with retained data and verify installed digest/launch. Stay on 05
+until installation and owner checks are resolved. Physical acceptance is pending.
+Canonical details: web docs/CURRENT_STATUS.md and ITEM05_TEAMS_LEADS_SCOPE_2026_10_31.md;
+private evidence: .tmp/dev-item05-preflight.json and device checklist.
+
+Kingsben's branch independently advanced to **12c483c**, fetched only. Preserve
+our Profile/session/task-directory/main-route fixes when reviewing his future PR.
+No contributor work integrated/reviewed; no merge, promotion or deployment.
+Activity's possible middle gap remains owner-deferred; earlier device/item04
+workflow/version-policy gates remain open. Older checkpoints below are historical.
+
 ## Item 01 - Flutter Admin Activity Detail - 28 October 2026
 
 Native runtime **578ab59** (feature **389487f**) implements the general protected audit detail and integrates server-filtered 50-row history pages/counts. Full UTC timestamps, honest UNKNOWN outcomes, recorded actor/target snapshots and event-specific safe context are shown. Missing/forbidden/error/loading states, session fencing and Back/query/filter/page/scroll/focus restoration are covered. History stays readable with collection off; audit-event warnings are not unresolved incidents. Existing Ghana loaders/PTR, shared search, animated native pills, card feedback and Super-only health remain.
