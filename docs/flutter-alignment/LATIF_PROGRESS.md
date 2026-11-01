@@ -1,5 +1,17 @@
 # Latif progress
 
+## Notification mark: owner-confirmed function, enlarged DEV installed - 1 November 2026
+
+Original unused SVG preserved verbatim in working branch 6c09f9b; original checkout
+file untouched. Installed Android vector ic_stat_civic_voice.xml is now 6% larger
+in 82384fb, with exact accepted path/tint retained. AAPT2/six renders/APK compiled
+scale/launcher preservation pass; 76 sources/14 protected configs match. Verified
+DEV installed/launched/data retained, installed digest/current draft hashes match.
+Owner accepts prior function; **new size awaits owner confirmation**. Existing 1,985
+Flutter tests/analyzer cover unchanged Dart; no suite rerun solely for this resource
+change. See native NOTIFICATION_MARK_2026_11_01.md. Resume 07; item 06 has real agent
+phone recovery proof but owner acceptance pending. No merge/promotion/deployment.
+
 ## Item 06 phone recovery verified; notification size next - 1 November 2026
 
 Native 7362976 / web 1806b85/1dd51df pass full checks and actual phone after-commit
