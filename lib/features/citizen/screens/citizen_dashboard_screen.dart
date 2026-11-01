@@ -311,7 +311,9 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen>
                   continuing = true;
                   Navigator.of(context).pop();
                   await onAction();
-                  if (mounted) await widget.onLocationSetupFinished?.call();
+                  if (mounted && !_locationDialogVisible) {
+                    await widget.onLocationSetupFinished?.call();
+                  }
                 },
                 child: Text(actionLabel),
               ),
