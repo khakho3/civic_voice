@@ -87,15 +87,19 @@ class _MinistryMunicipalPerformanceScreenState
   /// Null means every region.
   Region? _region;
 
+  @override
+  void didUpdateWidget(covariant MinistryMunicipalPerformanceScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialState != widget.initialState) {
+      _state = widget.initialState;
+    }
+  }
+
   Future<void> _retry() async {
     final refresh = widget.onRefresh;
     if (refresh == null) return;
-    setState(() => _state = MinistryMunicipalPerformanceViewState.loading);
     try {
       await refresh();
-      if (mounted) {
-        setState(() => _state = MinistryMunicipalPerformanceViewState.loaded);
-      }
     } catch (_) {
       if (mounted) {
         setState(() => _state = MinistryMunicipalPerformanceViewState.error);

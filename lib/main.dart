@@ -2452,16 +2452,27 @@ Widget _ministryDashboard(BuildContext context) {
 }
 
 Widget _ministryAnalytics(BuildContext context) {
-  return ValueListenableBuilder<List<IncomingReportItem>>(
-    valueListenable: MunicipalReportDirectory.instance.reports,
-    builder: (context, _, _) => MinistryAnalyticsScreen(
-      data: Firebase.apps.isEmpty || FirebaseAuth.instance.currentUser == null
-          ? null
-          : MinistryDataDirectory.instance.analytics,
-      dataForRange:
+  final directory = MinistryDataDirectory.instance;
+  return AnimatedBuilder(
+    animation: Listenable.merge([
+      MunicipalReportDirectory.instance.reports,
+      directory.state,
+      directory.revision,
+    ]),
+    builder: (context, _) => MinistryAnalyticsScreen(
+      initialState: switch (directory.state.value) {
+        MinistryDataDirectoryState.loading =>
+          MinistryAnalyticsViewState.loading,
+        MinistryDataDirectoryState.loaded when directory.hasLiveSnapshot =>
+          MinistryAnalyticsViewState.loaded,
+        _ => MinistryAnalyticsViewState.error,
+      },
+      data: directory.hasLiveSnapshot ? directory.analytics : null,
+      dataForRange: directory.hasLiveSnapshot ? directory.analyticsFor : null,
+      onRefresh:
           Firebase.apps.isEmpty || FirebaseAuth.instance.currentUser == null
           ? null
-          : MinistryDataDirectory.instance.analyticsFor,
+          : directory.refresh,
       onNavigateToDashboard: () =>
           _replaceWith(context, AppRoutes.ministryDashboard),
       onNavigateToMunicipalities: () =>
@@ -2479,12 +2490,26 @@ Widget _ministryAnalytics(BuildContext context) {
 }
 
 Widget _ministryMunicipalPerformance(BuildContext context) {
-  return ValueListenableBuilder<List<IncomingReportItem>>(
-    valueListenable: MunicipalReportDirectory.instance.reports,
-    builder: (context, _, _) => MinistryMunicipalPerformanceScreen(
-      data: Firebase.apps.isEmpty || FirebaseAuth.instance.currentUser == null
+  final directory = MinistryDataDirectory.instance;
+  return AnimatedBuilder(
+    animation: Listenable.merge([
+      MunicipalReportDirectory.instance.reports,
+      directory.state,
+      directory.revision,
+    ]),
+    builder: (context, _) => MinistryMunicipalPerformanceScreen(
+      initialState: switch (directory.state.value) {
+        MinistryDataDirectoryState.loading =>
+          MinistryMunicipalPerformanceViewState.loading,
+        MinistryDataDirectoryState.loaded when directory.hasLiveSnapshot =>
+          MinistryMunicipalPerformanceViewState.loaded,
+        _ => MinistryMunicipalPerformanceViewState.error,
+      },
+      data: directory.hasLiveSnapshot ? directory.performance : null,
+      onRefresh:
+          Firebase.apps.isEmpty || FirebaseAuth.instance.currentUser == null
           ? null
-          : MinistryDataDirectory.instance.performance,
+          : directory.refresh,
       onNavigateToDashboard: () =>
           _replaceWith(context, AppRoutes.ministryDashboard),
       onNavigateToAnalytics: () =>
@@ -2519,16 +2544,25 @@ Widget _ministryMunicipalityDetail(
 }
 
 Widget _ministryReports(BuildContext context) {
-  return ValueListenableBuilder<List<IncomingReportItem>>(
-    valueListenable: MunicipalReportDirectory.instance.reports,
-    builder: (context, _, _) => MinistryReportsScreen(
-      data: Firebase.apps.isEmpty || FirebaseAuth.instance.currentUser == null
-          ? null
-          : MinistryDataDirectory.instance.reportOverview,
+  final directory = MinistryDataDirectory.instance;
+  return AnimatedBuilder(
+    animation: Listenable.merge([
+      MunicipalReportDirectory.instance.reports,
+      directory.state,
+      directory.revision,
+    ]),
+    builder: (context, _) => MinistryReportsScreen(
+      initialState: switch (directory.state.value) {
+        MinistryDataDirectoryState.loading => MinistryReportsViewState.loading,
+        MinistryDataDirectoryState.loaded when directory.hasLiveSnapshot =>
+          MinistryReportsViewState.loaded,
+        _ => MinistryReportsViewState.error,
+      },
+      data: directory.hasLiveSnapshot ? directory.reportOverview : null,
       onRefresh:
           Firebase.apps.isEmpty || FirebaseAuth.instance.currentUser == null
           ? null
-          : MinistryDataDirectory.instance.refresh,
+          : directory.refresh,
       onNavigateToDashboard: () =>
           _replaceWith(context, AppRoutes.ministryDashboard),
       onNavigateToAnalytics: () =>
@@ -2546,21 +2580,33 @@ Widget _ministryReports(BuildContext context) {
 }
 
 Widget _ministryReportInsights(BuildContext context) {
-  return ValueListenableBuilder<List<IncomingReportItem>>(
-    valueListenable: MunicipalReportDirectory.instance.reports,
-    builder: (context, _, _) => MinistryReportInsightsScreen(
-      data: Firebase.apps.isEmpty || FirebaseAuth.instance.currentUser == null
+  final directory = MinistryDataDirectory.instance;
+  return AnimatedBuilder(
+    animation: Listenable.merge([
+      MunicipalReportDirectory.instance.reports,
+      directory.state,
+      directory.revision,
+    ]),
+    builder: (context, _) => MinistryReportInsightsScreen(
+      initialState: switch (directory.state.value) {
+        MinistryDataDirectoryState.loading =>
+          MinistryReportInsightsViewState.loading,
+        MinistryDataDirectoryState.loaded when directory.hasLiveSnapshot =>
+          MinistryReportInsightsViewState.loaded,
+        _ => MinistryReportInsightsViewState.error,
+      },
+      data: directory.hasLiveSnapshot ? directory.insights : null,
+      dataForFilters: !directory.hasLiveSnapshot
           ? null
-          : MinistryDataDirectory.instance.insights,
-      dataForFilters:
+          : (dateRange, category, status) => directory.insightsFor(
+              dateRange: dateRange,
+              category: category,
+              status: status,
+            ),
+      onRefresh:
           Firebase.apps.isEmpty || FirebaseAuth.instance.currentUser == null
           ? null
-          : (dateRange, category, status) =>
-                MinistryDataDirectory.instance.insightsFor(
-                  dateRange: dateRange,
-                  category: category,
-                  status: status,
-                ),
+          : directory.refresh,
       onBack: () => _popOrReplaceWith(context, AppRoutes.ministryDashboard),
       onViewFocusSummary: () =>
           _replaceWith(context, AppRoutes.ministryMunicipalPerformance),

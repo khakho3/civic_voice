@@ -97,15 +97,19 @@ class _MinistryReportInsightsScreenState
   InsightsCategoryFilter _category = InsightsCategoryFilter.all;
   InsightsStatusFilter _status = InsightsStatusFilter.all;
 
+  @override
+  void didUpdateWidget(covariant MinistryReportInsightsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialState != widget.initialState) {
+      _state = widget.initialState;
+    }
+  }
+
   Future<void> _retry() async {
     final refresh = widget.onRefresh;
     if (refresh == null) return;
-    setState(() => _state = MinistryReportInsightsViewState.loading);
     try {
       await refresh();
-      if (mounted) {
-        setState(() => _state = MinistryReportInsightsViewState.loaded);
-      }
     } catch (_) {
       if (mounted) {
         setState(() => _state = MinistryReportInsightsViewState.error);
