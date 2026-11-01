@@ -1,5 +1,20 @@
 # Teams, leads and current Maintenance identity - 31 October 2026
 
+## New owner Admin reports and phone confirmation - 1 November 2026
+
+Owner confirms the latest requested phone checklist (and says PTR confirmed).
+Record that separately from automated checks; exact acceptance of the previously
+reported Activity PTR placement is being clarified, with the existing position
+follow-up retained until withdrawn. No position repair was made in the dispatch.
+
+Reserved for Francis: ADMIN-AUDIT-LOCALITY, where a Super Admin Actor inherits the
+target Assembly Admin locality in the display; and ADMIN-SCOPE-MUTATION, where an
+Assembly Admin sees same-locality Maintenance staff but cannot mutate them.
+Creator-based ownership is only the owner's hypothesis. Reproduce and agree the
+intended action matrix before a permission change. Full report: canonical web
+`docs/OWNER_ADMIN_FOLLOWUPS_2026_11_01.md`. Kingsben receives Ministry client work,
+not these Admin/API issues. No runtime fix or real-record mutation in this step.
+
 Runtime `732ef9d` implements queue item 05's native freshness fixes.
 
 - Maintenance Profile quietly refreshes on entry/resume and supports the shared

@@ -1,5 +1,41 @@
 # Latif progress
 
+## Owner phone confirmation, Admin reports and Kingsben Ministry pack - 1 November 2026
+
+Owner confirms the latest requested DEV c89a8a4 phone checklist and says PTR/all
+other things are confirmed. This is owner evidence, separate from the prior
+1,973 full Flutter tests/analyzer. Confirmation covers the requested Maintenance
+refresh/draft/Back, Municipal completion/retry, layout/theme and team/lead/move
+checks. It does not settle the separate item04 approval-version policy or claim
+unperformed all-platform/release coverage. Because Activity PTR placement was
+previously rejected and no position repair was made, that specific acceptance is
+being clarified; retain its recorded placement follow-up until withdrawn.
+
+Two new owner-reported issues are reserved for Francis/integrator investigation:
+**ADMIN-AUDIT-LOCALITY** (Super Admin Actor shows target locality) and
+**ADMIN-SCOPE-MUTATION** (Assembly Admin sees local staff but cannot mutate them;
+creator-based cause unproven). Canonical report: web
+`docs/OWNER_ADMIN_FOLLOWUPS_2026_11_01.md`. Record reproductions/permission intent
+before changing actor/event fields or widening permissions. No fix in this step.
+
+Kingsben's next bounded task is queue **27: Flutter Ministry client review/repair**
+(V01-V04 and Ministry-only layout/state checks), in three sequential slices:
+Dashboard/Analytics; Performance/Municipality Detail; Reports/Insights. Existing
+screens/data services are present. Web is read-only reference; API/backend and
+these Admin/Activity issues stay with us. Fresh branch:
+`codex/flutter-kingsben-ministry-review`; PR target:
+`codex/flutter-latif-review-fixes`. Do not reuse the retired PR21 branch.
+
+Native agent guide: `docs/flutter-team/KINGSBEN_MINISTRY_AGENT.md`; human one-page
+PDF: `output/pdf/kingsben-ministry-assignment.pdf`; progress:
+`docs/flutter-alignment/KINGSBEN_MINISTRY_PROGRESS.md`. Verified source checkpoint
+before packet: native3de4113, pinned web1c96241. **158 current Ministry tests pass**;
+PDF page count/text/render verified. Those checks qualify the baseline/brief,
+not completed contributor work. Scoped tested pushes/one PR are authorized for
+his task branch; no self-merge/promotion/deployment. No new app build or API/web
+runtime change in this documentation/assignment step. After dispatch, resume our
+reserved work one item at a time. Older checkpoints below are historical.
+
 ## PR21 squash-merged; first next fix is Activity PTR - 1 November 2026
 
 [PR #21](https://github.com/khakho3/civic_voice/pull/21) was reviewed with no blocking

@@ -1,5 +1,16 @@
 # Kingsben - Flutter Maintenance and Municipal work pack
 
+## Current assignment: Ministry client review - 1 November 2026
+
+Use the new native [Ministry agent guide](KINGSBEN_MINISTRY_AGENT.md) and
+`output/pdf/kingsben-ministry-assignment.pdf`. Task branch:
+`codex/flutter-kingsben-ministry-review`; PR target:
+`codex/flutter-latif-review-fixes`. V01-V04/queue27 only, one slice at a time.
+Web remains read-only; API excluded. The two owner Admin issues and Activity
+placement are reserved. PR21's old branch remains retired; earlier packet below
+is historical. The owner confirms its latest requested phone checklist; that
+confirmation does not mean the new Ministry assignment is completed.
+
 ## Allocation integrated; task branch retired - 1 November 2026
 
 PR21 was squash-merged as `c89a8a4` into `codex/flutter-latif-review-fixes` after
