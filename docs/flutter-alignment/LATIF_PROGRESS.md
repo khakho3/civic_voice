@@ -1,5 +1,15 @@
 # Latif progress
 
+## Item 10 reset authorization slice - 1 November 2026
+
+API 81e11cb fixes stale/new-grant and concurrent-consumption races while retaining
+phone binding/digest-only storage/lifetime. Eight focused/four real SQL checks and
+246 full API passes (two optional SQL skips); fixture cluster stopped. No real
+SMS/password/account change. Installed DEV e2e8e9d and prior client tests remain
+current. Continue 10 provider-error privacy; broader 09 policy and prior device/
+owner gates remain. Canonical ITEM10_AUTHENTICATION_RECOVERY_2026_11_01.md.
+No merge, promotion, migration or deployment. Older checkpoints historical.
+
 ## Item 09 auth-boundary repair / wider review gates - 1 November 2026
 
 API abb245b removes raw auth diagnostics and prevents partial identity/false 401
