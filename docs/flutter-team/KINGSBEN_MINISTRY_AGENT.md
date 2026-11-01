@@ -19,6 +19,9 @@ verify them, reproduce defects, then make small client repairs. Do not rebuild.
 | Your progress record | `docs/flutter-alignment/KINGSBEN_MINISTRY_PROGRESS.md` |
 | Human brief | [One-page brief](../../output/pdf/kingsben-ministry-assignment.pdf) |
 
+The human brief uses the original contributor pack's charcoal/gold palette. Its
+1 November color correction preserves every word and the verified single page.
+
 Old `codex/flutter-kingsbeng-maintenance-municipal` is deleted after PR21. Do not
 recreate it or resume an old module/integration/main branch. Determine actual
 checkout paths on your computer; never assume Francis's paths or device details.
