@@ -9,6 +9,7 @@ import 'package:civic_voice/services/api_client.dart';
 import 'package:civic_voice/services/app_cache_service.dart';
 import 'package:civic_voice/widgets/app_dropdown_field.dart';
 import 'package:civic_voice/widgets/civic_filter_chip.dart';
+import 'package:civic_voice/widgets/form_section_card.dart';
 import 'package:civic_voice/widgets/search_filter_list.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -514,6 +515,85 @@ void main() {
       expect(find.text('Event not found'), findsNothing);
     },
   );
+
+  for (final missingHistory in [false, true]) {
+    testWidgets(
+      'detail separates actor identity from event locality missing=$missingHistory',
+      (tester) async {
+        final repo = AdminActivityRepository(
+          owner: () => 'super-admin',
+          credential: () async => 'fixture',
+          read: (_, _) async => {
+            'activity': {
+              ...auditFixture(),
+              if (missingHistory) ...{
+                'actorName': null,
+                'actorPublicId': null,
+                'actorRole': null,
+                'region': null,
+                'assembly': null,
+              },
+            },
+          },
+        );
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.light,
+            home: AdminActivityDetailScreen(id: 'event-one', repository: repo),
+          ),
+        );
+        await tester.pumpAndSettle();
+        final actor = find.byWidgetPredicate(
+          (widget) => widget is FormSectionCard && widget.title == 'Actor',
+        );
+        expect(actor, findsOneWidget);
+        expect(
+          find.descendant(of: actor, matching: find.text('Assembly')),
+          findsNothing,
+        );
+        expect(
+          find.descendant(of: actor, matching: find.text('Region')),
+          findsNothing,
+        );
+        if (missingHistory) {
+          expect(
+            find.descendant(of: actor, matching: find.text('Not recorded')),
+            findsNWidgets(3),
+          );
+        } else {
+          expect(
+            find.descendant(
+              of: actor,
+              matching: find.text('Recorded administrator'),
+            ),
+            findsOneWidget,
+          );
+          expect(
+            find.descendant(of: actor, matching: find.text('CV-ADMIN-42')),
+            findsOneWidget,
+          );
+        }
+        final jurisdiction = find.byWidgetPredicate(
+          (widget) =>
+              widget is FormSectionCard && widget.title == 'Event jurisdiction',
+        );
+        await showItem(tester, jurisdiction);
+        expect(
+          find.descendant(
+            of: jurisdiction,
+            matching: find.text(missingHistory ? 'Not recorded' : 'Ga Central'),
+          ),
+          missingHistory ? findsNWidgets(2) : findsOneWidget,
+        );
+        expect(
+          find.text(
+            'This is the locality recorded for the event, not the actor’s own locality.',
+          ),
+          findsOneWidget,
+        );
+      },
+    );
+  }
 
   testWidgets(
     'session clear immediately removes a loaded detail from the visible route',
