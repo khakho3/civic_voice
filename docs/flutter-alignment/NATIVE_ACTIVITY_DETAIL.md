@@ -1,5 +1,17 @@
 # Flutter Admin Activity Detail - 28 October 2026
 
+## Audit locality repaired - 1 November 2026
+
+Native a6c9f66 separates Actor from Event jurisdiction; web fc50be7 matches.
+1,979 full Flutter tests/analyzer, 435 web tests/lint/build and six API contract
+checks pass. Verified DEV installed/data retained; new phone/owner acceptance
+pending. See AUDIT_LOCALITY_2026_11_01.md and canonical web CURRENT_STATUS.
+Autonomous sequential work is owner-authorized across all three repos; two
+approved mutable DEV accounts stay private and the protected Super Admin role
+must never change. No merge/promotion/deployment. Next: initial Last24 failure,
+local staff mutation, then queue06. Accepted PTR and Kingsben's separate Ministry
+assignment remain unchanged. Older checkpoints below are historical.
+
 ## Activity PTR owner-accepted; next is audit correctness - 1 November 2026
 
 Owner explicitly confirms DEV e29b4b9's Activity PTR is now in the correct place,
