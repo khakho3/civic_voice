@@ -7,9 +7,10 @@ other things are confirmed. This is owner evidence, separate from the prior
 1,973 full Flutter tests/analyzer. Confirmation covers the requested Maintenance
 refresh/draft/Back, Municipal completion/retry, layout/theme and team/lead/move
 checks. It does not settle the separate item04 approval-version policy or claim
-unperformed all-platform/release coverage. Because Activity PTR placement was
-previously rejected and no position repair was made, that specific acceptance is
-being clarified; retain its recorded placement follow-up until withdrawn.
+unperformed all-platform/release coverage. Owner explicitly clarified:
+"Refresh works; keep Activity position fix queued." That placement remains the
+first app fix on return: shared PTR directly under the app bar, above search/
+filter pills. No position repair or acceptance is claimed.
 
 Two new owner-reported issues are reserved for Francis/integrator investigation:
 **ADMIN-AUDIT-LOCALITY** (Super Admin Actor shows target locality) and

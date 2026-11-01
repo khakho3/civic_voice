@@ -2,10 +2,10 @@
 
 ## New owner Admin reports and phone confirmation - 1 November 2026
 
-Owner confirms the latest requested phone checklist (and says PTR confirmed).
-Record that separately from automated checks; exact acceptance of the previously
-reported Activity PTR placement is being clarified, with the existing position
-follow-up retained until withdrawn. No position repair was made in the dispatch.
+Owner confirms the latest requested phone checklist and clarifies that refresh
+works while Activity's position fix stays queued. Record that separately from
+automated checks. First app fix on return: shared PTR directly under the app bar,
+above search/filter pills. No position repair was made in this dispatch.
 
 Reserved for Francis: ADMIN-AUDIT-LOCALITY, where a Super Admin Actor inherits the
 target Assembly Admin locality in the display; and ADMIN-SCOPE-MUTATION, where an
