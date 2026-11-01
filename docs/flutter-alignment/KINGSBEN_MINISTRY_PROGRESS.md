@@ -1,4 +1,18 @@
-# Kingsben Ministry progress - 1 November 2026
+#
+## Integrator review verified - 1 November 2026
+
+Owner requested review, repair and squash merge of PR22 before the break.
+Combined source871ca62 on current working baselineee979bc passes2,354 full Flutter
+tests, analyzer and whitespace checks. Four real-route regressions were red before
+repair;35 focused integration/recovery/shared-filter checks pass. Shared-header
+initialization and live Ministry state/refresh wiring are repaired by the integrator.
+The previously reported100 failures did not reproduce in this environment's29-case
+recovery/shared-filter run. No API/configuration/permission or actual phone change.
+Physical/owner acceptance and a new current-source DEV build/install remain pending.
+See PR22_MINISTRY_REVIEW_2026_11_01.md. Older contributor checkpoints below are
+historical; their local-only/publication and branch-head statements are superseded.
+
+ Kingsben Ministry progress - 1 November 2026
 
 Status: LOCAL REPAIRS AND VALIDATION COMPLETE; acceptance blocked.
 No commit/publication authorised.
