@@ -1,5 +1,28 @@
 # Latif progress
 
+## Item 11 verified and DEV installed; next 12 - 1 November 2026
+
+Native **2e84672**, web **2cb2916**, API **66a0ed0** preserve verified Guest
+identity/report ownership, reject stale registration contexts, verify receipts and
+bind sign-in to the registered UID. Web draft/files/frozen receipts now survive
+same-identity registration; account/access changes and logout clear them. Delayed
+GPS cannot submit under a changed account; verification pauses abort pending writes
+and preserve uncertain receipts. Browser drafts remain memory-only.
+
+**2,001 Flutter / 464 web / 264 API tests pass**, analyzer/lint/build/whitespace
+clean; three optional SQL skips in full API, eight separate real Guest SQL checks
+pass. The fixture cluster is stopped. No real SMS/OTP/password/Guest registration
+or owner report/account mutation. Live provider/upgrade/restoration and owner gates
+remain; broader SDK races stay in 13. See ITEM11_GUEST_CONTINUITY_2026_11_01.md.
+
+DEV 2e84672 is artifact-verified and wirelessly replace-installed/digest-matched
+with fresh draft/intent values retained (78 reviewed sources/14 protected configs).
+Existing foreground was left alone; launch/Guest upgrade phone checks are pending.
+DEV API/local DB/Firebase, phone LAN health and Maps restrictions pass. Accepted
+Activity PTR and prior pending owner/staff/audit/platform gates are preserved.
+Continue independent **12: permission onboarding**. No merge, promotion, production
+migration or deployment. Older checkpoints below are historical.
+
 ## Item 10 auth automated repairs / next 11 - 1 November 2026
 
 API 1b69c6e provider privacy/unconfirmed failures plus 81e11cb reset-grant CAS:
