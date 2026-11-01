@@ -1,5 +1,17 @@
 # Owner UI follow-ups - 24 October 2026
 
+## Activity PTR repaired and installed - 1 November 2026
+
+Native e29b4b9 moves live Activity's existing shared refresh wrapper around its
+whole body, matching Admin Home's app-bar inset. 1,977 full Flutter tests/analyzer
+pass; 57 focused cases and four private Home/Activity render cases pass. Verified
+isolated DEV is replace-installed/launched with retained data and matching digest;
+73 source/14 protected configuration hashes match. Owner should confirm this new
+position directly below the app bar, above search/filter pills. Earlier accepted
+phone checks are preserved; no placement acceptance is inferred. Next reserved
+work: actor-locality audit, then Assembly Admin mutation, then queue06. See
+canonical CURRENT_STATUS.md and native ACTIVITY_PTR_POSITION_2026_11_01.md.
+
 ## New owner Admin reports and phone confirmation - 1 November 2026
 
 Owner confirms the latest requested phone checklist and clarifies that refresh

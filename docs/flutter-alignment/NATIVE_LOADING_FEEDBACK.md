@@ -1,5 +1,30 @@
 # Flutter loading feedback - 31 October 2026
 
+## Activity PTR position repaired and DEV installed - 1 November 2026
+
+Native runtime **e29b4b9** moves the live Activity shared PTR outside its search/
+filter/list body and anchors it to the app-bar inset, matching Admin Home. No
+shared-component/API/query/permission changes. Four new checks reproduced the
+bar 120px below the correct edge before repair and pass after repair. **1,977 full
+Flutter tests/analyzer pass**; 57 focused checks and four private actual-font/icon
+Home/Activity cases/eight captures pass. At 24px safe inset both loading bars sit
+at y88; stable list/card state and retract behavior are retained. Automated evidence
+is not owner phone acceptance. See native ACTIVITY_PTR_POSITION_2026_11_01.md.
+
+Isolated DEV through e29b4b9 is artifact-verified, wirelessly replace-installed
+and launched on the connected Pixel, with data retained and matching installed
+digest. All 73 source hashes and 14 protected DEV configuration hashes match;
+DEV package/signing/Firebase, compiled LAN API4000 and no production targets,
+actual API DEV/local database, phone readiness and Maps restrictions pass.
+Private evidence: `.tmp/dev-activity-ptr-position-preflight.json` and the device
+checklist. **Owner confirmation of this new position remains pending**: pull
+Activity and confirm feedback directly below the app bar, above search/filter
+pills. Earlier requested phone checks remain owner-confirmed. Next reserved work:
+ADMIN-AUDIT-LOCALITY, ADMIN-SCOPE-MUTATION, then queue06 submission reliability.
+Kingsben's Ministry branch remains independent and untouched. No API/web runtime,
+real-record QA mutation, API restart, merge, promotion or deployment in this slice.
+Older checkpoints below are historical.
+
 ## New owner Admin reports and phone confirmation - 1 November 2026
 
 Owner confirms the latest requested phone checklist and clarifies that refresh
