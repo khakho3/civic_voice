@@ -1,5 +1,25 @@
 # Latif progress
 
+## Item 13 API boundary verified; continue client session review - 1 November 2026
+
+API **da73a67** enforces Firebase revocation/disabled-user checks on required and
+optional credentials. Explicit expired/invalid credentials cannot become fresh
+public registrations; absent credentials still can. Provider outages return safe
+503 rather than expired-session guidance. Existing active/role/scope gates remain.
+**272 full API passes/three optional SQL skips**, 34 focused checks and eight
+separate Guest SQL cases pass; fixture cluster stopped. Live DEV valid Super reads
+200, protected/registration invalid-token 401 and approved access preservation pass.
+No real token revocation, password reset, account/role/report mutation or outage.
+
+Clients unchanged: installed DEV 45318ef digest/source79/config14 still match;
+prior 2,011 Flutter/analyzer and 468 web/lint/build apply. No new APK or owner
+acceptance. **13 remains in progress**: SDK, logout, restoration and displayed-scope
+races are next. Existing local idle/keep-signed-in semantics remain; a server idle
+contract is still a policy gate. See ITEM13_SESSION_CORRECTNESS_2026_11_01.md.
+Phone wake helper continues (16:02 verified); current foreground/prior gates remain
+preserved. No merge, promotion, production migration or deployment.
+Older checkpoints below are historical.
+
 ## Item 12 verified and DEV installed; next 13 - 1 November 2026
 
 Native **45318ef** keeps notification setup behind newly opened blocked-location
