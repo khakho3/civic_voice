@@ -74,125 +74,133 @@ class _AdminReportRoutingScreenState extends State<AdminReportRoutingScreen> {
       builder: (context, _) {
         if (_repo.owner() == null) return const _AccessRequired();
         final page = _source.data;
-        return SearchFilterList(
-          header: SearchFilterHeader(
-            screenKey: 'admin-report-routing',
-            hintText: 'Title or report reference',
-            query: _query,
-            enabled: !_source.loading,
-            onQueryChanged: (value) => _change(() {
-              _query = value.trim().substring(
-                0,
-                value.trim().length.clamp(0, 100),
-              );
-              _cursors = [null];
-            }),
-            results: (term) => [
-              for (final report in page?.reports ?? <RoutingReport>[])
-                if ('${report.title} ${report.reference}'
-                    .toLowerCase()
-                    .contains(term.toLowerCase()))
-                  FocusedSearchResult(
-                    title: report.title,
-                    subtitle: report.reference,
-                    onSelected: () => _open(report),
-                  ),
-            ],
-          ),
-          child: ListView(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            children: [
-              Text(
-                'Reports needing a locality',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              const Text(
-                'Check the issue pin, address and evidence to confirm its region and assembly. Officer availability does not determine geography.',
-              ),
-              const SizedBox(height: AppSpacing.md),
-              if (_source.loading)
-                _changing
-                    ? const Text('Updating reports…')
-                    : const GhanaLoadingIndicator(
-                        label: 'Loading report routing',
-                      ),
-              if (_source.error != null) Text(_source.error!),
-              if (page != null) ...[
+        return GhanaRefreshIndicator(
+          onRefresh: _source.load,
+          child: SearchFilterList(
+            header: SearchFilterHeader(
+              screenKey: 'admin-report-routing',
+              hintText: 'Title or report reference',
+              query: _query,
+              enabled: !_source.loading,
+              onQueryChanged: (value) => _change(() {
+                _query = value.trim().substring(
+                  0,
+                  value.trim().length.clamp(0, 100),
+                );
+                _cursors = [null];
+              }),
+              results: (term) => [
+                for (final report in page?.reports ?? <RoutingReport>[])
+                  if ('${report.title} ${report.reference}'
+                      .toLowerCase()
+                      .contains(term.toLowerCase()))
+                    FocusedSearchResult(
+                      title: report.title,
+                      subtitle: report.reference,
+                      onSelected: () => _open(report),
+                    ),
+              ],
+            ),
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(AppSpacing.md),
+              children: [
                 Text(
-                  '${page.total} unresolved ${page.total == 1 ? 'report' : 'reports'}',
+                  'Reports needing a locality',
+                  style: Theme.of(context).textTheme.titleLarge,
                 ),
-                if (page.reports.isEmpty)
-                  _RoutingCard(
-                    child: Text(
-                      _query.isEmpty
-                          ? 'No reports are waiting for locality resolution.'
-                          : 'No unresolved reports match this search.',
-                    ),
+                const SizedBox(height: AppSpacing.sm),
+                const Text(
+                  'Check the issue pin, address and evidence to confirm its region and assembly. Officer availability does not determine geography.',
+                ),
+                const SizedBox(height: AppSpacing.md),
+                if (_source.loading && page == null)
+                  GhanaLoadingIndicator(
+                    label: _changing
+                        ? 'Updating reports…'
+                        : 'Loading report routing',
                   ),
-                for (final report in page.reports)
-                  _RoutingCard(
-                    onTap: _source.loading ? null : () => _open(report),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                report.reference,
-                                style: Theme.of(context).textTheme.labelMedium,
-                              ),
-                              Text(
-                                report.title,
-                                style: Theme.of(context).textTheme.titleMedium,
-                              ),
-                              Text(
-                                '${report.regionLabel} · ${report.assemblyLabel}',
-                              ),
-                              Text(report.location ?? 'No address recorded.'),
-                              if (!report.canRoute)
-                                const Text('Routing is locked'),
-                            ],
-                          ),
-                        ),
-                        const Icon(Icons.chevron_right),
-                      ],
-                    ),
+                if (_source.error != null) Text(_source.error!),
+                if (page != null) ...[
+                  Text(
+                    '${page.total} unresolved ${page.total == 1 ? 'report' : 'reports'}',
                   ),
-                Wrap(
-                  spacing: AppSpacing.sm,
-                  children: [
-                    TextButton(
-                      onPressed: _source.loading || _cursors.length < 2
-                          ? null
-                          : () => _change(() => _cursors = [null]),
-                      child: const Text('First page'),
+                  if (page.reports.isEmpty)
+                    _RoutingCard(
+                      child: Text(
+                        _query.isEmpty
+                            ? 'No reports are waiting for locality resolution.'
+                            : 'No unresolved reports match this search.',
+                      ),
                     ),
-                    TextButton(
-                      onPressed:
-                          _source.loading ||
-                              page.nextCursor == null ||
-                              _cursors.contains(page.nextCursor)
-                          ? null
-                          : () => _change(
-                              () => _cursors = [..._cursors, page.nextCursor],
+                  for (final report in page.reports)
+                    _RoutingCard(
+                      onTap: _source.loading ? null : () => _open(report),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  report.reference,
+                                  style: Theme.of(
+                                    context,
+                                  ).textTheme.labelMedium,
+                                ),
+                                Text(
+                                  report.title,
+                                  style: Theme.of(
+                                    context,
+                                  ).textTheme.titleMedium,
+                                ),
+                                Text(
+                                  '${report.regionLabel} · ${report.assemblyLabel}',
+                                ),
+                                Text(report.location ?? 'No address recorded.'),
+                                if (!report.canRoute)
+                                  const Text('Routing is locked'),
+                              ],
                             ),
-                      child: const Text('Next page'),
+                          ),
+                          const Icon(Icons.chevron_right),
+                        ],
+                      ),
                     ),
-                  ],
+                  Wrap(
+                    spacing: AppSpacing.sm,
+                    children: [
+                      TextButton(
+                        onPressed: _source.loading || _cursors.length < 2
+                            ? null
+                            : () => _change(() => _cursors = [null]),
+                        child: const Text('First page'),
+                      ),
+                      TextButton(
+                        onPressed:
+                            _source.loading ||
+                                page.nextCursor == null ||
+                                _cursors.contains(page.nextCursor)
+                            ? null
+                            : () => _change(
+                                () => _cursors = [..._cursors, page.nextCursor],
+                              ),
+                        child: const Text('Next page'),
+                      ),
+                    ],
+                  ),
+                ],
+                TextButton(
+                  onPressed: _source.loading
+                      ? null
+                      : () {
+                          setState(() => _changing = false);
+                          unawaited(_source.load());
+                        },
+                  child: const Text('Refresh queue'),
                 ),
               ],
-              TextButton(
-                onPressed: _source.loading
-                    ? null
-                    : () {
-                        setState(() => _changing = false);
-                        unawaited(_source.load());
-                      },
-                child: const Text('Refresh queue'),
-              ),
-            ],
+            ),
           ),
         );
       },
@@ -334,195 +342,201 @@ class _AdminReportRoutingDetailScreenState
           appBar: AppBar(title: const Text('Report Routing')),
           body: !authorized
               ? const _AccessRequired()
-              : SingleChildScrollView(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      if (_source.loading && report == null)
-                        const GhanaLoadingIndicator(label: 'Loading report'),
-                      if (_source.error != null)
-                        Semantics(
-                          liveRegion: true,
-                          child: Text(_source.error!),
-                        ),
-                      if (!currentOwner)
-                        const Text(
-                          'Your session changed. Reload to verify access to this report.',
-                        ),
-                      if (report != null) ...[
-                        _RoutingCard(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '${report.reference} · ${report.status.replaceAll('_', ' ')}',
-                              ),
-                              Text(
-                                report.title,
-                                style: Theme.of(context).textTheme.titleLarge,
-                              ),
-                              Text(
-                                report.description ??
-                                    'No description recorded.',
-                              ),
-                              Text(report.location ?? 'No address recorded.'),
-                              if (report.community?.isNotEmpty == true)
-                                Text(report.community!),
-                              Text(
-                                'Saved routing: ${report.regionLabel} · ${report.assemblyLabel}',
-                              ),
-                              Text(
-                                'Last updated ${MaterialLocalizations.of(context).formatMediumDate(DateTime.parse(report.updatedAt).toLocal())} · ${MaterialLocalizations.of(context).formatTimeOfDay(TimeOfDay.fromDateTime(DateTime.parse(report.updatedAt).toLocal()))}',
-                              ),
-                              if (ReportLocationMapScreen.valid(
-                                report.latitude,
-                                report.longitude,
-                              )) ...[
-                                Text(
-                                  'Issue pin: ${report.latitude}, ${report.longitude}',
-                                ),
-                                ReportLocationPreviewAction(
-                                  latitude: report.latitude,
-                                  longitude: report.longitude,
-                                  label: report.location ?? report.title,
-                                ),
-                              ] else
-                                const Text('No saved issue pin.'),
-                              if (report.photos.isNotEmpty)
-                                _RoutingEvidence(photos: report.photos),
-                            ],
+              : GhanaRefreshIndicator(
+                  onRefresh: _reload,
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (_source.loading && report == null)
+                          const GhanaLoadingIndicator(label: 'Loading report'),
+                        if (_source.error != null)
+                          Semantics(
+                            liveRegion: true,
+                            child: Text(_source.error!),
                           ),
-                        ),
-                        if (_saved != null)
+                        if (!currentOwner)
+                          const Text(
+                            'Your session changed. Reload to verify access to this report.',
+                          ),
+                        if (report != null) ...[
                           _RoutingCard(
-                            child: Semantics(
-                              liveRegion: true,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '${report.reference} · ${report.status.replaceAll('_', ' ')}',
+                                ),
+                                Text(
+                                  report.title,
+                                  style: Theme.of(context).textTheme.titleLarge,
+                                ),
+                                Text(
+                                  report.description ??
+                                      'No description recorded.',
+                                ),
+                                Text(report.location ?? 'No address recorded.'),
+                                if (report.community?.isNotEmpty == true)
+                                  Text(report.community!),
+                                Text(
+                                  'Saved routing: ${report.regionLabel} · ${report.assemblyLabel}',
+                                ),
+                                Text(
+                                  'Last updated ${MaterialLocalizations.of(context).formatMediumDate(DateTime.parse(report.updatedAt).toLocal())} · ${MaterialLocalizations.of(context).formatTimeOfDay(TimeOfDay.fromDateTime(DateTime.parse(report.updatedAt).toLocal()))}',
+                                ),
+                                if (ReportLocationMapScreen.valid(
+                                  report.latitude,
+                                  report.longitude,
+                                )) ...[
+                                  Text(
+                                    'Issue pin: ${report.latitude}, ${report.longitude}',
+                                  ),
+                                  ReportLocationPreviewAction(
+                                    latitude: report.latitude,
+                                    longitude: report.longitude,
+                                    label: report.location ?? report.title,
+                                  ),
+                                ] else
+                                  const Text('No saved issue pin.'),
+                                if (report.photos.isNotEmpty)
+                                  _RoutingEvidence(photos: report.photos),
+                              ],
+                            ),
+                          ),
+                          if (_saved != null)
+                            _RoutingCard(
+                              child: Semantics(
+                                liveRegion: true,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Routing area saved',
+                                      style: Theme.of(
+                                        context,
+                                      ).textTheme.titleLarge,
+                                    ),
+                                    Text(
+                                      '${report.reference} · ${report.regionLabel} · ${report.assemblyLabel}',
+                                    ),
+                                    Text(
+                                      _saved!.municipalOfficers == 0
+                                          ? 'No active Municipal officer covers this locality yet. The report stays saved and becomes visible when a matching officer is added.'
+                                          : '${_saved!.municipalOfficers} active Municipal officers cover this locality. They can see the report after refreshing their inbox.',
+                                    ),
+                                    Text(
+                                      _saved!.auditRecorded
+                                          ? 'The actor, reason and previous routing area were recorded in Activity.'
+                                          : 'Audit collection is off; this change was not added to Activity.',
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          if (_saved == null && !report.canRoute)
+                            _RoutingCard(
+                              child: Text(
+                                report.unresolved
+                                    ? 'Routing is locked. This report has entered review or assignment.'
+                                    : 'Routing area already resolved. This queue only resolves missing localities.',
+                              ),
+                            ),
+                          if (_saved == null && report.canRoute)
+                            _RoutingCard(
                               child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
                                   Text(
-                                    'Routing area saved',
+                                    'Confirm the issue locality',
                                     style: Theme.of(
                                       context,
                                     ).textTheme.titleLarge,
                                   ),
-                                  Text(
-                                    '${report.reference} · ${report.regionLabel} · ${report.assemblyLabel}',
+                                  const Text(
+                                    'Check the issue pin, address and evidence. Officer availability must not determine the assembly.',
                                   ),
-                                  Text(
-                                    _saved!.municipalOfficers == 0
-                                        ? 'No active Municipal officer covers this locality yet. The report stays saved and becomes visible when a matching officer is added.'
-                                        : '${_saved!.municipalOfficers} active Municipal officers cover this locality. They can see the report after refreshing their inbox.',
+                                  const SizedBox(height: AppSpacing.md),
+                                  AppDropdownField<Region>(
+                                    label: 'Region',
+                                    hint: 'Select region',
+                                    value: _region,
+                                    items: [
+                                      for (final region in Region.values)
+                                        AppDropdownItem(
+                                          value: region,
+                                          label: region.label,
+                                        ),
+                                    ],
+                                    onChanged: locked
+                                        ? null
+                                        : (value) => setState(() {
+                                            _region = value;
+                                            _assembly = null;
+                                          }),
                                   ),
-                                  Text(
-                                    _saved!.auditRecorded
-                                        ? 'The actor, reason and previous routing area were recorded in Activity.'
-                                        : 'Audit collection is off; this change was not added to Activity.',
+                                  const SizedBox(height: AppSpacing.md),
+                                  AppDropdownField<String>(
+                                    label: 'Assembly',
+                                    hint: _region == null
+                                        ? 'Select Region first'
+                                        : 'Select assembly',
+                                    value: _assembly,
+                                    items: [
+                                      for (final assembly
+                                          in ghanaAssemblies[_region] ?? [])
+                                        AppDropdownItem(
+                                          value: assembly.name,
+                                          label: assembly.fullName,
+                                        ),
+                                    ],
+                                    onChanged: locked || _region == null
+                                        ? null
+                                        : (value) =>
+                                              setState(() => _assembly = value),
+                                  ),
+                                  const SizedBox(height: AppSpacing.md),
+                                  TextField(
+                                    controller: _reason,
+                                    enabled: !locked,
+                                    minLines: 3,
+                                    maxLines: 5,
+                                    maxLength: 200,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Reason',
+                                      helperMaxLines: 3,
+                                      helperText:
+                                          '10–200 characters. Explain how you confirmed the locality.',
+                                    ),
+                                    onChanged: (_) => setState(() {}),
+                                  ),
+                                  if (_source.uncertain)
+                                    const Text(
+                                      'The change is unconfirmed or the report changed. Reload before trying again. Your reason has been retained.',
+                                    ),
+                                  FilledButton(
+                                    onPressed: locked || _change?.valid != true
+                                        ? null
+                                        : _save,
+                                    child: Text(
+                                      _source.writing
+                                          ? 'Saving routing…'
+                                          : 'Confirm routing area',
+                                    ),
                                   ),
                                 ],
                               ),
                             ),
-                          ),
-                        if (_saved == null && !report.canRoute)
-                          _RoutingCard(
-                            child: Text(
-                              report.unresolved
-                                  ? 'Routing is locked. This report has entered review or assignment.'
-                                  : 'Routing area already resolved. This queue only resolves missing localities.',
-                            ),
-                          ),
-                        if (_saved == null && report.canRoute)
-                          _RoutingCard(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                Text(
-                                  'Confirm the issue locality',
-                                  style: Theme.of(context).textTheme.titleLarge,
-                                ),
-                                const Text(
-                                  'Check the issue pin, address and evidence. Officer availability must not determine the assembly.',
-                                ),
-                                const SizedBox(height: AppSpacing.md),
-                                AppDropdownField<Region>(
-                                  label: 'Region',
-                                  hint: 'Select region',
-                                  value: _region,
-                                  items: [
-                                    for (final region in Region.values)
-                                      AppDropdownItem(
-                                        value: region,
-                                        label: region.label,
-                                      ),
-                                  ],
-                                  onChanged: locked
-                                      ? null
-                                      : (value) => setState(() {
-                                          _region = value;
-                                          _assembly = null;
-                                        }),
-                                ),
-                                const SizedBox(height: AppSpacing.md),
-                                AppDropdownField<String>(
-                                  label: 'Assembly',
-                                  hint: _region == null
-                                      ? 'Select Region first'
-                                      : 'Select assembly',
-                                  value: _assembly,
-                                  items: [
-                                    for (final assembly
-                                        in ghanaAssemblies[_region] ?? [])
-                                      AppDropdownItem(
-                                        value: assembly.name,
-                                        label: assembly.fullName,
-                                      ),
-                                  ],
-                                  onChanged: locked || _region == null
-                                      ? null
-                                      : (value) =>
-                                            setState(() => _assembly = value),
-                                ),
-                                const SizedBox(height: AppSpacing.md),
-                                TextField(
-                                  controller: _reason,
-                                  enabled: !locked,
-                                  minLines: 3,
-                                  maxLines: 5,
-                                  maxLength: 200,
-                                  decoration: const InputDecoration(
-                                    labelText: 'Reason',
-                                    helperMaxLines: 3,
-                                    helperText:
-                                        '10–200 characters. Explain how you confirmed the locality.',
-                                  ),
-                                  onChanged: (_) => setState(() {}),
-                                ),
-                                if (_source.uncertain)
-                                  const Text(
-                                    'The change is unconfirmed or the report changed. Reload before trying again. Your reason has been retained.',
-                                  ),
-                                FilledButton(
-                                  onPressed: locked || _change?.valid != true
-                                      ? null
-                                      : _save,
-                                  child: Text(
-                                    _source.writing
-                                        ? 'Saving routing…'
-                                        : 'Confirm routing area',
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
+                        ],
+                        TextButton(
+                          onPressed: _source.writing || _confirming
+                              ? null
+                              : _reload,
+                          child: const Text('Reload report'),
+                        ),
                       ],
-                      TextButton(
-                        onPressed: _source.writing || _confirming
-                            ? null
-                            : _reload,
-                        child: const Text('Reload report'),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
         ),

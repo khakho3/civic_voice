@@ -1,5 +1,31 @@
 # Native Super Admin report routing
 
+## Item 07 review - 1 November 2026
+
+The queue and detail now use the existing GhanaRefreshIndicator immediately below
+their standard app bar, outside the search rail. Short/empty pages support a real
+pull. Refresh keeps verified rows mounted without inserting a loading message;
+detail reload preserves the unsaved reason and locality choice, disables saving
+while reading, and never submits a routing change. Cold loading stays static and
+its text disappears while the top PTR is active. Shared indicator and accepted
+Activity behavior are unchanged.
+
+Six new light/dark checks cover a real queue pull, exact bar position, retained
+card geometry, detail draft preservation/no write and slow first-entry refresh
+with stale response exclusion. Phone widths 320/412 and safe insets are included.
+All 1,991 Flutter tests, 19 routing widget checks and analyzer/whitespace pass.
+The existing 18 API routing/geography checks and eight web routing checks pass.
+Six new real PostgreSQL fixture checks verify competing routing editors, two
+officer claims, atomic routing/audit/inbox rollback, audit-off and zero staffing.
+These use a separately guarded temporary database and no real report changes.
+
+DEV build/install and agent phone checks are recorded in the canonical web
+checkpoint/private device checklist. Owner acceptance remains separate. The
+known claimed-report boundary discrepancy remains a ground-truth review gate;
+do not alter or backfill that report. No API authorization/routing behavior,
+geometry, historic records, production targets, merge or deployment changed.
+Older verification/install paragraphs below are historical.
+
 Updated24October2026. Runtime commits7b25813 /983468e; stable-alert follow-up ad28085. Current cross-repository checkpoint: C:/Projects/www/civic-voice-web/docs/CURRENT_STATUS.md.
 
 ## Scope and access
