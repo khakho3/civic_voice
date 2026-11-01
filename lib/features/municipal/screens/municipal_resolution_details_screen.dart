@@ -463,13 +463,13 @@ class _TimelineCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
+                    Wrap(
+                      alignment: WrapAlignment.spaceBetween,
+                      spacing: AppSpacing.sm,
                       children: [
-                        Expanded(
-                          child: Text(
-                            data.isRejected ? 'Rejected' : 'Resolved',
-                            style: textTheme.titleSmall,
-                          ),
+                        Text(
+                          data.isRejected ? 'Rejected' : 'Resolved',
+                          style: textTheme.titleSmall,
                         ),
                         Text(
                           '${formatResolvedDate(data.resolvedDate)} · '

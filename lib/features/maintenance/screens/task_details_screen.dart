@@ -108,28 +108,34 @@ class _TaskDetailsContent extends StatelessWidget {
           ],
           Text(task.title, style: textTheme.headlineSmall),
           const SizedBox(height: AppSpacing.sm),
-          Row(
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.xs,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               TintedBadge(
                 label: task.status.label,
                 color: task.status.color,
                 textColor: task.status.badgeTextColor(brightness),
               ),
-              const SizedBox(width: AppSpacing.sm),
-              Icon(
-                AppIcons.team,
-                size: AppIconSize.sm,
-                color: colorScheme.onSurfaceVariant,
-              ),
-              const SizedBox(width: 4),
-              Flexible(
-                child: Text(
-                  task.teamName ?? team?.name ?? 'Unassigned team',
-                  style: textTheme.bodySmall?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+              Text.rich(
+                TextSpan(
+                  children: [
+                    WidgetSpan(
+                      child: Icon(
+                        AppIcons.team,
+                        size: AppIconSize.sm,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    TextSpan(
+                      text:
+                          ' ${task.teamName ?? team?.name ?? 'Unassigned team'}',
+                    ),
+                  ],
+                ),
+                style: textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
                 ),
               ),
             ],
@@ -161,9 +167,11 @@ class _TaskDetailsContent extends StatelessWidget {
                 color: colorScheme.onSurfaceVariant,
               ),
               const SizedBox(width: AppSpacing.xs),
-              Text(
-                'Report Photos (${task.reportPhotoUrls.length})',
-                style: textTheme.titleSmall,
+              Expanded(
+                child: Text(
+                  'Report Photos (${task.reportPhotoUrls.length})',
+                  style: textTheme.titleSmall,
+                ),
               ),
             ],
           ),
@@ -196,7 +204,9 @@ class _TaskDetailsContent extends StatelessWidget {
                 color: colorScheme.onSurfaceVariant,
               ),
               const SizedBox(width: AppSpacing.xs),
-              Text('Problem Location', style: textTheme.titleSmall),
+              Expanded(
+                child: Text('Problem Location', style: textTheme.titleSmall),
+              ),
             ],
           ),
           const SizedBox(height: AppSpacing.sm),

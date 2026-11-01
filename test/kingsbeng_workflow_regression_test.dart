@@ -313,6 +313,53 @@ void main() {
   );
 
   testWidgets(
+    'failed send-back retains reason and requires refresh before retry',
+    (tester) async {
+      final directory = MunicipalReportDirectory.instance;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: const MunicipalReportProgressScreen(
+            referenceId: 'CV-WORKFLOW-TEST',
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Send Back'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), 'Fill the remaining gap.');
+      // A concurrent decision invalidates the pending record while the sheet is open.
+      directory.reports.value = [
+        IncomingReportItem.fromApi(fixture('IN_PROGRESS')),
+      ];
+      await tester.tap(find.text('Return to Team'));
+      await tester.pumpAndSettle();
+      expect(
+        find.textContaining('The change could not be confirmed'),
+        findsOneWidget,
+      );
+      directory.reports.value = [
+        IncomingReportItem.fromApi(fixture('PENDING_APPROVAL')),
+      ];
+      await tester.tap(find.text('Refresh report'));
+      await tester.pumpAndSettle();
+      expect(
+        find.textContaining('The change could not be confirmed'),
+        findsNothing,
+      );
+      await tester.tap(find.text('Send Back'));
+      await tester.pumpAndSettle();
+      expect(find.text('Fill the remaining gap.'), findsOneWidget);
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(
+        directory.reports.value.single.status,
+        ReportStatus.pendingApproval,
+      );
+    },
+  );
+
+  testWidgets(
     'pending detail and editor are readonly without an Update Progress action',
     (tester) async {
       final task = MaintenanceTask.fromApi(fixture('PENDING_APPROVAL'));
@@ -344,44 +391,54 @@ void main() {
 
   for (final width in [320.0, 390.0, 412.0, 768.0]) {
     for (final dark in [false, true]) {
-      testWidgets(
-        'approval/pending screens fit ${width.toInt()} in ${dark ? 'dark' : 'light'}',
-        (tester) async {
-          tester.view.physicalSize = Size(width, 1000);
-          tester.view.devicePixelRatio = 1;
-          addTearDown(tester.view.resetPhysicalSize);
-          addTearDown(tester.view.resetDevicePixelRatio);
-          final priorErrorHandler = FlutterError.onError;
-          FlutterError.onError = (details) {
-            debugPrint(details.toString());
-            priorErrorHandler?.call(details);
-          };
-          addTearDown(() => FlutterError.onError = priorErrorHandler);
-          final task = MaintenanceTask.fromApi(fixture('PENDING_APPROVAL'));
-          for (final screen in <Widget>[
-            const MunicipalReportProgressScreen(
-              referenceId: 'CV-WORKFLOW-TEST',
-              status: ReportStatus.pendingApproval,
-            ),
-            TaskDetailsScreen(task: task),
-            TaskCompletedScreen(task: task, onNavigateToDashboard: () {}),
-          ]) {
-            await tester.pumpWidget(
-              MaterialApp(
-                theme: dark ? AppTheme.dark : AppTheme.light,
-                home: screen,
+      for (final scale in [1.0, 1.5, 2.0]) {
+        testWidgets(
+          'approval/pending screens fit ${width.toInt()} in ${dark ? 'dark' : 'light'} scale=$scale',
+          (tester) async {
+            tester.view.physicalSize = Size(width, 1000);
+            tester.view.devicePixelRatio = 1;
+            tester.view.padding = const FakeViewPadding(top: 24, bottom: 24);
+            addTearDown(tester.view.resetPadding);
+            addTearDown(tester.view.resetPhysicalSize);
+            addTearDown(tester.view.resetDevicePixelRatio);
+            final priorErrorHandler = FlutterError.onError;
+            FlutterError.onError = (details) {
+              debugPrint(details.toString());
+              priorErrorHandler?.call(details);
+            };
+            addTearDown(() => FlutterError.onError = priorErrorHandler);
+            final task = MaintenanceTask.fromApi(fixture('PENDING_APPROVAL'));
+            for (final screen in <Widget>[
+              const MunicipalReportProgressScreen(
+                referenceId: 'CV-WORKFLOW-TEST',
+                status: ReportStatus.pendingApproval,
               ),
-            );
-            await tester.pumpAndSettle();
-            expect(
-              tester.takeException(),
-              isNull,
-              reason: screen.runtimeType.toString(),
-            );
-            await tester.pumpWidget(const SizedBox.shrink());
-          }
-        },
-      );
+              TaskDetailsScreen(task: task),
+              TaskCompletedScreen(task: task, onNavigateToDashboard: () {}),
+            ]) {
+              await tester.pumpWidget(
+                MaterialApp(
+                  theme: dark ? AppTheme.dark : AppTheme.light,
+                  builder: (context, child) => MediaQuery(
+                    data: MediaQuery.of(
+                      context,
+                    ).copyWith(textScaler: TextScaler.linear(scale)),
+                    child: child!,
+                  ),
+                  home: screen,
+                ),
+              );
+              await tester.pumpAndSettle();
+              expect(
+                tester.takeException(),
+                isNull,
+                reason: screen.runtimeType.toString(),
+              );
+              await tester.pumpWidget(const SizedBox.shrink());
+            }
+          },
+        );
+      }
     }
   }
 

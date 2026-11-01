@@ -500,7 +500,12 @@ class _VerificationForm extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: AppSpacing.sm),
-                    Text(data.citizenName, style: textTheme.titleSmall),
+                    Expanded(
+                      child: Text(
+                        data.citizenName,
+                        style: textTheme.titleSmall,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -534,7 +539,12 @@ class _VerificationForm extends StatelessWidget {
                     color: colorScheme.onSurfaceVariant,
                   ),
                   const SizedBox(width: AppSpacing.xs),
-                  Text('Verification Checklist', style: textTheme.titleSmall),
+                  Expanded(
+                    child: Text(
+                      'Verification Checklist',
+                      style: textTheme.titleSmall,
+                    ),
+                  ),
                 ],
               ),
               for (var i = 0; i < data.checklist.length; i++)

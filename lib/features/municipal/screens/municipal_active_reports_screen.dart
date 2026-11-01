@@ -432,12 +432,13 @@ class _ActiveReportsBody extends StatelessWidget {
         children: [
           Row(
             children: [
-              Text(
-                '${reports.length} report${reports.length == 1 ? '' : 's'}'
-                '${cached ? ' · cached' : ''}',
-                style: textTheme.bodySmall,
+              Expanded(
+                child: Text(
+                  '${reports.length} report${reports.length == 1 ? '' : 's'}'
+                  '${cached ? ' · cached' : ''}',
+                  style: textTheme.bodySmall,
+                ),
               ),
-              const Spacer(),
               TextButton(onPressed: onSortTap, child: const Text('Sort')),
             ],
           ),
@@ -499,7 +500,7 @@ class _ActiveReportCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: AppSpacing.sm),
-              ReportStatusBadge(status: report.status),
+              Flexible(child: ReportStatusBadge(status: report.status)),
             ],
           ),
           const SizedBox(height: AppSpacing.xs),
@@ -522,13 +523,14 @@ class _ActiveReportCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: AppSpacing.sm),
-          Row(
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            spacing: AppSpacing.sm,
             children: [
               Text(
                 'PROGRESS',
                 style: textTheme.labelSmall?.copyWith(letterSpacing: 0.96),
               ),
-              const Spacer(),
               Text(
                 '${report.progressPercent ?? 0}%',
                 style: textTheme.titleSmall,
