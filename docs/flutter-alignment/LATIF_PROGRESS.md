@@ -1,5 +1,16 @@
 # Latif progress
 
+## Item 09 auth-boundary repair / wider review gates - 1 November 2026
+
+API abb245b removes raw auth diagnostics and prevents partial identity/false 401
+when account lookup fails; safe 503 keeps access closed. Eight new regressions,
+40 focused/238 full API checks pass (one optional SQL skip); live DEV Admin read
+and invalid-token redaction verified. No Flutter/web runtime or real records
+changed; installed DEV e2e8e9d/previous 1,994 native/446 web checks remain current.
+Denied-event coverage, durable delivery/critical-event and retention contracts
+remain open. See canonical ITEM09_AUDIT_RELIABILITY_2026_11_01.md. Continue 10
+independently; no merge, promotion, migration or deploy. Older notes historical.
+
 ## Item 08 nearby safety checkpoint - 1 November 2026
 
 Native e2e8e9d / web 48d9015 validate nearby discovery and bounded confirmation
