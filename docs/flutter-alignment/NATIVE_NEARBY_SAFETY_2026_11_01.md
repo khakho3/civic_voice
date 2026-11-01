@@ -31,7 +31,10 @@ Verified DEV through e2e8e9d is replace-installed, digest-matched and launched o
 the approved Pixel with API Online. All 78 reviewed source hashes and 14 protected
 DEV configuration hashes match. DEV signing/Firebase/LAN API/local DB/Maps checks,
 compiled strict-parser markers and preserved notification/launcher checks pass.
-Fresh device draft/intent hashes are unchanged. Nearby agent-phone and owner
-acceptance remain pending; canonical web checkpoint/private device checklist
-track them. No real reports/roles, production config, merge or deployment changed
-in this implementation slice.
+Fresh device draft/intent hashes are unchanged. Agent phone first-entry/refresh now return a truthful empty result after an
+approved one-time location grant. Test B was temporarily Citizen, then signed out
+and fully restored to its original Admin access; A and protected Super role are
+unchanged. Phone is back on original Super Admin account; draft/intent hashes
+remain identical. Positive confirmation/denial/error phone cases and owner
+acceptance remain pending. Canonical web item 08/private checklist track limits.
+No real report, production config, merge or deployment changed.

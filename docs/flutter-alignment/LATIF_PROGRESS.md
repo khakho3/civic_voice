@@ -6,9 +6,10 @@ Native e2e8e9d / web 48d9015 validate nearby discovery and bounded confirmation
 receipts; duplicate suggestions are preserved. API 5836900 repairs full limiter
 expiry recovery without changing quotas/GPS/scoring. 1,994 native/446 web/230 API
 checks, analyzer/lint/build pass. Verified DEV installed/launched/API Online;
-78 source/14 protected config and current device draft hashes match. Nearby
-agent-phone/owner gates pending; routing empty-queue pull is agent-checked only.
-See canonical ITEM08_NEARBY_SAFETY_2026_11_01.md. Then continue 09; no merge/deploy.
+78 source/14 protected config and current device draft hashes match. Nearby first-entry/refresh are agent phone-verified as empty; positive/denial/error
+phone and owner gates remain. B restored, A/Super unchanged, original phone session
+and draft hashes preserved. Routing empty-queue pull is agent-checked only.
+See canonical ITEM08_NEARBY_SAFETY_2026_11_01.md. Continue 09; no merge/deploy.
 Older checkpoints below are historical.
 
 ## Item 07 verification / next 08 - 1 November 2026
