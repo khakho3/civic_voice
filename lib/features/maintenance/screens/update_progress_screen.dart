@@ -278,6 +278,8 @@ class _UpdateProgressScreenState extends State<UpdateProgressScreen> {
     }
     if (_selectedStatus == MaintenanceTaskStatus.completed) {
       widget.onTaskCompleted?.call(widget.task.id);
+    } else if (_selectedStatus == MaintenanceTaskStatus.inProgress) {
+      await _handleBack();
     }
   }
 

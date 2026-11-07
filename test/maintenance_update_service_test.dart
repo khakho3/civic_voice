@@ -40,6 +40,43 @@ void main() {
   });
   tearDown(() => directory.delete(recursive: true));
   test(
+    'work notes are saved and confirmed separately from completion',
+    () async {
+      final saved = await MaintenanceUpdateService().save(
+        task(),
+        status: MaintenanceTaskStatus.inProgress,
+        notes: '  Inspected the wiring.  ',
+        photos: const [],
+        checkOwnership: () {},
+        update: (_, fields, paths) async {
+          expect(fields, {
+            'status': 'IN_PROGRESS',
+            'maintenanceProgressNotes': 'Inspected the wiring.',
+          });
+          expect(paths, isEmpty);
+          return {
+            ...receipt('IN_PROGRESS'),
+            'maintenanceProgressNotes': fields['maintenanceProgressNotes'],
+            'resolutionNotes': 'Previous completion',
+          };
+        },
+      );
+      expect(saved.progressNotes, 'Inspected the wiring.');
+      expect(saved.completionNotes, 'Previous completion');
+      await expectLater(
+        MaintenanceUpdateService().save(
+          task(),
+          status: MaintenanceTaskStatus.inProgress,
+          notes: 'Resumed repair.',
+          photos: const [],
+          checkOwnership: () {},
+          update: (_, _, _) async => receipt('IN_PROGRESS'),
+        ),
+        throwsA(isA<ApiException>()),
+      );
+    },
+  );
+  test(
     'completion starts assigned task then submits exactly three fresh files and 100 percent',
     () async {
       final writes = <Map<String, String>>[];

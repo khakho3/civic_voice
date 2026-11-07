@@ -326,6 +326,7 @@ class _StatusPipeline extends StatelessWidget {
             timestamp: resolved || pending
                 ? 'Work finished'
                 : 'Current field status',
+            note: task.progressNotes,
             color: resolved ? semantic.success : AppColors.statusInProgress,
             icon: resolved ? AppIcons.statusResolved : AppIcons.activityPulse,
             isActive: dispatched && !resolved && !pending,
@@ -374,6 +375,7 @@ class _PipelineStep extends StatelessWidget {
     required this.color,
     required this.icon,
     required this.isActive,
+    this.note,
     this.isLast = false,
   });
 
@@ -383,6 +385,7 @@ class _PipelineStep extends StatelessWidget {
   final IconData icon;
   final bool isActive;
   final bool isLast;
+  final String? note;
 
   @override
   Widget build(BuildContext context) {
@@ -427,6 +430,8 @@ class _PipelineStep extends StatelessWidget {
                       color: colorScheme.onSurfaceVariant,
                     ),
                   ),
+                  if (note?.isNotEmpty == true)
+                    Text(note!, style: textTheme.bodySmall),
                 ],
               ),
             ),

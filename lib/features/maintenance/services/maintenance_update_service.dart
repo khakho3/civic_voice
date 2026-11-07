@@ -110,6 +110,9 @@ class MaintenanceUpdateService {
         if (result['id'] != id ||
             result['assignedTeamId'] != task.teamId ||
             result['status'] != fields['status'] ||
+            (fields.containsKey('maintenanceProgressNotes') &&
+                result['maintenanceProgressNotes'] !=
+                    fields['maintenanceProgressNotes']) ||
             (fields['status'] == 'PENDING_APPROVAL' &&
                 (result['progressPercent'] != 100 ||
                     result['resolutionNotes'] != notes.trim() ||
@@ -135,7 +138,7 @@ class MaintenanceUpdateService {
         } else if (status == MaintenanceTaskStatus.failed)
           'maintenanceFailureNotes': notes.trim()
         else if (notes.trim().isNotEmpty)
-          'resolutionNotes': notes.trim(),
+          'maintenanceProgressNotes': notes.trim(),
       }, submitting ? frozenPhotos : const []);
     } finally {
       _saving.remove(id);
