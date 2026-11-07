@@ -3,6 +3,35 @@ import 'package:civic_voice/services/api_client.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('weekly completions use recorded approval times in the Ghana week', () {
+    MaintenanceTask task(
+      String id, {
+      String status = 'RESOLVED',
+      String? approvedAt,
+    }) => MaintenanceTask.fromApi({
+      'id': id,
+      'status': status,
+      'approvedAt': approvedAt,
+      'updatedAt': '2026-11-08T12:00:00Z',
+    });
+
+    final counts = maintenanceWeeklyCompletionCounts([
+      task('monday', approvedAt: '2026-11-02T00:00:00Z'),
+      task('sunday', approvedAt: '2026-11-08T18:00:00Z'),
+      task('previous-week', approvedAt: '2026-11-02T00:59:59+01:00'),
+      task('future', approvedAt: '2026-11-08T19:00:01Z'),
+      task('missing'),
+      task('invalid', approvedAt: 'Unavailable'),
+      task(
+        'pending',
+        status: 'PENDING_APPROVAL',
+        approvedAt: '2026-11-04T12:00:00Z',
+      ),
+    ], now: DateTime.parse('2026-11-08T19:00:00Z'));
+
+    expect(counts, [1, 0, 0, 0, 0, 0, 1]);
+  });
+
   test('maps an assigned team UUID into a live maintenance task', () {
     ApiClient.baseUrl = 'http://192.168.100.8:4000';
     final task = MaintenanceTask.fromApi({

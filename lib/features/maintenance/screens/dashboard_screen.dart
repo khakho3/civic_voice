@@ -699,17 +699,6 @@ class _MaintenanceDashboardData {
       weeklyCompletionCounts.fold<int>(0, (total, count) => total + count);
 
   factory _MaintenanceDashboardData.fromTasks(List<MaintenanceTask> tasks) {
-    final weeklyCounts = List<int>.filled(7, 0);
-    for (final task in tasks) {
-      final weekday = task.completedWeekday;
-      if (task.status == MaintenanceTaskStatus.completed &&
-          weekday != null &&
-          weekday >= 0 &&
-          weekday < weeklyCounts.length) {
-        weeklyCounts[weekday] += 1;
-      }
-    }
-
     final scheduledTasks = tasks
         .where(
           (task) =>
@@ -740,7 +729,10 @@ class _MaintenanceDashboardData {
                 task.fieldIssueNotes != null,
           )
           .length,
-      weeklyCompletionCounts: List<int>.unmodifiable(weeklyCounts),
+      weeklyCompletionCounts: maintenanceWeeklyCompletionCounts(
+        tasks,
+        now: DateTime.now(),
+      ),
       scheduledTasks: scheduledTasks,
     );
   }

@@ -141,9 +141,8 @@ class MaintenanceTask {
   /// (mock data has no real clock to derive this from).
   final String? completedAtLabel;
 
-  /// 0 (Monday) through 6 (Sunday) — which bar of Dashboard's "Weekly
-  /// Completion" chart this task counts toward. Only meaningful once
-  /// [status] is [MaintenanceTaskStatus.completed].
+  /// Preview-only day index, from 0 (Monday) to 6 (Sunday). The live
+  /// dashboard derives the current week's counts from [approvedAt].
   final int? completedWeekday;
   final DateTime? assignedAt;
   final DateTime? startedAt;
@@ -300,9 +299,6 @@ class MaintenanceTask {
       maintenanceContactName:
           (json['maintenanceContact'] as Map<String, dynamic>?)?['fullName']
               as String?,
-      completedWeekday: status == 'RESOLVED'
-          ? (updatedAt ?? DateTime.now()).weekday - 1
-          : null,
     );
   }
 
@@ -327,6 +323,36 @@ class MaintenanceTask {
         '${local.hour.toString().padLeft(2, '0')}:'
         '${local.minute.toString().padLeft(2, '0')}';
   }
+}
+
+List<int> maintenanceWeeklyCompletionCounts(
+  Iterable<MaintenanceTask> tasks, {
+  required DateTime now,
+}) {
+  final today = now.toUtc();
+  final midnight = DateTime.utc(today.year, today.month, today.day);
+  final monday = midnight.subtract(
+    Duration(days: today.weekday - DateTime.monday),
+  );
+  final counts = List<int>.filled(7, 0);
+  for (final task in tasks) {
+    if (task.status != MaintenanceTaskStatus.completed) continue;
+    final approvedAt = task.approvedAt?.toUtc();
+    if (approvedAt != null) {
+      if (!approvedAt.isBefore(monday) && !approvedAt.isAfter(today)) {
+        counts[approvedAt.weekday - DateTime.monday] += 1;
+      }
+    } else {
+      final previewDay = task.completedWeekday;
+      if (task.apiId == null &&
+          previewDay != null &&
+          previewDay >= 0 &&
+          previewDay < counts.length) {
+        counts[previewDay] += 1;
+      }
+    }
+  }
+  return List<int>.unmodifiable(counts);
 }
 
 /// Placeholder content matching the approved MNT-00x designs, used until the
