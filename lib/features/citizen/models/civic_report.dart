@@ -26,6 +26,7 @@ class CivicReport {
     this.hasMunicipalCoverage,
     this.assignedAt,
     this.startedAt,
+    this.progressNotes,
     this.completionSubmittedAt,
     this.approvedAt,
     this.sendBackReason,
@@ -58,6 +59,7 @@ class CivicReport {
   final DateTime? rejectedAt;
   final DateTime? assignedAt;
   final DateTime? startedAt;
+  final String? progressNotes;
   final DateTime? completionSubmittedAt;
   final DateTime? approvedAt;
   final String? sendBackReason;
@@ -105,6 +107,7 @@ class CivicReport {
       ),
       assignedAt: DateTime.tryParse(map['assignedAt'] as String? ?? ''),
       startedAt: DateTime.tryParse(map['startedAt'] as String? ?? ''),
+      progressNotes: map['progressNotes'] as String?,
       completionSubmittedAt: DateTime.tryParse(
         map['completionSubmittedAt'] as String? ?? '',
       ),
@@ -136,6 +139,7 @@ class CivicReport {
       'status': status.name,
       'assignedAt': assignedAt?.toIso8601String(),
       'startedAt': startedAt?.toIso8601String(),
+      'progressNotes': progressNotes,
       'completionSubmittedAt': completionSubmittedAt?.toIso8601String(),
       'approvedAt': approvedAt?.toIso8601String(),
       'sendBackReason': sendBackReason,
@@ -185,6 +189,7 @@ class CivicReport {
       status: status ?? this.status,
       assignedAt: assignedAt,
       startedAt: startedAt,
+      progressNotes: progressNotes,
       completionSubmittedAt: completionSubmittedAt,
       approvedAt: approvedAt,
       sendBackReason: sendBackReason,

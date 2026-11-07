@@ -347,6 +347,7 @@ class ReportCrudService implements ReportsRepository {
       status: _statusFromApi(json['status'] as String?),
       assignedAt: DateTime.tryParse(json['assignedAt'] as String? ?? ''),
       startedAt: DateTime.tryParse(json['startedAt'] as String? ?? ''),
+      progressNotes: (json['maintenanceProgressNotes'] as String?)?.trim(),
       completionSubmittedAt: DateTime.tryParse(
         json['completionSubmittedAt'] as String? ?? '',
       ),
