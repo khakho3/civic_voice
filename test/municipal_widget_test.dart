@@ -2132,7 +2132,7 @@ void main() {
       await tester.tap(find.text('Save changes'));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('Changes not saved'), findsOneWidget);
+      expect(find.textContaining('could not confirm'), findsOneWidget);
       expect(find.text('Edit profile'), findsOneWidget);
       expect(find.widgetWithText(TextField, 'Jordan Reyes'), findsOneWidget);
       expect(find.text('Profile saved successfully'), findsNothing);

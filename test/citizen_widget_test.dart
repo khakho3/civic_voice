@@ -1063,7 +1063,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      expect(find.textContaining('Changes not saved'), findsOneWidget);
+      expect(find.textContaining('could not confirm'), findsOneWidget);
       expect(find.text('Edit profile'), findsOneWidget);
       expect(find.widgetWithText(TextField, 'Ama Owusu'), findsOneWidget);
       expect(profileService.profile.value.fullName, 'Ama Mensah');

@@ -2775,7 +2775,7 @@ void main() {
       await tester.tap(find.text('Save changes'));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('Changes not saved'), findsOneWidget);
+      expect(find.textContaining('could not confirm'), findsOneWidget);
       expect(find.widgetWithText(TextField, 'Updated Name'), findsOneWidget);
       expect(find.text('Something went wrong'), findsNothing);
       expect(find.text('Profile updated'), findsNothing);

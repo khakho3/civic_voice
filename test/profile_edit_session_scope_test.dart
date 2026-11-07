@@ -85,4 +85,136 @@ void main() {
     expect(saved, 'Entered name');
     expect(find.byType(ProfileNameEditSheet), findsNothing);
   });
+
+  testWidgets('unconfirmed save keeps entered text and reports uncertainty', (
+    tester,
+  ) async {
+    await open(tester, (_) async => false);
+    await tester.tap(find.text('Save changes'));
+    await tester.pumpAndSettle();
+    expect(find.byType(ProfileNameEditSheet), findsOneWidget);
+    expect(find.text('Entered name'), findsOneWidget);
+    expect(find.textContaining('could not confirm'), findsOneWidget);
+    expect(find.textContaining('Changes not saved'), findsNothing);
+  });
+
+  testWidgets('a thrown response also leaves an unconfirmed editable name', (
+    tester,
+  ) async {
+    await open(tester, (_) async => throw TimeoutException('fixture timeout'));
+    await tester.tap(find.text('Save changes'));
+    await tester.pumpAndSettle();
+    expect(find.text('Entered name'), findsOneWidget);
+    expect(find.textContaining('could not confirm'), findsOneWidget);
+    expect(find.byType(ProfileNameEditSheet), findsOneWidget);
+  });
+
+  testWidgets('whitespace-only name is rejected without dispatching a write', (
+    tester,
+  ) async {
+    var writes = 0;
+    await open(tester, (_) async {
+      writes++;
+      return true;
+    });
+    await tester.enterText(find.byType(TextField), '   ');
+    await tester.tap(find.text('Save changes'));
+    await tester.pumpAndSettle();
+    expect(writes, 0);
+    expect(find.text('Full name is required.'), findsOneWidget);
+    expect(find.byType(ProfileNameEditSheet), findsOneWidget);
+  });
+
+  testWidgets('rapid save taps dispatch only one write', (tester) async {
+    final pending = Completer<bool>();
+    var writes = 0;
+    await open(tester, (_) {
+      writes++;
+      return pending.future;
+    });
+    await tester.tap(find.text('Save changes'));
+    await tester.pump();
+    expect(find.byType(FilledButton).first.evaluate(), isNotEmpty);
+    expect(
+      tester.widget<FilledButton>(find.byType(FilledButton).first).onPressed,
+      isNull,
+    );
+    await tester.tap(find.byType(FilledButton).first, warnIfMissed: false);
+    await tester.pump();
+    expect(writes, 1);
+    expect(find.byType(ProfileNameEditSheet), findsOneWidget);
+    pending.complete(true);
+    await tester.pumpAndSettle();
+    expect(find.byType(ProfileNameEditSheet), findsNothing);
+  });
+
+  testWidgets('a late response after disposal cannot reopen the editor', (
+    tester,
+  ) async {
+    final pending = Completer<bool>();
+    await open(tester, (_) => pending.future);
+    await tester.tap(find.text('Save changes'));
+    await tester.pump();
+    await tester.pumpWidget(const SizedBox());
+    pending.complete(true);
+    await tester.pumpAndSettle();
+    expect(find.byType(ProfileNameEditSheet), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  for (final width in [320.0, 390.0, 412.0, 768.0]) {
+    for (final dark in [false, true]) {
+      for (final scale in [1.0, 1.5, 2.0]) {
+        testWidgets('name editor width=$width dark=$dark scale=$scale', (
+          tester,
+        ) async {
+          tester.view.physicalSize = Size(width, 640);
+          tester.view.devicePixelRatio = 1;
+          addTearDown(tester.view.resetPhysicalSize);
+          addTearDown(tester.view.resetDevicePixelRatio);
+          await tester.pumpWidget(
+            MaterialApp(
+              theme: dark ? AppTheme.dark : AppTheme.light,
+              builder: (context, child) => MediaQuery(
+                data: MediaQuery.of(context).copyWith(
+                  textScaler: TextScaler.linear(scale),
+                ),
+                child: child!,
+              ),
+              home: Scaffold(
+                body: Builder(
+                  builder: (context) => TextButton(
+                    onPressed: () => showProfileNameEditSheet(
+                      context,
+                      initialName: 'Fixture A',
+                      onSave: (_) async => true,
+                    ),
+                    child: const Text('Edit'),
+                  ),
+                ),
+              ),
+            ),
+          );
+          await tester.tap(find.text('Edit'));
+          await tester.pumpAndSettle();
+          expect(
+            MediaQuery.textScalerOf(
+              tester.element(find.byType(ProfileNameEditSheet)),
+            ).scale(16),
+            16 * scale,
+          );
+          expect(find.text('Edit profile'), findsOneWidget);
+          expect(find.widgetWithText(TextField, 'Fixture A'), findsOneWidget);
+          await tester.enterText(find.byType(TextField), 'Fixture B');
+          await tester.ensureVisible(find.text('Save changes'));
+          await tester.pumpAndSettle();
+          expect(find.text('Save changes'), findsOneWidget);
+          expect(tester.takeException(), isNull);
+          await tester.tap(find.text('Cancel'));
+          await tester.pumpAndSettle();
+          expect(find.byType(ProfileNameEditSheet), findsNothing);
+        });
+      }
+    }
+  }
 }
