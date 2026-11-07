@@ -474,48 +474,76 @@ class _TaskListTile extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final brightness = Theme.of(context).brightness;
 
+    final badge = TintedBadge(
+      label: task.status.label,
+      color: task.status.color,
+      textColor: task.status.badgeTextColor(brightness),
+      maxLines: 2,
+    );
+    final taskInfo = Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        CircleAvatar(
+          backgroundColor: colorScheme.primaryContainer,
+          child: Icon(
+            AppIcons.location,
+            color: AppSemanticColors.of(context).actionText,
+          ),
+        ),
+        const SizedBox(width: AppSpacing.md),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                task.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: textTheme.titleSmall,
+              ),
+              Text(
+                task.locationLabel,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+
     return GlassCard(
       onTap: onTap,
-      child: Row(
-        children: [
-          CircleAvatar(
-            backgroundColor: colorScheme.primaryContainer,
-            child: Icon(
-              AppIcons.location,
-              color: AppSemanticColors.of(context).actionText,
-            ),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final bodySize = MediaQuery.textScalerOf(
+            context,
+          ).scale(AppFontSize.body);
+          if (constraints.maxWidth < 20 * bodySize) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(
-                  task.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: textTheme.titleSmall,
-                ),
-                Text(
-                  task.locationLabel,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: textTheme.bodySmall?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                ),
+                Align(alignment: AlignmentDirectional.topEnd, child: badge),
+                const SizedBox(height: AppSpacing.xs),
+                taskInfo,
               ],
-            ),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Flexible(
-            child: TintedBadge(
-              label: task.status.label,
-              color: task.status.color,
-              textColor: task.status.badgeTextColor(brightness),
-            ),
-          ),
-        ],
+            );
+          }
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: taskInfo),
+              const SizedBox(width: AppSpacing.sm),
+              ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: constraints.maxWidth / 2),
+                child: badge,
+              ),
+            ],
+          );
+        },
       ),
     );
   }
