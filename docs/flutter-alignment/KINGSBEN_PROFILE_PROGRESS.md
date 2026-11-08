@@ -1,5 +1,21 @@
 # Kingsben Flutter Profile review — progress
 
+## Integrator review · 8 November 2026
+
+PR 23 was reviewed against Flutter working-branch tip `640eb5a`. The pinned
+Web source was available for read-only comparison of name editing, Guest
+exclusion, standing, and Profile actions. Contributor evidence below records
+the checkpoints from the assignment.
+
+After an unconfirmed name save, the Admin editor now keeps the close prompt
+neutral and directs the user back to Profile. The new regression reproduced
+the earlier prompt and passed after the correction. All 94 focused tests
+passed. The existing boolean save callback still requires a separate contract
+change to distinguish a definite rejection from an unconfirmed write. Live
+DEV and owner Profile acceptance remain pending.
+
+## Contributor checkpoints
+
 Assignment issued 6 November 2026. This is an uncommitted local review on
 `codex/flutter-kingsben-profile-review`, tracking the published task branch at
 `5920aa6a75fa3765390fbe3d6aa1e6e4662dc16b`. Its parent is the verified

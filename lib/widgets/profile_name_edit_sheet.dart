@@ -134,9 +134,11 @@ class _ProfileNameEditSheetState extends State<ProfileNameEditSheet> {
     if (widget.confirmDiscard && _dirty) {
       final discard = await showConfirmDialog(
         context,
-        title: 'Discard changes?',
-        message: 'Your unsaved profile changes will be lost.',
-        confirmLabel: 'Discard',
+        title: _saveUnconfirmed ? 'Close editor?' : 'Discard changes?',
+        message: _saveUnconfirmed
+            ? 'Check the name on your profile before trying again.'
+            : 'Your unsaved profile changes will be lost.',
+        confirmLabel: _saveUnconfirmed ? 'Close editor' : 'Discard',
         destructive: true,
       );
       if (!discard || !mounted) return;

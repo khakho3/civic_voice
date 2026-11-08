@@ -16,8 +16,9 @@ void main() {
 
   Future<void> open(
     WidgetTester tester,
-    Future<bool> Function(String) save,
-  ) async {
+    Future<bool> Function(String) save, {
+    bool confirmDiscard = false,
+  }) async {
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.light,
@@ -28,6 +29,7 @@ void main() {
                 context,
                 initialName: 'Fixture A',
                 onSave: save,
+                confirmDiscard: confirmDiscard,
               ),
               child: const Text('Edit'),
             ),
@@ -96,6 +98,21 @@ void main() {
     expect(find.text('Entered name'), findsOneWidget);
     expect(find.textContaining('could not confirm'), findsOneWidget);
     expect(find.textContaining('Changes not saved'), findsNothing);
+  });
+
+  testWidgets('closing an unconfirmed save keeps the outcome neutral', (
+    tester,
+  ) async {
+    await open(tester, (_) async => false, confirmDiscard: true);
+    await tester.tap(find.text('Save changes'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(find.text('Close editor?'), findsOneWidget);
+    expect(find.text('Your unsaved profile changes will be lost.'), findsNothing);
+    await tester.tap(find.text('Close editor'));
+    await tester.pumpAndSettle();
+    expect(find.byType(ProfileNameEditSheet), findsNothing);
   });
 
   testWidgets('a thrown response also leaves an unconfirmed editable name', (
