@@ -95,15 +95,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildBody(BuildContext context, List<MaintenanceTask> tasks) {
+    final loading = Padding(
+      padding: MaintenanceScaffold.contentPadding(context),
+      child: const GhanaLoadingIndicator(label: 'Loading dashboard…'),
+    );
     if (MaintenanceTaskDirectory.instance.loading.value && !_manualRefresh) {
-      return const GhanaLoadingIndicator();
+      return loading;
     }
     if (MaintenanceTaskDirectory.instance.error.value != null) {
       return _ErrorView(onRetry: _reload);
     }
     switch (_state) {
       case AppScreenState.loading:
-        return const GhanaLoadingIndicator();
+        return loading;
       case AppScreenState.empty:
         return _EmptyView(onRefresh: _reload);
       case AppScreenState.error:

@@ -17,10 +17,7 @@ import '../../../widgets/status_badge.dart';
 /// Empty, Error, Offline, Permission — no Success/Disabled, since a
 /// read-only overview screen has no completable action to confirm.
 ///
-/// Loading and Empty keep the page shell in place (municipality selector,
-/// stats grid) and only swap the data-driven parts — they are not full-page
-/// replacements. Error/Offline/Permission genuinely have nothing to show, so
-/// those replace the whole body.
+/// The module shell stays in place while the dashboard data loads.
 enum MunicipalDashboardViewState {
   loading,
   loaded,
@@ -145,12 +142,12 @@ class _MunicipalDashboardScreenState extends State<MunicipalDashboardScreen> {
         onRefresh: _pullRefresh,
         topOffset: MunicipalScaffold.contentPadding(context).top,
         child: switch (_state) {
-          MunicipalDashboardViewState.loading => const GhanaLoadingIndicator(
-            label: 'Loading dashboard data',
+          MunicipalDashboardViewState.loading => Padding(
+            padding: MunicipalScaffold.contentPadding(context),
+            child: const GhanaLoadingIndicator(label: 'Loading dashboard…'),
           ),
           MunicipalDashboardViewState.loaded => _DashboardContent(
             data: _data,
-            loading: false,
             empty: false,
             onViewAllReports: widget.onNavigateToInbox,
             onReportTap: widget.onReportTap,
@@ -158,7 +155,6 @@ class _MunicipalDashboardScreenState extends State<MunicipalDashboardScreen> {
           MunicipalDashboardViewState.empty => _DashboardContent(
             data: _data,
             onViewAllReports: widget.onNavigateToInbox,
-            loading: false,
             empty: true,
             onReportTap: widget.onReportTap,
           ),
@@ -215,13 +211,12 @@ class _MunicipalDashboardScreenState extends State<MunicipalDashboardScreen> {
 }
 
 // ---------------------------------------------------------------------------
-// Shared shell for Loading / Loaded / Empty
+// Shared content for Loaded / Empty
 // ---------------------------------------------------------------------------
 
 class _DashboardContent extends StatelessWidget {
   const _DashboardContent({
     required this.data,
-    required this.loading,
     required this.empty,
     this.onViewAllReports,
     this.onReportTap,
@@ -230,7 +225,6 @@ class _DashboardContent extends StatelessWidget {
   final MunicipalDashboardData data;
   final VoidCallback? onViewAllReports;
   final ValueChanged<IncomingReportItem>? onReportTap;
-  final bool loading;
   final bool empty;
 
   @override
@@ -250,17 +244,12 @@ class _DashboardContent extends StatelessWidget {
           officerName: data.officerName,
           municipalityName: data.municipalityName,
         ),
-        if (loading) ...[
-          const SizedBox(height: AppSpacing.sm),
-          const _LoadingIndicatorRow(),
-        ],
         const SizedBox(height: AppSpacing.md),
-        _StatsGrid(stats: stats, isLoading: loading),
+        _StatsGrid(stats: stats),
         const SizedBox(height: AppSpacing.xl),
-        if (!loading &&
-            MunicipalReportDirectory.instance.reports.value.any(
-              (r) => r.status.name == 'pendingApproval',
-            )) ...[
+        if (MunicipalReportDirectory.instance.reports.value.any(
+          (r) => r.status.name == 'pendingApproval',
+        )) ...[
           GlassCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -289,29 +278,14 @@ class _DashboardContent extends StatelessWidget {
         ],
         _RecentReportsCard(
           reports: data.recentReports,
-          isLoading: loading,
           isEmpty: empty,
           onViewAll: onViewAllReports,
           onReportTap: onReportTap,
         ),
-        if (!loading && !empty) ...[
+        if (!empty) ...[
           const SizedBox(height: AppSpacing.xl),
           _AssignmentSummaryCard(items: data.assignmentSummary),
         ],
-      ],
-    );
-  }
-}
-
-class _LoadingIndicatorRow extends StatelessWidget {
-  const _LoadingIndicatorRow();
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    return Row(
-      children: [
-        Text('Loading dashboard data', style: textTheme.bodySmall),
       ],
     );
   }
@@ -371,10 +345,9 @@ class _DashboardGreeting extends StatelessWidget {
 }
 
 class _StatsGrid extends StatelessWidget {
-  const _StatsGrid({required this.stats, required this.isLoading});
+  const _StatsGrid({required this.stats});
 
   final MunicipalDashboardStats stats;
-  final bool isLoading;
 
   @override
   Widget build(BuildContext context) {
@@ -404,25 +377,21 @@ class _StatsGrid extends StatelessWidget {
               label: 'New Reports',
               value: stats.newReports,
               icon: AppIcons.report,
-              isLoading: isLoading,
             ),
             _StatCard(
               label: 'Under Review',
               value: stats.underReview,
               icon: AppIcons.statusUnderReview,
-              isLoading: isLoading,
             ),
             _StatCard(
               label: 'Assigned',
               value: stats.assigned,
               icon: AppIcons.statusAssigned,
-              isLoading: isLoading,
             ),
             _StatCard(
               label: 'Resolved',
               value: stats.resolved,
               icon: AppIcons.statusResolved,
-              isLoading: isLoading,
             ),
           ],
         );
@@ -436,13 +405,11 @@ class _StatCard extends StatelessWidget {
     required this.label,
     required this.value,
     required this.icon,
-    required this.isLoading,
   });
 
   final String label;
   final int value;
   final IconData icon;
-  final bool isLoading;
 
   @override
   Widget build(BuildContext context) {
@@ -455,14 +422,12 @@ class _StatCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Expanded(
-                child: isLoading
-                    ? const _ShimmerBlock(height: 14, widthFactor: 0.7)
-                    : Text(
-                        label,
-                        style: textTheme.bodySmall?.copyWith(
-                          fontWeight: AppFontWeight.medium,
-                        ),
-                      ),
+                child: Text(
+                  label,
+                  style: textTheme.bodySmall?.copyWith(
+                    fontWeight: AppFontWeight.medium,
+                  ),
+                ),
               ),
               Icon(
                 icon,
@@ -472,9 +437,7 @@ class _StatCard extends StatelessWidget {
             ],
           ),
           const Spacer(),
-          isLoading
-              ? const _ShimmerBlock(height: 28, widthFactor: 0.4)
-              : Text('$value', style: textTheme.headlineLarge),
+          Text('$value', style: textTheme.headlineLarge),
         ],
       ),
     );
@@ -484,14 +447,12 @@ class _StatCard extends StatelessWidget {
 class _RecentReportsCard extends StatelessWidget {
   const _RecentReportsCard({
     required this.reports,
-    required this.isLoading,
     required this.isEmpty,
     this.onViewAll,
     this.onReportTap,
   });
 
   final List<IncomingReportItem> reports;
-  final bool isLoading;
   final bool isEmpty;
   final VoidCallback? onViewAll;
   final ValueChanged<IncomingReportItem>? onReportTap;
@@ -522,10 +483,7 @@ class _RecentReportsCard extends StatelessWidget {
               ],
             ),
           ),
-          if (isLoading)
-            for (var i = 0; i < 4; i++)
-              _RecentReportRowSkeleton(isFirst: i == 0)
-          else if (isEmpty)
+          if (isEmpty)
             const _RecentReportsEmpty()
           else
             for (final report in reports)
@@ -605,46 +563,7 @@ class _RecentReportRow extends StatelessWidget {
   }
 }
 
-class _RecentReportRowSkeleton extends StatelessWidget {
-  const _RecentReportRowSkeleton({required this.isFirst});
-
-  final bool isFirst;
-
-  @override
-  Widget build(BuildContext context) {
-    final semantic = Theme.of(context).extension<AppSemanticColors>()!;
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.md,
-      ),
-      decoration: BoxDecoration(
-        border: isFirst
-            ? null
-            : Border(top: BorderSide(color: semantic.glassBorder)),
-      ),
-      child: Row(
-        children: [
-          const _ReportRowIcon(),
-          const SizedBox(width: AppSpacing.md),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _ShimmerBlock(height: 14, widthFactor: 0.7),
-                SizedBox(height: AppSpacing.sm),
-                _ShimmerBlock(height: 12, widthFactor: 0.45),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// The generic report-row leading icon — real in every state (loading
-/// included), matching the approved design.
+/// The generic report-row leading icon.
 class _ReportRowIcon extends StatelessWidget {
   const _ReportRowIcon();
 
@@ -748,66 +667,6 @@ class _AssignmentSummaryCard extends StatelessWidget {
             if (item != items.last) const SizedBox(height: AppSpacing.md),
           ],
         ],
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Shimmer skeleton primitive — used by loading sub-states above (blank
-// screens are prohibited, §19.18).
-// ---------------------------------------------------------------------------
-
-class _ShimmerBlock extends StatefulWidget {
-  const _ShimmerBlock({required this.height, this.widthFactor = 1.0});
-
-  final double height;
-
-  /// Fraction of the available width the block should occupy (0.0–1.0).
-  final double widthFactor;
-
-  @override
-  State<_ShimmerBlock> createState() => _ShimmerBlockState();
-}
-
-class _ShimmerBlockState extends State<_ShimmerBlock>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1000),
-  )..repeat(reverse: true);
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final base = Theme.of(context).colorScheme.surfaceContainer;
-    final highlight = Theme.of(context).colorScheme.surfaceContainerLow;
-    final reduceMotion =
-        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
-
-    return FractionallySizedBox(
-      widthFactor: widget.widthFactor,
-      alignment: Alignment.centerLeft,
-      child: AnimatedBuilder(
-        animation: _controller,
-        builder: (context, _) {
-          return Container(
-            height: widget.height,
-            decoration: BoxDecoration(
-              color: Color.lerp(
-                base,
-                highlight,
-                reduceMotion ? 0.5 : _controller.value,
-              ),
-              borderRadius: AppRadius.allXs,
-            ),
-          );
-        },
       ),
     );
   }

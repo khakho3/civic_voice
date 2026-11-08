@@ -77,7 +77,9 @@ void main() {
         await tester.pump();
         expect(find.text('1234'), findsNothing);
         expect(find.byType(BusyIndicator), findsNothing);
-        expect(find.text('Loading overview'), findsOneWidget);
+        final loading = find.text('Loading dashboard…');
+        expect(loading, findsOneWidget);
+        expect(tester.getCenter(loading).dy, closeTo(450, 40));
         pending.completeError(StateError('fixture failure'));
         await switched;
         await tester.pumpAndSettle();

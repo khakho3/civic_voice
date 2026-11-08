@@ -18,6 +18,7 @@ import 'package:permission_handler/permission_handler.dart';
 
 import 'core/navigation/tab_route.dart';
 import 'core/theme/app_theme.dart';
+import 'core/widgets/ghana_refresh_indicator.dart';
 import 'core/theme/theme_controller.dart';
 import 'features/admin/models/admin_user_management_data.dart';
 import 'features/admin/models/admin_role_management_data.dart';
@@ -691,7 +692,9 @@ class _CivicVoiceAppState extends State<CivicVoiceApp>
             darkTheme: AppTheme.dark,
             themeMode: themeMode,
             home: const Scaffold(
-              body: Center(child: Text('Restoring session…')),
+              body: SafeArea(
+                child: GhanaLoadingIndicator(label: 'Restoring your session…'),
+              ),
             ),
           );
         }

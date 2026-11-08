@@ -254,216 +254,247 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen>
         return GhanaRefreshIndicator(
           onRefresh: _refresh,
           topOffset: inset.top,
-          child: ListView(
+          child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: EdgeInsets.fromLTRB(
-              AppSpacing.md,
-              inset.top + AppSpacing.lg,
-              AppSpacing.md,
-              inset.bottom + AppSpacing.lg,
-            ),
-            children: [
-              _heading(context, superAdmin),
-              const SizedBox(height: AppSpacing.lg),
-              // Pull/resume refresh already has its own feedback. Only a cold
-              // load needs this row; adding it above verified cards shifts them.
-              if ((_source.loading || !_requested) && data == null)
-                const GhanaLoadingIndicator(label: 'Loading overview'),
-              if (data != null) ...[
-                _DashboardCard(
-                  key: const ValueKey('admin-overview-stats'),
-                  padding: const EdgeInsets.all(1),
-                  child: Stack(
-                    children: [
-                      Column(
+            slivers: [
+              SliverPadding(
+                padding: EdgeInsets.fromLTRB(
+                  AppSpacing.md,
+                  inset.top + AppSpacing.lg,
+                  AppSpacing.md,
+                  AppSpacing.lg,
+                ),
+                sliver: SliverToBoxAdapter(
+                  child: _heading(context, superAdmin),
+                ),
+              ),
+              // Only a cold load needs page feedback. During pull-to-refresh
+              // the shared indicator keeps feedback under the header.
+              SliverPadding(
+                padding: EdgeInsets.fromLTRB(
+                  AppSpacing.md,
+                  0,
+                  AppSpacing.md,
+                  inset.bottom + AppSpacing.lg,
+                ),
+                sliver: data == null
+                    ? const SliverFillRemaining(
+                        hasScrollBody: false,
+                        child: GhanaLoadingIndicator(
+                          label: 'Loading dashboard…',
+                        ),
+                      )
+                    : SliverList.list(
                         children: [
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(
-                                child: _Metric(
-                                  'Total users',
-                                  data.totalUsers,
-                                  widget.onUsers,
-                                  detail: 'Registered accounts in your scope',
-                                ),
-                              ),
-                              Expanded(
-                                child: _Metric(
-                                  'Active roles',
-                                  data.activeRoles,
-                                  widget.onUsers,
-                                  detail: 'Among active registered accounts',
-                                ),
-                              ),
-                            ],
-                          ),
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(
-                                child: _Metric(
-                                  'Audit events',
-                                  data.auditEvents24h,
-                                  widget.onActivity,
-                                  detail: 'Last 24 hours',
-                                ),
-                              ),
-                              Expanded(
-                                child: _Metric(
-                                  'Open alerts',
-                                  data.openAlerts,
-                                  widget.onAlerts,
-                                  warning: true,
-                                  detail:
-                                      'Includes acknowledged · excludes resolved',
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                      const Positioned.fill(
-                        child: Center(
-                          child: VerticalDivider(width: 1, thickness: 1),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.xl),
-                Text(
-                  'Management',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                _DashboardCard(
-                  key: const ValueKey('admin-overview-management'),
-                  padding: EdgeInsets.zero,
-                  child: Column(
-                    children: [
-                      _management(
-                        AppIcons.team,
-                        'User Management',
-                        'Manage administrator and staff accounts',
-                        widget.onUsers,
-                      ),
-                      const Divider(height: 1),
-                      _management(
-                        AppIcons.team,
-                        'Maintenance Teams',
-                        'Manage crews and membership',
-                        widget.onTeams,
-                      ),
-                      if (superAdmin) ...[
-                        const Divider(height: 1),
-                        _management(
-                          AppIcons.location,
-                          'Report Routing',
-                          'Resolve reports with an unknown assembly',
-                          () => Navigator.of(
-                            context,
-                          ).pushNamed('/admin/report-routing'),
-                        ),
-                        const Divider(height: 1),
-                        _management(
-                          AppIcons.roleManagement,
-                          'Role Management',
-                          'Review privileges and access groups',
-                          widget.onRoles,
-                        ),
-                        const Divider(height: 1),
-                        _management(
-                          AppIcons.settings,
-                          'System Settings',
-                          'Governance-approved configuration',
-                          widget.onSettings,
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.xl),
-                _DashboardCard(
-                  key: const ValueKey('admin-overview-activity'),
-                  onTap: widget.onActivity,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              'Activity Monitoring',
-                              style: Theme.of(context).textTheme.titleMedium,
-                            ),
-                          ),
-                          Icon(
-                            AppIcons.activityLog,
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.onSurfaceVariant,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-                      if (!data.collectionEnabled)
-                        const Text(
-                          'Audit collection is off. Existing history remains available.',
-                        ),
-                      if (data.recent.isEmpty)
-                        const Text('No recent activity.'),
-                      for (var i = 0; i < data.recent.length; i++)
-                        Padding(
-                          padding: EdgeInsets.only(
-                            top: i == 0 ? 0 : AppSpacing.md,
-                          ),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              CircleAvatar(
-                                radius: 14,
-                                backgroundColor: Theme.of(
-                                  context,
-                                ).colorScheme.surfaceContainerLow,
-                                child: Text(
-                                  '${i + 1}',
-                                  style: Theme.of(context).textTheme.labelSmall,
-                                ),
-                              ),
-                              const SizedBox(width: AppSpacing.sm),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                          _DashboardCard(
+                            key: const ValueKey('admin-overview-stats'),
+                            padding: const EdgeInsets.all(1),
+                            child: Stack(
+                              children: [
+                                Column(
                                   children: [
-                                    Text(
-                                      data.recent[i].title,
-                                      style: Theme.of(
-                                        context,
-                                      ).textTheme.titleSmall,
+                                    Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Expanded(
+                                          child: _Metric(
+                                            'Total users',
+                                            data.totalUsers,
+                                            widget.onUsers,
+                                            detail:
+                                                'Registered accounts in your scope',
+                                          ),
+                                        ),
+                                        Expanded(
+                                          child: _Metric(
+                                            'Active roles',
+                                            data.activeRoles,
+                                            widget.onUsers,
+                                            detail:
+                                                'Among active registered accounts',
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                    Text(
-                                      '${data.recent[i].tag} · ${data.recent[i].severity.label}',
-                                      style: Theme.of(
-                                        context,
-                                      ).textTheme.bodySmall,
-                                    ),
-                                    Text(
-                                      '${MaterialLocalizations.of(context).formatMediumDate(data.recent[i].timestamp)} · ${TimeOfDay.fromDateTime(data.recent[i].timestamp).format(context)}',
-                                      style: Theme.of(
-                                        context,
-                                      ).textTheme.labelSmall,
+                                    Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Expanded(
+                                          child: _Metric(
+                                            'Audit events',
+                                            data.auditEvents24h,
+                                            widget.onActivity,
+                                            detail: 'Last 24 hours',
+                                          ),
+                                        ),
+                                        Expanded(
+                                          child: _Metric(
+                                            'Open alerts',
+                                            data.openAlerts,
+                                            widget.onAlerts,
+                                            warning: true,
+                                            detail:
+                                                'Includes acknowledged · excludes resolved',
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ],
                                 ),
-                              ),
-                            ],
+                                const Positioned.fill(
+                                  child: Center(
+                                    child: VerticalDivider(
+                                      width: 1,
+                                      thickness: 1,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                    ],
-                  ),
-                ),
-              ],
+                          const SizedBox(height: AppSpacing.xl),
+                          Text(
+                            'Management',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+                          _DashboardCard(
+                            key: const ValueKey('admin-overview-management'),
+                            padding: EdgeInsets.zero,
+                            child: Column(
+                              children: [
+                                _management(
+                                  AppIcons.team,
+                                  'User Management',
+                                  'Manage administrator and staff accounts',
+                                  widget.onUsers,
+                                ),
+                                const Divider(height: 1),
+                                _management(
+                                  AppIcons.team,
+                                  'Maintenance Teams',
+                                  'Manage crews and membership',
+                                  widget.onTeams,
+                                ),
+                                if (superAdmin) ...[
+                                  const Divider(height: 1),
+                                  _management(
+                                    AppIcons.location,
+                                    'Report Routing',
+                                    'Resolve reports with an unknown assembly',
+                                    () => Navigator.of(
+                                      context,
+                                    ).pushNamed('/admin/report-routing'),
+                                  ),
+                                  const Divider(height: 1),
+                                  _management(
+                                    AppIcons.roleManagement,
+                                    'Role Management',
+                                    'Review privileges and access groups',
+                                    widget.onRoles,
+                                  ),
+                                  const Divider(height: 1),
+                                  _management(
+                                    AppIcons.settings,
+                                    'System Settings',
+                                    'Governance-approved configuration',
+                                    widget.onSettings,
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.xl),
+                          _DashboardCard(
+                            key: const ValueKey('admin-overview-activity'),
+                            onTap: widget.onActivity,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        'Activity Monitoring',
+                                        style: Theme.of(
+                                          context,
+                                        ).textTheme.titleMedium,
+                                      ),
+                                    ),
+                                    Icon(
+                                      AppIcons.activityLog,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurfaceVariant,
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: AppSpacing.md),
+                                if (!data.collectionEnabled)
+                                  const Text(
+                                    'Audit collection is off. Existing history remains available.',
+                                  ),
+                                if (data.recent.isEmpty)
+                                  const Text('No recent activity.'),
+                                for (var i = 0; i < data.recent.length; i++)
+                                  Padding(
+                                    padding: EdgeInsets.only(
+                                      top: i == 0 ? 0 : AppSpacing.md,
+                                    ),
+                                    child: Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        CircleAvatar(
+                                          radius: 14,
+                                          backgroundColor: Theme.of(
+                                            context,
+                                          ).colorScheme.surfaceContainerLow,
+                                          child: Text(
+                                            '${i + 1}',
+                                            style: Theme.of(
+                                              context,
+                                            ).textTheme.labelSmall,
+                                          ),
+                                        ),
+                                        const SizedBox(width: AppSpacing.sm),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                data.recent[i].title,
+                                                style: Theme.of(
+                                                  context,
+                                                ).textTheme.titleSmall,
+                                              ),
+                                              Text(
+                                                '${data.recent[i].tag} · ${data.recent[i].severity.label}',
+                                                style: Theme.of(
+                                                  context,
+                                                ).textTheme.bodySmall,
+                                              ),
+                                              Text(
+                                                '${MaterialLocalizations.of(context).formatMediumDate(data.recent[i].timestamp)} · ${TimeOfDay.fromDateTime(data.recent[i].timestamp).format(context)}',
+                                                style: Theme.of(
+                                                  context,
+                                                ).textTheme.labelSmall,
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+              ),
             ],
           ),
         );
