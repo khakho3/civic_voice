@@ -542,6 +542,15 @@ class _TimelineStep extends StatelessWidget {
                         fontWeight: AppFontWeight.semiBold,
                       ),
                     ),
+                    if (status == ReportStatus.inProgress &&
+                        complete &&
+                        report.progressNotes?.isNotEmpty == true) ...[
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        report.progressNotes!,
+                        style: theme.textTheme.bodySmall,
+                      ),
+                    ],
                   ],
                 ),
               ),

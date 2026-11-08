@@ -403,6 +403,39 @@ void main() {
     },
   );
 
+  testWidgets('saving work notes returns to the same task timeline', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(428, 1800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(
+      const app.CivicVoiceApp(
+        initialRoute: app.AppRoutes.maintenanceAssignedTasks,
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Broken Street Light at Main Ave'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Update Progress'));
+    await tester.tap(find.text('Update Progress'));
+    await tester.pumpAndSettle();
+    const note = 'Inspected the wiring and isolated the fault.';
+    await tester.enterText(find.byType(EditableText).first, note);
+    await tester.ensureVisible(find.text('Save Update'));
+    await tester.tap(find.text('Save Update'));
+    await tester.pumpAndSettle();
+    expect(find.text('Task Timeline'), findsOneWidget);
+    expect(find.text('#MNT-1001'), findsOneWidget);
+    expect(find.text(note), findsOneWidget);
+    expect(find.text('Save Update'), findsNothing);
+    expect(
+      MaintenanceTaskDirectory.instance.taskById('MNT-1001')!.completionNotes,
+      isNull,
+    );
+  });
+
   testWidgets('Maintenance routes connect dashboard, tasks, details, progress, '
       'completion, and profile — merged evidence flow, no separate Upload '
       'Evidence step', (WidgetTester tester) async {

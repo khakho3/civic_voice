@@ -79,6 +79,7 @@ class MaintenanceTask {
     this.reportPhotoUrls = const [],
     this.resolutionPhotoUrls = const [],
     this.completionNotes,
+    this.progressNotes,
     this.fieldIssueNotes,
     this.completedAtLabel,
     this.completedWeekday,
@@ -131,6 +132,7 @@ class MaintenanceTask {
   /// [MaintenanceTaskStatus.failed] — the work notes entered on Update
   /// Progress, read back verbatim on Task Completed.
   final String? completionNotes;
+  final String? progressNotes;
 
   /// A recorded obstacle keeps the server task open and editable.
   final String? fieldIssueNotes;
@@ -139,9 +141,8 @@ class MaintenanceTask {
   /// (mock data has no real clock to derive this from).
   final String? completedAtLabel;
 
-  /// 0 (Monday) through 6 (Sunday) — which bar of Dashboard's "Weekly
-  /// Completion" chart this task counts toward. Only meaningful once
-  /// [status] is [MaintenanceTaskStatus.completed].
+  /// Preview-only day index, from 0 (Monday) to 6 (Sunday). The live
+  /// dashboard derives the current week's counts from [approvedAt].
   final int? completedWeekday;
   final DateTime? assignedAt;
   final DateTime? startedAt;
@@ -176,6 +177,7 @@ class MaintenanceTask {
   MaintenanceTask copyWith({
     MaintenanceTaskStatus? status,
     String? completionNotes,
+    String? progressNotes,
     String? fieldIssueNotes,
     String? completedAtLabel,
     int? completedWeekday,
@@ -202,6 +204,7 @@ class MaintenanceTask {
       reportPhotoUrls: reportPhotoUrls,
       resolutionPhotoUrls: resolutionPhotoUrls ?? this.resolutionPhotoUrls,
       completionNotes: completionNotes ?? this.completionNotes,
+      progressNotes: progressNotes ?? this.progressNotes,
       fieldIssueNotes: fieldIssueNotes ?? this.fieldIssueNotes,
       completedAtLabel: completedAtLabel ?? this.completedAtLabel,
       completedWeekday: completedWeekday ?? this.completedWeekday,
@@ -269,6 +272,7 @@ class MaintenanceTask {
       reportPhotoUrls: photos,
       resolutionPhotoUrls: resolutionPhotos,
       completionNotes: json['resolutionNotes'] as String?,
+      progressNotes: (json['maintenanceProgressNotes'] as String?)?.trim(),
       fieldIssueNotes: failed?.isNotEmpty == true ? failed : null,
       completedAtLabel: status == 'PENDING_APPROVAL'
           ? _dateLabelOrMissing(
@@ -295,9 +299,6 @@ class MaintenanceTask {
       maintenanceContactName:
           (json['maintenanceContact'] as Map<String, dynamic>?)?['fullName']
               as String?,
-      completedWeekday: status == 'RESOLVED'
-          ? (updatedAt ?? DateTime.now()).weekday - 1
-          : null,
     );
   }
 
@@ -322,6 +323,36 @@ class MaintenanceTask {
         '${local.hour.toString().padLeft(2, '0')}:'
         '${local.minute.toString().padLeft(2, '0')}';
   }
+}
+
+List<int> maintenanceWeeklyCompletionCounts(
+  Iterable<MaintenanceTask> tasks, {
+  required DateTime now,
+}) {
+  final today = now.toUtc();
+  final midnight = DateTime.utc(today.year, today.month, today.day);
+  final monday = midnight.subtract(
+    Duration(days: today.weekday - DateTime.monday),
+  );
+  final counts = List<int>.filled(7, 0);
+  for (final task in tasks) {
+    if (task.status != MaintenanceTaskStatus.completed) continue;
+    final approvedAt = task.approvedAt?.toUtc();
+    if (approvedAt != null) {
+      if (!approvedAt.isBefore(monday) && !approvedAt.isAfter(today)) {
+        counts[approvedAt.weekday - DateTime.monday] += 1;
+      }
+    } else {
+      final previewDay = task.completedWeekday;
+      if (task.apiId == null &&
+          previewDay != null &&
+          previewDay >= 0 &&
+          previewDay < counts.length) {
+        counts[previewDay] += 1;
+      }
+    }
+  }
+  return List<int>.unmodifiable(counts);
 }
 
 /// Placeholder content matching the approved MNT-00x designs, used until the

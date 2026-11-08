@@ -23,11 +23,13 @@ class TintedBadge extends StatelessWidget {
     required this.color,
     required this.textColor,
     this.icon,
+    this.maxLines = 1,
   });
 
   final String label;
   final Color color;
   final Color textColor;
+  final int maxLines;
 
   /// Optional leading glyph — most badges stay text-only (the original
   /// intent here), but a few consolidated call sites (unread markers,
@@ -58,7 +60,7 @@ class TintedBadge extends StatelessWidget {
                 color: ink,
                 fontWeight: AppFontWeight.semiBold,
               ),
-              maxLines: 1,
+              maxLines: maxLines,
               overflow: TextOverflow.ellipsis,
             ),
           ),

@@ -1,5 +1,18 @@
 # Latif progress
 
+## Inbox checks and current DEV candidate - 6 November 2026
+
+The merged runtime passed 38 focused inbox tests at `af8f088`. The prior full
+PR22 suite of 2,354 tests and analyzer also passed. A profile APK built from
+that source passed DEV package, signer, Firebase, local API and protected-file
+checks. ADB showed no connected device. Install and owner verification remain
+pending. Item 15 is next.
+
+Kingsben's Profile, name-save feedback and Citizen standing assignment is
+published at `5920aa6` on `codex/flutter-kingsben-profile-review`. The agent
+guide and one-page brief are on that branch. It targets this working branch
+for review.
+
 ## PR22 merged; owner-requested break - 1 November 2026
 
 **STOPPED after the authorized Ministry review/merge.** PR22 was repaired and

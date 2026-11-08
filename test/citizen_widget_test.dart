@@ -855,6 +855,7 @@ void main() {
           location: 'Community Road',
           timeLabel: 'Just now',
           status: ReportStatus.pendingApproval,
+          progressNotes: 'Cleared the first drain and checked the outlet.',
         ),
       ];
 
@@ -870,6 +871,10 @@ void main() {
 
       expect(find.text('Awaiting Confirmation'), findsWidgets);
       expect(find.text('90%'), findsOneWidget);
+      expect(
+        find.text('Cleared the first drain and checked the outlet.'),
+        findsOneWidget,
+      );
       expect(
         find.text(
           'The team finished the work and submitted it. A municipal officer is '

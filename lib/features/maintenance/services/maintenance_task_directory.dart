@@ -189,7 +189,12 @@ class MaintenanceTaskDirectory {
         resolutionPhotoUrls: submitting ? evidencePhotoPaths : null,
         completionSubmittedAt: submitting ? DateTime.now() : null,
         clearSendBack: submitting,
-        completionNotes: notes,
+        completionNotes: submitting ? notes : null,
+        progressNotes:
+            status == MaintenanceTaskStatus.inProgress &&
+                notes?.trim().isNotEmpty == true
+            ? notes!.trim()
+            : null,
         completedAtLabel: status == MaintenanceTaskStatus.completed
             ? 'Just now'
             : null,
