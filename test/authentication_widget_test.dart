@@ -90,6 +90,70 @@ void main() {
     expect(find.byType(CitizenDashboardScreen), findsOneWidget);
   });
 
+  testWidgets('fast startup releases directly to the first route before push setup finishes', (
+    tester,
+  ) async {
+    await AppCacheService.instance.markOnboardingComplete();
+    final restore = Completer<void>();
+    final notifications = Completer<void>();
+    var releases = 0;
+    var notificationsStarted = false;
+    await tester.pumpWidget(
+      CivicVoiceApp.startup(
+        restoreSession: (_) => restore.future,
+        releaseLaunchFrame: () => releases++,
+        configureNotifications: () {
+          notificationsStarted = true;
+          return notifications.future;
+        },
+      ),
+    );
+    expect(releases, 0);
+    expect(notificationsStarted, isFalse);
+    expect(find.byType(LoginScreen), findsNothing);
+
+    restore.complete();
+    await tester.pump();
+    expect(releases, 1);
+    expect(find.byType(LoginScreen), findsOneWidget);
+    expect(find.image(const AssetImage(AppAssets.splashIcon)), findsNothing);
+    expect(notificationsStarted, isTrue);
+    expect(notifications.isCompleted, isFalse);
+    notifications.complete();
+    await tester.pump(const Duration(seconds: 1));
+    expect(releases, 1);
+  });
+
+  testWidgets('slow startup releases the launch mark while restore still gates app lock', (
+    tester,
+  ) async {
+    await MockAuthService().selectRole(AppRole.citizen);
+    await AppCacheService.instance.setBiometricLockEnabled(true);
+    final restore = Completer<void>();
+    var releases = 0;
+    await tester.pumpWidget(
+      CivicVoiceApp.startup(
+        restoreSession: (_) => restore.future,
+        releaseLaunchFrame: () => releases++,
+        configureNotifications: () async {},
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 599));
+    expect(releases, 0);
+    await tester.pump(const Duration(milliseconds: 1));
+    expect(releases, 1);
+    expect(find.image(const AssetImage(AppAssets.splashIcon)), findsOneWidget);
+    expect(find.text('Restoring your session…'), findsNothing);
+    expect(find.byType(BioLockScreen), findsNothing);
+    expect(find.byType(CitizenDashboardScreen), findsNothing);
+
+    restore.complete();
+    await tester.pumpAndSettle();
+    expect(releases, 1);
+    expect(find.byType(BioLockScreen), findsOneWidget);
+    expect(find.byType(CitizenDashboardScreen), findsNothing);
+  });
+
   testWidgets('Mock auth selector chooses Admin dashboard', (
     WidgetTester tester,
   ) async {

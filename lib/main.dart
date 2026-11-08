@@ -18,7 +18,6 @@ import 'package:permission_handler/permission_handler.dart';
 
 import 'core/navigation/tab_route.dart';
 import 'core/theme/app_theme.dart';
-import 'core/widgets/ghana_refresh_indicator.dart';
 import 'core/theme/theme_controller.dart';
 import 'features/admin/models/admin_user_management_data.dart';
 import 'features/admin/models/admin_role_management_data.dart';
@@ -127,7 +126,7 @@ import 'widgets/glass_dialog_backdrop.dart';
 import 'widgets/in_app_notification_banner.dart';
 
 Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+  final binding = WidgetsFlutterBinding.ensureInitialized();
   // The bundled Inter font's SIL OFL notice, shown on the licenses page.
   LicenseRegistry.addLicense(() async* {
     yield LicenseEntryWithLineBreaks(const [
@@ -144,11 +143,12 @@ Future<void> main() async {
       !AppCacheService.instance.onboardingComplete) {
     await AppCacheService.instance.markOnboardingComplete();
   }
-  runApp(const CivicVoiceApp());
+  binding.deferFirstFrame();
+  runApp(CivicVoiceApp.startup(releaseLaunchFrame: binding.allowFirstFrame));
 }
 
 bool _pushListenersConfigured = false;
-RemoteMessage? _pendingOpenedPush;
+({RemoteMessage message, String owner})? _pendingOpenedPush;
 
 /// Global by design, not scoped to [_CivicVoiceAppState] — there is only
 /// ever one [CivicVoiceApp] in the whole process, and top-level code that
@@ -156,6 +156,27 @@ RemoteMessage? _pendingOpenedPush;
 /// below, which can fire while any screen is on top) needs a [BuildContext]
 /// of its own to show an in-app banner or navigate.
 final _navigatorKey = GlobalKey<NavigatorState>();
+final _pushRoutes = _PushRouteObserver();
+
+class _PushRouteObserver extends NavigatorObserver {
+  Route<dynamic>? _lockRoute;
+  bool get locked => _lockRoute?.isActive ?? false;
+
+  @override
+  void didChangeTop(Route<dynamic> topRoute, Route<dynamic>? previousTopRoute) {
+    if (topRoute.settings.name == AppRoutes.biometricLock) {
+      _lockRoute = topRoute;
+      InAppNotificationBanner.dismiss();
+    } else if (!locked) {
+      _lockRoute = null;
+    }
+    if (!locked && _pendingOpenedPush != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _deliverPendingPushTap();
+      });
+    }
+  }
+}
 
 Future<void> _configurePushNotifications() async {
   final user = FirebaseAuth.instance.currentUser;
@@ -178,7 +199,7 @@ Future<void> _configurePushNotifications() async {
       messaging.onTokenRefresh.listen((token) async {
         await _pushRegistration.bind(token);
       });
-      _pendingOpenedPush = await messaging.getInitialMessage();
+      unawaited(_readInitialPush(messaging));
     }
     final owner = currentInboxOwner()?.key;
     final token = await messaging.getToken();
@@ -187,6 +208,18 @@ Future<void> _configurePushNotifications() async {
     }
   } catch (_) {
     // Notifications never block sign-in or application startup.
+  }
+}
+
+Future<void> _readInitialPush(FirebaseMessaging messaging) async {
+  final owner = currentInboxOwner()?.key;
+  try {
+    final message = await messaging.getInitialMessage();
+    if (message != null && owner != null && currentInboxOwner()?.key == owner) {
+      _handleOpenedPush(message);
+    }
+  } catch (_) {
+    // An unavailable launch notification does not affect startup.
   }
 }
 
@@ -215,30 +248,33 @@ InboxNotification? _verifiedPushRow(RemoteMessage message) {
 }
 
 void _handleOpenedPush(RemoteMessage message) {
-  final role = MockAuthService().getCurrentRole();
-  final navigator = _navigatorKey.currentState;
-  if (role == null || navigator == null) {
-    _pendingOpenedPush = message;
-    return;
-  }
-  unawaited(_openWorkflowPush(message, role));
+  final owner = currentInboxOwner();
+  if (owner == null || !_canOpenPush(message, owner.key)) return;
+  unawaited(_openWorkflowPush(message, owner));
 }
 
-Future<void> _openWorkflowPush(RemoteMessage message, AppRole role) async {
-  final owner = currentInboxOwner()?.key;
-  if (owner == null) return;
+bool _canOpenPush(RemoteMessage message, String owner) {
+  if (currentInboxOwner()?.key != owner) return false;
+  if (_navigatorKey.currentState == null || _pushRoutes.locked) {
+    _pendingOpenedPush = (message: message, owner: owner);
+    return false;
+  }
+  return true;
+}
+
+Future<void> _openWorkflowPush(RemoteMessage message, InboxOwner owner) async {
   final inbox = NotificationInboxDirectory.instance;
   await inbox.refresh(reset: true);
-  if (currentInboxOwner()?.key != owner) return;
+  if (!_canOpenPush(message, owner.key)) return;
   final verified = _verifiedPushRow(message);
   if (verified != null) {
     try {
       if (!await inbox.act([verified.id], 'read')) {
         throw StateError('Unconfirmed update');
       }
-      if (currentInboxOwner()?.key != owner) return;
-      final target = await resolveInboxNotification(verified, role);
-      if (currentInboxOwner()?.key != owner) return;
+      if (!_canOpenPush(message, owner.key)) return;
+      final target = await resolveInboxNotification(verified, owner.role);
+      if (!_canOpenPush(message, owner.key)) return;
       _navigatorKey.currentState?.pushNamed(
         target.route,
         arguments: target.arguments,
@@ -248,22 +284,25 @@ Future<void> _openWorkflowPush(RemoteMessage message, AppRole role) async {
       // Unavailable records and older-page pushes open the current owner's inbox.
     }
   }
-  if (currentInboxOwner()?.key != owner) return;
-  final route = _notificationsRouteForRole(role);
+  if (!_canOpenPush(message, owner.key)) return;
+  final route = _notificationsRouteForRole(owner.role);
   if (route != null) _navigatorKey.currentState?.pushNamed(route);
 }
 
 void _deliverPendingPushTap() {
-  final message = _pendingOpenedPush;
-  if (message == null) return;
+  final pending = _pendingOpenedPush;
   _pendingOpenedPush = null;
-  _handleOpenedPush(message);
+  if (pending != null && currentInboxOwner()?.key == pending.owner) {
+    _handleOpenedPush(pending.message);
+  }
 }
 
 /// Foreground content comes only from the current owner's verified server page.
 void _showInAppBannerFor(InboxNotification item, String owner) {
   final overlay = _navigatorKey.currentState?.overlay;
-  if (overlay == null || currentInboxOwner()?.key != owner) return;
+  if (overlay == null || _pushRoutes.locked || currentInboxOwner()?.key != owner) {
+    return;
+  }
   InAppNotificationBanner.show(
     overlay,
     title: item.title,
@@ -271,7 +310,7 @@ void _showInAppBannerFor(InboxNotification item, String owner) {
     icon: AppIcons.notifications,
     color: AppColors.primary,
     onTap: () {
-      if (currentInboxOwner()?.key != owner) return;
+      if (_pushRoutes.locked || currentInboxOwner()?.key != owner) return;
       final route = _notificationsRouteForRole(
         MockAuthService().getCurrentRole(),
       );
@@ -356,12 +395,12 @@ Future<void> _offerNotificationPermissionAfterLogin(
   }
 }
 
-Future<void> _restorePersistedSession({bool Function()? isCurrent}) async {
+Future<void> _restorePersistedSession(bool Function() isCurrent) async {
   final transitions = AuthTransitions.instance;
   while (transitions.isBusy) {
     await transitions.settled;
   }
-  if (isCurrent?.call() == false) return;
+  if (!isCurrent()) return;
   final firebaseUser = FirebaseAuth.instance.currentUser;
   final uid = firebaseUser?.uid;
   AuthTransitionLease? transition;
@@ -370,7 +409,7 @@ Future<void> _restorePersistedSession({bool Function()? isCurrent}) async {
     await transitions.run<void>((lease) async {
       transition = lease;
       void check() {
-        if (isCurrent?.call() == false ||
+        if (!isCurrent() ||
             FirebaseAuth.instance.currentUser?.uid != uid) {
           lease.cancel();
         }
@@ -397,7 +436,7 @@ Future<void> _restorePersistedSession({bool Function()? isCurrent}) async {
     });
     if (missingIdentity &&
         transition?.isLatest == true &&
-        isCurrent?.call() != false) {
+        isCurrent()) {
       await endSession();
     }
   } catch (error) {
@@ -412,7 +451,7 @@ Future<void> _restorePersistedSession({bool Function()? isCurrent}) async {
             ].contains(error.code);
     if (denied &&
         transition?.isLatest == true &&
-        isCurrent?.call() != false &&
+        isCurrent() &&
         FirebaseAuth.instance.currentUser?.uid == uid) {
       await endSession();
     }
@@ -551,10 +590,24 @@ abstract final class AppRoutes {
 }
 
 class CivicVoiceApp extends StatefulWidget {
-  const CivicVoiceApp({super.key, this.initialRoute, this.passwordSessions});
+  const CivicVoiceApp({super.key, this.initialRoute, this.passwordSessions})
+    : _releaseLaunchFrame = null,
+      _restoreSession = _restorePersistedSession,
+      _configureNotifications = _configurePushNotifications;
+
+  const CivicVoiceApp.startup({
+    super.key,
+    required VoidCallback this._releaseLaunchFrame,
+    this._restoreSession = _restorePersistedSession,
+    this._configureNotifications = _configurePushNotifications,
+  }) : initialRoute = null,
+       passwordSessions = null;
 
   final String? initialRoute;
   final PasswordSessionService? passwordSessions;
+  final VoidCallback? _releaseLaunchFrame;
+  final Future<void> Function(bool Function()) _restoreSession;
+  final Future<void> Function() _configureNotifications;
 
   @override
   State<CivicVoiceApp> createState() => _CivicVoiceAppState();
@@ -565,13 +618,18 @@ class _CivicVoiceAppState extends State<CivicVoiceApp>
   DateTime? _backgroundedAt;
   bool _biometricLockShowing = false;
   late bool _sessionRestoreComplete;
+  VoidCallback? _releaseLaunchFrame;
+  Timer? _launchFrameTimer;
+  static const _nativeSplashGrace = Duration(milliseconds: 600);
   static const _reLockThreshold = Duration(seconds: 60);
 
   @override
   void initState() {
     super.initState();
+    _releaseLaunchFrame = widget._releaseLaunchFrame;
     _sessionRestoreComplete =
-        widget.initialRoute != null || Firebase.apps.isEmpty;
+        widget.initialRoute != null ||
+        (_releaseLaunchFrame == null && Firebase.apps.isEmpty);
     WidgetsBinding.instance.addObserver(this);
     IdleSessionTimer.instance.onExpire = () {
       unawaited(_handleIdleTimeout());
@@ -581,19 +639,40 @@ class _CivicVoiceAppState extends State<CivicVoiceApp>
         _promptForNotificationPermission();
       });
     } else {
+      if (_releaseLaunchFrame != null) {
+        // Keep the native splash for a quick restore. Slow requests can
+        // paint the quiet launch surface while verification continues.
+        _launchFrameTimer = Timer(_nativeSplashGrace, _releaseNativeSplash);
+      }
       unawaited(_finishSessionRestore());
     }
   }
 
+  void _releaseNativeSplash() {
+    _launchFrameTimer?.cancel();
+    final release = _releaseLaunchFrame;
+    _releaseLaunchFrame = null;
+    release?.call();
+  }
+
   Future<void> _finishSessionRestore() async {
-    await _restorePersistedSession(isCurrent: () => mounted);
-    await _configurePushNotifications();
-    if (!mounted) return;
-    setState(() => _sessionRestoreComplete = true);
+    try {
+      await widget._restoreSession(() => mounted);
+      if (!mounted) return;
+      setState(() => _sessionRestoreComplete = true);
+    } finally {
+      _releaseNativeSplash();
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _promptForNotificationPermission();
+      if (!mounted) return;
       _deliverPendingPushTap();
+      unawaited(_finishRestoredNotifications());
     });
+  }
+
+  Future<void> _finishRestoredNotifications() async {
+    await widget._configureNotifications();
+    if (mounted) await _promptForNotificationPermission();
   }
 
   Future<void> _promptForNotificationPermission() async {
@@ -608,6 +687,7 @@ class _CivicVoiceAppState extends State<CivicVoiceApp>
 
   @override
   void dispose() {
+    _releaseNativeSplash();
     WidgetsBinding.instance.removeObserver(this);
     IdleSessionTimer.instance.onExpire = null;
     IdleSessionTimer.instance.cancel();
@@ -631,7 +711,7 @@ class _CivicVoiceAppState extends State<CivicVoiceApp>
   }
 
   void _presentBiometricLockIfDue() {
-    if (_biometricLockShowing) return;
+    if (_biometricLockShowing || _pushRoutes.locked) return;
     if (MockAuthService().getCurrentRole() == null) return;
     if (!AppCacheService.instance.biometricLockEnabled) return;
     final navigator = _navigatorKey.currentState;
@@ -691,9 +771,17 @@ class _CivicVoiceAppState extends State<CivicVoiceApp>
             theme: AppTheme.light,
             darkTheme: AppTheme.dark,
             themeMode: themeMode,
-            home: const Scaffold(
-              body: SafeArea(
-                child: GhanaLoadingIndicator(label: 'Restoring your session…'),
+            home: Scaffold(
+              body: Semantics(
+                liveRegion: true,
+                label: 'Loading CivicVoice',
+                child: Center(
+                  child: Image.asset(
+                    AppAssets.splashIcon,
+                    width: AppSpacing.xxxxl * 2,
+                    excludeFromSemantics: true,
+                  ),
+                ),
               ),
             ),
           );
@@ -719,6 +807,7 @@ class _CivicVoiceAppState extends State<CivicVoiceApp>
           onPointerDown: (_) => IdleSessionTimer.instance.registerActivity(),
           child: MaterialApp(
             navigatorKey: _navigatorKey,
+            navigatorObservers: [_pushRoutes],
             title: 'CivicVoice',
             debugShowCheckedModeBanner: false,
             theme: AppTheme.light,
