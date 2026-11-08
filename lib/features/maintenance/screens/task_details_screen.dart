@@ -6,6 +6,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:civic_voice/core/theme/app_theme.dart';
 
+import '../../../models/report_status.dart';
 import '../../../widgets/detail_header.dart';
 import '../../../widgets/evidence_image_viewer.dart';
 import '../../../widgets/glass_card.dart';
@@ -297,7 +298,7 @@ class _StatusPipeline extends StatelessWidget {
                 task.assignedAt?.toLocal().toString().split('.').first ??
                 'Time not recorded',
             color: semantic.success,
-            icon: AppIcons.statusResolved,
+            icon: ReportStatus.assigned.icon,
             isActive: false,
           ),
           _PipelineStep(
@@ -307,8 +308,8 @@ class _StatusPipeline extends StatelessWidget {
                 (dispatched ? 'Time not recorded' : task.eta),
             color: dispatched ? semantic.success : AppColors.statusAssigned,
             icon: dispatched
-                ? AppIcons.statusResolved
-                : AppIcons.statusAssigned,
+                ? ReportStatus.inProgress.icon
+                : ReportStatus.assigned.icon,
             isActive: !dispatched,
           ),
           if (task.sendBackReason?.trim().isNotEmpty == true)
@@ -328,7 +329,7 @@ class _StatusPipeline extends StatelessWidget {
                 : 'Current field status',
             note: task.progressNotes,
             color: resolved ? semantic.success : AppColors.statusInProgress,
-            icon: resolved ? AppIcons.statusResolved : AppIcons.activityPulse,
+            icon: ReportStatus.inProgress.icon,
             isActive: dispatched && !resolved && !pending,
             isLast: !resolved && !pending,
           ),
@@ -343,7 +344,7 @@ class _StatusPipeline extends StatelessWidget {
                       .first ??
                   'Time not recorded',
               color: AppColors.statusPendingApproval,
-              icon: AppIcons.verify,
+              icon: ReportStatus.pendingApproval.icon,
               isActive: true,
               isLast: true,
             ),
@@ -357,8 +358,8 @@ class _StatusPipeline extends StatelessWidget {
                   ? semantic.success
                   : semantic.error,
               icon: status == MaintenanceTaskStatus.completed
-                  ? AppIcons.statusResolved
-                  : AppIcons.statusRejected,
+                  ? ReportStatus.resolved.icon
+                  : ReportStatus.rejected.icon,
               isActive: true,
               isLast: true,
             ),

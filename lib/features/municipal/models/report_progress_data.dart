@@ -4,12 +4,15 @@ import 'incoming_report.dart';
 /// One entry in the Status Timeline card.
 class ProgressTimelineStep {
   const ProgressTimelineStep({
+    required this.status,
     required this.label,
     required this.timestamp,
     required this.description,
     this.isCurrent = false,
   });
 
+  /// A return for rework is an event without a separate lifecycle status.
+  final ReportStatus? status;
   final String label;
   final String timestamp;
   final String description;
@@ -136,21 +139,25 @@ class ReportProgressData {
       completionPercent: 65,
       timeline: [
         ProgressTimelineStep(
+          status: ReportStatus.submitted,
           label: 'Submitted',
           timestamp: 'Oct 24, 08:30',
           description: 'Citizen report received via CivicVoice app.',
         ),
         ProgressTimelineStep(
+          status: ReportStatus.underReview,
           label: 'Verified',
           timestamp: 'Oct 24, 10:15',
           description: 'Officer J. Smith approved the request.',
         ),
         ProgressTimelineStep(
+          status: ReportStatus.assigned,
           label: 'Assigned',
           timestamp: 'Oct 25, 09:00',
           description: 'Unit Alpha dispatched with equipment.',
         ),
         ProgressTimelineStep(
+          status: ReportStatus.inProgress,
           label: 'In Progress',
           timestamp: 'Today, 11:45',
           description: 'Patching in progress on main section.',
@@ -206,18 +213,21 @@ class ReportProgressData {
       completionPercent: progress,
       timeline: [
         ProgressTimelineStep(
+          status: ReportStatus.submitted,
           label: 'Submitted',
           timestamp: report.timeAgo,
           description: 'Citizen report received by Civic Voice.',
         ),
         if (report.hasReviewer)
           ProgressTimelineStep(
+            status: ReportStatus.underReview,
             label: 'Reviewed',
             timestamp: report.updatedLabel ?? 'Completed',
             description: '${report.reviewerName} reviewed the report.',
           ),
         if (report.teamName != null)
           ProgressTimelineStep(
+            status: ReportStatus.assigned,
             label: 'Assigned',
             timestamp:
                 report.assignedAt?.toLocal().toString().split('.').first ??
@@ -229,6 +239,7 @@ class ReportProgressData {
             report.status == ReportStatus.inProgress ||
             report.status == ReportStatus.pendingApproval)
           ProgressTimelineStep(
+            status: ReportStatus.inProgress,
             label: 'In Progress',
             timestamp:
                 report.startedAt?.toLocal().toString().split('.').first ??
@@ -238,6 +249,7 @@ class ReportProgressData {
           ),
         if (report.sendBackReason?.trim().isNotEmpty == true)
           ProgressTimelineStep(
+            status: null,
             label: 'Completion sent back',
             timestamp: 'Time not recorded',
             description: report.sendBackReason!,
@@ -245,6 +257,7 @@ class ReportProgressData {
         if (report.completionSubmittedAt != null ||
             report.status == ReportStatus.pendingApproval)
           ProgressTimelineStep(
+            status: ReportStatus.pendingApproval,
             label: 'Submitted for Approval',
             timestamp:
                 report.completionSubmittedAt
@@ -258,6 +271,7 @@ class ReportProgressData {
           ),
         if (report.approvedAt != null)
           ProgressTimelineStep(
+            status: ReportStatus.resolved,
             label: 'Approved and closed',
             timestamp: report.approvedAt!.toLocal().toString().split('.').first,
             description: 'Completion confirmed by a municipal officer',

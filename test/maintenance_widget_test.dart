@@ -15,8 +15,10 @@ import 'package:civic_voice/features/maintenance/screens/task_details_screen.dar
 import 'package:civic_voice/features/maintenance/services/maintenance_session.dart';
 import 'package:civic_voice/features/maintenance/services/maintenance_task_directory.dart';
 import 'package:civic_voice/main.dart' as app;
+import 'package:civic_voice/models/report_status.dart';
 import 'package:civic_voice/utils/time_greeting.dart';
 import 'package:civic_voice/widgets/glass_bar.dart';
+import 'package:civic_voice/widgets/glass_card.dart';
 
 class _FakeImagePickerPlatform extends ImagePickerPlatform {
   int _counter = 0;
@@ -429,6 +431,24 @@ void main() {
     expect(find.text('Task Timeline'), findsOneWidget);
     expect(find.text('#MNT-1001'), findsOneWidget);
     expect(find.text(note), findsOneWidget);
+    final timeline = find.ancestor(
+      of: find.text(note),
+      matching: find.byType(GlassCard),
+    );
+    expect(
+      find.descendant(
+        of: timeline,
+        matching: find.byIcon(ReportStatus.inProgress.icon),
+      ),
+      findsWidgets,
+    );
+    expect(
+      find.descendant(
+        of: timeline,
+        matching: find.byIcon(AppIcons.activityPulse),
+      ),
+      findsNothing,
+    );
     expect(find.text('Save Update'), findsNothing);
     expect(
       MaintenanceTaskDirectory.instance.taskById('MNT-1001')!.completionNotes,

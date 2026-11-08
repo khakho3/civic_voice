@@ -902,7 +902,7 @@ class _TimelineRow extends StatelessWidget {
           width: 40,
           height: 40,
           decoration: BoxDecoration(color: badgeColor, shape: BoxShape.circle),
-          child: Icon(step.icon, size: AppIconSize.sm, color: iconColor),
+          child: Icon(step.status.icon, size: AppIconSize.sm, color: iconColor),
         ),
         const SizedBox(width: AppSpacing.sm),
         Expanded(

@@ -1,6 +1,3 @@
-import 'package:flutter/widgets.dart';
-
-import '../../../core/theme/app_theme.dart';
 import '../../../models/report_status.dart';
 import 'incoming_report.dart';
 
@@ -13,13 +10,13 @@ enum TimelineStepState { completed, current, pending }
 class ReportTimelineStep {
   const ReportTimelineStep({
     required this.label,
-    required this.icon,
+    required this.status,
     required this.state,
     this.timestamp,
   });
 
   final String label;
-  final IconData icon;
+  final ReportStatus status;
   final TimelineStepState state;
 
   /// Null when [state] is [TimelineStepState.pending] — shows "Pending"
@@ -114,19 +111,19 @@ class ReportReviewData {
       timeline: const [
         ReportTimelineStep(
           label: 'Submitted',
-          icon: AppIcons.reportVerified,
+          status: ReportStatus.submitted,
           state: TimelineStepState.completed,
           timestamp: 'Oct 24, 09:14 AM',
         ),
         ReportTimelineStep(
           label: 'Under Review',
-          icon: AppIcons.municipalOfficer,
+          status: ReportStatus.underReview,
           state: TimelineStepState.current,
           timestamp: 'Oct 24, 10:02 AM',
         ),
         ReportTimelineStep(
           label: 'Awaiting Assignment',
-          icon: AppIcons.success,
+          status: ReportStatus.assigned,
           state: TimelineStepState.pending,
         ),
       ],
@@ -163,7 +160,7 @@ class ReportReviewData {
       timeline: [
         ReportTimelineStep(
           label: 'Submitted',
-          icon: AppIcons.reportVerified,
+          status: ReportStatus.submitted,
           state: report.status == ReportStatus.submitted
               ? TimelineStepState.current
               : TimelineStepState.completed,
@@ -171,7 +168,7 @@ class ReportReviewData {
         ),
         ReportTimelineStep(
           label: 'Under Review',
-          icon: AppIcons.municipalOfficer,
+          status: ReportStatus.underReview,
           state: report.status == ReportStatus.submitted
               ? TimelineStepState.pending
               : report.status == ReportStatus.underReview
@@ -183,7 +180,7 @@ class ReportReviewData {
         ),
         ReportTimelineStep(
           label: 'Team Assignment',
-          icon: AppIcons.success,
+          status: ReportStatus.assigned,
           state:
               report.status == ReportStatus.submitted ||
                   report.status == ReportStatus.underReview

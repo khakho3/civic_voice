@@ -453,7 +453,7 @@ class _TimelineCard extends StatelessWidget {
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
-                  data.isRejected ? AppIcons.statusRejected : AppIcons.success,
+                  data.status.icon,
                   size: AppIconSize.sm,
                   color: Colors.white,
                 ),

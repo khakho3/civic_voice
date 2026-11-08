@@ -800,11 +800,7 @@ class _TimelineStepRow extends StatelessWidget {
           margin: const EdgeInsets.only(top: 2),
           decoration: BoxDecoration(color: color, shape: BoxShape.circle),
           child: Icon(
-            step.isCurrent && step.label == 'Submitted for Approval'
-                ? AppIcons.verify
-                : step.isCurrent
-                ? AppIcons.statusInProgress
-                : AppIcons.success,
+            step.status?.icon ?? AppIcons.warning,
             size: AppIconSize.sm,
             color: AppSemanticColors.of(context).onFillFor(color),
           ),
