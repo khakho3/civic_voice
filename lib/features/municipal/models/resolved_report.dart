@@ -1,3 +1,4 @@
+import '../../../utils/civic_date.dart';
 import 'incoming_report.dart';
 import '../../../models/report_status.dart';
 
@@ -63,10 +64,7 @@ class ResolvedReportItem {
       title: report.title,
       locationLabel: report.locationLabel,
       resolvedDate: resolvedAt,
-      resolvedTimeLabel:
-          '${resolvedAt.hour > 12 ? resolvedAt.hour - 12 : resolvedAt.hour}:'
-          '${resolvedAt.minute.toString().padLeft(2, '0')} '
-          '${resolvedAt.hour >= 12 ? 'PM' : 'AM'}',
+      resolvedTimeLabel: formatCivicTime(resolvedAt),
       durationDays: duration < 1 ? 1 : duration,
       slaPercent: duration <= 3 ? 100 : 0,
       evidencePhotoCount: report.status == ReportStatus.rejected
@@ -230,22 +228,4 @@ class ResolvedReportStats {
   }
 }
 
-/// Simple manual "MMM d, yyyy" formatter — no `intl` dependency for this
-/// one call site (shared by the list and detail screens).
-String formatResolvedDate(DateTime date) {
-  const months = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
-  ];
-  return '${months[date.month - 1]} ${date.day}, ${date.year}';
-}
+String formatResolvedDate(DateTime date) => formatCivicDate(date);

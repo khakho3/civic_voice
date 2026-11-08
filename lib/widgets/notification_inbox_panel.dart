@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+
+import '../utils/civic_date.dart';
 import '../core/theme/app_theme.dart';
 import '../core/widgets/ghana_refresh_indicator.dart';
 import '../models/app_role.dart';
@@ -136,7 +138,8 @@ class _NotificationInboxPanelState extends State<NotificationInboxPanel>
           padding: widget.padding,
           children: [
             const NotificationDeviceSettings(),
-            if (roleAllowed && page == null &&
+            if (roleAllowed &&
+                page == null &&
                 (_inbox.status == InboxStatus.loading ||
                     _inbox.status == InboxStatus.idle))
               const Padding(
@@ -350,7 +353,6 @@ class _InboxCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final semantic = AppSemanticColors.of(context), theme = Theme.of(context);
-    final date = item.createdAt.toLocal();
     return Card(
       key: ValueKey('notification-card-${item.id}'),
       elevation: 0,
@@ -435,7 +437,7 @@ class _InboxCard extends StatelessWidget {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            '${MaterialLocalizations.of(context).formatMediumDate(date)} · ${TimeOfDay.fromDateTime(date).format(context)}',
+                            formatCivicTimestamp(item.createdAt),
                             style: theme.textTheme.labelSmall?.copyWith(
                               color: theme.colorScheme.onSurfaceVariant,
                             ),

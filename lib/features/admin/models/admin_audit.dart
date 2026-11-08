@@ -1,3 +1,4 @@
+import '../../../utils/civic_date.dart';
 import 'admin_overview.dart' show adminId, adminCount;
 import 'admin_system_activity_data.dart';
 
@@ -9,12 +10,8 @@ const auditCategories = <String, String>{
   'REPORT_WORKFLOW': 'Report Workflow',
 };
 
-String auditTimestamp(DateTime value) {
-  final utc = value.toUtc();
-  String two(int n) => n.toString().padLeft(2, '0');
-  return '${utc.year}-${two(utc.month)}-${two(utc.day)} '
-      '${two(utc.hour)}:${two(utc.minute)}:${two(utc.second)} UTC';
-}
+String auditTimestamp(DateTime value) =>
+    formatCivicTimestamp(value, precise: true);
 
 DateTime _instant(Object? value) {
   final time =

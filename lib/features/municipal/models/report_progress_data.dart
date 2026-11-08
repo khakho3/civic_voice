@@ -1,3 +1,4 @@
+import '../../../utils/civic_date.dart';
 import '../../../models/report_status.dart';
 import 'incoming_report.dart';
 
@@ -229,9 +230,10 @@ class ReportProgressData {
           ProgressTimelineStep(
             status: ReportStatus.assigned,
             label: 'Assigned',
-            timestamp:
-                report.assignedAt?.toLocal().toString().split('.').first ??
-                'Time not recorded',
+            timestamp: formatCivicTimestamp(
+              report.assignedAt,
+              fallback: 'Time not recorded',
+            ),
             description: '$team is responsible for this report.',
             isCurrent: report.status == ReportStatus.assigned,
           ),
@@ -241,9 +243,10 @@ class ReportProgressData {
           ProgressTimelineStep(
             status: ReportStatus.inProgress,
             label: 'In Progress',
-            timestamp:
-                report.startedAt?.toLocal().toString().split('.').first ??
-                'Time not recorded',
+            timestamp: formatCivicTimestamp(
+              report.startedAt,
+              fallback: 'Time not recorded',
+            ),
             description: '$team reported $progress% completion.',
             isCurrent: report.status == ReportStatus.inProgress,
           ),
@@ -259,13 +262,10 @@ class ReportProgressData {
           ProgressTimelineStep(
             status: ReportStatus.pendingApproval,
             label: 'Submitted for Approval',
-            timestamp:
-                report.completionSubmittedAt
-                    ?.toLocal()
-                    .toString()
-                    .split('.')
-                    .first ??
-                'Time not recorded',
+            timestamp: formatCivicTimestamp(
+              report.completionSubmittedAt,
+              fallback: 'Time not recorded',
+            ),
             description: 'Awaiting municipal confirmation',
             isCurrent: report.status == ReportStatus.pendingApproval,
           ),
@@ -273,7 +273,7 @@ class ReportProgressData {
           ProgressTimelineStep(
             status: ReportStatus.resolved,
             label: 'Approved and closed',
-            timestamp: report.approvedAt!.toLocal().toString().split('.').first,
+            timestamp: formatCivicTimestamp(report.approvedAt),
             description: 'Completion confirmed by a municipal officer',
             isCurrent: report.status == ReportStatus.resolved,
           ),
@@ -290,11 +290,7 @@ class ReportProgressData {
         referenceId: report.referenceId,
         title: report.title,
         resolutionDate: report.status == ReportStatus.resolved
-            ? (report.updatedAt ?? DateTime.now())
-                  .toLocal()
-                  .toString()
-                  .split(' ')
-                  .first
+            ? formatCivicDate(report.approvedAt)
             : 'Not resolved',
         reporterName: report.citizenName ?? 'Citizen',
         evidencePhotoCount: report.resolutionPhotoUrls.length,

@@ -1,6 +1,8 @@
 import 'dart:async';
 import '../../../widgets/civic_filter_chip.dart';
 import 'package:flutter/material.dart';
+
+import '../../../utils/civic_date.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../services/api_client.dart';
 import '../../../models/region.dart';
@@ -333,7 +335,7 @@ class _AdminAlertsScreenState extends State<AdminAlertsScreen> {
                                 children: [
                                   _ReviewBadge(state: alert.state),
                                   Text(
-                                    _shortDate(alert.createdAt),
+                                    formatCivicTimestamp(alert.createdAt),
                                     style: Theme.of(
                                       context,
                                     ).textTheme.bodySmall,
@@ -532,7 +534,7 @@ class _AdminAlertReviewScreenState extends State<AdminAlertReviewScreen> {
                     ),
                     Text(alert.description),
                     Text(
-                      _fullDate(alert.createdAt),
+                      formatCivicTimestamp(alert.createdAt, precise: true),
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                     Text(
@@ -613,7 +615,10 @@ class _AdminAlertReviewScreenState extends State<AdminAlertReviewScreen> {
                       ),
                       Text(item['note']),
                       Text(
-                        _fullDate(adminInstant(item['createdAt'])),
+                        formatCivicTimestamp(
+                          adminInstant(item['createdAt']),
+                          precise: true,
+                        ),
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
                     ],
@@ -670,31 +675,6 @@ String _actionLabel(String action) => const {
   'RESOLVE': 'Resolve alert',
   'REOPEN': 'Reopen alert',
 }[action]!;
-String _shortDate(DateTime value) {
-  final d = value.toLocal();
-  const months = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
-  ];
-  return '${d.day} ${months[d.month - 1]}, ${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
-}
-
-String _fullDate(DateTime value) {
-  final d = value.toLocal();
-  final short = _shortDate(d).split(', ');
-  return '${short.first} ${d.year}, ${short.last}:${d.second.toString().padLeft(2, '0')} ${d.timeZoneOffset == Duration.zero ? 'GMT' : d.timeZoneName}';
-}
-
 String _geography(AdminAlert alert) {
   final region =
       Region.values.where((r) => r.name == alert.region).firstOrNull?.label ??
@@ -816,7 +796,7 @@ class _OriginalAlertEvent extends StatelessWidget {
           children: [
             Text(alert.title, style: Theme.of(context).textTheme.headlineSmall),
             Text(alert.description),
-            Text(_fullDate(alert.createdAt)),
+            Text(formatCivicTimestamp(alert.createdAt, precise: true)),
             Text(_geography(alert)),
             Text('Event ID: ${alert.id}'),
             Text('Severity: ${alert.severity}'),

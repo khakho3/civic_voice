@@ -64,7 +64,10 @@ void main() {
       expect(event.context.keys, isNot(contains('password')));
       expect(event.context.keys, isNot(contains('token')));
       expect(event.context.keys, isNot(contains('body')));
-      expect(auditTimestamp(event.item.timestamp), '2026-10-28 10:23:45 UTC');
+      expect(
+        auditTimestamp(event.item.timestamp),
+        'Wed, Oct 28, 2026 · 10:23:45 AM',
+      );
       expect(
         AuditEvent.parse({...auditFixture(), 'outcome': null}).outcome,
         'UNKNOWN',

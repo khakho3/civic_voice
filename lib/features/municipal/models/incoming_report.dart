@@ -1,3 +1,4 @@
+import '../../../utils/civic_date.dart';
 import '../../../models/report_category.dart';
 import '../../../models/report_status.dart';
 import '../../../models/region.dart';
@@ -187,11 +188,11 @@ class IncomingReportItem {
       locationLabel: json['location'] as String? ?? 'Location unavailable',
       category: _categoryFromApi(json['category'] as String?),
       status: _statusFromApi(json['status'] as String?),
-      timeAgo: _relativeTime(createdAt),
+      timeAgo: formatCivicTimestamp(createdAt),
       teamName: json['assignedTeamName'] as String?,
       assignedTeamId: json['assignedTeamId'] as String?,
       progressPercent: (json['progressPercent'] as num?)?.round(),
-      updatedLabel: updatedAt == null ? null : _relativeTime(updatedAt),
+      updatedLabel: updatedAt == null ? null : formatCivicTimestamp(updatedAt),
       photoUrl: photos.isEmpty ? null : ApiClient.assetUrl(photos.first),
       photoUrls: photos.map(ApiClient.assetUrl).toList(),
       citizenName:
@@ -324,15 +325,6 @@ class IncomingReportItem {
 
   static ReportStatus _statusFromApi(String? value) =>
       ReportStatus.fromApi(value);
-
-  static String _relativeTime(DateTime? value) {
-    if (value == null) return 'Recently';
-    final difference = DateTime.now().difference(value.toLocal());
-    if (difference.inMinutes < 1) return 'Just now';
-    if (difference.inMinutes < 60) return '${difference.inMinutes} min ago';
-    if (difference.inHours < 24) return '${difference.inHours} hrs ago';
-    return '${difference.inDays} days ago';
-  }
 
   /// Placeholder content matching the approved MUN-002/MUN-006 designs, used
   /// until the Cloud Firestore-backed service (Issue 03 dependency) is wired

@@ -34,7 +34,7 @@ class AdminProfileData {
   final String phone;
   final String department;
   final String adminId;
-  final DateTime lastActivity;
+  final DateTime? lastActivity;
 
   /// Which modules this admin account can reach — e.g. ["Users", "Roles",
   /// "Settings"]. Distinct from `AdminTier.grantedPermissionLabels` (a

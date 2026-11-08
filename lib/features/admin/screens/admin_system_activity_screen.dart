@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../../../utils/civic_date.dart';
 import '../../../widgets/civic_filter_chip.dart';
 import '../../../widgets/search_filter_list.dart';
 import '../../../widgets/focused_search.dart';
@@ -19,43 +20,6 @@ import '../services/admin_session.dart';
 import '../services/admin_system_activity_directory.dart';
 import '../services/admin_system_settings_directory.dart';
 import '../widgets/admin_scaffold.dart';
-
-const _kMonthNames = [
-  'Jan',
-  'Feb',
-  'Mar',
-  'Apr',
-  'May',
-  'Jun',
-  'Jul',
-  'Aug',
-  'Sep',
-  'Oct',
-  'Nov',
-  'Dec',
-];
-
-String _formatTime12h(DateTime date) {
-  final hour24 = date.hour;
-  final period = hour24 >= 12 ? 'PM' : 'AM';
-  final hour12 = hour24 % 12 == 0 ? 12 : hour24 % 12;
-  final minute = date.minute.toString().padLeft(2, '0');
-  return '$hour12:$minute $period';
-}
-
-String _formatActivityTimestamp(DateTime date) {
-  final now = DateTime.now();
-  if (date.year == now.year && date.month == now.month && date.day == now.day) {
-    return _formatTime12h(date);
-  }
-  final yesterday = now.subtract(const Duration(days: 1));
-  if (date.year == yesterday.year &&
-      date.month == yesterday.month &&
-      date.day == yesterday.day) {
-    return 'Yesterday';
-  }
-  return '${date.day} ${_kMonthNames[date.month - 1]} ${date.year}';
-}
 
 /// ADM-006 — System Activity.
 ///
@@ -710,7 +674,7 @@ class _LiveActivityBodyState extends State<_LiveActivityBody> {
                               .contains(term.toLowerCase()))
                             FocusedSearchResult(
                               title: event.item.title,
-                              subtitle: auditTimestamp(event.item.timestamp),
+                              subtitle: formatCivicTimestamp(event.item.timestamp),
                               onSelected: () => _open(event),
                             ),
                       ],
@@ -914,7 +878,6 @@ class _LiveActivityBodyState extends State<_LiveActivityBody> {
                                 child: _ActivityCard(
                                   key: ValueKey(event.id),
                                   item: event.item,
-                                  fullTimestamp: true,
                                   onOpen: () => _open(event),
                                 ),
                               ),
@@ -1460,12 +1423,10 @@ class _ActivityCard extends StatelessWidget {
     super.key,
     required this.item,
     this.onOpen,
-    this.fullTimestamp = false,
   });
 
   final ActivityItem item;
   final VoidCallback? onOpen;
-  final bool fullTimestamp;
 
   @override
   Widget build(BuildContext context) {
@@ -1499,41 +1460,19 @@ class _ActivityCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (fullTimestamp) ...[
-                  Text(
-                    item.title,
-                    style: textTheme.titleSmall?.copyWith(
-                      color: critical ? AppColors.error : null,
-                    ),
+                Text(
+                  item.title,
+                  style: textTheme.titleSmall?.copyWith(
+                    color: critical ? AppColors.error : null,
                   ),
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(
-                    auditTimestamp(item.timestamp),
-                    style: textTheme.labelSmall?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                    ),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  formatCivicTimestamp(item.timestamp),
+                  style: textTheme.labelSmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
                   ),
-                ] else
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          item.title,
-                          style: textTheme.titleSmall?.copyWith(
-                            color: critical ? AppColors.error : null,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.xs),
-                      Text(
-                        _formatActivityTimestamp(item.timestamp),
-                        style: textTheme.labelSmall?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
+                ),
                 const SizedBox(height: AppSpacing.xs),
                 Text(item.description, style: textTheme.bodyMedium),
                 const SizedBox(height: AppSpacing.sm),

@@ -6,6 +6,8 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:civic_voice/core/theme/app_theme.dart';
 
+import '../../../utils/civic_date.dart';
+
 import '../../../models/report_status.dart';
 import '../../../widgets/detail_header.dart';
 import '../../../widgets/evidence_image_viewer.dart';
@@ -294,18 +296,20 @@ class _StatusPipeline extends StatelessWidget {
         children: [
           _PipelineStep(
             label: 'Assignment received by maintenance team',
-            timestamp:
-                task.assignedAt?.toLocal().toString().split('.').first ??
-                'Time not recorded',
+            timestamp: formatCivicTimestamp(
+              task.assignedAt,
+              fallback: 'Time not recorded',
+            ),
             color: semantic.success,
             icon: ReportStatus.assigned.icon,
             isActive: false,
           ),
           _PipelineStep(
             label: 'Crew dispatched to site',
-            timestamp:
-                task.startedAt?.toLocal().toString().split('.').first ??
-                (dispatched ? 'Time not recorded' : task.eta),
+            timestamp: formatCivicTimestamp(
+              task.startedAt,
+              fallback: dispatched ? 'Time not recorded' : task.eta,
+            ),
             color: dispatched ? semantic.success : AppColors.statusAssigned,
             icon: dispatched
                 ? ReportStatus.inProgress.icon
@@ -336,13 +340,10 @@ class _StatusPipeline extends StatelessWidget {
           if (pending)
             _PipelineStep(
               label: 'Submitted for approval',
-              timestamp:
-                  task.completionSubmittedAt
-                      ?.toLocal()
-                      .toString()
-                      .split('.')
-                      .first ??
-                  'Time not recorded',
+              timestamp: formatCivicTimestamp(
+                task.completionSubmittedAt,
+                fallback: 'Time not recorded',
+              ),
               color: AppColors.statusPendingApproval,
               icon: ReportStatus.pendingApproval.icon,
               isActive: true,

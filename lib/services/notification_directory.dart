@@ -6,6 +6,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../utils/civic_date.dart';
+
 import '../core/theme/app_theme.dart';
 import '../features/admin/services/admin_user_directory.dart';
 import '../features/admin/models/admin_user_management_data.dart';
@@ -40,7 +42,7 @@ class NotificationDirectory {
           title: row.title,
           message: row.body,
           category: 'Update',
-          timeLabel: row.createdAt.toLocal().toString(),
+          timeLabel: formatCivicTimestamp(row.createdAt),
           icon: AppIcons.notifications,
           color: AppColors.primary,
           read: row.read,

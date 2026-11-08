@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../utils/civic_date.dart';
+
 import '../../../core/theme/app_theme.dart';
 import '../../../services/api_client.dart';
 
@@ -233,6 +235,7 @@ class MaintenanceTask {
     final failed = (json['maintenanceFailureNotes'] as String?)?.trim();
     final createdAt = DateTime.tryParse(json['createdAt'] as String? ?? '');
     final updatedAt = DateTime.tryParse(json['updatedAt'] as String? ?? '');
+    final lastChangeAt = updatedAt ?? createdAt;
     final photos = (json['photoUrls'] as List? ?? const <dynamic>[])
         .whereType<String>()
         .map(ApiClient.assetUrl)
@@ -265,7 +268,9 @@ class MaintenanceTask {
         _ => 'Work underway',
       },
       distanceLabel: 'Open map for directions',
-      teamNote: _relativeTime(updatedAt ?? createdAt),
+      teamNote: lastChangeAt == null
+          ? 'Update time not recorded'
+          : 'Updated ${formatCivicTimestamp(lastChangeAt)}',
       teamId: json['assignedTeamId'] as String? ?? 'unassigned-team',
       teamName: json['assignedTeamName'] as String?,
       reportPhotoCount: photos.length,
@@ -275,16 +280,16 @@ class MaintenanceTask {
       progressNotes: (json['maintenanceProgressNotes'] as String?)?.trim(),
       fieldIssueNotes: failed?.isNotEmpty == true ? failed : null,
       completedAtLabel: status == 'PENDING_APPROVAL'
-          ? _dateLabelOrMissing(
+          ? formatCivicTimestamp(
               DateTime.tryParse(json['completionSubmittedAt'] as String? ?? ''),
             )
           : status == 'RESOLVED'
-          ? _dateLabelOrMissing(
+          ? formatCivicTimestamp(
               DateTime.tryParse(json['approvedAt'] as String? ?? ''),
             )
           : updatedAt == null
           ? null
-          : _dateLabel(updatedAt),
+          : formatCivicTimestamp(updatedAt),
       assignedAt: DateTime.tryParse(json['assignedAt'] as String? ?? ''),
       startedAt: DateTime.tryParse(json['startedAt'] as String? ?? ''),
       completionSubmittedAt: DateTime.tryParse(
@@ -300,28 +305,6 @@ class MaintenanceTask {
           (json['maintenanceContact'] as Map<String, dynamic>?)?['fullName']
               as String?,
     );
-  }
-
-  static String _dateLabelOrMissing(DateTime? date) =>
-      date == null ? 'Time not recorded' : _dateLabel(date);
-
-  static String _relativeTime(DateTime? value) {
-    if (value == null) return 'Recently updated';
-    final difference = DateTime.now().difference(value.toLocal());
-    if (difference.inMinutes < 1) return 'Updated just now';
-    if (difference.inHours < 1) {
-      return 'Updated ${difference.inMinutes} min ago';
-    }
-    if (difference.inDays < 1) return 'Updated ${difference.inHours} hrs ago';
-    return 'Updated ${difference.inDays} days ago';
-  }
-
-  static String _dateLabel(DateTime value) {
-    final local = value.toLocal();
-    return '${local.year}-${local.month.toString().padLeft(2, '0')}-'
-        '${local.day.toString().padLeft(2, '0')} '
-        '${local.hour.toString().padLeft(2, '0')}:'
-        '${local.minute.toString().padLeft(2, '0')}';
   }
 }
 

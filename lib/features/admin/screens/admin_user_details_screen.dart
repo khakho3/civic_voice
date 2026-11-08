@@ -1,6 +1,8 @@
 import '../../../widgets/form_section_card.dart';
 import 'package:flutter/material.dart';
 
+import '../../../utils/civic_date.dart';
+
 import '../../../widgets/busy_indicator.dart';
 
 import '../../../core/theme/app_theme.dart';
@@ -16,34 +18,6 @@ import '../services/admin_session.dart';
 import '../services/admin_user_directory.dart';
 import '../widgets/admin_scaffold.dart';
 import '../widgets/region_assembly_picker.dart';
-
-const _kMonthNames = [
-  'Jan',
-  'Feb',
-  'Mar',
-  'Apr',
-  'May',
-  'Jun',
-  'Jul',
-  'Aug',
-  'Sep',
-  'Oct',
-  'Nov',
-  'Dec',
-];
-
-String _formatDate(DateTime date) =>
-    '${date.day} ${_kMonthNames[date.month - 1]} ${date.year}';
-
-String _formatSignIn(DateTime date) {
-  final now = DateTime.now();
-  final isToday =
-      date.year == now.year && date.month == now.month && date.day == now.day;
-  if (!isToday) return _formatDate(date);
-  final hh = date.hour.toString().padLeft(2, '0');
-  final mm = date.minute.toString().padLeft(2, '0');
-  return 'Today, $hh:$mm';
-}
 
 /// ADM-003 — User Details.
 ///
@@ -557,12 +531,12 @@ class _DetailsForm extends StatelessWidget {
             children: [
               _ActivityRow(
                 label: 'Last sign-in',
-                value: _formatSignIn(user.lastSignIn),
+                value: formatCivicTimestamp(user.lastSignIn),
               ),
               const Divider(height: AppSpacing.lg),
               _ActivityRow(
                 label: 'Account created',
-                value: _formatDate(user.accountCreated),
+                value: formatCivicDate(user.accountCreated),
               ),
             ],
           ),

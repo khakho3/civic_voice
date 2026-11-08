@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+
+import '../../../utils/civic_date.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../widgets/app_state_message.dart';
 import '../services/admin_read_failure.dart';
@@ -489,7 +491,9 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen>
                                                 ).textTheme.bodySmall,
                                               ),
                                               Text(
-                                                '${MaterialLocalizations.of(context).formatMediumDate(data.recent[i].timestamp)} · ${TimeOfDay.fromDateTime(data.recent[i].timestamp).format(context)}',
+                                                formatCivicTimestamp(
+                                                  data.recent[i].timestamp,
+                                                ),
                                                 style: Theme.of(
                                                   context,
                                                 ).textTheme.labelSmall,

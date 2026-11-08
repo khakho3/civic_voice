@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+
+import '../../../utils/civic_date.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../models/region.dart';
 import '../../../models/ghana_assemblies_data.dart';
@@ -384,7 +386,7 @@ class _AdminReportRoutingDetailScreenState
                                   'Saved routing: ${report.regionLabel} · ${report.assemblyLabel}',
                                 ),
                                 Text(
-                                  'Last updated ${MaterialLocalizations.of(context).formatMediumDate(DateTime.parse(report.updatedAt).toLocal())} · ${MaterialLocalizations.of(context).formatTimeOfDay(TimeOfDay.fromDateTime(DateTime.parse(report.updatedAt).toLocal()))}',
+                                  'Last updated ${formatCivicTimestamp(DateTime.parse(report.updatedAt))}',
                                 ),
                                 if (ReportLocationMapScreen.valid(
                                   report.latitude,

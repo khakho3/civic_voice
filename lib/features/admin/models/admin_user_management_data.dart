@@ -84,7 +84,7 @@ class AdminUserItem {
   final AppRole role;
   final AdminUserStatus status;
   final String userId;
-  final DateTime lastSignIn;
+  final DateTime? lastSignIn;
   final DateTime accountCreated;
 
   /// Only meaningful when [role] is [AppRole.systemAdministrator] — every
@@ -146,9 +146,7 @@ class AdminUserItem {
           ? AdminUserStatus.inactive
           : AdminUserStatus.active,
       userId: json['publicId'] as String? ?? json['id'] as String,
-      lastSignIn:
-          DateTime.tryParse(json['updatedAt'] as String? ?? '') ??
-          DateTime.now(),
+      lastSignIn: null,
       accountCreated:
           DateTime.tryParse(json['createdAt'] as String? ?? '') ??
           DateTime.now(),

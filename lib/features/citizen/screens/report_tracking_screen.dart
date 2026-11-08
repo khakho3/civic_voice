@@ -5,6 +5,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
+import '../../../utils/civic_date.dart';
+
 import '../../../core/theme/app_theme.dart';
 import '../../../widgets/evidence_image_viewer.dart';
 import '../../../widgets/pending_coverage_notice.dart';
@@ -461,9 +463,7 @@ class _TimelineStep extends StatelessWidget {
       ReportStatus.resolved => report.approvedAt,
       ReportStatus.rejected => report.rejectedAt,
     };
-    return date == null
-        ? 'Time not recorded'
-        : date.toLocal().toString().split('.').first;
+    return formatCivicTimestamp(date, fallback: 'Time not recorded');
   }
 
   @override

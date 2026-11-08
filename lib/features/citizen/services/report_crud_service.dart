@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:native_exif/native_exif.dart';
 
+import '../../../utils/civic_date.dart';
 import '../models/civic_report.dart';
 import '../models/report_draft.dart';
 import 'citizen_data_repository.dart';
@@ -343,7 +344,7 @@ class ReportCrudService implements ReportsRepository {
       submittedAt: created,
       rejectionReason: json['rejectionReason'] as String?,
       rejectedAt: DateTime.tryParse(json['rejectedAt'] as String? ?? ''),
-      timeLabel: created == null ? '' : _relative(created),
+      timeLabel: formatCivicTimestamp(created),
       status: _statusFromApi(json['status'] as String?),
       assignedAt: DateTime.tryParse(json['assignedAt'] as String? ?? ''),
       startedAt: DateTime.tryParse(json['startedAt'] as String? ?? ''),
@@ -388,11 +389,3 @@ String _statusToApi(ReportStatus value) => switch (value) {
   ReportStatus.resolved => 'RESOLVED',
   ReportStatus.rejected => 'REJECTED',
 };
-
-String _relative(DateTime value) {
-  final age = DateTime.now().difference(value.toLocal());
-  if (age.inMinutes < 1) return 'Just now';
-  if (age.inHours < 1) return '${age.inMinutes}m ago';
-  if (age.inDays < 1) return '${age.inHours}h ago';
-  return '${age.inDays}d ago';
-}
