@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 import '../../../models/app_role.dart';
 import '../../../models/assembly.dart';
 import '../../../models/region.dart';
@@ -6,6 +8,7 @@ import '../models/admin_maintenance_team_data.dart';
 import '../models/admin_role_management_data.dart';
 import '../models/admin_system_activity_data.dart';
 import '../models/admin_user_management_data.dart';
+import 'admin_resource.dart';
 
 /// The single place every Admin screen checks "am I allowed to do this" —
 /// reads the current mock identity from [MockAuthService] and turns
@@ -27,9 +30,54 @@ import '../models/admin_user_management_data.dart';
 /// roles/tiers via [TestRoleSelectorScreen] takes effect immediately
 /// without this class needing its own invalidation.
 class AdminSession {
-  const AdminSession._();
+  AdminSession._(this._owner);
 
-  static const AdminSession instance = AdminSession._();
+  static final AdminSession instance = AdminSession._(adminRequestKey);
+
+  @visibleForTesting
+  factory AdminSession.forTesting(String? Function() owner) =>
+      AdminSession._(owner);
+
+  final String? Function() _owner;
+  final _identity =
+      ValueNotifier<({String owner, String? fullName, String? municipality})?>(
+        null,
+      );
+
+  Listenable get dashboardIdentityChanges => _identity;
+
+  ({String? fullName, String? municipality})? get dashboardIdentity {
+    final identity = _identity.value;
+    if (identity == null || identity.owner != _owner()) return null;
+    return (fullName: identity.fullName, municipality: identity.municipality);
+  }
+
+  void setDashboardIdentity({
+    required String fullName,
+    required String? municipality,
+  }) {
+    final owner = _owner();
+    if (owner == null) return;
+    final name = fullName.trim();
+    final label = municipality?.trim();
+    _identity.value = (
+      owner: owner,
+      fullName: name.isEmpty ? null : name,
+      municipality: label?.isEmpty == true ? null : label,
+    );
+  }
+
+  void updateDashboardName(String fullName) {
+    final identity = dashboardIdentity;
+    if (identity != null) {
+      setDashboardIdentity(
+        fullName: fullName,
+        municipality: identity.municipality,
+      );
+    }
+  }
+
+  void clearDashboardIdentity() => _identity.value = null;
 
   AppRole? get _role => MockAuthService().getCurrentRole();
 

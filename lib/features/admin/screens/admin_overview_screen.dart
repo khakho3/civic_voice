@@ -7,9 +7,11 @@ import '../../../core/widgets/ghana_refresh_indicator.dart';
 import '../models/admin_overview.dart';
 import '../services/admin_overview_directory.dart';
 import '../services/admin_resource.dart';
+import '../services/admin_session.dart';
 import '../services/admin_system_activity_directory.dart';
 import '../widgets/admin_scaffold.dart';
 import '../widgets/admin_api_status_badge.dart';
+import '../widgets/admin_dashboard_greeting.dart';
 
 /// Live Home uses server totals, never counts a bounded cached directory.
 class AdminOverviewScreen extends StatefulWidget {
@@ -17,6 +19,7 @@ class AdminOverviewScreen extends StatefulWidget {
     super.key,
     this.directory,
     this.healthDirectory,
+    this.session,
     required this.onUsers,
     required this.onTeams,
     required this.onActivity,
@@ -29,6 +32,7 @@ class AdminOverviewScreen extends StatefulWidget {
   });
   final AdminResource<AdminOverview>? directory;
   final AdminSystemActivityDirectory? healthDirectory;
+  final AdminSession? session;
   final VoidCallback onUsers,
       onTeams,
       onActivity,
@@ -54,6 +58,7 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen>
       (widget.directory == null || widget.healthDirectory != null);
   AdminResource<AdminOverview> get _source =>
       widget.directory ?? AdminOverviewDirectory.instance;
+  AdminSession get _session => widget.session ?? AdminSession.instance;
   @override
   void initState() {
     super.initState();
@@ -97,16 +102,23 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen>
       _source.failure == AdminReadFailure.unreachable &&
       _source.failureSequence > _health.healthReadSequence;
 
-  Widget _heading(BuildContext context, bool superAdmin) => LayoutBuilder(
-    builder: (context, constraints) => Row(
-      children: [
-        Expanded(
-          child: Text(
-            superAdmin ? 'Platform Overview' : 'Assembly Overview',
-            style: Theme.of(context).textTheme.headlineSmall,
+  Widget _heading(bool superAdmin) {
+    if (!superAdmin) {
+      final identity = _session.dashboardIdentity;
+      return AdminDashboardGreeting(
+        fullName: identity?.fullName,
+        municipality: identity?.municipality,
+      );
+    }
+    return LayoutBuilder(
+      builder: (context, constraints) => Row(
+        children: [
+          Expanded(
+            child: Text(
+              'Platform Overview',
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
           ),
-        ),
-        if (superAdmin) ...[
           const SizedBox(width: AppSpacing.sm),
           ConstrainedBox(
             constraints: BoxConstraints(maxWidth: constraints.maxWidth / 2),
@@ -121,9 +133,9 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen>
             ),
           ),
         ],
-      ],
-    ),
-  );
+      ),
+    );
+  }
 
   Widget _failureScreen(
     BuildContext context,
@@ -160,7 +172,7 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen>
               AppSpacing.md,
               0,
             ),
-            sliver: SliverToBoxAdapter(child: _heading(context, superAdmin)),
+            sliver: SliverToBoxAdapter(child: _heading(superAdmin)),
           ),
           SliverFillRemaining(
             hasScrollBody: false,
@@ -224,6 +236,7 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen>
     body: AnimatedBuilder(
       animation: Listenable.merge([
         _source,
+        _session.dashboardIdentityChanges,
         _health.health,
         _health.healthFailure,
       ]),
@@ -264,9 +277,7 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen>
                   AppSpacing.md,
                   AppSpacing.lg,
                 ),
-                sliver: SliverToBoxAdapter(
-                  child: _heading(context, superAdmin),
-                ),
+                sliver: SliverToBoxAdapter(child: _heading(superAdmin)),
               ),
               // Only a cold load needs page feedback. During pull-to-refresh
               // the shared indicator keeps feedback under the header.

@@ -1,6 +1,7 @@
 import '../features/admin/services/admin_overview_directory.dart';
 import '../features/admin/services/admin_activity_repository.dart';
 import '../features/admin/services/admin_maintenance_team_directory.dart';
+import '../features/admin/services/admin_session.dart';
 import '../features/admin/services/admin_system_activity_directory.dart';
 import '../features/admin/services/admin_system_settings_directory.dart';
 import '../features/admin/services/admin_user_directory.dart';
@@ -33,6 +34,7 @@ abstract final class SessionDataService {
     MinistrySession.instance.clearSession();
 
     AdminOverviewDirectory.instance.clearSession();
+    AdminSession.instance.clearDashboardIdentity();
     AdminUserDirectory.instance.invalidateAndClear();
     AdminSystemActivityDirectory.instance.invalidateAndClear();
     AdminSystemSettingsDirectory.instance.invalidateAndClear();

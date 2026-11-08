@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:civic_voice/core/theme/app_theme.dart';
@@ -5,9 +7,87 @@ import 'package:civic_voice/features/admin/models/admin_overview.dart';
 import 'package:civic_voice/features/admin/screens/admin_overview_screen.dart';
 import 'package:civic_voice/features/admin/screens/admin_alerts_screen.dart';
 import 'package:civic_voice/features/admin/services/admin_resource.dart';
+import 'package:civic_voice/features/admin/services/admin_session.dart';
 import 'admin_live_overview_test.dart' show overviewFixture, alertFixture;
 
 void main() {
+  testWidgets(
+    'Assembly dashboard uses the verified greeting before totals load',
+    (tester) async {
+      tester.view.physicalSize = const Size(320, 920);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      String? owner = 'assembly-admin-a';
+      final session = AdminSession.forTesting(() => owner);
+      const municipality = 'Fixture East Municipal Assembly';
+      session.setDashboardIdentity(
+        fullName: 'Fixture Assembly Administrator',
+        municipality: municipality,
+      );
+      final read = Completer<Map<String, dynamic>>();
+      final source = AdminResource<AdminOverview>(
+        fetch: (_) => read.future,
+        parse: AdminOverview.parse,
+        owner: () => owner,
+        credential: () async => 'fixture',
+      );
+      addTearDown(source.dispose);
+      void nothing() {}
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: const TextScaler.linear(2)),
+            child: child!,
+          ),
+          home: AdminOverviewScreen(
+            directory: source,
+            session: session,
+            superAdmin: false,
+            onUsers: nothing,
+            onTeams: nothing,
+            onActivity: nothing,
+            onAlerts: nothing,
+            onRoles: nothing,
+            onSettings: nothing,
+            onProfile: nothing,
+            onNotifications: nothing,
+          ),
+        ),
+      );
+      final greeting = find.textContaining(
+        RegExp(
+          r'^Good (Morning|Afternoon|Evening), Fixture Assembly Administrator$',
+        ),
+      );
+      expect(greeting, findsOneWidget);
+      expect(find.text(municipality), findsOneWidget);
+      expect(find.text('1234'), findsNothing);
+      expect(find.text('Platform Overview'), findsNothing);
+      expect(tester.takeException(), isNull);
+
+      read.complete(overviewFixture());
+      await tester.pumpAndSettle();
+      expect(find.text('1234'), findsOneWidget);
+      expect(greeting, findsOneWidget);
+      session.updateDashboardName('Updated Fixture Name');
+      await tester.pump();
+      expect(find.textContaining(', Updated Fixture Name'), findsOneWidget);
+      expect(find.text(municipality), findsOneWidget);
+
+      owner = 'assembly-admin-b';
+      await source.load();
+      await tester.pumpAndSettle();
+      expect(find.textContaining(', Updated Fixture Name'), findsNothing);
+      expect(find.text(municipality), findsNothing);
+      expect(find.text('Assembly Overview'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   for (final dark in [false, true]) {
     for (final width in [320.0, 412.0]) {
       testWidgets(

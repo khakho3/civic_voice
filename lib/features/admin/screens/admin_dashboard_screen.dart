@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/ghana_refresh_indicator.dart';
 import '../../../models/assembly.dart';
-import '../../../utils/time_greeting.dart';
 import '../../../widgets/app_state_message.dart';
 import '../../../widgets/glass_card.dart';
 import '../../../widgets/stat_tile.dart';
@@ -16,6 +15,7 @@ import '../services/admin_system_activity_directory.dart';
 import '../services/admin_user_directory.dart';
 import '../widgets/admin_scaffold.dart';
 import '../widgets/admin_api_status_badge.dart';
+import '../widgets/admin_dashboard_greeting.dart';
 
 /// ADM-001 — Admin Dashboard.
 ///
@@ -387,8 +387,6 @@ class _AdminGreeting extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final colorScheme = Theme.of(context).colorScheme;
     final assembly = this.assembly;
     final name =
         (assembly == null
@@ -398,34 +396,9 @@ class _AdminGreeting extends StatelessWidget {
         AdminUserDirectory.instance.currentUser?.name ??
         'Administrator';
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('${timeBasedGreeting()}, $name', style: textTheme.headlineSmall),
-        if (assembly != null) ...[
-          const SizedBox(height: AppSpacing.xs),
-          Row(
-            children: [
-              Icon(
-                AppIcons.municipality,
-                size: AppIconSize.sm,
-                color: colorScheme.onSurfaceVariant,
-              ),
-              const SizedBox(width: AppSpacing.xs),
-              Expanded(
-                child: Text(
-                  assembly.fullName,
-                  style: textTheme.bodyLarge?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ],
+    return AdminDashboardGreeting(
+      fullName: name,
+      municipality: assembly?.fullName,
     );
   }
 }

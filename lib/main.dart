@@ -465,6 +465,15 @@ void _primeRoleIdentity(AppRole role, SyncedUser syncedUser) {
     ProfileCrudService.instance.loadSignedInUser(syncedUser);
   } else if (role == AppRole.systemAdministrator) {
     AdminUserDirectory.instance.currentApiUserId = syncedUser.id;
+    final adminSession = AdminSession.instance;
+    if (syncedUser.adminTier == 'admin') {
+      adminSession.setDashboardIdentity(
+        fullName: syncedUser.fullName,
+        municipality: adminSession.assembly?.fullName ?? syncedUser.assembly,
+      );
+    } else {
+      adminSession.clearDashboardIdentity();
+    }
   }
 }
 
@@ -2469,13 +2478,20 @@ Widget _adminProfile(BuildContext context) {
             final token = await FirebaseAuth.instance.currentUser?.getIdToken();
             scope.check();
             if (token == null) return false;
-            await ApiClient.instance.updateProfile(
+            final saved = await ApiClient.instance.updateProfile(
               idToken: token,
               fullName: fullName,
             );
             scope.check();
-            await AdminUserDirectory.instance.refresh();
-            return scope.isCurrent;
+            await directory.refresh();
+            if (!scope.isCurrent) return false;
+            if (saved['id'] == directory.currentApiUserId &&
+                saved['fullName'] is String) {
+              AdminSession.instance.updateDashboardName(
+                saved['fullName'] as String,
+              );
+            }
+            return true;
           } catch (_) {
             return false;
           }
