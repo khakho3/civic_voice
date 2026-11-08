@@ -16,9 +16,9 @@ import 'motion_feedback.dart';
 /// credentials stay owned by each role's administrator/backend rules and
 /// are never offered here.
 ///
-/// [onSave] persists the trimmed name and returns whether it succeeded;
-/// a thrown error counts as failure. A failed save keeps the sheet open
-/// with the entered name and an error, so nothing is lost. While saving,
+/// [onSave] persists the trimmed name and returns whether success was
+/// acknowledged. A false result or thrown error may be an unconfirmed write;
+/// the sheet keeps the entered name and gives neutral feedback. While saving,
 /// Back and the barrier cannot dismiss the sheet. With [confirmDiscard],
 /// leaving with unsaved changes asks first. [showValidationOnOpen] opens
 /// with the empty-name error already shown (the approved Error preview).
@@ -77,7 +77,7 @@ class _ProfileNameEditSheetState extends State<ProfileNameEditSheet> {
   late String? _fieldError = widget.showValidationOnOpen
       ? _requiredMessage
       : null;
-  bool _saveFailed = false;
+  bool _saveUnconfirmed = false;
 
   static const _requiredMessage = 'Full name is required.';
   int _shakes = 0;
@@ -98,7 +98,7 @@ class _ProfileNameEditSheetState extends State<ProfileNameEditSheet> {
     if (name.isEmpty) {
       setState(() {
         _fieldError = _requiredMessage;
-        _saveFailed = false;
+        _saveUnconfirmed = false;
         _shakes++;
       });
       // First (and only) invalid field takes focus so the keyboard opens
@@ -110,7 +110,7 @@ class _ProfileNameEditSheetState extends State<ProfileNameEditSheet> {
     setState(() {
       _saving = true;
       _fieldError = null;
-      _saveFailed = false;
+      _saveUnconfirmed = false;
     });
     bool ok;
     try {
@@ -125,7 +125,7 @@ class _ProfileNameEditSheetState extends State<ProfileNameEditSheet> {
     }
     setState(() {
       _saving = false;
-      _saveFailed = true;
+      _saveUnconfirmed = true;
     });
   }
 
@@ -134,9 +134,11 @@ class _ProfileNameEditSheetState extends State<ProfileNameEditSheet> {
     if (widget.confirmDiscard && _dirty) {
       final discard = await showConfirmDialog(
         context,
-        title: 'Discard changes?',
-        message: 'Your unsaved profile changes will be lost.',
-        confirmLabel: 'Discard',
+        title: _saveUnconfirmed ? 'Close editor?' : 'Discard changes?',
+        message: _saveUnconfirmed
+            ? 'Check the name on your profile before trying again.'
+            : 'Your unsaved profile changes will be lost.',
+        confirmLabel: _saveUnconfirmed ? 'Close editor' : 'Discard',
         destructive: true,
       );
       if (!discard || !mounted) return;
@@ -222,16 +224,16 @@ class _ProfileNameEditSheetState extends State<ProfileNameEditSheet> {
                 ],
               ),
               const SizedBox(height: AppSpacing.md),
-              if (_saveFailed) ...[
+              if (_saveUnconfirmed) ...[
                 Semantics(
                   liveRegion: true,
                   child: Container(
                     padding: const EdgeInsets.all(AppSpacing.sm),
                     decoration: BoxDecoration(
-                      color: semantic.error.withValues(alpha: 0.10),
+                      color: semantic.warning.withValues(alpha: 0.10),
                       borderRadius: AppRadius.allSm,
                       border: Border.all(
-                        color: semantic.error.withValues(alpha: 0.35),
+                        color: semantic.warning.withValues(alpha: 0.35),
                       ),
                     ),
                     child: Row(
@@ -240,13 +242,14 @@ class _ProfileNameEditSheetState extends State<ProfileNameEditSheet> {
                         Icon(
                           AppIcons.warning,
                           size: AppIconSize.md,
-                          color: semantic.errorText,
+                          color: semantic.warningText,
                         ),
                         const SizedBox(width: AppSpacing.sm),
                         Expanded(
                           child: Text(
-                            'Changes not saved. Check your connection and '
-                            'try again.',
+                            "We could not confirm whether your changes were "
+                            'saved. Close this editor and check your profile '
+                            'before trying again.',
                             style: textTheme.bodySmall?.copyWith(
                               color: colorScheme.onSurface,
                             ),
@@ -318,7 +321,7 @@ class _ProfileNameEditSheetState extends State<ProfileNameEditSheet> {
                     ),
                     onChanged: (_) => setState(() {
                       _fieldError = null;
-                      _saveFailed = false;
+                      _saveUnconfirmed = false;
                     }),
                     onSubmitted: (_) => _save(),
                   ),
