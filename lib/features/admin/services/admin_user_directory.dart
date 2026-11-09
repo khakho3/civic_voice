@@ -150,7 +150,24 @@ class AdminUserDirectory {
     }
   }
 
-  Future<void> saveOnServer(AdminUserItem user) async {
+  Future<AdminUserItem?> reloadUser(String apiId) async {
+    final generation = _sessionGeneration;
+    if (!canRefresh) throw StateError('User data is unavailable without Firebase');
+    final token = await _idToken();
+    if (!isSessionGenerationCurrent(generation) || token == null) {
+      throw StateError('A signed-in Admin is required');
+    }
+    final response = await _listUsers(token);
+    if (!isSessionGenerationCurrent(generation)) {
+      throw StateError('User response belongs to a previous session');
+    }
+    for (final json in response) {
+      if (json['id'] == apiId) return AdminUserItem.fromApi(json);
+    }
+    return null;
+  }
+
+  Future<AdminUserItem> saveOnServer(AdminUserItem user) async {
     _requireOtherAccount(user);
     final operation = _beginMutation(user.apiRecordId);
     try {
@@ -174,7 +191,10 @@ class AdminUserDirectory {
         fields,
       );
       _requireCurrentMutation(operation);
-      upsertFromApi(
+      if (response['id'] != user.apiRecordId) {
+        throw StateError('User update returned a different account');
+      }
+      return upsertFromApi(
         response,
         sessionGeneration: operation.sessionGeneration,
       );

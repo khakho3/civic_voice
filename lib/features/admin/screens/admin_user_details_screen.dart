@@ -6,9 +6,11 @@ import '../../../utils/civic_date.dart';
 import '../../../widgets/busy_indicator.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/ghana_refresh_indicator.dart';
 import '../../../models/app_role.dart';
 import '../../../models/assembly.dart';
 import '../../../models/region.dart';
+import '../../../services/api_client.dart';
 import '../../../widgets/app_dropdown_field.dart';
 import '../../../widgets/app_state_message.dart';
 import '../../../widgets/confirm_dialog.dart';
@@ -48,11 +50,6 @@ import '../widgets/region_assembly_picker.dart';
 /// the export suggests admins can rename another account or change its
 /// email from here, and User ID is never editable anywhere.
 ///
-/// Saving is local to this screen only — [AdminUserItem]'s edits aren't
-/// bubbled back into User Management's own separate in-memory list (same
-/// "wire it up once the next screen needs it" scoping as every other
-/// screen's mock data), but [onSaveChanges] is there for the app shell to
-/// use once that's worth doing.
 enum AdminUserDetailsViewState { loading, loaded, offline, error, unauthorized }
 
 class AdminUserDetailsScreen extends StatefulWidget {
@@ -90,8 +87,7 @@ class AdminUserDetailsScreen extends StatefulWidget {
   final VoidCallback? onOpenProfile;
   final VoidCallback? onNotificationsTap;
 
-  /// Fired with the edited record when "Save Changes" succeeds. See the
-  /// class doc comment — nullable because nothing consumes it yet.
+  /// Receives the confirmed server record after a successful save.
   final ValueChanged<AdminUserItem>? onSaveChanges;
 
   @override
@@ -100,6 +96,7 @@ class AdminUserDetailsScreen extends StatefulWidget {
 
 class _AdminUserDetailsScreenState extends State<AdminUserDetailsScreen> {
   late AdminUserDetailsViewState _state = widget.initialState;
+  late AdminUserItem _user = widget.user;
   late AppRole _role = widget.user.role;
   late AdminUserStatus _status = widget.user.status;
   late AdminTier? _tier = widget.user.adminTier;
@@ -107,20 +104,79 @@ class _AdminUserDetailsScreenState extends State<AdminUserDetailsScreen> {
   late Assembly? _assembly = widget.user.assembly;
   bool _showSuccess = false;
   bool _saving = false;
+  bool _reloading = false;
+  bool _needsReload = false;
+  bool _missingUser = false;
+  String? _feedback;
+
+  bool get _dirty =>
+      (_role, _status, _tier, _region, _assembly) != _access(_user);
+
+  bool get _canReload =>
+      _user.apiId != null && AdminUserDirectory.instance.canRefresh;
+
+  (AppRole, AdminUserStatus, AdminTier?, Region?, Assembly?) _access(
+    AdminUserItem user,
+  ) => (user.role, user.status, user.adminTier, user.region, user.assembly);
+
+  void _useRecord(AdminUserItem user, {bool keepDraft = false}) {
+    if (!keepDraft || _access(_user) != _access(user)) {
+      _role = user.role;
+      _status = user.status;
+      _tier = user.adminTier;
+      _region = user.region;
+      _assembly = user.assembly;
+    }
+    _user = user;
+  }
+
+  Future<void> _reload() async {
+    if (!_canReload || _saving || _reloading) return;
+    final directory = AdminUserDirectory.instance;
+    final generation = directory.sessionGeneration;
+    setState(() => _reloading = true);
+    try {
+      final user = await directory.reloadUser(_user.apiRecordId);
+      if (!mounted || !directory.isSessionGenerationCurrent(generation)) return;
+      setState(() {
+        _missingUser = user == null;
+        _state = user == null
+            ? AdminUserDetailsViewState.error
+            : AdminUserDetailsViewState.loaded;
+        if (user != null) _useRecord(user, keepDraft: _dirty);
+        _showSuccess = false;
+        _feedback = null;
+        _needsReload = false;
+      });
+    } catch (error) {
+      if (!mounted || !directory.isSessionGenerationCurrent(generation)) return;
+      final status = error is ApiException ? error.statusCode : null;
+      setState(() {
+        if (status == 401 || status == 403) {
+          _state = AdminUserDetailsViewState.unauthorized;
+        } else if (_state == AdminUserDetailsViewState.loaded) {
+          _feedback = 'Could not reload the account. Try again.';
+          _needsReload = true;
+        } else {
+          _state = status == 0
+              ? AdminUserDetailsViewState.offline
+              : AdminUserDetailsViewState.error;
+        }
+      });
+    } finally {
+      if (mounted && directory.isSessionGenerationCurrent(generation)) {
+        setState(() => _reloading = false);
+      }
+    }
+  }
 
   Future<void> _handleCancel() async {
-    final dirty =
-        _role != widget.user.role ||
-        _status != widget.user.status ||
-        _tier != widget.user.adminTier ||
-        _region != widget.user.region ||
-        _assembly != widget.user.assembly;
-    if (dirty) {
+    if (_dirty) {
       final confirmed = await showConfirmDialog(
         context,
         title: 'Discard changes?',
         message:
-            'Unsaved changes to ${widget.user.name}\'s account will be '
+            'Unsaved changes to ${_user.name}\'s account will be '
             'lost.',
         confirmLabel: 'Discard',
         destructive: true,
@@ -131,31 +187,42 @@ class _AdminUserDetailsScreenState extends State<AdminUserDetailsScreen> {
   }
 
   Future<void> _save() async {
-    if (AdminUserDirectory.instance.isOwnAccount(widget.user)) return;
+    final directory = AdminUserDirectory.instance;
+    if (_saving ||
+        _reloading ||
+        _needsReload ||
+        directory.isOwnAccount(_user)) {
+      return;
+    }
+    final generation = directory.sessionGeneration;
     final session = AdminSession.instance;
     // A session that can't edit roles/deactivate accounts never changed
     // _role/_status in the first place (their dropdowns render read-only —
     // see _DetailsForm), so these effectively no-op for that session but
     // stay here as a second guarantee against a stale/replayed save.
-    final effectiveRole = session.canEditUserRoles ? _role : widget.user.role;
-    final effectiveStatus = session.canDeactivateUsers
-        ? _status
-        : widget.user.status;
-    final roleChanged = effectiveRole != widget.user.role;
+    final effectiveRole = session.canEditUserRoles ? _role : _user.role;
+    final effectiveStatus = session.canDeactivateUsers ? _status : _user.status;
+    final roleChanged = effectiveRole != _user.role;
     final confirmed = await showConfirmDialog(
       context,
       title: 'Save access changes?',
       message: roleChanged
-          ? '${widget.user.name}\'s role will change to '
+          ? '${_user.name}\'s role will change to '
                 '${effectiveRole.label} and their account status will be '
                 'updated.'
-          : '${widget.user.name}\'s account status will be updated.',
+          : '${_user.name}\'s account status will be updated.',
       confirmLabel: 'Save Changes',
       destructive: roleChanged,
     );
-    if (!confirmed || !mounted) return;
+    if (!confirmed ||
+        !mounted ||
+        _reloading ||
+        _needsReload ||
+        !directory.isSessionGenerationCurrent(generation)) {
+      return;
+    }
 
-    final updated = widget.user.copyWith(
+    final updated = _user.copyWith(
       role: effectiveRole,
       status: effectiveStatus,
       adminTier: effectiveRole == AppRole.systemAdministrator
@@ -168,38 +235,66 @@ class _AdminUserDetailsScreenState extends State<AdminUserDetailsScreen> {
           ? _assembly
           : null,
     );
-    setState(() => _saving = true);
+    setState(() {
+      _saving = true;
+      _feedback = null;
+      _showSuccess = false;
+    });
+    final AdminUserItem saved;
     try {
-      await AdminUserDirectory.instance.saveOnServer(updated);
-    } catch (_) {
-      if (mounted) {
-        setState(() {
-          _saving = false;
-          _state = AdminUserDetailsViewState.error;
-        });
-      }
+      saved = await directory.saveOnServer(updated);
+    } catch (error) {
+      if (!mounted || !directory.isSessionGenerationCurrent(generation)) return;
+      final status = error is ApiException ? error.statusCode : null;
+      final leadConflict =
+          error is ApiException &&
+          status == 409 &&
+          error.message.startsWith('Reassign the lead for ');
+      final rejected =
+          status == 400 ||
+          status == 401 ||
+          status == 403 ||
+          status == 422 ||
+          leadConflict;
+      setState(() {
+        _saving = false;
+        _needsReload = _canReload && !rejected;
+        _feedback = switch (status) {
+          409 when leadConflict => error.message,
+          401 ||
+          403 => 'Your account does not have access to save these changes.',
+          400 || 422 =>
+            'The account changes were rejected. Check the access settings and try again.',
+          409 =>
+            'The account update conflicts with another change. Reload its details before trying again.',
+          404 => 'This account is no longer available. Reload its details.',
+          _ when _needsReload =>
+            'The account change could not be confirmed. Reload its details before trying again.',
+          _ => 'Could not save changes right now.',
+        };
+      });
       return;
     }
-    if (!mounted) return;
-    widget.onSaveChanges?.call(updated);
+    if (!mounted || !directory.isSessionGenerationCurrent(generation)) return;
+    setState(() {
+      _useRecord(saved);
+      _saving = false;
+      _showSuccess = widget.onNavigateToUsers == null;
+    });
+    widget.onSaveChanges?.call(saved);
     final returnToUsers = widget.onNavigateToUsers;
     if (returnToUsers != null) {
-      setState(() => _saving = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Changes to ${widget.user.name} were saved.')),
+        SnackBar(content: Text('Changes to ${saved.name} were saved.')),
       );
       returnToUsers();
       return;
     }
-    setState(() {
-      _saving = false;
-      _showSuccess = true;
-    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final ownAccount = AdminUserDirectory.instance.isOwnAccount(widget.user);
+    final ownAccount = AdminUserDirectory.instance.isOwnAccount(_user);
     return AdminScaffold(
       selectedTab: AdminTab.users,
       headerTitle: 'User Details',
@@ -216,79 +311,97 @@ class _AdminUserDetailsScreenState extends State<AdminUserDetailsScreen> {
       onOpenRoleManagement: widget.onNavigateToRoles,
       onOpenMaintenanceTeams: widget.onNavigateToMaintenanceTeams,
       onOpenProfile: widget.onOpenProfile,
-      body: switch (_state) {
-        AdminUserDetailsViewState.loading => const _LoadingSkeleton(),
-        AdminUserDetailsViewState.loaded => _DetailsForm(
-          user: widget.user,
-          role: _role,
-          status: _status,
-          tier: _tier,
-          region: _region,
-          assembly: _assembly,
-          showSuccess: _showSuccess,
-          canEditRole: !ownAccount && AdminSession.instance.canEditUserRoles,
-          canEditStatus:
-              !ownAccount && AdminSession.instance.canDeactivateUsers,
-          onRoleChanged: (role) => setState(() {
-            _role = role;
-            _showSuccess = false;
-            if (role == AppRole.systemAdministrator) {
-              _tier ??= AdminTier.admin;
-            } else {
-              _tier = null;
-            }
-            if (!AdminUserItem.roleRequiresAssembly(role, _tier)) {
-              _region = null;
-              _assembly = null;
-            }
-          }),
-          onStatusChanged: (status) => setState(() {
-            _status = status;
-            _showSuccess = false;
-          }),
-          onTierChanged: (tier) => setState(() {
-            _tier = tier;
-            _showSuccess = false;
-            if (!AdminUserItem.roleRequiresAssembly(_role, tier)) {
-              _region = null;
-              _assembly = null;
-            }
-          }),
-          onRegionChanged: (region) => setState(() {
-            _region = region;
-            _showSuccess = false;
-          }),
-          onAssemblyChanged: (assembly) => setState(() {
-            _assembly = assembly;
-            _showSuccess = false;
-          }),
-          onBack: _handleCancel,
-          onCancel: _handleCancel,
-          onSave: _save,
-          saving: _saving,
-          ownAccount: ownAccount,
-        ),
-        _ => Column(
-          children: [
-            SizedBox(height: AdminScaffold.contentPadding(context).top),
-            Expanded(
+      body: _buildBody(context, ownAccount),
+    );
+  }
+
+  Widget _buildBody(BuildContext context, bool ownAccount) {
+    final body = switch (_state) {
+      AdminUserDetailsViewState.loading => const _LoadingSkeleton(),
+      AdminUserDetailsViewState.loaded => _DetailsForm(
+        user: _user,
+        role: _role,
+        status: _status,
+        tier: _tier,
+        region: _region,
+        assembly: _assembly,
+        showSuccess: _showSuccess,
+        canEditRole: !ownAccount && AdminSession.instance.canEditUserRoles,
+        canEditStatus: !ownAccount && AdminSession.instance.canDeactivateUsers,
+        onRoleChanged: (role) => setState(() {
+          _role = role;
+          _showSuccess = false;
+          if (role == AppRole.systemAdministrator) {
+            _tier ??= AdminTier.admin;
+          } else {
+            _tier = null;
+          }
+          if (!AdminUserItem.roleRequiresAssembly(role, _tier)) {
+            _region = null;
+            _assembly = null;
+          }
+        }),
+        onStatusChanged: (status) => setState(() {
+          _status = status;
+          _showSuccess = false;
+        }),
+        onTierChanged: (tier) => setState(() {
+          _tier = tier;
+          _showSuccess = false;
+          if (!AdminUserItem.roleRequiresAssembly(_role, tier)) {
+            _region = null;
+            _assembly = null;
+          }
+        }),
+        onRegionChanged: (region) => setState(() {
+          _region = region;
+          _showSuccess = false;
+        }),
+        onAssemblyChanged: (assembly) => setState(() {
+          _assembly = assembly;
+          _showSuccess = false;
+        }),
+        onBack: _handleCancel,
+        onCancel: _handleCancel,
+        onSave: _save,
+        saving: _saving,
+        reloading: _reloading,
+        feedback: _feedback,
+        onReload: _needsReload ? _reload : null,
+        ownAccount: ownAccount,
+      ),
+      _ => CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        slivers: [
+          SliverPadding(
+            padding: AdminScaffold.contentPadding(context),
+            sliver: SliverFillRemaining(
+              hasScrollBody: false,
               child: switch (_state) {
                 AdminUserDetailsViewState.offline => AppStateMessage(
                   icon: AppIcons.offline,
                   badgeColor: AppColors.error,
                   title: 'You\'re offline',
-                  message:
-                      'User details cannot be reloaded from this screen '
-                      'while offline.',
+                  message: _canReload
+                      ? 'Check your connection and try loading the account again.'
+                      : 'User details cannot be reloaded from this screen while offline.',
+                  primaryActionLabel: _canReload ? 'Retry connection' : null,
+                  onPrimaryAction: _reloading ? null : _reload,
                   bordered: true,
                 ),
                 AdminUserDetailsViewState.error => AppStateMessage(
                   icon: AppIcons.warning,
                   badgeColor: AppColors.error,
-                  title: 'Something went wrong',
-                  message:
-                      'Unable to load user details right now. Reloading '
-                      'details is not available from this screen.',
+                  title: _missingUser
+                      ? 'User details unavailable'
+                      : 'Something went wrong',
+                  message: _missingUser
+                      ? 'This account could not be found in your user directory.'
+                      : _canReload
+                      ? 'Unable to load user details right now.'
+                      : 'Unable to load user details right now. Reloading details is not available from this screen.',
+                  primaryActionLabel: _canReload ? 'Retry' : null,
+                  onPrimaryAction: _reloading ? null : _reload,
                   bordered: true,
                 ),
                 AdminUserDetailsViewState.unauthorized => const AppStateMessage(
@@ -303,9 +416,19 @@ class _AdminUserDetailsScreenState extends State<AdminUserDetailsScreen> {
                 _ => const SizedBox.shrink(),
               },
             ),
-          ],
-        ),
-      },
+          ),
+        ],
+      ),
+    };
+    if (!_canReload ||
+        _state == AdminUserDetailsViewState.unauthorized ||
+        _state == AdminUserDetailsViewState.loading) {
+      return body;
+    }
+    return GhanaRefreshIndicator(
+      onRefresh: _reload,
+      topOffset: AdminScaffold.contentPadding(context).top,
+      child: body,
     );
   }
 }
@@ -334,6 +457,9 @@ class _DetailsForm extends StatelessWidget {
     this.onBack,
     this.onCancel,
     this.saving = false,
+    this.reloading = false,
+    this.feedback,
+    this.onReload,
     this.ownAccount = false,
   });
 
@@ -360,6 +486,9 @@ class _DetailsForm extends StatelessWidget {
   final VoidCallback? onBack;
   final VoidCallback? onCancel;
   final bool saving;
+  final bool reloading;
+  final String? feedback;
+  final Future<void> Function()? onReload;
   final bool ownAccount;
   final VoidCallback onSave;
 
@@ -377,6 +506,7 @@ class _DetailsForm extends StatelessWidget {
     );
 
     return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: EdgeInsets.fromLTRB(
         AppSpacing.md,
         chromeInset.top + AppSpacing.md,
@@ -546,6 +676,28 @@ class _DetailsForm extends StatelessWidget {
           'Administrative actions',
           style: Theme.of(context).textTheme.titleMedium,
         ),
+        if (feedback case final message?) ...[
+          const SizedBox(height: AppSpacing.sm),
+          Semantics(
+            liveRegion: true,
+            child: Text(
+              message,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+          ),
+          if (onReload != null)
+            Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: TextButton(
+                onPressed: reloading ? null : onReload,
+                child: BusyLabel(
+                  busy: reloading,
+                  busyLabel: 'Reloading details',
+                  child: const Text('Reload details'),
+                ),
+              ),
+            ),
+        ],
         const SizedBox(height: AppSpacing.sm),
         Row(
           children: [
@@ -559,7 +711,11 @@ class _DetailsForm extends StatelessWidget {
             Expanded(
               child: FilledButton(
                 onPressed:
-                    saving || ownAccount || (!canEditRole && !canEditStatus)
+                    saving ||
+                        reloading ||
+                        onReload != null ||
+                        ownAccount ||
+                        (!canEditRole && !canEditStatus)
                     ? null
                     : onSave,
                 child: BusyLabel(

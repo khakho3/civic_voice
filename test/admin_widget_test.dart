@@ -39,6 +39,7 @@ import 'package:civic_voice/models/ghana_assemblies_data.dart';
 import 'package:civic_voice/models/assembly.dart';
 import 'package:civic_voice/models/region.dart';
 import 'package:civic_voice/services/mock_auth_service.dart';
+import 'package:civic_voice/services/api_client.dart';
 
 /// Snapshots the live `AdminSystemSettingsDirectory` settings and restores
 /// them after the test — for tests that write through the real directory
@@ -2454,7 +2455,7 @@ void main() {
       // No Firebase/API fixture is supplied here, so the screen must not
       // manufacture a successful update for this local preview record.
       expect(find.text('Changes saved'), findsNothing);
-      expect(find.text('Something went wrong'), findsOneWidget);
+      expect(find.text('Could not save changes right now.'), findsOneWidget);
       expect(saved, isNull);
     },
   );
@@ -2538,10 +2539,146 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(returnedToUsers, isFalse);
-      expect(find.text('Something went wrong'), findsOneWidget);
+      expect(find.text('Could not save changes right now.'), findsOneWidget);
       expect(find.text('Changes saved'), findsNothing);
     },
   );
+
+  group('live Admin User Details recovery', () {
+    final directory = AdminUserDirectory.instance;
+    const record = <String, dynamic>{
+      'id': 'fixture-team-lead',
+      'publicId': 'MNT-000085',
+      'fullName': 'Fixture Team Lead',
+      'phone': '+233240000000',
+      'role': 'MAINTENANCE',
+      'active': true,
+      'createdAt': '2026-11-01T10:00:00Z',
+    };
+    var reads = 0;
+    late Map<String, dynamic> response;
+
+    setUp(() {
+      reads = 0;
+      response = record;
+      directory.firebaseAvailableForTesting = true;
+      directory.tokenProviderForTesting = () async => 'fixture-token';
+      directory.listUsersForTesting = (_) async {
+        reads++;
+        return [response];
+      };
+    });
+    tearDown(() {
+      directory.invalidateAndClear();
+      directory.firebaseAvailableForTesting = null;
+      directory.tokenProviderForTesting = null;
+      directory.listUsersForTesting = null;
+      directory.updateUserForTesting = null;
+    });
+
+    Future<void> open(
+      WidgetTester tester, {
+      AdminUserDetailsViewState state = AdminUserDetailsViewState.loaded,
+    }) async {
+      tester.view.physicalSize = const Size(428, 2600);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: AdminUserDetailsScreen(
+            user: AdminUserItem.fromApi(record),
+            initialState: state,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> changeRole(WidgetTester tester) async {
+      await tester.tap(find.byType(AppDropdownField<AppRole>));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Citizen').last);
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> submit(WidgetTester tester) async {
+      await tester.tap(find.text('Save Changes'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Save Changes').last);
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets(
+      'a team lead conflict preserves the proposed role and explains the block',
+      (tester) async {
+        const reason =
+            "Reassign the lead for Fixture Team (TEAM-1) before changing this user's role or jurisdiction.";
+        directory.updateUserForTesting = (_, _, fields) async {
+          expect(fields['role'], 'CITIZEN');
+          throw const ApiException(statusCode: 409, message: reason);
+        };
+        await open(tester);
+        await changeRole(tester);
+        await submit(tester);
+        expect(find.text(reason), findsOneWidget);
+        expect(find.text('Citizen'), findsWidgets);
+        expect(find.text('Changes saved'), findsNothing);
+        expect(find.text('Something went wrong'), findsNothing);
+        expect(reads, 0);
+      },
+    );
+
+    testWidgets(
+      'an unconfirmed save blocks resubmission until fresh details verify the outcome',
+      (tester) async {
+        directory.updateUserForTesting = (_, _, _) async {
+          throw const ApiException(statusCode: 408, message: 'Fixture timeout');
+        };
+        await open(tester);
+        await changeRole(tester);
+        await submit(tester);
+        expect(find.textContaining('could not be confirmed'), findsOneWidget);
+        expect(
+          tester
+              .widget<FilledButton>(
+                find.ancestor(
+                  of: find.text('Save Changes'),
+                  matching: find.byType(FilledButton),
+                ),
+              )
+              .onPressed,
+          isNull,
+        );
+        response = {...record, 'role': 'CITIZEN', 'publicId': 'CIT-000086'};
+        await tester.tap(find.text('Reload details'));
+        await tester.pumpAndSettle();
+        expect(reads, 1);
+        expect(find.text('CIT-000086'), findsOneWidget);
+        expect(find.text('MNT-000085'), findsNothing);
+        expect(find.textContaining('could not be confirmed'), findsNothing);
+        expect(find.text('Changes saved'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'error Retry and loaded pull-to-refresh both read the current account',
+      (tester) async {
+        await open(tester, state: AdminUserDetailsViewState.error);
+        await tester.tap(find.text('Retry'));
+        await tester.pumpAndSettle();
+        expect(reads, 1);
+        expect(find.text('MNT-000085'), findsOneWidget);
+        response = {...record, 'publicId': 'MNT-000086'};
+        await tester.drag(find.byType(ListView).last, const Offset(0, 320));
+        await tester.pumpAndSettle();
+        expect(reads, 2);
+        expect(find.text('MNT-000086'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  });
 
   testWidgets(
     'Admin User Details is a tab-shell screen: bottom nav stays visible '
