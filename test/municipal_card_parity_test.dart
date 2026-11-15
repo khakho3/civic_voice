@@ -133,10 +133,12 @@ void main() {
               final report = fixture(status);
               MunicipalReportDirectory.instance.reports.value = [report];
               String? opened;
+              var viewAll = 0;
               final screen = switch (name) {
                 'home' => MunicipalDashboardScreen(
                   data: dashboard(report),
                   onReportTap: (r) => opened = r.referenceId,
+                  onNavigateToInbox: () => viewAll++,
                 ),
                 'inbox' => MunicipalInboxScreen(
                   onReportTap: (r) => opened = r.referenceId,
@@ -226,6 +228,21 @@ void main() {
                   .first;
               final pillRect = tester.getRect(pill);
               final cardRect = tester.getRect(card);
+              if (name == 'home') {
+                for (final sectionLabel in ['Recent Reports', 'View all']) {
+                  expect(
+                    find.ancestor(
+                      of: find.text(sectionLabel),
+                      matching: find.byType(GlassCard),
+                    ),
+                    findsNothing,
+                  );
+                  expect(
+                    tester.getRect(find.text(sectionLabel)).bottom,
+                    lessThanOrEqualTo(cardRect.top),
+                  );
+                }
+              }
               if (direction == TextDirection.ltr) {
                 expect(
                   pillRect.right,
@@ -246,6 +263,17 @@ void main() {
               );
               await tester.pumpAndSettle();
               expect(opened, report.referenceId);
+              if (name == 'home') {
+                opened = null;
+                await Scrollable.ensureVisible(
+                  tester.element(find.text('View all')),
+                  alignment: 0.5,
+                );
+                await tester.pumpAndSettle();
+                await tester.tap(find.text('View all'));
+                expect(viewAll, 1);
+                expect(opened, isNull);
+              }
               expect(tester.takeException(), isNull);
             },
           );

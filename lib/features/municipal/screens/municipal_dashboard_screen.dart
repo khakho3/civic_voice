@@ -277,7 +277,7 @@ class _DashboardContent extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.md),
         ],
-        _RecentReportsCard(
+        _RecentReportsSection(
           reports: data.recentReports,
           isEmpty: empty,
           onViewAll: onViewAllReports,
@@ -405,8 +405,8 @@ class _StatsGrid extends StatelessWidget {
   }
 }
 
-class _RecentReportsCard extends StatelessWidget {
-  const _RecentReportsCard({
+class _RecentReportsSection extends StatelessWidget {
+  const _RecentReportsSection({
     required this.reports,
     required this.isEmpty,
     this.onViewAll,
@@ -421,40 +421,38 @@ class _RecentReportsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    return GlassCard(
-      padding: EdgeInsets.zero,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Text(
-                    'Recent Reports',
-                    style: textTheme.titleMedium,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.xs),
-                TextButton(onPressed: onViewAll, child: const Text('View all')),
-              ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Text('Recent Reports', style: textTheme.titleMedium),
             ),
-          ),
-          if (isEmpty)
-            const _RecentReportsEmpty()
-          else
-            for (final report in reports)
-              _RecentReportRow(
-                report: report,
-                isFirst: report == reports.first,
-                onTap: onReportTap == null ? null : () => onReportTap!(report),
-              ),
-        ],
-      ),
+            const SizedBox(width: AppSpacing.xs),
+            TextButton(onPressed: onViewAll, child: const Text('View all')),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        GlassCard(
+          padding: EdgeInsets.zero,
+          child: isEmpty
+              ? const _RecentReportsEmpty()
+              : Column(
+                  children: [
+                    for (final report in reports)
+                      _RecentReportRow(
+                        report: report,
+                        isFirst: report == reports.first,
+                        onTap: onReportTap == null
+                            ? null
+                            : () => onReportTap!(report),
+                      ),
+                  ],
+                ),
+        ),
+      ],
     );
   }
 }
