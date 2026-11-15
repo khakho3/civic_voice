@@ -9,7 +9,8 @@ import '../../../widgets/glass_card.dart';
 import '../../../core/widgets/ghana_refresh_indicator.dart';
 import '../widgets/municipal_scaffold.dart';
 import '../../../widgets/app_state_message.dart';
-import '../../../widgets/status_badge.dart';
+import '../../../widgets/dashboard_stat_card.dart';
+import '../widgets/municipal_report_heading.dart';
 
 /// MUN-001 — Municipal Dashboard.
 ///
@@ -373,73 +374,33 @@ class _StatsGrid extends StatelessWidget {
           crossAxisSpacing: AppSpacing.sm,
           mainAxisExtent: (isNarrow ? 144 : 132) * textScale,
           children: [
-            _StatCard(
+            DashboardStatCard(
               label: 'New Reports',
-              value: stats.newReports,
+              value: '${stats.newReports}',
+              accentColor: Theme.of(context).colorScheme.primary,
               icon: AppIcons.report,
             ),
-            _StatCard(
+            DashboardStatCard(
               label: 'Under Review',
-              value: stats.underReview,
+              value: '${stats.underReview}',
+              accentColor: AppSemanticColors.of(context).statusUnderReview,
               icon: AppIcons.statusUnderReview,
             ),
-            _StatCard(
+            DashboardStatCard(
               label: 'Assigned',
-              value: stats.assigned,
+              value: '${stats.assigned}',
+              accentColor: AppSemanticColors.of(context).statusAssigned,
               icon: AppIcons.statusAssigned,
             ),
-            _StatCard(
+            DashboardStatCard(
               label: 'Resolved',
-              value: stats.resolved,
+              value: '${stats.resolved}',
+              accentColor: AppSemanticColors.of(context).success,
               icon: AppIcons.statusResolved,
             ),
           ],
         );
       },
-    );
-  }
-}
-
-class _StatCard extends StatelessWidget {
-  const _StatCard({
-    required this.label,
-    required this.value,
-    required this.icon,
-  });
-
-  final String label;
-  final int value;
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    return GlassCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Text(
-                  label,
-                  style: textTheme.bodySmall?.copyWith(
-                    fontWeight: AppFontWeight.medium,
-                  ),
-                ),
-              ),
-              Icon(
-                icon,
-                size: AppIconSize.md,
-                color: AppSemanticColors.of(context).actionText,
-              ),
-            ],
-          ),
-          const Spacer(),
-          Text('$value', style: textTheme.headlineLarge),
-        ],
-      ),
     );
   }
 }
@@ -525,54 +486,22 @@ class _RecentReportRow extends StatelessWidget {
               ? null
               : Border(top: BorderSide(color: semantic.glassBorder)),
         ),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const _ReportRowIcon(),
-            const SizedBox(width: AppSpacing.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          report.title,
-                          style: textTheme.titleSmall,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.sm),
-                      Flexible(child: ReportStatusBadge(status: report.status)),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(
-                    '${report.category.label} · ${report.timeAgo} · ${report.referenceId}',
-                    style: textTheme.bodySmall,
-                  ),
-                ],
-              ),
+            MunicipalReportHeading(
+              title: report.title,
+              referenceId: report.referenceId,
+              status: report.status,
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              '${report.category.label} · ${report.timeAgo}',
+              style: textTheme.bodySmall,
             ),
           ],
         ),
       ),
-    );
-  }
-}
-
-/// The generic report-row leading icon.
-class _ReportRowIcon extends StatelessWidget {
-  const _ReportRowIcon();
-
-  @override
-  Widget build(BuildContext context) {
-    return Icon(
-      AppIcons.report,
-      size: AppIconSize.lg,
-      color: Theme.of(context).colorScheme.onSurfaceVariant,
     );
   }
 }

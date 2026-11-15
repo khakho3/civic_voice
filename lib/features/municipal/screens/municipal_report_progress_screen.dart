@@ -250,6 +250,23 @@ class _MunicipalReportProgressScreenState
         ? ReportStatus.resolved
         : _report?.status ?? widget.status;
 
+    final header = MunicipalDetailHeader(
+      title: 'Report Progress',
+      referenceId: widget.referenceId,
+      onBack: widget.onBack,
+      status: effectiveStatus,
+      trailing: _state == MunicipalReportProgressViewState.success
+          ? null
+          : KebabMenuButton<void>(
+              itemBuilder: (context) => [
+                PopupMenuItem(
+                  onTap: _shareSummary,
+                  child: const Text('Share Summary'),
+                ),
+              ],
+            ),
+    );
+
     return Scaffold(
       body: Stack(
         children: [
@@ -258,7 +275,7 @@ class _MunicipalReportProgressScreenState
               top: false,
               child: Column(
                 children: [
-                  SizedBox(height: MunicipalDetailHeader.topInset(context)),
+                  SizedBox(height: header.contentInset(context)),
                   if (_state == MunicipalReportProgressViewState.offline)
                     const _OfflineBanner(),
                   Expanded(
@@ -389,29 +406,7 @@ class _MunicipalReportProgressScreenState
               ),
             ),
           ),
-          Align(
-            alignment: Alignment.topCenter,
-            child: MunicipalDetailHeader(
-              title: 'Report Progress',
-              referenceId: widget.referenceId,
-              onBack: widget.onBack,
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Expanded(child: ReportStatusBadge(status: effectiveStatus)),
-                  if (_state != MunicipalReportProgressViewState.success)
-                    KebabMenuButton<void>(
-                      itemBuilder: (context) => [
-                        PopupMenuItem(
-                          onTap: _shareSummary,
-                          child: const Text('Share Summary'),
-                        ),
-                      ],
-                    ),
-                ],
-              ),
-            ),
-          ),
+          Align(alignment: Alignment.topCenter, child: header),
         ],
       ),
     );

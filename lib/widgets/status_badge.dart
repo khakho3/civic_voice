@@ -31,6 +31,11 @@ class TintedBadge extends StatelessWidget {
   final Color textColor;
   final int maxLines;
 
+  static const contentPadding = EdgeInsets.symmetric(
+    horizontal: AppSpacing.sm + AppDimensions.borderWidthThin,
+    vertical: AppSpacing.xs + AppDimensions.borderWidthThin,
+  );
+
   /// Optional leading glyph — most badges stay text-only (the original
   /// intent here), but a few consolidated call sites (unread markers,
   /// verification pills) carry a small icon before the label.
@@ -40,7 +45,7 @@ class TintedBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final ink = AppSemanticColors.of(context).foregroundFor(textColor);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      padding: contentPadding,
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
         border: Border.all(color: color.withValues(alpha: 0.24)),
@@ -75,9 +80,10 @@ class TintedBadge extends StatelessWidget {
 /// the theme's readable status ink for that hue rather than the hue itself
 /// — the raw lifecycle hues are 2–4:1 as text on the tinted fill.
 class ReportStatusBadge extends StatelessWidget {
-  const ReportStatusBadge({super.key, required this.status});
+  const ReportStatusBadge({super.key, required this.status, this.maxLines = 1});
 
   final ReportStatus status;
+  final int maxLines;
 
   @override
   Widget build(BuildContext context) {
@@ -88,6 +94,7 @@ class ReportStatusBadge extends StatelessWidget {
         label: status.label,
         color: status.color,
         textColor: status.color,
+        maxLines: maxLines,
       ),
     );
   }

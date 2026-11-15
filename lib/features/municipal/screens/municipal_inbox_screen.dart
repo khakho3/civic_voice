@@ -11,8 +11,8 @@ import '../services/municipal_report_directory.dart';
 import '../../../widgets/glass_card.dart';
 import '../../../widgets/text_filter_chips.dart';
 import '../widgets/municipal_scaffold.dart';
+import '../widgets/municipal_report_heading.dart';
 import '../../../widgets/app_state_message.dart';
-import '../../../widgets/status_badge.dart';
 
 /// MUN-002 — Incoming Reports (Figma section "02 - Incoming Messages").
 ///
@@ -496,18 +496,14 @@ class _ReportCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Wrap(
-            alignment: WrapAlignment.spaceBetween,
-            spacing: AppSpacing.sm,
-            runSpacing: AppSpacing.xs,
-            children: [
-              ReportStatusBadge(status: report.status),
-              Text(report.timeAgo, style: textTheme.bodySmall),
-            ],
+          MunicipalReportHeading(
+            title: report.title,
+            referenceId: report.referenceId,
+            status: report.status,
           ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(report.title, style: textTheme.titleMedium),
           const SizedBox(height: AppSpacing.xs),
+          Text(report.timeAgo, style: textTheme.bodySmall),
+          const SizedBox(height: AppSpacing.sm),
           Text(
             report.description,
             style: textTheme.bodyMedium,

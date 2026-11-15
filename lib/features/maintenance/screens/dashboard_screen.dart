@@ -4,6 +4,7 @@ import 'package:civic_voice/core/theme/app_theme.dart';
 import '../../../core/widgets/ghana_refresh_indicator.dart';
 import '../../../utils/time_greeting.dart';
 import '../../../widgets/glass_card.dart';
+import '../../../widgets/dashboard_stat_card.dart';
 import '../../../widgets/async_action_button.dart';
 import '../../../widgets/status_badge.dart';
 import '../models/maintenance_task.dart';
@@ -224,25 +225,25 @@ class _DashboardContent extends StatelessWidget {
                           .clamp(1.0, double.infinity),
                 ),
                 children: [
-                  _StatCard(
+                  DashboardStatCard(
                     icon: AppIcons.task,
                     label: 'Assigned Tasks',
                     value: '${data.assignedCount}',
                     accentColor: colorScheme.primary,
                   ),
-                  _StatCard(
+                  DashboardStatCard(
                     icon: AppIcons.activityPulse,
                     label: 'Active Work',
                     value: '${data.activeCount}',
                     accentColor: semantic.statusInProgress,
                   ),
-                  _StatCard(
+                  DashboardStatCard(
                     icon: AppIcons.statusResolved,
                     label: 'Completed',
                     value: '${data.completedCount}',
                     accentColor: semantic.success,
                   ),
-                  _StatCard(
+                  DashboardStatCard(
                     icon: AppIcons.statusRejected,
                     label: 'Needs Rework',
                     value: '${data.failedCount}',
@@ -289,63 +290,6 @@ class _DashboardContent extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _StatCard extends StatelessWidget {
-  const _StatCard({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.accentColor,
-  });
-
-  final IconData icon;
-  final String label;
-  final String value;
-  final Color accentColor;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return GlassCard(
-      padding: const EdgeInsets.all(AppSpacing.sm),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: AppIconSize.lg,
-            height: AppIconSize.lg,
-            decoration: BoxDecoration(
-              color: accentColor.withValues(alpha: 0.12),
-              borderRadius: AppRadius.allSm,
-            ),
-            child: Icon(
-              icon,
-              size: AppIconSize.sm + 2,
-              color: AppSemanticColors.of(context).foregroundFor(accentColor),
-            ),
-          ),
-          const Spacer(),
-          Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: textTheme.headlineSmall,
-          ),
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: textTheme.bodySmall?.copyWith(
-              color: colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ],
       ),
     );
   }

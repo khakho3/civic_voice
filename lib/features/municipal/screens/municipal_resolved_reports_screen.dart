@@ -13,6 +13,7 @@ import '../services/municipal_report_directory.dart';
 import '../../../widgets/glass_card.dart';
 import '../../../widgets/text_filter_chips.dart';
 import '../widgets/municipal_scaffold.dart';
+import '../widgets/municipal_report_heading.dart';
 import '../../../widgets/app_state_message.dart';
 
 /// MUN-008 — Resolved Reports.
@@ -515,26 +516,10 @@ class _ResolvedReportCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Text(
-                  report.referenceId,
-                  style: textTheme.bodySmall,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              _ClosedBadge(status: report.status),
-            ],
-          ),
-          const SizedBox(height: 2),
-          Text(
-            report.title,
-            style: textTheme.titleMedium,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+          MunicipalReportHeading(
+            title: report.title,
+            referenceId: report.referenceId,
+            status: report.status,
           ),
           const SizedBox(height: AppSpacing.xs),
           Row(
@@ -606,38 +591,6 @@ class _ResolvedReportCard extends StatelessWidget {
                 color: AppSemanticColors.of(context).actionText,
               ),
             ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ClosedBadge extends StatelessWidget {
-  const _ClosedBadge({required this.status});
-
-  final ReportStatus status;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-      decoration: BoxDecoration(
-        color: status.color.withValues(alpha: 0.12),
-        border: Border.all(color: status.color.withValues(alpha: 0.24)),
-        borderRadius: AppRadius.allXl,
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(status.icon, size: AppIconSize.sm, color: status.color),
-          const SizedBox(width: 4),
-          Text(
-            status.label,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: status.color,
-              fontWeight: AppFontWeight.semiBold,
-            ),
           ),
         ],
       ),

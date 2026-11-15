@@ -13,8 +13,8 @@ import '../services/municipal_report_directory.dart';
 import '../../../widgets/glass_card.dart';
 import '../../../widgets/text_filter_chips.dart';
 import '../widgets/municipal_scaffold.dart';
+import '../widgets/municipal_report_heading.dart';
 import '../../../widgets/app_state_message.dart';
-import '../../../widgets/status_badge.dart';
 
 /// MUN-006 — Active Reports.
 ///
@@ -481,27 +481,10 @@ class _ActiveReportCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(report.referenceId, style: textTheme.bodySmall),
-                    const SizedBox(height: 2),
-                    Text(
-                      report.title,
-                      style: textTheme.titleMedium,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Flexible(child: ReportStatusBadge(status: report.status)),
-            ],
+          MunicipalReportHeading(
+            title: report.title,
+            referenceId: report.referenceId,
+            status: report.status,
           ),
           const SizedBox(height: AppSpacing.xs),
           Row(
