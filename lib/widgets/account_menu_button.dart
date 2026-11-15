@@ -34,9 +34,15 @@ Future<void> _confirmLogout(
 
 /// Account actions retain the shared native popup positioning and motion.
 class AccountMenuButton extends StatefulWidget {
-  const AccountMenuButton({super.key, this.onProfile, this.onSignOut});
+  const AccountMenuButton({
+    super.key,
+    this.onProfile,
+    this.onSignOut,
+    this.showProfile = true,
+  });
   final VoidCallback? onProfile;
   final Future<void> Function(BuildContext)? onSignOut;
+  final bool showProfile;
   @override
   State<AccountMenuButton> createState() => _AccountMenuButtonState();
 }
@@ -67,17 +73,18 @@ class _AccountMenuButtonState extends State<AccountMenuButton> {
         }
       },
       itemBuilder: (context) => [
-        PopupMenuItem(
-          value: 'profile',
-          enabled: widget.onProfile != null,
-          child: const Row(
-            children: [
-              Icon(AppIcons.profile),
-              SizedBox(width: AppSpacing.sm),
-              Text('Profile'),
-            ],
+        if (widget.showProfile)
+          PopupMenuItem(
+            value: 'profile',
+            enabled: widget.onProfile != null,
+            child: const Row(
+              children: [
+                Icon(AppIcons.profile),
+                SizedBox(width: AppSpacing.sm),
+                Text('Profile'),
+              ],
+            ),
           ),
-        ),
         PopupMenuItem(
           value: 'logout',
           child: Row(

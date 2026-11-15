@@ -234,6 +234,9 @@ class AdminScaffold extends StatelessWidget {
                 onOpenProfile: onOpenProfile,
                 onBack: onBack,
                 titleOverride: headerTitle,
+                showAccountMenu:
+                    activeDrawerDestination !=
+                    AdminDrawerDestination.adminProfile,
               ),
             ),
             if (!keyboardVisible && !hideBottomNav)
@@ -258,6 +261,7 @@ class _Header extends StatelessWidget {
     this.onOpenProfile,
     this.onBack,
     this.titleOverride,
+    required this.showAccountMenu,
   });
 
   final AdminTab? tab;
@@ -265,6 +269,7 @@ class _Header extends StatelessWidget {
   final VoidCallback? onOpenProfile;
   final VoidCallback? onBack;
   final String? titleOverride;
+  final bool showAccountMenu;
 
   @override
   Widget build(BuildContext context) {
@@ -372,7 +377,8 @@ class _Header extends StatelessWidget {
                                 overflow: TextOverflow.ellipsis,
                               ),
                       ),
-                      if (onBack == null) _ProfileButton(onTap: onOpenProfile),
+                      if (showAccountMenu && onBack == null)
+                        _ProfileButton(onTap: onOpenProfile),
                     ],
                   ),
           ),
