@@ -74,7 +74,6 @@ import 'features/ministry/screens/ministry_report_insights_screen.dart';
 import 'features/ministry/screens/ministry_reports_screen.dart';
 import 'features/ministry/services/ministry_data_directory.dart';
 import 'features/ministry/services/ministry_session.dart';
-import 'features/maintenance/models/maintenance_task.dart';
 import 'features/maintenance/screens/assigned_tasks_screen.dart'
     as maintenance_tasks;
 import 'features/maintenance/screens/dashboard_screen.dart'
@@ -90,6 +89,7 @@ import 'features/maintenance/screens/update_progress_screen.dart'
     as maintenance_progress;
 import 'features/maintenance/services/maintenance_task_directory.dart';
 import 'features/maintenance/services/maintenance_session.dart';
+import 'features/maintenance/widgets/maintenance_task_access.dart';
 import 'features/municipal/models/incoming_report.dart';
 import 'features/municipal/models/dashboard_data.dart';
 import 'features/municipal/models/resolved_report.dart';
@@ -1006,21 +1006,21 @@ class _CivicVoiceAppState extends State<CivicVoiceApp>
               AppRoutes.maintenanceTaskDetails: (context) =>
                   _maintenanceTaskDetails(
                     context,
-                    _maintenanceTaskFromSettings(
+                    _maintenanceTaskIdFromSettings(
                       ModalRoute.of(context)?.settings,
                     ),
                   ),
               AppRoutes.maintenanceUpdateProgress: (context) =>
                   _maintenanceUpdateProgress(
                     context,
-                    _maintenanceTaskFromSettings(
+                    _maintenanceTaskIdFromSettings(
                       ModalRoute.of(context)?.settings,
                     ),
                   ),
               AppRoutes.maintenanceTaskCompleted: (context) =>
                   _maintenanceTaskCompleted(
                     context,
-                    _maintenanceTaskFromSettings(
+                    _maintenanceTaskIdFromSettings(
                       ModalRoute.of(context)?.settings,
                     ),
                   ),
@@ -1128,7 +1128,7 @@ class _CivicVoiceAppState extends State<CivicVoiceApp>
                   settings: settings,
                   builder: (context) => _maintenanceTaskDetails(
                     context,
-                    _maintenanceTaskFromSettings(settings),
+                    _maintenanceTaskIdFromSettings(settings),
                   ),
                 );
               }
@@ -1137,7 +1137,7 @@ class _CivicVoiceAppState extends State<CivicVoiceApp>
                   settings: settings,
                   builder: (context) => _maintenanceUpdateProgress(
                     context,
-                    _maintenanceTaskFromSettings(settings),
+                    _maintenanceTaskIdFromSettings(settings),
                   ),
                 );
               }
@@ -1146,7 +1146,7 @@ class _CivicVoiceAppState extends State<CivicVoiceApp>
                   settings: settings,
                   builder: (context) => _maintenanceTaskCompleted(
                     context,
-                    _maintenanceTaskFromSettings(settings),
+                    _maintenanceTaskIdFromSettings(settings),
                   ),
                 );
               }
@@ -3132,63 +3132,60 @@ Widget _maintenanceAssignedTasks(BuildContext context) {
   );
 }
 
-Widget _maintenanceTaskDetails(BuildContext context, MaintenanceTask? task) {
-  if (task == null) {
-    return _missingRouteRecord(
-      context,
-      title: 'Task not found',
-      returnRoute: AppRoutes.maintenanceAssignedTasks,
-    );
-  }
-  return maintenance_details.TaskDetailsScreen(
-    task: task,
-    onBack: () => Navigator.of(context).maybePop(),
-    onUpdateProgress: () => _pushMaintenanceUpdateProgress(context, task.id),
+Widget _maintenanceTaskDetails(BuildContext context, String? taskId) {
+  return MaintenanceTaskAccess(
+    taskId: taskId,
+    onBack: () =>
+        _popOrReplaceWith(context, AppRoutes.maintenanceAssignedTasks),
+    builder: (context, task) => maintenance_details.TaskDetailsScreen(
+      task: task,
+      onBack: () =>
+          _popOrReplaceWith(context, AppRoutes.maintenanceAssignedTasks),
+      onUpdateProgress: () => _pushMaintenanceUpdateProgress(context, task.id),
+    ),
   );
 }
 
-Widget _maintenanceUpdateProgress(BuildContext context, MaintenanceTask? task) {
-  if (task == null) {
-    return _missingRouteRecord(
-      context,
-      title: 'Task not found',
-      returnRoute: AppRoutes.maintenanceAssignedTasks,
-    );
-  }
-  return maintenance_progress.UpdateProgressScreen(
-    task: task,
-    onBack: () => Navigator.of(context).maybePop(),
-    onTaskCompleted: (taskId) => _pushMaintenanceTaskCompleted(context, taskId),
+Widget _maintenanceUpdateProgress(BuildContext context, String? taskId) {
+  return MaintenanceTaskAccess(
+    taskId: taskId,
+    onBack: () =>
+        _popOrReplaceWith(context, AppRoutes.maintenanceAssignedTasks),
+    builder: (context, task) => maintenance_progress.UpdateProgressScreen(
+      task: task,
+      onBack: () =>
+          _popOrReplaceWith(context, AppRoutes.maintenanceAssignedTasks),
+      onTaskCompleted: (taskId) =>
+          _pushMaintenanceTaskCompleted(context, taskId),
+    ),
   );
 }
 
-Widget _maintenanceTaskCompleted(BuildContext context, MaintenanceTask? task) {
-  if (task == null) {
-    return _missingRouteRecord(
-      context,
-      title: 'Task not found',
-      returnRoute: AppRoutes.maintenanceAssignedTasks,
-    );
-  }
-  return maintenance_completed.TaskCompletedScreen(
-    task: task,
-    onNavigateToDashboard: () {
-      var foundDetails = false;
-      Navigator.of(context).popUntil((route) {
-        foundDetails =
-            Uri.tryParse(route.settings.name ?? '')?.path ==
-            AppRoutes.maintenanceTaskDetails;
-        return foundDetails || route.isFirst;
-      });
-      if (!foundDetails) {
-        Navigator.of(context).pushReplacementNamed(
-          Uri(
-            path: AppRoutes.maintenanceTaskDetails,
-            queryParameters: {'taskId': task.id},
-          ).toString(),
-        );
-      }
-    },
+Widget _maintenanceTaskCompleted(BuildContext context, String? taskId) {
+  return MaintenanceTaskAccess(
+    taskId: taskId,
+    onBack: () =>
+        _popOrReplaceWith(context, AppRoutes.maintenanceAssignedTasks),
+    builder: (context, task) => maintenance_completed.TaskCompletedScreen(
+      task: task,
+      onNavigateToDashboard: () {
+        var foundDetails = false;
+        Navigator.of(context).popUntil((route) {
+          foundDetails =
+              Uri.tryParse(route.settings.name ?? '')?.path ==
+              AppRoutes.maintenanceTaskDetails;
+          return foundDetails || route.isFirst;
+        });
+        if (!foundDetails) {
+          Navigator.of(context).pushReplacementNamed(
+            Uri(
+              path: AppRoutes.maintenanceTaskDetails,
+              queryParameters: {'taskId': task.id},
+            ).toString(),
+          );
+        }
+      },
+    ),
   );
 }
 
@@ -3259,14 +3256,12 @@ void _pushMaintenanceTaskCompleted(BuildContext context, String taskId) {
   Navigator.of(context).pushReplacementNamed(route);
 }
 
-MaintenanceTask? _maintenanceTaskFromSettings(RouteSettings? settings) {
-  final tasks = MaintenanceTaskDirectory.instance.tasks.value;
+String? _maintenanceTaskIdFromSettings(RouteSettings? settings) {
   final uri = Uri.tryParse(settings?.name ?? '');
   final taskId = uri?.queryParameters['taskId'];
-  if (taskId != null) {
-    for (final task in tasks) {
-      if (task.id == taskId) return task;
-    }
-  }
-  return tasks.isEmpty ? null : tasks.first;
+  if (taskId != null) return taskId;
+  // Bare routes are supported only by the offline design previews.
+  if (Firebase.apps.isNotEmpty) return null;
+  final tasks = MaintenanceTaskDirectory.instance.tasks.value;
+  return tasks.isEmpty ? null : tasks.first.id;
 }

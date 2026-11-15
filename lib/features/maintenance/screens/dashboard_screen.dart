@@ -10,6 +10,7 @@ import '../models/maintenance_task.dart';
 import '../services/maintenance_task_directory.dart';
 import '../services/maintenance_session.dart';
 import '../widgets/maintenance_scaffold.dart';
+import '../widgets/maintenance_assignment_notice.dart';
 
 /// MNT-001 — Maintenance Team Dashboard.
 class DashboardScreen extends StatefulWidget {
@@ -65,6 +66,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             MaintenanceTaskDirectory.instance.tasks,
             MaintenanceTaskDirectory.instance.loading,
             MaintenanceTaskDirectory.instance.error,
+            MaintenanceTaskDirectory.instance.profile,
           ]),
           builder: (context, _) => _buildBody(
             context,
@@ -105,7 +107,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (MaintenanceTaskDirectory.instance.error.value != null) {
       return _ErrorView(onRetry: _reload);
     }
-    switch (_state) {
+    switch (MaintenanceTaskDirectory.instance.unassigned
+        ? AppScreenState.success
+        : _state) {
       case AppScreenState.loading:
         return loading;
       case AppScreenState.empty:
@@ -118,12 +122,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
         return const _PermissionView();
       case AppScreenState.disabled:
       case AppScreenState.success:
-        final dashboardData = _MaintenanceDashboardData.fromTasks(tasks);
+        final unassigned = MaintenanceTaskDirectory.instance.unassigned;
+        final dashboardData = _MaintenanceDashboardData.fromTasks(
+          unassigned ? [] : tasks,
+        );
         return _DashboardContent(
           data: dashboardData,
           disabled: _state == AppScreenState.disabled,
           onViewAllTasks: widget.onNavigateToTasks,
           onOpenTaskDetails: widget.onOpenTaskDetails,
+          unassigned: unassigned,
+          onRetry: _reload,
         );
     }
   }
@@ -135,12 +144,16 @@ class _DashboardContent extends StatelessWidget {
     required this.disabled,
     required this.onViewAllTasks,
     required this.onOpenTaskDetails,
+    required this.unassigned,
+    required this.onRetry,
   });
 
   final _MaintenanceDashboardData data;
   final bool disabled;
   final VoidCallback? onViewAllTasks;
   final ValueChanged<String>? onOpenTaskDetails;
+  final bool unassigned;
+  final Future<void> Function() onRetry;
 
   @override
   Widget build(BuildContext context) {
@@ -191,6 +204,10 @@ class _DashboardContent extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: AppSpacing.xl),
+              if (unassigned) ...[
+                MaintenanceAssignmentNotice(onRetry: onRetry),
+                const SizedBox(height: AppSpacing.md),
+              ],
               GridView(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
@@ -253,6 +270,11 @@ class _DashboardContent extends StatelessWidget {
                   ),
                 ],
               ),
+              if (unassigned)
+                Text(
+                  'Assigned work will appear after you join a team.',
+                  style: textTheme.bodyMedium,
+                ),
               ...data.scheduledTasks.map(
                 (task) => Padding(
                   padding: const EdgeInsets.only(bottom: AppSpacing.sm),

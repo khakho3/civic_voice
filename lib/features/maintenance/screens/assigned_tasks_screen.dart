@@ -11,6 +11,7 @@ import '../../../widgets/status_badge.dart';
 import '../models/maintenance_task.dart';
 import '../services/maintenance_task_directory.dart';
 import '../widgets/maintenance_scaffold.dart';
+import '../widgets/maintenance_assignment_notice.dart';
 
 /// MNT-002 — Maintenance Team Assigned Tasks.
 class AssignedTasksScreen extends StatefulWidget {
@@ -69,6 +70,7 @@ class _AssignedTasksScreenState extends State<AssignedTasksScreen> {
             MaintenanceTaskDirectory.instance.tasks,
             MaintenanceTaskDirectory.instance.loading,
             MaintenanceTaskDirectory.instance.error,
+            MaintenanceTaskDirectory.instance.profile,
           ]),
           builder: (context, _) => _buildBody(
             context,
@@ -104,6 +106,19 @@ class _AssignedTasksScreenState extends State<AssignedTasksScreen> {
     }
     if (MaintenanceTaskDirectory.instance.error.value != null) {
       return _ErrorView(onRetry: _reload);
+    }
+    if (MaintenanceTaskDirectory.instance.unassigned) {
+      final inset = MaintenanceScaffold.contentPadding(context);
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: EdgeInsets.fromLTRB(
+          AppSpacing.md,
+          inset.top + AppSpacing.md,
+          AppSpacing.md,
+          inset.bottom + AppSpacing.md,
+        ),
+        children: [MaintenanceAssignmentNotice(onRetry: _reload)],
+      );
     }
     switch (_state) {
       case AppScreenState.loading:

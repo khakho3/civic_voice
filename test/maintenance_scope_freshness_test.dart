@@ -227,6 +227,95 @@ void main() {
       },
     );
 
+    for (final team in <String?>[null, '', '   ']) {
+      test(
+        'missing membership ($team) skips task reads and recovers after assignment',
+        () async {
+          current = user(team: team);
+          var reads = 0;
+          fetch = () async {
+            reads++;
+            return [report('TEAM-B')];
+          };
+          await directory.refresh();
+          expect(reads, 0);
+          expect(directory.unassigned, isTrue);
+          expect(directory.hasLiveSnapshot, isTrue);
+          expect(directory.tasks.value, isEmpty);
+          expect(directory.error.value, isNull);
+          current = user(team: 'TEAM-B');
+          await directory.refresh();
+          expect(reads, 1);
+          expect(directory.unassigned, isFalse);
+          expect(directory.tasks.value.single.teamId, 'TEAM-B');
+        },
+      );
+    }
+
+    test('task responses retain only the verified team scope', () async {
+      fetch = () async => [
+        report('TEAM-A'),
+        {...report('TEAM-B'), 'id': 'foreign'},
+      ];
+      await directory.refresh();
+      expect(directory.tasks.value, hasLength(1));
+      expect(directory.tasks.value.single.teamId, 'TEAM-A');
+    });
+
+    for (final status in [401, 403, 503]) {
+      test(
+        'task read failure $status clears denied work and retains transient snapshots',
+        () async {
+          await directory.refresh();
+          fetch = () async => throw ApiException(
+            statusCode: status,
+            message: 'Fixture failure',
+          );
+          await expectLater(directory.refresh(), throwsA(isA<ApiException>()));
+          expect(directory.error.value, isNotNull);
+          expect(directory.tasks.value.length, status == 503 ? 1 : 0);
+          expect(directory.hasLiveSnapshot, status == 503);
+        },
+      );
+    }
+
+    test(
+      'a real membership verification failure is not an empty success',
+      () async {
+        directory.dispose();
+        session.dispose();
+        var unavailable = true;
+        session = MaintenanceSession.forTesting(
+          owner: () => owner,
+          read: () async {
+            if (unavailable) {
+              throw ApiException(statusCode: 503, message: 'Fixture offline');
+            }
+            return user(team: null);
+          },
+        );
+        signIn(session, team: null);
+        var reads = 0;
+        directory = MaintenanceTaskDirectory.forTesting(
+          session: session,
+          owner: () => owner,
+          fetch: () async {
+            reads++;
+            return [];
+          },
+        );
+        await expectLater(directory.refresh(), throwsA(isA<ApiException>()));
+        expect(directory.error.value, isNotNull);
+        expect(directory.hasLiveSnapshot, isFalse);
+        expect(reads, 0);
+        unavailable = false;
+        await directory.refresh();
+        expect(directory.error.value, isNull);
+        expect(directory.hasLiveSnapshot, isTrue);
+        expect(directory.unassigned, isTrue);
+      },
+    );
+
     test(
       'a late task response cannot revive cards after a team move and return',
       () async {

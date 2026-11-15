@@ -6,6 +6,7 @@ import '../../../services/api_client.dart';
 import '../../admin/models/admin_maintenance_team_data.dart';
 import '../../admin/services/admin_maintenance_team_directory.dart';
 import '../models/maintenance_task.dart';
+import '../models/maintenance_profile.dart';
 import 'maintenance_session.dart';
 import 'maintenance_update_service.dart';
 
@@ -84,6 +85,22 @@ class MaintenanceTaskDirectory {
   final ValueNotifier<bool> loading = ValueNotifier(false);
   final ValueNotifier<String?> error = ValueNotifier(null);
   bool hasLiveSnapshot = false;
+  ValueListenable<MaintenanceProfile> get profile => _session.profile;
+  bool get isLive => _live();
+  int get scopeRevision => _scopeRevision;
+  bool get unassigned =>
+      _session.authenticated &&
+      _session.profile.value.publicId.isNotEmpty &&
+      !_session.profile.value.hasTeam;
+
+  bool canReadTask(MaintenanceTask task) =>
+      !unassigned &&
+      (!_live() ||
+          (_session.authenticated &&
+              _session.verifiedOwner != null &&
+              _session.verifiedOwner == _owner() &&
+              _session.profile.value.hasTeam &&
+              _session.profile.value.teamId == task.teamId));
   final _updates = MaintenanceUpdateService();
   int _sessionRevision = 0;
   int _refreshRevision = 0;
@@ -114,7 +131,7 @@ class MaintenanceTaskDirectory {
         return;
       }
       final scope = readScope = _scopeRevision;
-      if (_session.profile.value.teamId == null) {
+      if (!_session.profile.value.hasTeam) {
         tasks.value = const [];
         hasLiveSnapshot = true;
         return;
@@ -126,13 +143,21 @@ class MaintenanceTaskDirectory {
           owner != _owner()) {
         return;
       }
-      tasks.value = response.map(MaintenanceTask.fromApi).toList();
+      tasks.value = response
+          .map(MaintenanceTask.fromApi)
+          .where(canReadTask)
+          .toList();
       hasLiveSnapshot = true;
     } catch (exception) {
       if (revision == _sessionRevision &&
           refresh == _refreshRevision &&
           owner == _owner() &&
           (readScope == null || readScope == _scopeRevision)) {
+        if (exception is ApiException &&
+            (exception.statusCode == 401 || exception.statusCode == 403)) {
+          tasks.value = const [];
+          hasLiveSnapshot = false;
+        }
         error.value = exception.toString();
       }
       rethrow;
@@ -244,10 +269,7 @@ class MaintenanceTaskDirectory {
   bool canSubmitEvidence(MaintenanceTask task) {
     if (!task.needsEvidence) return false;
     if (!_live()) return true;
-    return _session.authenticated &&
-        _session.verifiedOwner != null &&
-        _session.verifiedOwner == _owner() &&
-        _session.profile.value.teamId == task.teamId;
+    return canReadTask(task);
   }
 
   @visibleForTesting

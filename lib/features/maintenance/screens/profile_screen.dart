@@ -19,6 +19,7 @@ import '../../../core/widgets/ghana_refresh_indicator.dart';
 import '../../admin/services/admin_maintenance_team_directory.dart';
 import '../models/maintenance_profile.dart';
 import '../services/maintenance_session.dart';
+import '../widgets/maintenance_assignment_notice.dart';
 import '../widgets/maintenance_scaffold.dart';
 
 /// MNT-007 — Maintenance Profile, on the shared grouped-list Profile system.
@@ -271,6 +272,11 @@ class _ProfileContent extends StatelessWidget {
             chromeInset.bottom + AppSpacing.md,
           ),
           children: [
+            if (MaintenanceSession.instance.authenticated &&
+                !profile.hasTeam) ...[
+              const MaintenanceAssignmentNotice(),
+              const SizedBox(height: AppSpacing.md),
+            ],
             if (refreshFailed) ...[
               const ProfileStatusBanner(
                 tone: ProfileBannerTone.warning,

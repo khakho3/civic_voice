@@ -19,6 +19,8 @@ class MaintenanceProfile {
   final String? teamName;
   final String? teamLeadUserId;
 
+  bool get hasTeam => teamId?.trim().isNotEmpty == true;
+
   String get firstName => fullName.trim().split(RegExp(r'\s+')).first;
 
   MaintenanceProfile copyWith({String? fullName}) {

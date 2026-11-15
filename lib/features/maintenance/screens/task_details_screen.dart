@@ -16,6 +16,7 @@ import '../../../widgets/status_badge.dart';
 import '../models/maintenance_task.dart';
 import '../widgets/returned_work_notice.dart';
 import '../services/maintenance_task_directory.dart';
+import '../widgets/maintenance_task_access.dart';
 
 /// MNT-003 — Maintenance Team Task Details.
 ///
@@ -612,12 +613,27 @@ class _ProblemLocationMapState extends State<_ProblemLocationMap> {
                   right: AppSpacing.md,
                   bottom: AppSpacing.md,
                   child: FilledButton.tonalIcon(
-                    onPressed: () => ReportLocationMapScreen.open(
-                      context,
-                      latitude: task.latitude,
-                      longitude: task.longitude,
-                      label: task.locationLabel,
-                    ),
+                    onPressed: () {
+                      if (!ReportLocationMapScreen.valid(
+                        task.latitude,
+                        task.longitude,
+                      )) {
+                        return;
+                      }
+                      Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => MaintenanceTaskAccess(
+                            taskId: task.id,
+                            onBack: () => Navigator.of(context).maybePop(),
+                            builder: (_, current) => ReportLocationMapScreen(
+                              latitude: current.latitude,
+                              longitude: current.longitude,
+                              label: current.locationLabel,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
                     icon: const Icon(AppIcons.navigate),
                     label: const Text('View Map'),
                   ),
